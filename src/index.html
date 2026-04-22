@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>XPIDER Browser</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app-container">
+        <!-- 커스텀 타이틀바 -->
+        <header id="title-bar">
+            <div class="drag-region">
+                <img src="assets/icon.png" class="app-logo">
+                <span class="app-title" data-i18n="app_title">XPIDER Browser</span>
+            </div>
+            <div class="window-controls">
+                <button id="min-btn" class="win-btn" title="Minimize">&#8211;</button>
+                <button id="max-btn" class="win-btn" title="Maximize">&#9633;</button>
+                <button id="close-btn" class="win-btn close" title="Close">&times;</button>
+            </div>
+        </header>
+
+        <div id="main-layout">
+            <div id="sidebar-opener" title="Show Sidebar"></div>
+            <!-- 오페라 스타일 좌측 사이드바 -->
+            <nav id="opera-sidebar">
+                <button id="add-btn" data-i18n-title="add_page" title="Add Page">+</button>
+                <div id="side-dock" class="extensions-controls">
+                    <!-- Buttons will be added here dynamically -->
+                </div>
+                <button id="toggle-sidebar-btn" data-i18n-title="hide_sidebar" title="Hide Sidebar">«</button>
+            </nav>
+
+            <div id="content-area">
+                <header id="browser-header">
+                    <div class="nav-controls">
+                        <button id="back-btn" data-i18n-title="back" title="Back">←</button>
+                        <button id="forward-btn" data-i18n-title="forward" title="Forward">→</button>
+                        <button id="reload-btn" data-i18n-title="reload" title="Reload">↻</button>
+                    </div>
+                    <div class="address-bar-container">
+                        <input type="text" id="address-bar" data-i18n-placeholder="placeholder_url" placeholder="Enter URL or search...">
+                        <div class="address-bar-btns">
+                            <button id="bookmark-btn" title="Bookmark">★</button>
+                            <button id="history-btn" title="History">🕒</button>
+                        </div>
+                    </div>
+                    <div id="browser-overlay-panel" class="hidden">
+                        <div class="panel-header">
+                            <button class="panel-tab active" data-tab="history" data-i18n="history_tab">History</button>
+                            <button class="panel-tab" data-tab="bookmarks" data-i18n="bookmarks_tab">Bookmarks</button>
+                        </div>
+                        <div id="panel-list" class="panel-list">
+                            <!-- Items will be populated by JS -->
+                        </div>
+                        <div class="panel-footer">
+                            <button id="clear-history-btn" data-i18n="clear_all">Clear All</button>
+                        </div>
+                    </div>
+                    <div class="settings-container">
+                        <button id="settings-btn" title="Settings">⚙</button>
+                        <div id="settings-menu" class="hidden">
+                            <div class="menu-item disabled" data-i18n="themes">Themes</div>
+                            <div class="theme-list">
+                                <button class="theme-opt dark" data-theme="theme-dark" title="Black"></button>
+                                <button class="theme-opt light" data-theme="theme-light" title="White"></button>
+                                <button class="theme-opt gold" data-theme="theme-gold" title="Luxury Gold"></button>
+                                <button class="theme-opt blue" data-theme="theme-blue" title="Sapphire Blue"></button>
+                                <button class="theme-opt pink" data-theme="theme-pink" title="Rose Pink"></button>
+                            </div>
+                            
+                            <div class="menu-item disabled separator" data-i18n="languages">Languages</div>
+                            <div class="lang-list">
+                                <button class="lang-opt" data-lang="ko" title="한국어">KO</button>
+                                <button class="lang-opt" data-lang="en" title="English">EN</button>
+                                <button class="lang-opt" data-lang="ja" title="日本語">JA</button>
+                                <button class="lang-opt" data-lang="zh" title="中文">ZH</button>
+                                <button class="lang-opt" data-lang="es" title="Español">ES</button>
+                                <button class="lang-opt" data-lang="fr" title="Français">FR</button>
+                                <button class="lang-opt" data-lang="de" title="Deutsch">DE</button>
+                                <button class="lang-opt" data-lang="ru" title="Русский">RU</button>
+                                <button class="lang-opt" data-lang="pt" title="Português">PT</button>
+                                <button class="lang-opt" data-lang="it" title="Italiano">IT</button>
+                                <button class="lang-opt" data-lang="vi" title="Tiếng Việt">VI</button>
+                                <div class="lang-opt" data-lang="th">ภาษาไทย</div>
+                            </div>
+
+                            <!-- 버전 및 업데이트 구역 -->
+                            <div class="version-section">
+                                <div class="version-info">
+                                    Version <span id="app-version">2.1.6</span>
+                                </div>
+                                <button id="check-update-btn" data-i18n="check_update">Check for Updates</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="status-indicators">
+                        <div id="update-notification" class="hidden">
+                            <span id="update-msg" data-i18n="update_available">Update available...</span>
+                            <button id="restart-btn" data-i18n="restart">Restart</button>
+                        </div>
+                    </div>
+                </header>
+
+                <main id="webview-container">
+                    <webview id="main-webview" src="start_page.html" autosize="on"></webview>
+                    <div id="side-panel" class="hidden">
+                        <webview id="extension-webview" autosize="on"></webview>
+                    </div>
+                </main>
+            </div>
+        </div>
+        <!-- 초기 언어 설정 온보딩 -->
+        <div id="lang-setup-overlay" class="hidden">
+            <div class="lang-setup-card">
+                <div class="lang-setup-header">
+                    <h1 data-i18n="languages">Select Your Language</h1>
+                    <p data-i18n="welcome_msg">Welcome to XPIDER Browser</p>
+                </div>
+                <div class="lang-grid">
+                    <div class="lang-btn" data-lang="ko">🇰🇷 한국어</div>
+                    <div class="lang-btn" data-lang="en">🇺🇸 English</div>
+                    <div class="lang-btn" data-lang="ja">🇯🇵 日本語</div>
+                    <div class="lang-btn" data-lang="zh">🇨🇳 中文</div>
+                    <div class="lang-btn" data-lang="es">🇪🇸 Español</div>
+                    <div class="lang-btn" data-lang="fr">🇫🇷 Français</div>
+                    <div class="lang-btn" data-lang="de">🇩🇪 Deutsch</div>
+                    <div class="lang-btn" data-lang="ru">🇷🇺 Русский</div>
+                    <div class="lang-btn" data-lang="pt">🇵🇹 Português</div>
+                    <div class="lang-btn" data-lang="it">🇮🇹 Italiano</div>
+                    <div class="lang-btn" data-lang="vi">🇻🇳 Tiếng Việt</div>
+                    <div class="lang-btn" data-lang="th">🇹🇭 ไทย</div>
+                </div>
+                <div class="lang-setup-footer">
+                    <label class="skip-today">
+                        <input type="checkbox" id="lang-dont-show">
+                        <span data-i18n="ob_dont_show">Don't show this again</span>
+                    </label>
+                    <button id="lang-save-btn" class="ob-btn" data-i18n="ob_close">Start Now</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 온보딩 하이라이트 오버레이 -->
+        <div id="onboarding-overlay" class="hidden">
+            <div id="onboarding-bubble" class="onboarding-bubble">
+                <div class="bubble-arrow"></div>
+                <div class="bubble-header">
+                    <h2 id="ob-title">App Title</h2>
+                    <span class="step-indicator">1 / 2</span>
+                </div>
+                <div class="bubble-body">
+                    <p id="ob-desc">Description text goes here.</p>
+                </div>
+                <div class="bubble-footer">
+                    <label class="skip-today">
+                        <input type="checkbox" id="ob-dont-show">
+                        <span data-i18n="ob_dont_show">Don't show this again</span>
+                    </label>
+                    <div class="bubble-actions">
+                        <button id="ob-next-btn" class="ob-btn" data-i18n="ob_next">Next</button>
+                        <button id="ob-close-btn" class="ob-btn secondary hidden" data-i18n="ob_close">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="lang.js"></script>
+    <script src="renderer_ui.js"></script>
+</body>
+</html>
