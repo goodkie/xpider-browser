@@ -108,8 +108,13 @@ ipcMain.handle('auth-check-session', async () => {
   return s || null;
 });
 
+// auth-success 중복 실행 방지 플래그
+let _authSuccessFired = false;
+
 ipcMain.on('auth-success', () => {
-  if (loginWindow) loginWindow.close();
+  if (_authSuccessFired) return;
+  _authSuccessFired = true;
+  if (loginWindow) { loginWindow.removeAllListeners('closed'); loginWindow.close(); loginWindow = null; }
   createWindow();
   // 메인 창 로드 후 앱 업데이트 확인
   setTimeout(() => checkAndNotifyAppUpdate(), 3000);
@@ -151,6 +156,10 @@ async function checkAndNotifyAppUpdate() {
   try {
     const result = await checkAppUpdate();
     if (mainWindow && !mainWindow.isDestroyed()) {
+      // 사용자가 이미 이 버전을 스킵했다면 팝업 안 띄움
+      if (result.hasUpdate) {
+        // renderer_ui.js에서 skipVersion 처리를 하므로 그냥 전송
+      }
       mainWindow.webContents.send('app-update-result', result);
     }
   } catch (e) {
@@ -167,13 +176,20 @@ ipcMain.on('open-release-url', (_, url) => {
   if (url) shell.openExternal(url);
 });
 
-// ─── 익스텐션 IPC ─────────────────────────────────────────────
+// 익스텐션 재로드 IPC
 ipcMain.on('reload-extensions', async () => {
   loadedExtensionsInfo = await loadExtensions();
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('extensions_loaded', loadedExtensionsInfo);
   }
 });
+
+// 익스텐션 진행 상황을 renderer에 전달하는 헬퍼
+function sendExtProgress(msg) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('ext-sync-progress', msg);
+  }
+}
 
 // ─── 익스텐션 로드 시스템 ─────────────────────────────────────
 const { syncExtensionsFromGitHub } = require('./updater');
@@ -208,10 +224,17 @@ async function loadExtensions() {
     // 1. 개발모드: 로컬 소스 동기화
     syncLocalExtensions(extDir);
 
-    // 2. GitHub에서 최신 익스텐션 동기화 (항상 실행)
-    const updatedExts = await syncExtensionsFromGitHub(extDir);
+    // 2. GitHub에서 최신 익스텐션 강제 동기화 + 진행 메시지
+    sendExtProgress('🔄 GitHub에서 익스텐션 목록을 확인하는 중...');
+    const updatedExts = await syncExtensionsFromGitHub(extDir, (msg) => {
+      sendExtProgress(msg);
+      log.info('[Extensions]', msg);
+    });
     if (updatedExts.length > 0) {
+      sendExtProgress(`✅ 업데이트 완료: ${updatedExts.join(', ')}`);
       log.info(`[Extensions] Updated from GitHub: ${updatedExts.join(', ')}`);
+    } else {
+      sendExtProgress('✅ 모든 익스텐션이 최신 상태입니다.');
     }
 
     // 3. 로컬 폴더 스캔 → 브라우저에 로드

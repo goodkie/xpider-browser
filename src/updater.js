@@ -105,17 +105,20 @@ async function checkAppUpdate() {
  * @param {string} extDir  로컬 익스텐션 폴더 경로
  * @returns {string[]}     업데이트된 익스텐션 이름 목록
  */
-async function syncExtensionsFromGitHub(extDir) {
+async function syncExtensionsFromGitHub(extDir, onProgress) {
+  const progress = (msg) => { if (typeof onProgress === 'function') onProgress(msg); };
   const updated = [];
   try {
     // extensions/ 폴더 목록 가져오기
     const res = await githubGet(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/extensions`);
     if (res.status !== 200 || !Array.isArray(res.body)) {
       console.warn('[Updater] Cannot list extensions from GitHub');
+      progress('⚠️ GitHub에서 익스텐션 목록을 가져올 수 없습니다.');
       return updated;
     }
 
     const extFolders = res.body.filter(item => item.type === 'dir');
+    progress(`📦 총 ${extFolders.length}개 익스텐션 확인 중...`);
 
     for (const folder of extFolders) {
       const extName = folder.name;
@@ -132,7 +135,7 @@ async function syncExtensionsFromGitHub(extDir) {
         );
         const remoteVersion = remoteManifest.version || '0.0.0';
 
-        // 로컬 버전 확인
+        // 로친 버전 확인
         const localManifestPath = path.join(extDir, extName, 'manifest.json');
         let localVersion = '0.0.0';
         if (fs.existsSync(localManifestPath)) {
@@ -142,22 +145,23 @@ async function syncExtensionsFromGitHub(extDir) {
           } catch (_) {}
         }
 
-        const needsUpdate = !fs.existsSync(path.join(extDir, extName)) ||
-                            compareVersions(remoteVersion, localVersion) > 0;
+        // 사용자의 요청에 따라 버전 비교 없이 무조건 강제 업데이트
+        const needsUpdate = true;
 
         if (needsUpdate) {
-          console.log(`[Updater] Updating extension: ${extName} ${localVersion} → ${remoteVersion}`);
+          progress(`⏬ ${extName} 다운로드 중... (v${localVersion} → v${remoteVersion})`);
           await downloadAndInstallExtension(extName, extDir);
           updated.push(extName);
-        } else {
-          console.log(`[Updater] Extension up-to-date: ${extName} v${localVersion}`);
+          progress(`✅ ${extName} 설치/업데이트 완료 (v${remoteVersion})`);
         }
       } catch (e) {
         console.error(`[Updater] Extension ${extName} error:`, e.message);
+        progress(`❌ ${extName} 업데이트 실패: ${e.message}`);
       }
     }
   } catch (e) {
     console.error('[Updater] syncExtensions error:', e.message);
+    progress(`❌ 동기화 오류: ${e.message}`);
   }
   return updated;
 }

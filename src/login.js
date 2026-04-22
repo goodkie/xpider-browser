@@ -15,21 +15,43 @@
   const btnLogin   = document.getElementById('btn-login');
   const btnSignup  = document.getElementById('btn-signup');
 
-  // ─── 저장된 이메일 복원 (Remember Me) ────────────────────
+  // ─── 저장된 이메일/패스워드 복원 (Remember Me) ───────────
   const savedEmail = localStorage.getItem('xpider-saved-email');
+  const savedPw    = localStorage.getItem('xpider-saved-pw');
   if (savedEmail) {
     const emailField = document.getElementById('login-email');
     if (emailField) emailField.value = savedEmail;
     const rememberBox = document.getElementById('remember-me');
     if (rememberBox) rememberBox.checked = true;
   }
+  if (savedPw) {
+    const pwField = document.getElementById('login-password');
+    if (pwField) pwField.value = savedPw;
+  }
 
   // ─── 자동 로그인 확인 ─────────────────────────────────
+  // 세션이 있으면 바로 진입, 없으면 저장된 이메일/패스워드로 자동 로그인 시도
   (async () => {
     const session = await window.authAPI.checkSession();
     if (session) {
       showMsg('자동 로그인 중...', 'info');
       setTimeout(() => window.authAPI.success(), 600);
+      return;
+    }
+
+    // 저장된 이메일+패스워드가 있으면 자동 로그인 시도
+    if (savedEmail && savedPw) {
+      showMsg('저장된 계정으로 로그인 중...', 'info');
+      const res = await window.authAPI.login(savedEmail, savedPw);
+      if (res.success) {
+        showMsg('로그인 성공! 브라우저를 시작합니다...', 'success');
+        setTimeout(() => window.authAPI.success(), 800);
+      } else {
+        hideMsg();
+        // 저장된 패스워드가 잘못된 경우 지움
+        localStorage.removeItem('xpider-saved-pw');
+        document.getElementById('login-password').value = '';
+      }
     }
   })();
 
@@ -83,12 +105,14 @@
     setLoading(btnLogin, false);
 
     if (res.success) {
-      // Remember Me: 이메일 저장
+      // Remember Me: 이메일과 패스워드 저장
       const rememberMe = document.getElementById('remember-me')?.checked;
       if (rememberMe) {
         localStorage.setItem('xpider-saved-email', email);
+        localStorage.setItem('xpider-saved-pw', pw);
       } else {
         localStorage.removeItem('xpider-saved-email');
+        localStorage.removeItem('xpider-saved-pw');
       }
       showMsg('로그인 성공! 브라우저를 시작합니다...', 'success');
       setTimeout(() => window.authAPI.success(), 800);

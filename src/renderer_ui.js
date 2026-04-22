@@ -129,6 +129,12 @@ window.electronAPI.on('app-update-result', (result) => {
     if (!result) return;
 
     if (result.hasUpdate) {
+        // 사용자가 이미 이 버전을 스킵했는지 확인
+        const skippedVersion = localStorage.getItem('xpider-skip-version');
+        if (skippedVersion === result.latestVersion) {
+            console.log('[Update] 스킵된 버전:', result.latestVersion);
+            return;
+        }
         // 모달 표시
         if (modalCurrentVer) modalCurrentVer.textContent = result.currentVersion || '';
         if (modalLatestVer)  modalLatestVer.textContent  = result.latestVersion  || '';
@@ -149,7 +155,12 @@ modalUpdateBtn.onclick = () => {
     window.electronAPI.send('open-release-url', _releaseUrl);
     updateModal.classList.add('hidden');
 };
-modalSkipBtn.onclick = () => updateModal.classList.add('hidden');
+// '나중에' 누르면 현재 최신 버전을 스킵 버전으로 저장 (다음 실행 시 안 뜨움)
+modalSkipBtn.onclick = () => {
+    const latestVer = modalLatestVer ? modalLatestVer.textContent : '';
+    if (latestVer) localStorage.setItem('xpider-skip-version', latestVer);
+    updateModal.classList.add('hidden');
+};
 updateModal.onclick = (e) => { if (e.target === updateModal) updateModal.classList.add('hidden'); };
 
 // ─── Check for Updates 버튼 ───────────────────────────────────
@@ -166,6 +177,11 @@ function showToast(msg, duration = 3000) {
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => updateToast.classList.add('hidden'), duration);
 }
+
+// ─── 익스텐션 업데이트 진행 메시지 표시 ─────────────────────────
+window.electronAPI.on('ext-sync-progress', (msg) => {
+    showToast('📦 ' + msg, 4000);
+});
 
 // ─── 온보딩 ───────────────────────────────────────────────────
 const langSetupOverlay = document.getElementById('lang-setup-overlay');

@@ -14,7 +14,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   on: (channel, func) => {
     const allowed = [
       'extensions_loaded', 'profile_id', 'app_version',
-      'app-update-result'
+      'app-update-result', 'ext-sync-progress'
     ];
     if (allowed.includes(channel)) {
       ipcRenderer.on(channel, (_, ...args) => func(...args));
