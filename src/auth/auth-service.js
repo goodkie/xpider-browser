@@ -120,9 +120,14 @@ function saveSession(session) {
   try {
     if (!session) return;
     const json = JSON.stringify(session);
-    const data = safeStorage.isEncryptionAvailable()
-      ? safeStorage.encryptString(json)
-      : Buffer.from(json, 'utf-8');
+    let data;
+    try {
+      data = safeStorage.isEncryptionAvailable()
+        ? safeStorage.encryptString(json)
+        : Buffer.from(json, 'utf-8');
+    } catch(e) {
+      data = Buffer.from(json, 'utf-8');
+    }
     fs.writeFileSync(getSessionFile(), data);
   } catch (e) {
     console.error('Session save error:', e);
@@ -135,10 +140,19 @@ async function getSession() {
     const file = getSessionFile();
     if (!fs.existsSync(file)) return null;
 
-    const encrypted = fs.readFileSync(file);
-    const json = safeStorage.isEncryptionAvailable()
-      ? safeStorage.decryptString(encrypted)
-      : encrypted.toString('utf-8');
+    const fileBuffer = fs.readFileSync(file);
+    let json = '';
+
+    try {
+      if (safeStorage.isEncryptionAvailable()) {
+         json = safeStorage.decryptString(fileBuffer);
+      } else {
+         json = fileBuffer.toString('utf-8');
+      }
+    } catch(err) {
+      json = fileBuffer.toString('utf-8');
+    }
+
     const saved = JSON.parse(json);
 
     const { data, error } = await supabase.auth.setSession(saved);

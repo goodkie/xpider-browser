@@ -26,30 +26,6 @@ let loginWindow  = null;
 let mainWindow   = null;
 let loadedExtensionsInfo = [];
 
-// ─── 스플래시 창 ──────────────────────────────────────────────
-function createSplashWindow() {
-  splashWindow = new BrowserWindow({
-    width: 320,
-    height: 320,
-    frame: false,
-    transparent: true,
-    resizable: false,
-    center: true,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    icon: ICON_PNG,
-    webPreferences: { nodeIntegration: false, contextIsolation: true }
-  });
-  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
-  splashWindow.once('ready-to-show', () => splashWindow.show());
-}
-
-function closeSplash() {
-  if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.close();
-    splashWindow = null;
-  }
-}
 
 // ─── 로그인 창 ───────────────────────────────────────────────
 function createLoginWindow() {
@@ -71,7 +47,6 @@ function createLoginWindow() {
   });
   loginWindow.loadFile(path.join(__dirname, 'login.html'));
   loginWindow.once('ready-to-show', () => {
-    closeSplash();
     loginWindow.show();
   });
   loginWindow.on('closed', () => { loginWindow = null; });
@@ -281,17 +256,8 @@ async function loadExtensions() {
 
 // ─── 앱 시작 ──────────────────────────────────────────────────
 app.whenReady().then(async () => {
-  // 1. 스플래시 먼저 표시
-  createSplashWindow();
-
-  // 2. 백그라운드에서 익스텐션 로드 (GitHub 동기화 포함)
-  const extPromise = loadExtensions().then(info => { loadedExtensionsInfo = info; });
-
-  // 3. 최소 1.5초 스플래시 표시 후 로그인 창으로
-  await Promise.all([
-    extPromise,
-    new Promise(resolve => setTimeout(resolve, 1500))
-  ]);
+  // 백그라운드에서 익스텐션 로드 (GitHub 동기화 포함)
+  await loadExtensions().then(info => { loadedExtensionsInfo = info; });
 
   createLoginWindow();
 
