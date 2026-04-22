@@ -15,6 +15,15 @@
   const btnLogin   = document.getElementById('btn-login');
   const btnSignup  = document.getElementById('btn-signup');
 
+  // ─── 저장된 이메일 복원 (Remember Me) ────────────────────
+  const savedEmail = localStorage.getItem('xpider-saved-email');
+  if (savedEmail) {
+    const emailField = document.getElementById('login-email');
+    if (emailField) emailField.value = savedEmail;
+    const rememberBox = document.getElementById('remember-me');
+    if (rememberBox) rememberBox.checked = true;
+  }
+
   // ─── 자동 로그인 확인 ─────────────────────────────────
   (async () => {
     const session = await window.authAPI.checkSession();
@@ -23,6 +32,7 @@
       setTimeout(() => window.authAPI.success(), 600);
     }
   })();
+
 
   // ─── 탭 전환 ──────────────────────────────────────────
   tabs.forEach(tab => {
@@ -73,6 +83,13 @@
     setLoading(btnLogin, false);
 
     if (res.success) {
+      // Remember Me: 이메일 저장
+      const rememberMe = document.getElementById('remember-me')?.checked;
+      if (rememberMe) {
+        localStorage.setItem('xpider-saved-email', email);
+      } else {
+        localStorage.removeItem('xpider-saved-email');
+      }
       showMsg('로그인 성공! 브라우저를 시작합니다...', 'success');
       setTimeout(() => window.authAPI.success(), 800);
     } else {

@@ -22,11 +22,11 @@
 
         <div id="main-layout">
             <div id="sidebar-opener" title="Show Sidebar"></div>
-            <!-- 오페라 스타일 좌측 사이드바 -->
+            <!-- 좌측 사이드바 -->
             <nav id="opera-sidebar">
                 <button id="add-btn" data-i18n-title="add_page" title="Add Page">+</button>
                 <div id="side-dock" class="extensions-controls">
-                    <!-- Buttons will be added here dynamically -->
+                    <!-- 익스텐션 버튼이 동적으로 추가됨 -->
                 </div>
                 <button id="toggle-sidebar-btn" data-i18n-title="hide_sidebar" title="Hide Sidebar">«</button>
             </nav>
@@ -50,9 +50,7 @@
                             <button class="panel-tab active" data-tab="history" data-i18n="history_tab">History</button>
                             <button class="panel-tab" data-tab="bookmarks" data-i18n="bookmarks_tab">Bookmarks</button>
                         </div>
-                        <div id="panel-list" class="panel-list">
-                            <!-- Items will be populated by JS -->
-                        </div>
+                        <div id="panel-list" class="panel-list"></div>
                         <div class="panel-footer">
                             <button id="clear-history-btn" data-i18n="clear_all">Clear All</button>
                         </div>
@@ -68,7 +66,6 @@
                                 <button class="theme-opt blue" data-theme="theme-blue" title="Sapphire Blue"></button>
                                 <button class="theme-opt pink" data-theme="theme-pink" title="Rose Pink"></button>
                             </div>
-                            
                             <div class="menu-item disabled separator" data-i18n="languages">Languages</div>
                             <div class="lang-list">
                                 <button class="lang-opt" data-lang="ko" title="한국어">KO</button>
@@ -84,20 +81,17 @@
                                 <button class="lang-opt" data-lang="vi" title="Tiếng Việt">VI</button>
                                 <div class="lang-opt" data-lang="th">ภาษาไทย</div>
                             </div>
-
-                            <!-- 버전 및 업데이트 구역 -->
                             <div class="version-section">
-                                <div class="version-info">
-                                    Version <span id="app-version">2.1.6</span>
-                                </div>
+                                <div class="version-info">Version <span id="app-version">2.1.6</span></div>
                                 <button id="check-update-btn" data-i18n="check_update">Check for Updates</button>
+                                <button id="logout-btn" data-i18n="logout" style="margin-top:4px;color:#ff6b6b;">Logout</button>
                             </div>
                         </div>
                     </div>
                     <div class="status-indicators">
                         <div id="update-notification" class="hidden">
                             <span id="update-msg" data-i18n="update_available">Update available...</span>
-                            <button id="restart-btn" data-i18n="restart">Restart</button>
+                            <button id="restart-btn" data-i18n="restart" class="hidden">Restart</button>
                         </div>
                     </div>
                 </header>
@@ -110,7 +104,31 @@
                 </main>
             </div>
         </div>
-        <!-- 초기 언어 설정 온보딩 -->
+
+        <!-- ── 업데이트 모달 ─────────────────────────────────── -->
+        <div id="update-modal" class="modal-overlay hidden">
+            <div class="modal-card update-card">
+                <div class="modal-icon">🚀</div>
+                <h2 class="modal-title">새 버전이 있습니다!</h2>
+                <div class="modal-version-row">
+                    <span class="ver-badge current">현재 <span id="modal-current-ver">2.1.6</span></span>
+                    <span class="ver-arrow">→</span>
+                    <span class="ver-badge new">최신 <span id="modal-latest-ver">-</span></span>
+                </div>
+                <p class="modal-desc" id="modal-release-notes">업데이트 내용을 불러오는 중...</p>
+                <div class="modal-actions">
+                    <button id="modal-update-btn" class="modal-btn primary">지금 다운로드</button>
+                    <button id="modal-skip-btn" class="modal-btn secondary">나중에</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── 업데이트 없음 토스트 ─────────────────────────── -->
+        <div id="update-toast" class="toast hidden">
+            <span id="toast-msg">✅ 최신 버전입니다.</span>
+        </div>
+
+        <!-- 초기 언어 설정 -->
         <div id="lang-setup-overlay" class="hidden">
             <div class="lang-setup-card">
                 <div class="lang-setup-header">
@@ -141,7 +159,7 @@
             </div>
         </div>
 
-        <!-- 온보딩 하이라이트 오버레이 -->
+        <!-- 온보딩 -->
         <div id="onboarding-overlay" class="hidden">
             <div id="onboarding-bubble" class="onboarding-bubble">
                 <div class="bubble-arrow"></div>
@@ -149,9 +167,7 @@
                     <h2 id="ob-title">App Title</h2>
                     <span class="step-indicator">1 / 2</span>
                 </div>
-                <div class="bubble-body">
-                    <p id="ob-desc">Description text goes here.</p>
-                </div>
+                <div class="bubble-body"><p id="ob-desc">Description text goes here.</p></div>
                 <div class="bubble-footer">
                     <label class="skip-today">
                         <input type="checkbox" id="ob-dont-show">

@@ -1,12 +1,11 @@
-const { app, BrowserWindow, session, ipcMain, shell, safeStorage } = require('electron');
+const { app, BrowserWindow, session, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs   = require('fs');
-const { autoUpdater } = require('electron-updater');
 const log  = require('electron-log');
 
-// ─── 자동 업데이트 로그 설정 ──────────────────────────────────
-autoUpdater.logger = log;
-autoUpdater.logger.transports.file.level = 'info';
+// ─── 아이콘 경로 ──────────────────────────────────────────────
+const ICON_PATH = path.join(__dirname, '..', 'assets', 'icons', 'win', 'icon.ico');
+const ICON_PNG  = path.join(__dirname, 'assets', 'icon.png');
 
 // ─── 프로토콜 등록 ───────────────────────────────────────────
 const { protocol } = require('electron');
@@ -15,19 +14,44 @@ protocol.registerSchemesAsPrivileged([
 ]);
 
 // ─── 다중 인스턴스 / 프로필 지원 ─────────────────────────────
-// 실행 예: electron . --profile=2
 const profileArg = process.argv.find(a => a.startsWith('--profile='));
 const profileId  = profileArg ? profileArg.split('=')[1] : '1';
 if (profileId !== '1') {
   app.setPath('userData', path.join(app.getPath('appData'), `XPIDER-profile-${profileId}`));
 }
-// 다중 인스턴스 허용 (SingleInstanceLock 사용 안 함)
 
 // ─── 윈도우 핸들 ──────────────────────────────────────────────
-let loginWindow = null;
-let mainWindow  = null;
+let splashWindow = null;
+let loginWindow  = null;
+let mainWindow   = null;
+let loadedExtensionsInfo = [];
 
-// ─── 로그인 창 생성 ───────────────────────────────────────────
+// ─── 스플래시 창 ──────────────────────────────────────────────
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 320,
+    height: 320,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    center: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    icon: ICON_PNG,
+    webPreferences: { nodeIntegration: false, contextIsolation: true }
+  });
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+  splashWindow.once('ready-to-show', () => splashWindow.show());
+}
+
+function closeSplash() {
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.close();
+    splashWindow = null;
+  }
+}
+
+// ─── 로그인 창 ───────────────────────────────────────────────
 function createLoginWindow() {
   loginWindow = new BrowserWindow({
     width: 480,
@@ -37,7 +61,7 @@ function createLoginWindow() {
     frame: false,
     transparent: true,
     title: 'XPIDER — Sign In',
-    icon: path.join(__dirname, 'assets', 'icon.png'),
+    icon: ICON_PNG,
     webPreferences: {
       preload: path.join(__dirname, 'login-preload.js'),
       contextIsolation: true,
@@ -45,13 +69,15 @@ function createLoginWindow() {
     },
     show: false,
   });
-
   loginWindow.loadFile(path.join(__dirname, 'login.html'));
-  loginWindow.once('ready-to-show', () => loginWindow.show());
+  loginWindow.once('ready-to-show', () => {
+    closeSplash();
+    loginWindow.show();
+  });
   loginWindow.on('closed', () => { loginWindow = null; });
 }
 
-// ─── 메인 브라우저 창 생성 ────────────────────────────────────
+// ─── 메인 브라우저 창 ─────────────────────────────────────────
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -61,7 +87,7 @@ function createWindow() {
     title: `XPIDER Browser${profileId !== '1' ? ` — Profile ${profileId}` : ''}`,
     transparent: true,
     frame: false,
-    icon: path.join(__dirname, 'assets', 'icon.png'),
+    icon: ICON_PNG,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: true,
@@ -75,18 +101,17 @@ function createWindow() {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
-  mainWindow.webContents.on('did-finish-load', async () => {
-    // 익스텐션 정보 전송
+  mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.send('extensions_loaded', loadedExtensionsInfo);
-    // 프로필 ID 전송
     mainWindow.webContents.send('profile_id', profileId);
+    mainWindow.webContents.send('app_version', app.getVersion());
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
 // ─── 윈도우 컨트롤 IPC ────────────────────────────────────────
-ipcMain.on('window-control', (event, action) => {
+ipcMain.on('window-control', (_, action) => {
   const win = mainWindow;
   if (!win) return;
   if (action === 'minimize') win.minimize();
@@ -94,44 +119,30 @@ ipcMain.on('window-control', (event, action) => {
   else if (action === 'close') win.close();
 });
 
-// ─── 인증 IPC 핸들러 ──────────────────────────────────────────
+// ─── 인증 IPC ─────────────────────────────────────────────────
 const authService = require('./auth/auth-service');
 
-ipcMain.handle('auth-login', async (_, { email, password }) => {
-  return await authService.login(email, password);
-});
-
-ipcMain.handle('auth-signup', async (_, { email, password, username }) => {
-  return await authService.signup(email, password, username);
-});
-
+ipcMain.handle('auth-login', async (_, { email, password }) =>
+  await authService.login(email, password)
+);
+ipcMain.handle('auth-signup', async (_, { email, password, username }) =>
+  await authService.signup(email, password, username)
+);
 ipcMain.handle('auth-check-session', async () => {
-  const session = await authService.getSession();
-  return session || null;
+  const s = await authService.getSession();
+  return s || null;
 });
 
 ipcMain.on('auth-success', () => {
   if (loginWindow) loginWindow.close();
   createWindow();
+  // 메인 창 로드 후 앱 업데이트 확인
+  setTimeout(() => checkAndNotifyAppUpdate(), 3000);
 });
 
-ipcMain.on('auth-close-app', () => {
-  app.quit();
-});
+ipcMain.on('auth-close-app', () => app.quit());
 
-// ─── 어드민 IPC ───────────────────────────────────────────────
-ipcMain.handle('admin-get-all-profiles', async () => {
-  return await authService.getAllProfiles();
-});
-
-ipcMain.handle('admin-set-active', async (_, { userId, isActive }) => {
-  return await authService.setUserActive(userId, isActive);
-});
-
-ipcMain.handle('admin-force-logout', async (_, { userId }) => {
-  return await authService.forceLogout(userId);
-});
-
+// ─── 로그아웃 ─────────────────────────────────────────────────
 ipcMain.on('auth-logout', async () => {
   const userId = authService.getCurrentUserId();
   await authService.logout(userId);
@@ -139,7 +150,7 @@ ipcMain.on('auth-logout', async () => {
   createLoginWindow();
 });
 
-// ─── 앱 종료 전 디바이스 잠금 해제 ──────────────────────
+// ─── 앱 종료 전 잠금 해제 ────────────────────────────────────
 app.on('before-quit', async (e) => {
   const userId = authService.getCurrentUserId();
   if (userId) {
@@ -149,87 +160,89 @@ app.on('before-quit', async (e) => {
   }
 });
 
-// ─── 익스텐션 관련 ────────────────────────────────────────────
-let loadedExtensionsInfo = [];
+// ─── 어드민 IPC ───────────────────────────────────────────────
+ipcMain.handle('admin-get-all-profiles', async () => authService.getAllProfiles());
+ipcMain.handle('admin-set-active', async (_, { userId, isActive }) =>
+  authService.setUserActive(userId, isActive)
+);
+ipcMain.handle('admin-force-logout', async (_, { userId }) =>
+  authService.forceLogout(userId)
+);
 
-// 로컬 소스에서 익스텐션 동기화 (개발 모드)
-function syncLocalExtensions() {
+// ─── 업데이트 IPC ─────────────────────────────────────────────
+const { checkAppUpdate } = require('./updater');
+
+async function checkAndNotifyAppUpdate() {
+  try {
+    const result = await checkAppUpdate();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('app-update-result', result);
+    }
+  } catch (e) {
+    log.error('[AppUpdate]', e.message);
+  }
+}
+
+ipcMain.on('check-for-updates', async () => {
+  await checkAndNotifyAppUpdate();
+});
+
+// 업데이트 다운로드 링크를 브라우저로 열기
+ipcMain.on('open-release-url', (_, url) => {
+  if (url) shell.openExternal(url);
+});
+
+// ─── 익스텐션 IPC ─────────────────────────────────────────────
+ipcMain.on('reload-extensions', async () => {
+  loadedExtensionsInfo = await loadExtensions();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('extensions_loaded', loadedExtensionsInfo);
+  }
+});
+
+// ─── 익스텐션 로드 시스템 ─────────────────────────────────────
+const { syncExtensionsFromGitHub } = require('./updater');
+
+function getExtDir() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'extensions')
+    : path.join(__dirname, '..', 'extensions');
+}
+
+// 개발 모드: 로컬 소스에서 복사
+function syncLocalExtensions(extDir) {
+  if (app.isPackaged) return;
   const sources = [
     { src: 'e:/vivpr/ai/collect-list_v2/extension', dest: 'collect-list' },
     { src: 'e:/vivpr/ai/send message',               dest: 'send-message' }
   ];
-  const extDir = app.isPackaged
-    ? path.join(process.resourcesPath, 'extensions')
-    : path.join(__dirname, '..', 'extensions');
-
   if (!fs.existsSync(extDir)) fs.mkdirSync(extDir, { recursive: true });
-
-  if (!app.isPackaged) {
-    sources.forEach(({ src, dest }) => {
-      if (fs.existsSync(src)) {
-        try { fs.cpSync(src, path.join(extDir, dest), { recursive: true, force: true }); }
-        catch (e) { console.error('Sync error:', dest, e.message); }
-      }
-    });
-  }
-  return extDir;
-}
-
-// Supabase Storage에서 익스텐션 다운로드 및 설치
-async function syncExtensionsFromCloud(extDir) {
-  try {
-    const { supabase } = require('./auth/supabase');
-    const AdmZip = require('adm-zip');
-
-    const { data: files, error } = await supabase.storage.from('extensions').list('', { limit: 100 });
-    if (error || !files) { log.info('Extension bucket empty or not found.'); return; }
-
-    for (const file of files) {
-      if (!file.name.endsWith('.zip')) continue;
-      const extName  = file.name.replace('.zip', '');
-      const localDir = path.join(extDir, extName);
-
-      // 버전 비교를 위해 리모트 manifest 다운로드
-      let needsUpdate = !fs.existsSync(localDir);
-      if (!needsUpdate) {
-        const localManifestPath = path.join(localDir, 'manifest.json');
-        const { data: remoteBlob } = await supabase.storage.from('extensions').download(`${extName}/manifest.json`);
-        if (remoteBlob) {
-          try {
-            const remoteText = await remoteBlob.text();
-            const remote = JSON.parse(remoteText);
-            const local  = JSON.parse(fs.readFileSync(localManifestPath, 'utf8'));
-            if (remote.version !== local.version) needsUpdate = true;
-          } catch (_) {}
-        }
-      }
-
-      if (needsUpdate) {
-        log.info(`Downloading extension from cloud: ${extName}`);
-        const { data: zipBlob } = await supabase.storage.from('extensions').download(file.name);
-        if (zipBlob) {
-          const buffer = Buffer.from(await zipBlob.arrayBuffer());
-          const zip = new AdmZip(buffer);
-          zip.extractAllTo(extDir, true);
-          log.info(`Installed extension: ${extName}`);
-        }
-      }
+  sources.forEach(({ src, dest }) => {
+    if (fs.existsSync(src)) {
+      try { fs.cpSync(src, path.join(extDir, dest), { recursive: true, force: true }); }
+      catch (e) { log.error('LocalSync error:', dest, e.message); }
     }
-  } catch (e) {
-    log.error('Cloud extension sync error:', e.message);
-  }
+  });
 }
 
-// 익스텐션 폴더 전체 스캔 및 로드 (자동 설치)
 async function loadExtensions() {
   try {
-    const extDir = syncLocalExtensions();
-    await syncExtensionsFromCloud(extDir);
+    const extDir = getExtDir();
+    if (!fs.existsSync(extDir)) fs.mkdirSync(extDir, { recursive: true });
 
+    // 1. 개발모드: 로컬 소스 동기화
+    syncLocalExtensions(extDir);
+
+    // 2. GitHub에서 최신 익스텐션 동기화 (항상 실행)
+    const updatedExts = await syncExtensionsFromGitHub(extDir);
+    if (updatedExts.length > 0) {
+      log.info(`[Extensions] Updated from GitHub: ${updatedExts.join(', ')}`);
+    }
+
+    // 3. 로컬 폴더 스캔 → 브라우저에 로드
     const results = [];
-    if (!fs.existsSync(extDir)) return results;
-
     const entries = fs.readdirSync(extDir, { withFileTypes: true });
+
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       const extPath = path.join(extDir, entry.name);
@@ -238,35 +251,49 @@ async function loadExtensions() {
 
       try {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-        const ext = await session.defaultSession.extensions.loadExtension(extPath);
+
+        // 아이콘: 48px 또는 128px 우선
+        let iconFile = 'icons/icon128.png';
+        if (manifest.icons) {
+          iconFile = manifest.icons['48'] || manifest.icons['128'] ||
+                     manifest.icons['64'] || Object.values(manifest.icons)[0];
+        }
+
+        const ext = await session.defaultSession.extensions.loadExtension(extPath, { allowFileAccess: true });
         results.push({
-          id:   ext.id,
-          name: manifest.name || entry.name,
-          icon: manifest.icons ? `icons/${Object.values(manifest.icons)[0]}` : 'icons/icon128.png',
+          id:      ext.id,
+          name:    manifest.name || entry.name,
+          icon:    iconFile,
           version: manifest.version || '1.0.0',
+          extPath: extPath
         });
-        log.info(`Loaded extension: ${manifest.name} v${manifest.version}`);
+        log.info(`[Extensions] Loaded: ${manifest.name} v${manifest.version}`);
       } catch (e) {
-        log.error(`Failed to load extension ${entry.name}:`, e.message);
+        log.error(`[Extensions] Failed to load ${entry.name}:`, e.message);
       }
     }
     return results;
   } catch (e) {
-    log.error('loadExtensions error:', e.message);
+    log.error('[Extensions] loadExtensions error:', e.message);
     return [];
   }
 }
 
 // ─── 앱 시작 ──────────────────────────────────────────────────
 app.whenReady().then(async () => {
-  // 익스텐션 사전 로드 (로그인 창 뜨는 동안 백그라운드)
-  loadExtensions().then(info => { loadedExtensionsInfo = info; });
+  // 1. 스플래시 먼저 표시
+  createSplashWindow();
 
-  // 로그인 창 먼저 생성
+  // 2. 백그라운드에서 익스텐션 로드 (GitHub 동기화 포함)
+  const extPromise = loadExtensions().then(info => { loadedExtensionsInfo = info; });
+
+  // 3. 최소 1.5초 스플래시 표시 후 로그인 창으로
+  await Promise.all([
+    extPromise,
+    new Promise(resolve => setTimeout(resolve, 1500))
+  ]);
+
   createLoginWindow();
-
-  // 자동 업데이트 확인
-  autoUpdater.checkForUpdatesAndNotify().catch(() => {});
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createLoginWindow();
@@ -276,14 +303,3 @@ app.whenReady().then(async () => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
-
-// ─── 자동 업데이트 이벤트 ────────────────────────────────────
-autoUpdater.on('update-available', () => {
-  if (mainWindow) mainWindow.webContents.send('update_available');
-});
-autoUpdater.on('update-downloaded', () => {
-  if (mainWindow) mainWindow.webContents.send('update_downloaded');
-});
-
-ipcMain.on('restart_app', () => autoUpdater.quitAndInstall());
-ipcMain.on('check-for-updates', () => autoUpdater.checkForUpdatesAndNotify().catch(() => {}));

@@ -1,22 +1,36 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  // 기존 채널
+  // ── 단방향 송신 ─────────────────────────────────────────────
   send: (channel, data) => {
     const allowed = [
-      'restart_app', 'open-extension-popup', 'window-control',
-      'check-for-updates', 'auth-logout'
+      'restart_app', 'window-control', 'auth-logout',
+      'check-for-updates', 'open-release-url', 'reload-extensions'
     ];
     if (allowed.includes(channel)) ipcRenderer.send(channel, data);
   },
+
+  // ── 수신 ────────────────────────────────────────────────────
   on: (channel, func) => {
     const allowed = [
-      'update_available', 'update_downloaded', 'extensions_loaded',
-      'profile_id'
+      'extensions_loaded', 'profile_id', 'app_version',
+      'app-update-result'
     ];
-    if (allowed.includes(channel)) ipcRenderer.on(channel, (event, ...args) => func(...args));
+    if (allowed.includes(channel)) {
+      ipcRenderer.on(channel, (_, ...args) => func(...args));
+    }
   },
-  // 어드민 기능
-  getAllProfiles: () => ipcRenderer.invoke('admin-get-all-profiles'),
-  setUserActive:  (userId, isActive) => ipcRenderer.invoke('admin-set-active', { userId, isActive }),
+
+  // ── 단발성 수신 ──────────────────────────────────────────────
+  once: (channel, func) => {
+    const allowed = ['app-update-result'];
+    if (allowed.includes(channel)) {
+      ipcRenderer.once(channel, (_, ...args) => func(...args));
+    }
+  },
+
+  // ── 어드민 ──────────────────────────────────────────────────
+  getAllProfiles: ()                       => ipcRenderer.invoke('admin-get-all-profiles'),
+  setUserActive:  (userId, isActive)      => ipcRenderer.invoke('admin-set-active', { userId, isActive }),
+  forceLogout:    (userId)                => ipcRenderer.invoke('admin-force-logout', { userId }),
 });
