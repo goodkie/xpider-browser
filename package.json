@@ -1,6 +1,6 @@
 {
   "name": "xpider-browser",
-  "version": "4.0.6",
+  "version": "4.0.7",
   "description": "Custom Chromium Browser for XPIDER",
   "main": "src/main.js",
   "scripts": {
