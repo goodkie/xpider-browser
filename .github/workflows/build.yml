@@ -30,25 +30,10 @@ jobs:
       - name: Rename Windows ZIP
         shell: bash
         run: mv out/make/zip/win32/x64/*.zip "out/make/zip/win32/x64/XPIDER-Browser-Windows-${{ github.ref_name }}.zip"
-      - name: Build Windows EXE (Squirrel)
-        run: npm run make:win
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Rename Windows EXE
-        shell: pwsh
-        run: |
-          $exeFile = Get-ChildItem "out/make/**/*.exe" -Recurse | Where-Object { $_.Name -like "*Setup*" } | Select-Object -First 1
-          if ($exeFile) {
-            $dest = "out/make/XPIDER-Browser-Windows-v${{ github.ref_name }}.exe"
-            Move-Item $exeFile.FullName $dest -Force
-            Write-Host "Renamed $exeFile to $dest"
-          }
       - uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts
-          path: |
-            out/make/**/*.zip
-            out/make/**/*.exe
+          path: out/make/**/*.zip
 
 
 
@@ -129,13 +114,11 @@ jobs:
 
             | Platform | File | Type |
             |----------|------|------|
-            | 🪟 Windows | `XPIDER-Browser-Windows-v${{ github.ref_name }}.exe` | Installer (Auto Shortcut) |
-            | 🪟 Windows | `XPIDER-Browser-Windows-v${{ github.ref_name }}.zip` | Portable (Zip) |
-            | 🍎 macOS | `XPIDER-Browser-Mac-Intel-v${{ github.ref_name }}.dmg` | Intel Mac (DMG) |
-            | 🍎 macOS | `XPIDER-Browser-Mac-Arm-v${{ github.ref_name }}.dmg` | Apple Silicon (DMG) |
+            | 🪟 Windows | `XPIDER-Browser-Windows-${{ github.ref_name }}.zip` | Portable (Zip) |
+            | 🍎 macOS | `XPIDER-Browser-Mac-Intel-${{ github.ref_name }}.dmg` | Intel Mac (DMG) |
+            | 🍎 macOS | `XPIDER-Browser-Mac-Arm-${{ github.ref_name }}.dmg` | Apple Silicon (DMG) |
 
             ### 🚀 Instructions
-            - **Windows (Installer)**: Run `.exe` to install. It creates a desktop shortcut.
             - **Windows (Portable)**: Extract `.zip` to any folder. Each folder keeps its own login info.
             - **macOS**: Open `.dmg` and drag XPIDER to the Applications folder.
 
@@ -144,7 +127,6 @@ jobs:
           files: |
             dist/**/*.zip
             dist/**/*.dmg
-            dist/**/*.exe
           draft: false
           prerelease: false
         env:

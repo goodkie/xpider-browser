@@ -793,7 +793,8 @@ body, html {
 .toast {
     position: fixed;
     bottom: 28px;
-    right: 28px;
+    left: 50%;
+    transform: translateX(-50%);
     background: rgba(30,30,30,0.92);
     border: 1px solid rgba(255,255,255,0.12);
     backdrop-filter: blur(10px);
@@ -808,8 +809,8 @@ body, html {
 }
 
 @keyframes toastIn {
-    from { opacity: 0; transform: translateY(20px) scale(0.9); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+    from { opacity: 0; transform: translate(-50%, 20px) scale(0.9); }
+    to   { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 
 /* ── 로그아웃 버튼 ────────────────────────────────────────── */
