@@ -38,7 +38,7 @@ namespace XpiderSetup {
             Application app = new Application();
             
             // XAML UI 정의 (사이버펑크 다크 스타일)
-            string xaml = @""
+            string xaml = @"
 <Window xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
         xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'
         Title='XPIDER Portable Setup' Height='400' Width='550'
@@ -115,15 +115,15 @@ namespace XpiderSetup {
         </Grid>
     </Border>
 </Window>
-"";
+";
             Window win = (Window)XamlReader.Parse(xaml);
             
-            Button btnClose = (Button)win.FindName(""btnClose"");
-            Button btnExtract = (Button)win.FindName(""btnExtract"");
-            TextBox txtPath = (TextBox)win.FindName(""txtPath"");
-            CheckBox chkShortcut = (CheckBox)win.FindName(""chkShortcut"");
-            TextBlock txtStatus = (TextBlock)win.FindName(""txtStatus"");
-            ProgressBar pbExtract = (ProgressBar)win.FindName(""pbExtract"");
+            Button btnClose = (Button)win.FindName("btnClose");
+            Button btnExtract = (Button)win.FindName("btnExtract");
+            TextBox txtPath = (TextBox)win.FindName("txtPath");
+            CheckBox chkShortcut = (CheckBox)win.FindName("chkShortcut");
+            TextBlock txtStatus = (TextBlock)win.FindName("txtStatus");
+            ProgressBar pbExtract = (ProgressBar)win.FindName("pbExtract");
             
             // 기본 경로 설정 (현재 프로그램이 실행되는 위치의 XPIDER 폴더)
             txtPath.Text = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ""XPIDER"");
