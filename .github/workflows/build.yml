@@ -37,16 +37,19 @@ jobs:
       - name: Rename Windows EXE
         shell: pwsh
         run: |
-          $exeFile = Get-ChildItem "out/make/squirrel/win32/x64/*.exe" | Where-Object { $_.Name -like "*Setup*" } | Select-Object -First 1
+          $exeFile = Get-ChildItem "out/make/**/*.exe" -Recurse | Where-Object { $_.Name -like "*Setup*" } | Select-Object -First 1
           if ($exeFile) {
-            Move-Item $exeFile.FullName "out/make/squirrel/win32/x64/XPIDER-Browser-Windows-v${{ github.ref_name }}.exe" -Force
+            $dest = "out/make/XPIDER-Browser-Windows-v${{ github.ref_name }}.exe"
+            Move-Item $exeFile.FullName $dest -Force
+            Write-Host "Renamed $exeFile to $dest"
           }
       - uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts
           path: |
-            out/make/zip/win32/x64/*.zip
-            out/make/squirrel/win32/x64/*.exe
+            out/make/**/*.zip
+            out/make/**/*.exe
+
 
 
   # ──────────────────────────────────────────────────────────
