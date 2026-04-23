@@ -258,20 +258,37 @@ Set-Content -Path $csFile -Value $csCode -Encoding UTF8
 Write-Host "Compiling setup executable using Add-Type and CompilerParameters..."
 
 try {
+    Add-Type -AssemblyName "PresentationFramework", "PresentationCore", "WindowsBase", "System.Xaml", "System.IO.Compression", "System.IO.Compression.FileSystem"
+
     $cp = New-Object System.CodeDom.Compiler.CompilerParameters
     $cp.GenerateExecutable = $true
     $cp.OutputAssembly = $exePath
     $cp.MainClass = "XpiderSetup.Program"
     $cp.CompilerOptions = "/target:winexe /resource:`"$zipPath`",app.zip"
-    $cp.ReferencedAssemblies.AddRange(@(
-        "System.dll",
-        "System.Xaml.dll",
-        "PresentationFramework.dll",
-        "PresentationCore.dll",
-        "WindowsBase.dll",
-        "System.IO.Compression.FileSystem.dll",
-        "System.IO.Compression.dll"
-    ))
+    
+    # 어셈블리들의 전체 경로를 가져와서 참조에 추가
+    $assemblies = @(
+        "System",
+        "System.Xaml",
+        "PresentationFramework",
+        "PresentationCore",
+        "WindowsBase",
+        "System.IO.Compression",
+        "System.IO.Compression.FileSystem"
+    )
+
+    foreach ($asmName in $assemblies) {
+        try {
+            $path = [System.Reflection.Assembly]::LoadWithPartialName($asmName).Location
+            if ($path) {
+                $cp.ReferencedAssemblies.Add($path) | Out-Null
+            } else {
+                $cp.ReferencedAssemblies.Add("$asmName.dll") | Out-Null
+            }
+        } catch {
+            $cp.ReferencedAssemblies.Add("$asmName.dll") | Out-Null
+        }
+    }
 
     $result = Add-Type -TypeDefinition $csCode -CompilerParameters $cp -PassThru
     
