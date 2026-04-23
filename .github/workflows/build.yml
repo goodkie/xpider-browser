@@ -30,10 +30,15 @@ jobs:
       - name: Rename Windows ZIP
         shell: bash
         run: mv out/make/zip/win32/x64/*.zip "out/make/zip/win32/x64/XPIDER-Browser-Windows-${{ github.ref_name }}.zip"
+      - name: Build Windows SFX (Auto-Extractor)
+        shell: pwsh
+        run: pwsh src/deploy/build-sfx.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts
-          path: out/make/**/*.zip
+          path: |
+            out/make/**/*.zip
+            out/make/**/*.exe
 
 
 
@@ -114,11 +119,13 @@ jobs:
 
             | Platform | File | Type |
             |----------|------|------|
+            | 🪟 Windows | `XPIDER-Browser-Windows-${{ github.ref_name }}-Setup.exe` | Auto-Extractor (SFX) & Shortcut |
             | 🪟 Windows | `XPIDER-Browser-Windows-${{ github.ref_name }}.zip` | Portable (Zip) |
             | 🍎 macOS | `XPIDER-Browser-Mac-Intel-${{ github.ref_name }}.dmg` | Intel Mac (DMG) |
             | 🍎 macOS | `XPIDER-Browser-Mac-Arm-${{ github.ref_name }}.dmg` | Apple Silicon (DMG) |
 
             ### 🚀 Instructions
+            - **Windows (Auto-Extractor)**: Run `...-Setup.exe` to extract to a chosen folder and optionally create a desktop shortcut.
             - **Windows (Portable)**: Extract `.zip` to any folder. Each folder keeps its own login info.
             - **macOS**: Open `.dmg` and drag XPIDER to the Applications folder.
 
@@ -127,6 +134,7 @@ jobs:
           files: |
             dist/**/*.zip
             dist/**/*.dmg
+            dist/**/*.exe
           draft: false
           prerelease: false
         env:
