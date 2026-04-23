@@ -4,7 +4,7 @@
  * 역할:
  *  1. GitHub Releases API → 앱 최신 버전 확인
  *  2. GitHub Contents API → extensions/ 폴더의 각 익스텐션 manifest.json 버전 비교
- *  3. 업데이트 있을 경우 ZIP 다운로드 → 로컬 압축 해제
+ *  3. 신규 익스텐션 강제 설치 / 버전 업 시 자동 업데이트
  */
 
 const https  = require('https');
@@ -67,9 +67,6 @@ function downloadFile(url, destPath) {
 }
 
 // ─── 앱 업데이트 확인 ─────────────────────────────────────────
-/**
- * @returns {{ hasUpdate: boolean, latestVersion: string, currentVersion: string, releaseUrl: string, downloadUrl: string }}
- */
 async function checkAppUpdate() {
   try {
     const current = app.getVersion();
@@ -79,8 +76,10 @@ async function checkAppUpdate() {
     const latest = res.body.tag_name?.replace(/^v/, '') || current;
     const hasUpdate = compareVersions(latest, current) > 0;
 
-    // Windows 설치 파일 URL 찾기
+    // ZIP 다운로드 링크 (포터블 버전)
     const asset = (res.body.assets || []).find(a =>
+      a.name.includes('zip') || a.name.endsWith('.zip')
+    ) || (res.body.assets || []).find(a =>
       a.name.endsWith('.exe') || a.name.includes('Setup')
     );
 
@@ -98,27 +97,30 @@ async function checkAppUpdate() {
   }
 }
 
-// ─── 익스텐션 업데이트 확인 및 설치 ─────────────────────────
+// ─── 익스텐션 버전 비교 및 자동 설치/업데이트 ────────────────
 /**
  * GitHub repo의 extensions/ 폴더를 스캔하고,
- * 로컬 버전보다 높은 버전이 있으면 ZIP을 다운로드 & 설치
- * @param {string} extDir  로컬 익스텐션 폴더 경로
- * @returns {string[]}     업데이트된 익스텐션 이름 목록
+ * - 설치되지 않은 익스텐션: 강제 설치
+ * - 로컬 버전보다 높은 버전: 자동 업데이트
+ *
+ * @param {string} extDir      로컬 익스텐션 폴더 경로
+ * @param {Function} onProgress 진행 상황 콜백 (msg: string) => void
+ * @returns {{ updated: string[], installed: string[] }}
  */
 async function syncExtensionsFromGitHub(extDir, onProgress) {
   const progress = (msg) => { if (typeof onProgress === 'function') onProgress(msg); };
-  const updated = [];
+  const result = { updated: [], installed: [] };
+
   try {
-    // extensions/ 폴더 목록 가져오기
     const res = await githubGet(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/extensions`);
     if (res.status !== 200 || !Array.isArray(res.body)) {
       console.warn('[Updater] Cannot list extensions from GitHub');
-      progress('⚠️ GitHub에서 익스텐션 목록을 가져올 수 없습니다.');
-      return updated;
+      progress('⚠️ GitHub 연결 실패. 나중에 다시 시도합니다.');
+      return result;
     }
 
     const extFolders = res.body.filter(item => item.type === 'dir');
-    progress(`📦 총 ${extFolders.length}개 익스텐션 확인 중...`);
+    progress(`🔍 ${extFolders.length}개 익스텐션 버전 확인 중...`);
 
     for (const folder of extFolders) {
       const extName = folder.name;
@@ -129,49 +131,60 @@ async function syncExtensionsFromGitHub(extDir, onProgress) {
         );
         if (mRes.status !== 200) continue;
 
-        // GitHub는 Base64로 파일 내용을 반환
         const remoteManifest = JSON.parse(
           Buffer.from(mRes.body.content, 'base64').toString('utf-8')
         );
         const remoteVersion = remoteManifest.version || '0.0.0';
 
-        // 로친 버전 확인
+        // 로컬 버전 확인 (null = 미설치)
         const localManifestPath = path.join(extDir, extName, 'manifest.json');
-        let localVersion = '0.0.0';
+        let localVersion = null;
         if (fs.existsSync(localManifestPath)) {
           try {
             const local = JSON.parse(fs.readFileSync(localManifestPath, 'utf-8'));
             localVersion = local.version || '0.0.0';
-          } catch (_) {}
+          } catch (_) { localVersion = '0.0.0'; }
         }
 
-        // 사용자의 요청에 따라 버전 비교 없이 무조건 강제 업데이트
-        const needsUpdate = true;
+        const isNew = localVersion === null;
+        const needsUpdate = isNew || compareVersions(remoteVersion, localVersion) > 0;
 
         if (needsUpdate) {
-          progress(`⏬ ${extName} 다운로드 중... (v${localVersion} → v${remoteVersion})`);
+          if (isNew) {
+            progress(`📥 새 익스텐션 설치 중: ${extName} (v${remoteVersion})`);
+          } else {
+            progress(`⏬ ${extName} 업데이트 중: v${localVersion} → v${remoteVersion}`);
+          }
+
           await downloadAndInstallExtension(extName, extDir);
-          updated.push(extName);
-          progress(`✅ ${extName} 설치/업데이트 완료 (v${remoteVersion})`);
+
+          if (isNew) {
+            result.installed.push(extName);
+            progress(`✅ ${extName} 설치 완료! (v${remoteVersion})`);
+          } else {
+            result.updated.push(extName);
+            progress(`✅ ${extName} 업데이트 완료! (v${remoteVersion})`);
+          }
+        } else {
+          console.log(`[Updater] Up-to-date: ${extName} v${localVersion}`);
         }
       } catch (e) {
-        console.error(`[Updater] Extension ${extName} error:`, e.message);
-        progress(`❌ ${extName} 업데이트 실패: ${e.message}`);
+        console.error(`[Updater] ${extName} error:`, e.message);
+        progress(`❌ ${extName} 처리 실패: ${e.message}`);
       }
     }
   } catch (e) {
     console.error('[Updater] syncExtensions error:', e.message);
     progress(`❌ 동기화 오류: ${e.message}`);
   }
-  return updated;
+
+  return result;
 }
 
-// GitHub에서 익스텐션 파일을 직접 다운로드 (파일별로 복사)
+// ─── 익스텐션 파일 다운로드 (재귀) ───────────────────────────
 async function downloadAndInstallExtension(extName, extDir) {
   const destDir = path.join(extDir, extName);
   if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
-
-  // 폴더 내 파일 목록 가져오기 (재귀)
   await downloadExtensionFolder(
     `/repos/${REPO_OWNER}/${REPO_NAME}/contents/extensions/${extName}`,
     destDir
@@ -188,12 +201,9 @@ async function downloadExtensionFolder(apiPath, localDir) {
       if (!fs.existsSync(localPath)) fs.mkdirSync(localPath, { recursive: true });
       await downloadExtensionFolder(item.url.replace('https://api.github.com', ''), localPath);
     } else if (item.type === 'file') {
-      // 소형 파일: Base64 디코딩
       if (item.content) {
-        const content = Buffer.from(item.content, 'base64');
-        fs.writeFileSync(localPath, content);
+        fs.writeFileSync(localPath, Buffer.from(item.content, 'base64'));
       } else if (item.download_url) {
-        // 대형 파일: 직접 다운로드
         await downloadFile(item.download_url, localPath);
       }
     }
@@ -202,13 +212,11 @@ async function downloadExtensionFolder(apiPath, localDir) {
 
 // ─── 버전 비교 유틸 ───────────────────────────────────────────
 function compareVersions(a, b) {
-  const cleanA = a.replace(/[^0-9.]/g, '');
-  const cleanB = b.replace(/[^0-9.]/g, '');
-  const pa = cleanA.split('.').map(Number);
-  const pb = cleanB.split('.').map(Number);
+  const clean = s => (s || '').replace(/[^0-9.]/g, '');
+  const pa = clean(a).split('.').map(Number);
+  const pb = clean(b).split('.').map(Number);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
-    const na = pa[i] || 0;
-    const nb = pb[i] || 0;
+    const na = pa[i] || 0, nb = pb[i] || 0;
     if (na > nb) return 1;
     if (na < nb) return -1;
   }

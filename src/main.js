@@ -109,6 +109,11 @@ function createWindow() {
     mainWindow.webContents.send('extensions_loaded', loadedExtensionsInfo);
     mainWindow.webContents.send('profile_id', profileId);
     mainWindow.webContents.send('app_version', app.getVersion());
+
+    // 브라우저 렌더링이 완료된 후 백그라운드 동기화 시작 (약간의 지연시간 추가)
+    setTimeout(() => {
+      checkAndSyncExtensionsInBackground();
+    }, 1500);
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });
@@ -250,28 +255,15 @@ function syncLocalExtensions(extDir) {
   });
 }
 
-async function loadExtensions() {
+async function loadLocalExtensions() {
   try {
     const extDir = getExtDir();
     if (!fs.existsSync(extDir)) fs.mkdirSync(extDir, { recursive: true });
 
-    // 1. 개발모드: 로컬 소스 동기화
+    // 1. 개발모드: 로컬 소스 동기화 (빠름)
     syncLocalExtensions(extDir);
 
-    // 2. GitHub에서 최신 익스텐션 강제 동기화 + 진행 메시지
-    sendExtProgress('🔄 GitHub에서 익스텐션 목록을 확인하는 중...');
-    const updatedExts = await syncExtensionsFromGitHub(extDir, (msg) => {
-      sendExtProgress(msg);
-      log.info('[Extensions]', msg);
-    });
-    if (updatedExts.length > 0) {
-      sendExtProgress(`✅ 업데이트 완료: ${updatedExts.join(', ')}`);
-      log.info(`[Extensions] Updated from GitHub: ${updatedExts.join(', ')}`);
-    } else {
-      sendExtProgress('✅ 모든 익스텐션이 최신 상태입니다.');
-    }
-
-    // 3. 로컬 폴더 스캔 → 브라우저에 로드
+    // 2. 로컬 폴더 스캔 → 브라우저에 로드
     const results = [];
     const entries = fs.readdirSync(extDir, { withFileTypes: true });
 
@@ -283,8 +275,6 @@ async function loadExtensions() {
 
       try {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-
-        // 아이콘: 48px 또는 128px 우선
         let iconFile = 'icons/icon128.png';
         if (manifest.icons) {
           iconFile = manifest.icons['48'] || manifest.icons['128'] ||
@@ -306,24 +296,68 @@ async function loadExtensions() {
     }
     return results;
   } catch (e) {
-    log.error('[Extensions] loadExtensions error:', e.message);
+    log.error('[Extensions] loadLocalExtensions error:', e.message);
     return [];
   }
 }
+
+// 브라우저가 열린 후 백그라운드에서 실행될 동기화 함수
+async function checkAndSyncExtensionsInBackground() {
+  try {
+    const extDir = getExtDir();
+    // 익스텐션 버전을 확인 중이라는 것을 알려줌 (토스트 팝업)
+    sendExtProgress('🔄 GitHub에서 익스텐션 버전을 확인하는 중...');
+
+    const syncResult = await syncExtensionsFromGitHub(extDir, (msg) => {
+      sendExtProgress(msg);
+      log.info('[Extensions]', msg);
+    });
+
+    const hasUpdates = syncResult.updated.length > 0;
+    const hasInstalls = syncResult.installed.length > 0;
+
+    if (hasUpdates || hasInstalls) {
+      let msgParts = [];
+      if (hasInstalls) msgParts.push(`설치: ${syncResult.installed.join(', ')}`);
+      if (hasUpdates) msgParts.push(`업데이트: ${syncResult.updated.join(', ')}`);
+      sendExtProgress(`✅ 완료 (${msgParts.join(' / ')}), 적용 중...`);
+      log.info(`[Extensions] Sync complete: ${msgParts.join(' / ')}`);
+
+      // 변경사항이 있으므로 로컬 익스텐션을 다시 로드하고 화면에 반영
+      loadedExtensionsInfo = await loadLocalExtensions();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('extensions_loaded', loadedExtensionsInfo);
+        sendExtProgress('🚀 익스텐션이 사이드바에 성공적으로 적용되었습니다!');
+      }
+    } else {
+      sendExtProgress('✅ 모든 익스텐션이 최신 상태입니다.');
+    }
+  } catch (e) {
+    log.error('[Extensions] Background sync error:', e.message);
+  }
+}
+
+// ─── 메인 브라우저 창 ─────────────────────────────────────────
+// (참고: 상단의 createWindow 함수 내부 이벤트 로직에서 checkAndSyncExtensionsInBackground() 호출을 위해 추가 처리)
+ipcMain.on('trigger-background-sync', () => {
+  checkAndSyncExtensionsInBackground();
+});
 
 // ─── 앱 시작 ──────────────────────────────────────────────────
 app.whenReady().then(async () => {
   // 1. 스플래시 창 먼저 표시
   createSplashWindow();
 
-  // 2. 스플래시가 로드된 후 익스텐션 동기화 진행
-  await new Promise(resolve => setTimeout(resolve, 800)); // 스플래시 렌더링 대기
-  sendExtProgress('XPIDER Browser 시작 중...');
+  // 스플래시가 화면에 뜨도록 약간 대기
+  await new Promise(resolve => setTimeout(resolve, 800));
 
-  // 3. 익스텐션 GitHub 강제 동기화 (스플래시에 진행 메시지 표시)
-  loadedExtensionsInfo = await loadExtensions();
+  // 2. 로컬 익스텐션 빠르게 로드
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('splash-progress', '로컬 익스텐션 로딩 중...');
+  }
+  loadedExtensionsInfo = await loadLocalExtensions();
 
-  // 4. 로그인 창 표시 후 스플래시 닫기
+  // 3. 로그인 창 표시 후 스플래시 닫기
   createLoginWindow();
   await new Promise(resolve => setTimeout(resolve, 400));
   if (splashWindow && !splashWindow.isDestroyed()) {
