@@ -255,10 +255,25 @@ namespace XpiderSetup {
 $csFile = "SetupWPF.cs"
 Set-Content -Path $csFile -Value $csCode -Encoding UTF8
 
-Write-Host "Compiling setup executable using Add-Type..."
+Write-Host "Compiling setup executable using Add-Type and CompilerParameters..."
 
 try {
-    Add-Type -TypeDefinition $csCode -OutputAssembly $exePath -OutputType WindowsApplication -ReferencedAssemblies "PresentationFramework", "PresentationCore", "WindowsBase", "System.Xaml", "System.IO.Compression.FileSystem", "System.IO.Compression" -CompilerOptions "/resource:`"$zipPath`",app.zip"
+    $cp = New-Object System.CodeDom.Compiler.CompilerParameters
+    $cp.GenerateExecutable = $true
+    $cp.OutputAssembly = $exePath
+    $cp.MainClass = "XpiderSetup.Program"
+    $cp.CompilerOptions = "/target:winexe /resource:`"$zipPath`",app.zip"
+    $cp.ReferencedAssemblies.AddRange(@(
+        "System.dll",
+        "System.Xaml.dll",
+        "PresentationFramework.dll",
+        "PresentationCore.dll",
+        "WindowsBase.dll",
+        "System.IO.Compression.FileSystem.dll",
+        "System.IO.Compression.dll"
+    ))
+
+    $result = Add-Type -TypeDefinition $csCode -CompilerParameters $cp -PassThru
     
     if (Test-Path $exePath) {
         Write-Host "Successfully created setup executable: $exePath"
