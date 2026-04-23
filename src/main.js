@@ -27,6 +27,35 @@ let mainWindow   = null;
 let loadedExtensionsInfo = [];
 
 
+// ─── 스플래시 창 ───────────────────────────────────────────────
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 460,
+    height: 540,
+    resizable: false,
+    center: true,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    title: 'XPIDER',
+    icon: ICON_PNG,
+    webPreferences: {
+      preload: path.join(__dirname, 'splash-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+    show: false,
+  });
+  splashWindow.loadFile(path.join(__dirname, 'splash.html'));
+  splashWindow.once('ready-to-show', () => {
+    splashWindow.show();
+    // 버전 정보 전달
+    splashWindow.webContents.send('splash-version', app.getVersion());
+  });
+  splashWindow.on('closed', () => { splashWindow = null; });
+}
+
 // ─── 로그인 창 ───────────────────────────────────────────────
 function createLoginWindow() {
   loginWindow = new BrowserWindow({
@@ -184,8 +213,13 @@ ipcMain.on('reload-extensions', async () => {
   }
 });
 
-// 익스텐션 진행 상황을 renderer에 전달하는 헬퍼
+// 익스텐션 진행 상황을 스플래시/renderer 모두에 전달하는 헬퍼
 function sendExtProgress(msg) {
+  // 스플래시가 열려있으면 스플래시에 표시
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send('splash-progress', msg);
+  }
+  // 메인 창이 열려있으면 토스트로도 표시
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('ext-sync-progress', msg);
   }
@@ -279,10 +313,22 @@ async function loadExtensions() {
 
 // ─── 앱 시작 ──────────────────────────────────────────────────
 app.whenReady().then(async () => {
-  // 백그라운드에서 익스텐션 로드 (GitHub 동기화 포함)
-  await loadExtensions().then(info => { loadedExtensionsInfo = info; });
+  // 1. 스플래시 창 먼저 표시
+  createSplashWindow();
 
+  // 2. 스플래시가 로드된 후 익스텐션 동기화 진행
+  await new Promise(resolve => setTimeout(resolve, 800)); // 스플래시 렌더링 대기
+  sendExtProgress('XPIDER Browser 시작 중...');
+
+  // 3. 익스텐션 GitHub 강제 동기화 (스플래시에 진행 메시지 표시)
+  loadedExtensionsInfo = await loadExtensions();
+
+  // 4. 로그인 창 표시 후 스플래시 닫기
   createLoginWindow();
+  await new Promise(resolve => setTimeout(resolve, 400));
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.close();
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createLoginWindow();
