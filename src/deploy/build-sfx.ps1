@@ -207,7 +207,7 @@ namespace XpiderSetup {
                     
                     foreach (ZipArchiveEntry entry in archive.Entries) {
                         current++;
-                        reportProgress((int)((current / (float)total) * 100), $""압축 해제 중... {current}/{total}"");
+                        reportProgress((int)((current / (float)total) * 100), string.Format(""압축 해제 중... {0}/{1}"", current, total));
                         
                         string destinationPath = Path.Combine(extractPath, entry.FullName);
                         // Windows 경로 구분자 문제 방지
@@ -255,33 +255,18 @@ namespace XpiderSetup {
 $csFile = "SetupWPF.cs"
 Set-Content -Path $csFile -Value $csCode -Encoding UTF8
 
-Write-Host "Compiling setup executable using csc.exe..."
+Write-Host "Compiling setup executable using Add-Type..."
 
-# csc.exe 경로 찾기 (보통 v4.0.30319)
-$cscPath = Join-Path $env:windir "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-if (-not (Test-Path $cscPath)) {
-    $cscPath = Join-Path $env:windir "Microsoft.NET\Framework\v4.0.30319\csc.exe"
-}
-
-# 컴파일 명령 (WPF 어셈블리 참조, winexe 타겟으로 콘솔 숨김, zip 파일을 리소스로 삽입)
-$compileArgs = @(
-    "/target:winexe",
-    "/out:$exePath",
-    "/reference:PresentationFramework.dll",
-    "/reference:PresentationCore.dll",
-    "/reference:WindowsBase.dll",
-    "/reference:System.Xaml.dll",
-    "/reference:System.IO.Compression.FileSystem.dll",
-    "/reference:System.IO.Compression.dll",
-    "/resource:$zipPath,app.zip",
-    $csFile
-)
-
-& $cscPath $compileArgs
-
-if ($LASTEXITCODE -eq 0 -and (Test-Path $exePath)) {
-    Write-Host "Successfully created setup executable: $exePath"
-} else {
-    Write-Error "Failed to compile setup executable."
+try {
+    Add-Type -TypeDefinition $csCode -OutputAssembly $exePath -OutputType WindowsApplication -ReferencedAssemblies "PresentationFramework", "PresentationCore", "WindowsBase", "System.Xaml", "System.IO.Compression.FileSystem", "System.IO.Compression" -CompilerOptions "/resource:`"$zipPath`",app.zip"
+    
+    if (Test-Path $exePath) {
+        Write-Host "Successfully created setup executable: $exePath"
+    } else {
+        Write-Error "Failed to compile setup executable."
+        exit 1
+    }
+} catch {
+    Write-Error "Compilation failed: $_"
     exit 1
 }
