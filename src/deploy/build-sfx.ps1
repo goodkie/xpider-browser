@@ -96,22 +96,22 @@ namespace XpiderSetup {
             
             <!-- Main Content -->
             <StackPanel Grid.Row='2' VerticalAlignment='Center'>
-                <TextBlock Text='압축을 풀 폴더 경로' Foreground='#aaa' FontSize='12' Margin='0,0,0,5'/>
+                <TextBlock Text='\uc555\ucd95\uc744 \ud440 \ud3f4\ub354 \uacbd\ub85c' Foreground='#aaa' FontSize='12' Margin='0,0,0,5'/>
                 <TextBox x:Name='txtPath' Height='35' Background='#1e1e1e' Foreground='White' 
                          BorderBrush='#444' BorderThickness='1' Padding='8,8,8,8' FontSize='13'/>
                 
-                <CheckBox x:Name='chkShortcut' Content='바탕화면에 실행 바로가기 만들기' 
+                <CheckBox x:Name='chkShortcut' Content='\ubc14\ud0c1\ud654\uba74 \uc2e4\ud589 \ubc14\ub85c\uac00\uae30 \ub9cc\ub4e4\uae30' 
                           Foreground='#ccc' FontSize='13' Margin='0,15,0,0' IsChecked='True'/>
             </StackPanel>
             
             <!-- Progress / Status -->
             <StackPanel Grid.Row='3' Margin='0,20,0,20'>
-                <TextBlock x:Name='txtStatus' Text='대기 중...' Foreground='#888' FontSize='11' Margin='0,0,0,5' HorizontalAlignment='Center'/>
+                <TextBlock x:Name='txtStatus' Text='\ub300\uae30 \uc911...' Foreground='#888' FontSize='11' Margin='0,0,0,5' HorizontalAlignment='Center'/>
                 <ProgressBar x:Name='pbExtract' Height='6' Background='#222' Foreground='#00e5ff' BorderThickness='0'/>
             </StackPanel>
             
             <!-- Extract Button -->
-            <Button x:Name='btnExtract' Content='압축 해제 (Extract)' Grid.Row='4' Height='45' FontSize='15'/>
+            <Button x:Name='btnExtract' Content='\uc555\ucd95 \ud574\uc81c (Extract)' Grid.Row='4' Height='45' FontSize='15'/>
         </Grid>
     </Border>
 </Window>
@@ -126,7 +126,7 @@ namespace XpiderSetup {
             ProgressBar pbExtract = (ProgressBar)win.FindName("pbExtract");
             
             // 기본 경로 설정 (현재 프로그램이 실행되는 위치의 XPIDER 폴더)
-            txtPath.Text = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ""XPIDER"");
+            txtPath.Text = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "XPIDER");
             
             btnClose.Click += (s, e) => win.Close();
             
@@ -156,18 +156,18 @@ namespace XpiderSetup {
                     });
                     
                     if (createShortcut) {
-                        win.Dispatcher.Invoke(() => txtStatus.Text = ""바로가기 생성 중..."");
+                        win.Dispatcher.Invoke(() => txtStatus.Text = "\ubc14\ub85c\uac00\uae30 \uc0dd\uc131 \uc911...");
                         CreateDesktopShortcut(targetDir);
                     }
                     
                     win.Dispatcher.Invoke(() => {
-                        txtStatus.Text = ""완료되었습니다!"";
-                        btnExtract.Content = ""실행하기 (Launch)"";
+                        txtStatus.Text = "\uc644\ub8cc\ub418\uc5c8\uc2b5\ub2c8\ub2e4!";
+                        btnExtract.Content = "\uc2e4\ud589\ud558\uae30 (Launch)";
                         btnExtract.IsEnabled = true;
                         btnExtract.Click -= null; // 이벤트 제거
                         
                         btnExtract.Click += (sender, ev) => {
-                            string exePath = Path.Combine(targetDir, ""XPIDERBrowser.exe"");
+                            string exePath = Path.Combine(targetDir, "XPIDERBrowser.exe");
                             if (File.Exists(exePath)) {
                                 System.Diagnostics.Process.Start(exePath);
                             }
@@ -177,10 +177,10 @@ namespace XpiderSetup {
                 }
                 catch (Exception ex) {
                     win.Dispatcher.Invoke(() => {
-                        txtStatus.Text = ""오류: "" + ex.Message;
+                        txtStatus.Text = "\uc624\ub958: " + ex.Message;
                         txtStatus.Foreground = Brushes.Red;
                         btnExtract.IsEnabled = true;
-                        btnExtract.Content = ""다시 시도"";
+                        btnExtract.Content = "\ub2e4\uc2dc \uc2dc\ub3c4";
                     });
                 }
             };
@@ -207,7 +207,7 @@ namespace XpiderSetup {
                     
                     foreach (ZipArchiveEntry entry in archive.Entries) {
                         current++;
-                        reportProgress((int)((current / (float)total) * 100), string.Format(""압축 해제 중... {0}/{1}"", current, total));
+                        reportProgress((int)((current / (float)total) * 100), string.Format("\uc555\ucd95 \ud574\uc81c \uc911... {0}/{1}", current, total));
                         
                         string destinationPath = Path.Combine(extractPath, entry.FullName);
                         // Windows 경로 구분자 문제 방지
