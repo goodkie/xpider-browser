@@ -260,8 +260,10 @@ async function loadLocalExtensions() {
     const extDir = getExtDir();
     if (!fs.existsSync(extDir)) fs.mkdirSync(extDir, { recursive: true });
 
-    // 1. 개발모드: 로컬 소스 동기화 (빠름)
-    syncLocalExtensions(extDir);
+    // 1. 개발모드 로컬 소스 동기화 비활성화
+    // (이 로직이 켜져 있으면 GitHub에서 다운받은 최신 익스텐션이
+    //  로컬 PC의 옛날 소스 폴더 내용으로 계속 덮어씌워져서 업데이트가 안 된 것처럼 보입니다.)
+    // syncLocalExtensions(extDir);
 
     // 2. 로컬 폴더 스캔 → 브라우저에 로드
     const results = [];

@@ -235,7 +235,7 @@ header {
   <!-- 오른쪽: 익스텐션 관리 -->
   <div class="panel">
     <div class="ptitle" style="justify-content:space-between;">
-      <span>🧩 EXTENSIONS</span>
+      <span>🧩 EXTENSIONS (GitHub 원격 상태)</span>
       <button class="cbtn" onclick="openAddExtModal()" style="border-color:var(--accent);color:var(--accent-lite);">➕ 추가</button>
     </div>
     <div id="extList">
@@ -350,7 +350,19 @@ function bumpPatch(ver) {
 
 // ── API 호출 ────────────────────────────────────────
 async function post(path, body) {
-  return fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  try {
+    const res = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if (!res.ok) {
+      const data = await res.json().catch(()=>({}));
+      if (data.error) alert(data.error);
+      else alert('서버 처리 중 오류가 발생했습니다.');
+      setStatus(false); // 로딩 해제
+    }
+    return res;
+  } catch(e) {
+    alert('네트워크 오류가 발생했습니다.');
+    setStatus(false);
+  }
 }
 
 function deployApp(type) {

@@ -27,6 +27,9 @@ jobs:
         run: npm run make:win-zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rename Windows ZIP
+        shell: bash
+        run: mv out/make/zip/win32/x64/*.zip "out/make/zip/win32/x64/XPIDER-Browser-Windows-${{ github.ref_name }}.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: windows-portable
@@ -49,6 +52,8 @@ jobs:
         run: npm run make:mac
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rename Mac Intel ZIP
+        run: mv out/make/zip/darwin/x64/*.zip "out/make/zip/darwin/x64/XPIDER-Browser-Mac-Intel-${{ github.ref_name }}.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: macos-x64-portable
@@ -71,6 +76,8 @@ jobs:
         run: npm run make:mac-arm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rename Mac Arm ZIP
+        run: mv out/make/zip/darwin/arm64/*.zip "out/make/zip/darwin/arm64/XPIDER-Browser-Mac-Arm-${{ github.ref_name }}.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64-portable
@@ -95,17 +102,17 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "XPIDER Browser ${{ github.ref_name }} — Portable"
+          name: "XPIDER Browser ${{ github.ref_name }}"
           body: |
-            ## XPIDER Browser ${{ github.ref_name }} — 포터블 버전
+            ## XPIDER Browser ${{ github.ref_name }} 
 
             ### 📦 다운로드 (ZIP 압축 해제 후 바로 실행)
 
             | 플랫폼 | 파일명 | 아키텍처 |
             |--------|--------|----------|
-            | 🪟 Windows | `XPIDER Browser-win32-x64-*.zip` | Intel/AMD 64bit |
-            | 🍎 macOS | `XPIDER Browser-darwin-x64-*.zip` | Intel Mac |
-            | 🍎 macOS | `XPIDER Browser-darwin-arm64-*.zip` | Apple Silicon (M1/M2/M3) |
+            | 🪟 Windows | `XPIDER-Browser-Windows-${{ github.ref_name }}.zip` | Intel/AMD 64bit |
+            | 🍎 macOS | `XPIDER-Browser-Mac-Intel-${{ github.ref_name }}.zip` | Intel Mac |
+            | 🍎 macOS | `XPIDER-Browser-Mac-Arm-${{ github.ref_name }}.zip` | Apple Silicon (M1/M2/M3) |
 
             ### 🚀 다중 설치 방법
             ZIP을 원하는 폴더에 압축 해제 후:

@@ -10,6 +10,35 @@ const path    = require('path');
 const ROOT = path.join(__dirname, '../..');
 const PORT = 9987;
 const CONFIG_FILE = path.join(__dirname, 'deploy-config.json');
+const https = require('https');
+const GITHUB_TOKEN = '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';
+
+function githubGet(apiPath) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'api.github.com',
+      port: 443,
+      path: apiPath,
+      method: 'GET',
+      headers: {
+        'User-Agent': 'XPIDER-Deploy-Center',
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.v3+json'
+      }
+    };
+    const req = https.request(options, res => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+        catch (e) { resolve({ status: res.statusCode, body: null }); }
+      });
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 
 function getSources() {
   if (fs.existsSync(CONFIG_FILE)) return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')).sources || {};
@@ -48,20 +77,44 @@ function runCmd(cmd, args, cwd = ROOT) {
 }
 
 // ── 정보 읽기 ────────────────────────────────────────────────
-function getInfo() {
+async function getInfo() {
   const pkg  = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
-  const extDir = path.join(ROOT, 'extensions');
   const extensions = [];
   const sources = getSources();
-  if (fs.existsSync(extDir)) {
-    fs.readdirSync(extDir).forEach(name => {
-      const mPath = path.join(extDir, name, 'manifest.json');
-      if (fs.existsSync(mPath) && fs.statSync(path.join(extDir, name)).isDirectory()) {
-        const m = JSON.parse(fs.readFileSync(mPath, 'utf8'));
-        extensions.push({ name, version: m.version || '0.0.0', description: m.description || '', sourcePath: sources[name] || '' });
+  
+  // GitHub 원격 저장소에서 직접 가져오기
+  const res = await githubGet('/repos/goodkie/xpider-browser/contents/extensions');
+  if (res.status === 200 && Array.isArray(res.body)) {
+    const extFolders = res.body.filter(item => item.type === 'dir');
+    for (const folder of extFolders) {
+      const extName = folder.name;
+      const mRes = await githubGet(`/repos/goodkie/xpider-browser/contents/extensions/${extName}/manifest.json`);
+      let version = '0.0.0';
+      let description = '';
+      if (mRes.status === 200 && mRes.body && mRes.body.content) {
+        try {
+          const mText = Buffer.from(mRes.body.content, 'base64').toString('utf8');
+          const mData = JSON.parse(mText);
+          version = mData.version || '0.0.0';
+          description = mData.description || '';
+        } catch (e) { console.error('Failed to parse manifest for', extName); }
       }
-    });
+      extensions.push({ name: extName, version, description, sourcePath: sources[extName] || '' });
+    }
+  } else {
+    // GitHub API 실패 시 로컬 폴더 폴백
+    const extDir = path.join(ROOT, 'extensions');
+    if (fs.existsSync(extDir)) {
+      fs.readdirSync(extDir).forEach(name => {
+        const mPath = path.join(extDir, name, 'manifest.json');
+        if (fs.existsSync(mPath) && fs.statSync(path.join(extDir, name)).isDirectory()) {
+          const m = JSON.parse(fs.readFileSync(mPath, 'utf8'));
+          extensions.push({ name, version: m.version || '0.0.0', description: m.description || '', sourcePath: sources[name] || '' });
+        }
+      });
+    }
   }
+
   // 현재 브랜치
   let branch = 'main';
   try { branch = require('child_process').execSync('git rev-parse --abbrev-ref HEAD', { cwd: ROOT }).toString().trim(); } catch(e){}
@@ -88,14 +141,14 @@ async function deployApp(type) {
   if (type === '__pull__') {
     await runCmd('git', ['pull', 'origin', 'main']);
     broadcast('status', 'idle');
-    broadcast('refresh', getInfo());
+    broadcast('refresh', await getInfo());
     return;
   }
   if (type === '__rollback__') {
     await runCmd('git', ['revert', 'HEAD', '--no-edit']);
     await runCmd('git', ['push', 'origin', 'main']);
     broadcast('status', 'idle');
-    broadcast('refresh', getInfo());
+    broadcast('refresh', await getInfo());
     return;
   }
 
@@ -106,12 +159,12 @@ async function deployApp(type) {
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2));
   broadcast('log', { text: `📦 Version: ${pkg.version} → ${newVer}`, err: false });
   await runCmd('git', ['add', 'package.json']);
-  await runCmd('git', ['commit', '-m', `release: v${newVer}`]);
+  await runCmd('git', ['commit', '-m', `"release: v${newVer}"`]);
   await runCmd('git', ['tag', `v${newVer}`]);
   await runCmd('git', ['push', 'origin', 'main']);
   await runCmd('git', ['push', 'origin', '--tags']);
   broadcast('status', 'idle');
-  broadcast('refresh', getInfo());
+  broadcast('refresh', await getInfo());
 }
 
 
@@ -132,10 +185,10 @@ async function deployExt(name, newVersion) {
   if (fs.existsSync(dm)) { const m = JSON.parse(fs.readFileSync(dm,'utf8')); m.version = newVersion; fs.writeFileSync(dm, JSON.stringify(m,null,2)); }
 
   await runCmd('git', ['add', `extensions/${name}`]);
-  await runCmd('git', ['commit', '-m', `feat(ext): ${name} v${newVersion}`]);
+  await runCmd('git', ['commit', '-m', `"feat(ext): ${name} v${newVersion}"`]);
   await runCmd('git', ['push', 'origin', 'main']);
   broadcast('status', 'idle');
-  broadcast('refresh', getInfo());
+  broadcast('refresh', await getInfo());
 }
 
 // ── 익스텐션 소스만 동기화 ───────────────────────────────────
@@ -177,7 +230,7 @@ http.createServer(async (req, res) => {
     return;
   }
   if (u.pathname === '/api/info') {
-    res.writeHead(200,{'Content-Type':'application/json'}); res.end(JSON.stringify(getInfo())); return;
+    res.writeHead(200,{'Content-Type':'application/json'}); res.end(JSON.stringify(await getInfo())); return;
   }
   if (u.pathname === '/api/deploy-app' && req.method==='POST') {
     const { type } = await readBody(req);
@@ -191,11 +244,23 @@ http.createServer(async (req, res) => {
   }
   if (u.pathname === '/api/sync-ext' && req.method==='POST') {
     const { name } = await readBody(req);
-    syncExt(name);
+    const sources = getSources();
+    const srcDir = sources[name];
+    if (srcDir && fs.existsSync(srcDir)) {
+      if (!fs.existsSync(path.join(srcDir, 'manifest.json'))) {
+        res.writeHead(400,{'Content-Type':'application/json'}); res.end(JSON.stringify({error: "업로드 실패: 지정된 폴더의 최상위에 manifest.json 파일이 존재하지 않습니다. 폴더 경로를 다시 확인해 주세요."})); return;
+      }
+    }
+    await syncExt(name);
     res.writeHead(200,{'Content-Type':'application/json'}); res.end('{"ok":true}'); return;
   }
   if (u.pathname === '/api/add-ext' && req.method==='POST') {
     const { name, sourcePath } = await readBody(req);
+    if (sourcePath && fs.existsSync(sourcePath)) {
+      if (!fs.existsSync(path.join(sourcePath, 'manifest.json'))) {
+        res.writeHead(400,{'Content-Type':'application/json'}); res.end(JSON.stringify({error: "업로드 실패: 소스 폴더의 최상위에 manifest.json 파일이 존재하지 않습니다. 브라우저가 인식할 수 없으므로 업로드가 차단되었습니다."})); return;
+      }
+    }
     broadcast('status', 'deploying');
     
     saveSource(name, sourcePath);
@@ -217,11 +282,11 @@ http.createServer(async (req, res) => {
     }
     
     await runCmd('git', ['add', `extensions/${name}`]);
-    await runCmd('git', ['commit', '-m', `feat(ext): add new extension ${name}`]);
+    await runCmd('git', ['commit', '-m', `"feat(ext): add new extension ${name}"`]);
     await runCmd('git', ['push', 'origin', 'main']);
     
     broadcast('status', 'idle');
-    broadcast('refresh', getInfo());
+    broadcast('refresh', await getInfo());
     res.writeHead(200,{'Content-Type':'application/json'}); res.end('{"ok":true}'); return;
   }
   if (u.pathname === '/api/edit-ext' && req.method==='POST') {
@@ -248,12 +313,12 @@ http.createServer(async (req, res) => {
       fs.writeFileSync(mPath, JSON.stringify(m, null, 2));
     }
     
-    await runCmd('git', ['add', '-A', 'extensions/']);
-    await runCmd('git', ['commit', '-m', `feat(ext): rename extension ${oldName} -> ${newName}`]);
+    await runCmd('git', ['add', '-A', '.']);
+    await runCmd('git', ['commit', '-m', `"feat(ext): rename extension ${oldName} -> ${newName}"`]);
     await runCmd('git', ['push', 'origin', 'main']);
     
     broadcast('status', 'idle');
-    broadcast('refresh', getInfo());
+    broadcast('refresh', await getInfo());
     res.writeHead(200,{'Content-Type':'application/json'}); res.end('{"ok":true}'); return;
   }
   if (u.pathname === '/api/delete-ext' && req.method==='POST') {
@@ -271,12 +336,12 @@ http.createServer(async (req, res) => {
       fs.rmSync(destDir, { recursive: true, force: true });
     }
     
-    await runCmd('git', ['add', '-A', 'extensions/']);
-    await runCmd('git', ['commit', '-m', `feat(ext): remove extension ${name}`]);
+    await runCmd('git', ['add', '-A', '.']);
+    await runCmd('git', ['commit', '-m', `"feat(ext): remove extension ${name}"`]);
     await runCmd('git', ['push', 'origin', 'main']);
     
     broadcast('status', 'idle');
-    broadcast('refresh', getInfo());
+    broadcast('refresh', await getInfo());
     res.writeHead(200,{'Content-Type':'application/json'}); res.end('{"ok":true}'); return;
   }
   res.writeHead(404); res.end();
