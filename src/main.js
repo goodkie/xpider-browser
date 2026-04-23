@@ -13,12 +13,24 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'chrome-extension', privileges: { standard: true, secure: true, corsEnabled: true, supportFetchAPI: true } }
 ]);
 
-// ─── 다중 인스턴스 / 프로필 지원 ─────────────────────────────
+// --- Multi-Instance / Profile Support (Portable Isolation) ---
 const profileArg = process.argv.find(a => a.startsWith('--profile='));
 const profileId  = profileArg ? profileArg.split('=')[1] : '1';
-if (profileId !== '1') {
-  app.setPath('userData', path.join(app.getPath('appData'), `XPIDER-profile-${profileId}`));
-}
+
+// Use data folder relative to executable (Portable Isolation)
+const getPortableDataPath = () => {
+  const baseDir = app.isPackaged 
+    ? path.dirname(app.getPath('exe')) 
+    : path.join(__dirname, '..');
+  
+  const dataDir = path.join(baseDir, 'data', `profile-${profileId}`);
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  return dataDir;
+};
+
+app.setPath('userData', getPortableDataPath());
+log.info(`[Portable] UserData Path: ${app.getPath('userData')}`);
+
 
 // ─── 윈도우 핸들 ──────────────────────────────────────────────
 let splashWindow = null;

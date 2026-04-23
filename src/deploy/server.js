@@ -42,10 +42,7 @@ function githubGet(apiPath) {
 
 function getSources() {
   if (fs.existsSync(CONFIG_FILE)) return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')).sources || {};
-  const def = {
-    'collect-list': 'e:/vivpr/ai/collect-list_v2/extension',
-    'send-message': 'e:/vivpr/ai/send message'
-  };
+  const def = {}; // 디폴트 예시 제거
   fs.writeFileSync(CONFIG_FILE, JSON.stringify({ sources: def }, null, 2));
   return def;
 }
@@ -336,6 +333,11 @@ http.createServer(async (req, res) => {
       fs.rmSync(destDir, { recursive: true, force: true });
     }
     
+    // extensions 폴더 자체가 삭제되지 않도록 .gitkeep 생성 유지
+    const extBase = path.join(ROOT, 'extensions');
+    if (!fs.existsSync(extBase)) fs.mkdirSync(extBase, { recursive: true });
+    fs.writeFileSync(path.join(extBase, '.gitkeep'), 'keep');
+    
     await runCmd('git', ['add', '-A', '.']);
     await runCmd('git', ['commit', '-m', `"feat(ext): remove extension ${name}"`]);
     await runCmd('git', ['push', 'origin', 'main']);
@@ -343,6 +345,22 @@ http.createServer(async (req, res) => {
     broadcast('status', 'idle');
     broadcast('refresh', await getInfo());
     res.writeHead(200,{'Content-Type':'application/json'}); res.end('{"ok":true}'); return;
+  }
+  if (u.pathname === '/api/select-folder' && req.method==='GET') {
+    const psCmd = `
+      Add-Type -AssemblyName System.Windows.Forms;
+      $f = New-Object System.Windows.Forms.FolderBrowserDialog;
+      $f.Description = "익스텐션 소스 폴더를 선택하세요";
+      if($f.ShowDialog() -eq "OK") { Write-Output $f.SelectedPath }
+    `;
+    const child = spawn('powershell', ['-Command', psCmd]);
+    let out = '';
+    child.stdout.on('data', d => out += d.toString());
+    child.on('close', () => {
+      res.writeHead(200,{'Content-Type':'application/json'});
+      res.end(JSON.stringify({ path: out.trim() }));
+    });
+    return;
   }
   res.writeHead(404); res.end();
 

@@ -30,10 +30,24 @@ jobs:
       - name: Rename Windows ZIP
         shell: bash
         run: mv out/make/zip/win32/x64/*.zip "out/make/zip/win32/x64/XPIDER-Browser-Windows-${{ github.ref_name }}.zip"
+      - name: Build Windows EXE (Squirrel)
+        run: npm run make:win
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rename Windows EXE
+        shell: pwsh
+        run: |
+          $exeFile = Get-ChildItem "out/make/squirrel/win32/x64/*.exe" | Where-Object { $_.Name -like "*Setup*" } | Select-Object -First 1
+          if ($exeFile) {
+            Move-Item $exeFile.FullName "out/make/squirrel/win32/x64/XPIDER-Browser-Windows-v${{ github.ref_name }}.exe" -Force
+          }
       - uses: actions/upload-artifact@v4
         with:
-          name: windows-portable
-          path: out/make/zip/win32/x64/*.zip
+          name: windows-artifacts
+          path: |
+            out/make/zip/win32/x64/*.zip
+            out/make/squirrel/win32/x64/*.exe
+
 
   # ──────────────────────────────────────────────────────────
   # macOS Intel 포터블 ZIP
@@ -48,16 +62,17 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - name: Build macOS Intel ZIP
+      - name: Build macOS Intel DMG
         run: npm run make:mac
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Rename Mac Intel ZIP
-        run: mv out/make/zip/darwin/x64/*.zip "out/make/zip/darwin/x64/XPIDER-Browser-Mac-Intel-${{ github.ref_name }}.zip"
+      - name: Rename Mac Intel DMG
+        run: mv out/make/dmg/x64/*.dmg "out/make/dmg/x64/XPIDER-Browser-Mac-Intel-${{ github.ref_name }}.dmg" || true
       - uses: actions/upload-artifact@v4
         with:
-          name: macos-x64-portable
-          path: out/make/zip/darwin/x64/*.zip
+          name: macos-x64-dmg
+          path: out/make/dmg/x64/*.dmg
+
 
   # ──────────────────────────────────────────────────────────
   # macOS Apple Silicon 포터블 ZIP
@@ -72,16 +87,17 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
-      - name: Build macOS ARM64 ZIP
+      - name: Build macOS ARM64 DMG
         run: npm run make:mac-arm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Rename Mac Arm ZIP
-        run: mv out/make/zip/darwin/arm64/*.zip "out/make/zip/darwin/arm64/XPIDER-Browser-Mac-Arm-${{ github.ref_name }}.zip"
+      - name: Rename Mac Arm DMG
+        run: mv out/make/dmg/arm64/*.dmg "out/make/dmg/arm64/XPIDER-Browser-Mac-Arm-${{ github.ref_name }}.dmg" || true
       - uses: actions/upload-artifact@v4
         with:
-          name: macos-arm64-portable
-          path: out/make/zip/darwin/arm64/*.zip
+          name: macos-arm64-dmg
+          path: out/make/dmg/arm64/*.dmg
+
 
   # ──────────────────────────────────────────────────────────
   # GitHub Releases에 포터블 ZIP 업로드
@@ -106,24 +122,26 @@ jobs:
           body: |
             ## XPIDER Browser ${{ github.ref_name }} 
 
-            ### 📦 다운로드 (ZIP 압축 해제 후 바로 실행)
+            ### 📦 Download Links
 
-            | 플랫폼 | 파일명 | 아키텍처 |
-            |--------|--------|----------|
-            | 🪟 Windows | `XPIDER-Browser-Windows-${{ github.ref_name }}.zip` | Intel/AMD 64bit |
-            | 🍎 macOS | `XPIDER-Browser-Mac-Intel-${{ github.ref_name }}.zip` | Intel Mac |
-            | 🍎 macOS | `XPIDER-Browser-Mac-Arm-${{ github.ref_name }}.zip` | Apple Silicon (M1/M2/M3) |
+            | Platform | File | Type |
+            |----------|------|------|
+            | 🪟 Windows | `XPIDER-Browser-Windows-v${{ github.ref_name }}.exe` | Installer (Auto Shortcut) |
+            | 🪟 Windows | `XPIDER-Browser-Windows-v${{ github.ref_name }}.zip` | Portable (Zip) |
+            | 🍎 macOS | `XPIDER-Browser-Mac-Intel-v${{ github.ref_name }}.dmg` | Intel Mac (DMG) |
+            | 🍎 macOS | `XPIDER-Browser-Mac-Arm-v${{ github.ref_name }}.dmg` | Apple Silicon (DMG) |
 
-            ### 🚀 다중 설치 방법
-            ZIP을 원하는 폴더에 압축 해제 후:
-            - **Windows**: `XPIDERBrowser.exe --profile=2` (프로필 번호로 구분)
-            - **macOS**: `open "XPIDER Browser.app" --args --profile=2`
+            ### 🚀 Instructions
+            - **Windows (Installer)**: Run `.exe` to install. It creates a desktop shortcut.
+            - **Windows (Portable)**: Extract `.zip` to any folder. Each folder keeps its own login info.
+            - **macOS**: Open `.dmg` and drag XPIDER to the Applications folder.
 
-            ### ✅ 변경 사항
-            - 앱 시작 시 스플래시 화면 표시 (투명 배경 + 로고 애니메이션)
-            - 브라우저 실행 후 익스텐션 자동 업데이트 (버전 비교)
-            - 새 익스텐션 자동 설치 및 사이드바 자동 갱신
-          files: dist/**/*.zip
+            ### 📂 Portable Isolation
+            Login sessions and settings are now stored in the `data/` folder inside your browser directory. You can copy the browser folder to multiple locations to use different accounts simultaneously.
+          files: |
+            dist/**/*.zip
+            dist/**/*.dmg
+            dist/**/*.exe
           draft: false
           prerelease: false
         env:

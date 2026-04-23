@@ -442,8 +442,11 @@ function openAddExtModal() {
 }
 
 function openActions() {
-  window.open('https://github.com/goodkie/xpider-browser/actions', '_blank');
+  const url = 'https://github.com/goodkie/xpider-browser/actions';
+  const features = 'width=1200,height=800,menubar=no,toolbar=no,location=yes,status=no,resizable=yes,scrollbars=yes';
+  window.open(url, 'XPIDER_ACTIONS', features);
 }
+
 
 loadInfo();
 </script>

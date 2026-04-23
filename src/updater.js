@@ -178,6 +178,19 @@ async function syncExtensionsFromGitHub(extDir, onProgress) {
     progress(`❌ 동기화 오류: ${e.message}`);
   }
 
+  // 로컬에만 있고 GitHub에 없는 익스텐션 삭제 (완전 동기화)
+  try {
+    const localEntries = fs.readdirSync(extDir, { withFileTypes: true });
+    const remoteNames = extFolders.map(f => f.name);
+    for (const entry of localEntries) {
+      if (entry.isDirectory() && !remoteNames.includes(entry.name)) {
+        const target = path.join(extDir, entry.name);
+        progress(`🗑️ 불필요한 익스텐션 제거 중: ${entry.name}`);
+        fs.rmSync(target, { recursive: true, force: true });
+      }
+    }
+  } catch (e) { console.error('[Updater] Cleanup error:', e.message); }
+
   return result;
 }
 
