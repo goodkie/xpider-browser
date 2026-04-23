@@ -96,22 +96,22 @@ namespace XpiderSetup {
             
             <!-- Main Content -->
             <StackPanel Grid.Row='2' VerticalAlignment='Center'>
-                <TextBlock Text='\uc555\ucd95\uc744 \ud440 \ud3f4\ub354 \uacbd\ub85c' Foreground='#aaa' FontSize='12' Margin='0,0,0,5'/>
+                <TextBlock Text='&#xC555;&#xCD95;&#xC744; &#xD440; &#xD3F4;&#xB354; &#xACBD;&#xB85C;' Foreground='#aaa' FontSize='12' Margin='0,0,0,5'/>
                 <TextBox x:Name='txtPath' Height='35' Background='#1e1e1e' Foreground='White' 
                          BorderBrush='#444' BorderThickness='1' Padding='8,8,8,8' FontSize='13'/>
                 
-                <CheckBox x:Name='chkShortcut' Content='\ubc14\ud0c1\ud654\uba74 \uc2e4\ud589 \ubc14\ub85c\uac00\uae30 \ub9cc\ub4e4\uae30' 
+                <CheckBox x:Name='chkShortcut' Content='&#xBC14;&#xD0D1;&#xD654;&#xBA74; &#xC2E4;&#xD589; &#xBC14;&#xB85C;&#xAC00;&#xAE30; &#xB9CC;&#xB4E4;&#xAE30;' 
                           Foreground='#ccc' FontSize='13' Margin='0,15,0,0' IsChecked='True'/>
             </StackPanel>
             
             <!-- Progress / Status -->
             <StackPanel Grid.Row='3' Margin='0,20,0,20'>
-                <TextBlock x:Name='txtStatus' Text='\ub300\uae30 \uc911...' Foreground='#888' FontSize='11' Margin='0,0,0,5' HorizontalAlignment='Center'/>
+                <TextBlock x:Name='txtStatus' Text='&#xB300;&#xAE30; &#xC911;...' Foreground='#888' FontSize='11' Margin='0,0,0,5' HorizontalAlignment='Center'/>
                 <ProgressBar x:Name='pbExtract' Height='6' Background='#222' Foreground='#00e5ff' BorderThickness='0'/>
             </StackPanel>
             
             <!-- Extract Button -->
-            <Button x:Name='btnExtract' Content='\uc555\ucd95 \ud574\uc81c (Extract)' Grid.Row='4' Height='45' FontSize='15'/>
+            <Button x:Name='btnExtract' Content='&#xC555;&#xCD95; &#xD574;&#xC81C; (Extract)' Grid.Row='4' Height='45' FontSize='15'/>
         </Grid>
     </Border>
 </Window>
@@ -192,10 +192,10 @@ namespace XpiderSetup {
             Assembly executingAssembly = Assembly.GetExecutingAssembly();
             
             // 리소스 이름 확인 (명령줄에서 /resource:...,app.zip 으로 지정)
-            string resourceName = ""app.zip"";
+            string resourceName = "app.zip";
             
             using (Stream resourceStream = executingAssembly.GetManifestResourceStream(resourceName)) {
-                if (resourceStream == null) throw new Exception(""내장된 압축 파일을 찾을 수 없습니다."");
+                if (resourceStream == null) throw new Exception("\ub0b4\uc7a5\ub41c \uc555\ucd95 \ud30c\uc77c\uc744 \ucc3e\uc744 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.");
                 
                 if (!Directory.Exists(extractPath)) {
                     Directory.CreateDirectory(extractPath);
@@ -213,7 +213,7 @@ namespace XpiderSetup {
                         // Windows 경로 구분자 문제 방지
                         destinationPath = destinationPath.Replace('/', '\\');
                         
-                        if (entry.FullName.EndsWith(""/"") || entry.FullName.EndsWith(""\\"")) {
+                        if (entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\")) {
                             Directory.CreateDirectory(destinationPath);
                         } else {
                             Directory.CreateDirectory(Path.GetDirectoryName(destinationPath));
@@ -228,21 +228,21 @@ namespace XpiderSetup {
         private static void CreateDesktopShortcut(string targetDir) {
             try {
                 string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-                string shortcutLocation = Path.Combine(desktopPath, ""XPIDER Browser.lnk"");
-                string exePath = Path.Combine(targetDir, ""XPIDERBrowser.exe"");
+                string shortcutLocation = Path.Combine(desktopPath, "XPIDER Browser.lnk");
+                string exePath = Path.Combine(targetDir, "XPIDERBrowser.exe");
                 
                 if (!File.Exists(exePath)) return;
                 
                 // WSH(Windows Script Host)를 사용해 바로가기 생성 (Com 객체 동적 생성)
-                Type wshShellType = Type.GetTypeFromProgID(""WScript.Shell"");
+                Type wshShellType = Type.GetTypeFromProgID("WScript.Shell");
                 object wshShell = Activator.CreateInstance(wshShellType);
-                object shortcut = wshShellType.InvokeMember(""CreateShortcut"", BindingFlags.InvokeMethod, null, wshShell, new object[] { shortcutLocation });
+                object shortcut = wshShellType.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, wshShell, new object[] { shortcutLocation });
                 
                 Type shortcutType = shortcut.GetType();
-                shortcutType.InvokeMember(""TargetPath"", BindingFlags.SetProperty, null, shortcut, new object[] { exePath });
-                shortcutType.InvokeMember(""WorkingDirectory"", BindingFlags.SetProperty, null, shortcut, new object[] { targetDir });
-                shortcutType.InvokeMember(""Description"", BindingFlags.SetProperty, null, shortcut, new object[] { ""XPIDER Browser"" });
-                shortcutType.InvokeMember(""Save"", BindingFlags.InvokeMethod, null, shortcut, null);
+                shortcutType.InvokeMember("TargetPath", BindingFlags.SetProperty, null, shortcut, new object[] { exePath });
+                shortcutType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, shortcut, new object[] { targetDir });
+                shortcutType.InvokeMember("Description", BindingFlags.SetProperty, null, shortcut, new object[] { "XPIDER Browser" });
+                shortcutType.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
             }
             catch {
                 // 바로가기 생성 실패 시 무시
