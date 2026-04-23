@@ -31,8 +31,8 @@ jobs:
         shell: bash
         run: mv out/make/zip/win32/x64/*.zip "out/make/zip/win32/x64/XPIDER-Browser-Windows-${{ github.ref_name }}.zip"
       - name: Build Windows SFX (Auto-Extractor)
-        shell: pwsh
-        run: pwsh src/deploy/build-sfx.ps1
+        shell: powershell
+        run: powershell src\deploy\build-sfx.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts
