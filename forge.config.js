@@ -21,7 +21,8 @@ module.exports = {
       name: '@electron-forge/maker-dmg',
       config: {
         format: 'ULFO',
-        icon: './assets/icon.png'
+window: { width: 600, height: 400 },
+        icon: './assets/icons/mac/icon.icns'
       }
     },
   ],
