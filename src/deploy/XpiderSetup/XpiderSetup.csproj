@@ -5,7 +5,7 @@
     <TargetFramework>net48</TargetFramework>
     <AssemblyName>XPIDER-Setup</AssemblyName>
     <RootNamespace>XpiderSetup</RootNamespace>
-    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\..\assets\icons\win\icon.ico</ApplicationIcon>
     <Nullable>disable</Nullable>
     <ImplicitUsings>disable</ImplicitUsings>
     <Optimize>true</Optimize>
@@ -26,9 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="icon.ico">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
 
 </Project>
