@@ -60,7 +60,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Rename Mac Intel DMG
-        run: mv out/make/**/*.dmg "out/make/dmg/x64/XPIDER-Browser-Mac-Intel-${{ github.ref_name }}.dmg" || true
+        run: |
+          mkdir -p out/make/dmg/x64
+          find out/make -name "*.dmg" -exec mv {} "out/make/dmg/x64/XPIDER-Browser-Mac-Intel-${{ github.ref_name }}.dmg" \; || true
       - uses: actions/upload-artifact@v4
         with:
           name: macos-x64-dmg
@@ -85,7 +87,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Rename Mac Arm DMG
-        run: mv out/make/**/*.dmg "out/make/dmg/arm64/XPIDER-Browser-Mac-Arm-${{ github.ref_name }}.dmg" || true
+        run: |
+          mkdir -p out/make/dmg/arm64
+          find out/make -name "*.dmg" -exec mv {} "out/make/dmg/arm64/XPIDER-Browser-Mac-Arm-${{ github.ref_name }}.dmg" \; || true
       - uses: actions/upload-artifact@v4
         with:
           name: macos-arm64-dmg

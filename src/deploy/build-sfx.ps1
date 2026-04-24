@@ -1,9 +1,14 @@
 $ErrorActionPreference = "Stop"
 
+Write-Host "Starting SFX Build process using standard C# project..."
+
+# 1. 포터블 ZIP 파일 찾기
 $zipFile = Get-ChildItem "out\make\zip\win32\x64\*.zip" | Select-Object -First 1
+
 if (-not $zipFile) {
     $zipFile = Get-ChildItem "out\make\*.zip" -Recurse | Select-Object -First 1
 }
+
 if (-not $zipFile) {
     Write-Error "ZIP file not found."
     exit 1
@@ -11,31 +16,49 @@ if (-not $zipFile) {
 
 $zipPath = $zipFile.FullName
 Write-Host "Found ZIP file: $zipPath"
-	$exeName = $zipFile.Name.Replace(".zip", "-Setup.exe")
-$exePath = Join-Path $zipFile.DirectoryName $exeName
 
-$cscPath = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-if (-not (Test-Path $cscPath)) {
-    $cscPath = "$env:WINDIR\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+$exeName = $zipFile.Name.Replace(".zip", "-Setup.exe")
+$exeDestPath = Join-Path $zipFile.DirectoryName $exeName
+
+# 2. XpiderSetup 리소스 폴더에 복사
+$setupProjDir = "src\deploy\XpiderSetup"
+$resourcesDir = Join-Path $setupProjDir "Resources"
+
+if (-not (Test-Path $resourcesDir)) {
+    New-Item -ItemType Directory -Path $resourcesDir | Out-Null
 }
-if (-not (Test-Path $cscPath)) {
-    Write-Error "csc.exe not found! Please install .NET Framework 4.8."
+
+$targetZip = Join-Path $resourcesDir "app.zip"
+Write-Host "Copying ZIP to Resources folder: $targetZip"
+Copy-Item -Path $zipPath -Destination $targetZip -Force
+
+# 3. dotnet build 실행 (Release 모드)
+$csprojPath = Join-Path $setupProjDir "XpiderSetup.csproj"
+Write-Host "Building $csprojPath..."
+
+# Build using dotnet CLI
+& dotnet build $csprojPath -c Release
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to build the SFX project."
     exit 1
 }
 
-# Copy logo and zip to Resources folder
-New-Item -ItemType Directory -Force -Path "src\deploy\XpiderSetup\Resources" | Out-Null
-Copy-Item "logo.png" -Destination "src\deploy\XpiderSetup\Resources\logo.png" -Force
-Copy-Item $zipPath -Destination "src\deploy\XpiderSetup\Resources\app.zip" -Force
+# 4. 빌드된 EXE 파일 복사
+# .NET 4.8 타겟이므로 bin\Release\net48\ 에 위치합니다.
+$compiledExe = Join-Path $setupProjDir "bin\Release\net48\XPIDER-Setup.exe"
 
-Write-Host "Compiling Setup..."
-$cmd = "&`"$cscPath`" /nologo /target:winexe /codepage:65001 /out:`"$exePath`" /win32icon:`"assets\icons\win\icon.ico`" /reference:System.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.IO.Compression.dll /reference:System.IO.Compression.FileSystem.dll /res:`"src\deploy\XpiderSetup\Resources\app.zip`",app.zip /res:`"src\deploy\XpiderSetup\Resources\logo.png`",logo.png `'src\deploy\XpiderSetup\Program.cs`' `'src\deploy\XpiderSetup\MainForm.cs`'"
+if (-not (Test-Path $compiledExe)) {
+    # 대체 경로 탐색
+    $compiledExe = Join-Path $setupProjDir "bin\Release\XPIDER-Setup.exe"
+}
 
-Invoke-Expression $cmd
-
-if (Test-Path $exePath) {
-    Write-Host "Successfully created setup executable: $exePath"
-} else {
-    Write-Error "Failed to compile setup executable."
+if (-not (Test-Path $compiledExe)) {
+    Write-Error "Compiled executable not found at $compiledExe"
     exit 1
 }
+
+Write-Host "Moving compiled EXE to $exeDestPath"
+Copy-Item -Path $compiledExe -Destination $exeDestPath -Force
+
+Write-Host "Successfully created setup executable: $exeDestPath"
