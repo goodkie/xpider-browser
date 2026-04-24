@@ -23,6 +23,8 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\app.zip" Condition="Exists('Resources\app.zip')" />
     <EmbeddedResource Include="Resources\logo.png" Condition="Exists('Resources\logo.png')" />
+    <EmbeddedResource Include="Resources\Fonts\Poppins-Regular.ttf" Condition="Exists('Resources\Fonts\Poppins-Regular.ttf')" />
+    <EmbeddedResource Include="Resources\Fonts\Poppins-Bold.ttf" Condition="Exists('Resources\Fonts\Poppins-Bold.ttf')" />
   </ItemGroup>
 
   <ItemGroup>

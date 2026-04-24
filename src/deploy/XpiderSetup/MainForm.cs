@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
@@ -25,15 +26,20 @@ namespace XpiderSetup
         private readonly Color INBG    = Color.FromArgb(28, 28, 28);
         private readonly Color BORDER  = Color.FromArgb(55, 55, 55);
 
+        private PrivateFontCollection pfc = new PrivateFontCollection();
+        private Font regFont, boldFont, titleFont, subFont;
+
         private PictureBox picLogo;
         private Label lblTitle, lblSub, lblPathLbl, lblStatus;
         private TextBox txtPath;
-        private Button btnBrowse, btnExtract, btnClose;
+        private RoundedButton btnBrowse, btnExtract, btnClose;
         private CheckBox chkShortcut;
-        private ProgressBar pbExtract;
+        private RoundedProgressBar pbExtract;
 
         public MainForm()
         {
+            LoadFonts();
+
             this.Text            = "XPIDER Browser Setup";
             this.Size            = new Size(560, 400);
             this.FormBorderStyle = FormBorderStyle.None;
@@ -41,45 +47,48 @@ namespace XpiderSetup
             this.BackColor       = BG;
             this.DoubleBuffered  = true;
 
-            btnClose = MakeBtn("X", new Point(Width - 42, 10), new Size(32, 32));
-            btnClose.Font      = new Font("Segoe UI", 11f, FontStyle.Bold);
+            // Apply Rounded Corners to the Form
+            this.Region = new Region(GetRoundedPath(new Rectangle(0, 0, Width, Height), 20));
+
+            btnClose = new RoundedButton { Text = "X", Location = new Point(Width - 42, 10), Size = new Size(32, 32) };
+            btnClose.Font      = new Font(boldFont.FontFamily, 11f);
             btnClose.ForeColor = DIM;
             btnClose.BackColor = Color.Transparent;
-            btnClose.FlatAppearance.BorderSize = 0;
+            btnClose.HoverBackColor = Color.FromArgb(40, 40, 40);
+            btnClose.HoverForeColor = Color.White;
+            btnClose.Radius = 16;
             btnClose.Click      += (s, e) => Application.Exit();
-            btnClose.MouseEnter += (s, e) => btnClose.ForeColor = Color.White;
-            btnClose.MouseLeave += (s, e) => btnClose.ForeColor = DIM;
 
             picLogo  = new PictureBox { Size = new Size(62, 62), Location = new Point(28, 24), SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Transparent };
-            lblTitle = new Label { Text = "XPIDER", Location = new Point(100, 28), AutoSize = true, Font = new Font("Segoe UI", 26f, FontStyle.Bold), ForeColor = ACCENT };
-            lblSub   = new Label { Text = "PORTABLE EDITION  -  SETUP", Location = new Point(102, 67), AutoSize = true, Font = new Font("Segoe UI", 8f), ForeColor = ACCENT2 };
+            lblTitle = new Label { Text = "XPIDER", Location = new Point(100, 28), AutoSize = true, Font = titleFont, ForeColor = ACCENT };
+            lblSub   = new Label { Text = "PORTABLE EDITION  -  SETUP", Location = new Point(102, 67), AutoSize = true, Font = subFont, ForeColor = ACCENT2 };
 
-            lblPathLbl = new Label { Text = "Extract to folder path:", Location = new Point(28, 112), AutoSize = true, Font = new Font("Segoe UI", 9f), ForeColor = DIM };
-            txtPath    = new TextBox { Location = new Point(28, 133), Size = new Size(418, 32), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font("Segoe UI", 10f) };
+            lblPathLbl = new Label { Text = "압축을 풀 폴더 경로:", Location = new Point(28, 112), AutoSize = true, Font = regFont, ForeColor = DIM };
+            txtPath    = new TextBox { Location = new Point(36, 138), Size = new Size(400, 32), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font(regFont.FontFamily, 10f) };
 
-            btnBrowse  = MakeBtn("Browse", new Point(455, 131), new Size(80, 36));
-            btnBrowse.Font      = new Font("Segoe UI", 9f);
+            btnBrowse  = new RoundedButton { Text = "찾아보기", Location = new Point(455, 131), Size = new Size(80, 36) };
+            btnBrowse.Font      = new Font(regFont.FontFamily, 9f);
             btnBrowse.BackColor = INBG;
             btnBrowse.ForeColor = TEXT;
-            btnBrowse.FlatAppearance.BorderColor = BORDER;
-            btnBrowse.FlatAppearance.BorderSize  = 1;
+            btnBrowse.HoverBackColor = Color.FromArgb(45, 45, 45);
+            btnBrowse.HoverForeColor = Color.White;
+            btnBrowse.Radius = 8;
             btnBrowse.Click      += BtnBrowse_Click;
-            btnBrowse.MouseEnter += (s, e) => btnBrowse.BackColor = Color.FromArgb(45, 45, 45);
-            btnBrowse.MouseLeave += (s, e) => btnBrowse.BackColor = INBG;
 
-            chkShortcut = new CheckBox { Text = "Create desktop shortcut", Location = new Point(28, 182), AutoSize = true, Checked = true, ForeColor = TEXT, Font = new Font("Segoe UI", 10f), BackColor = Color.Transparent, Cursor = Cursors.Hand };
+            chkShortcut = new CheckBox { Text = "바탕화면 바로가기 만들기", Location = new Point(28, 182), AutoSize = true, Checked = true, ForeColor = TEXT, Font = new Font(regFont.FontFamily, 10f), BackColor = Color.Transparent, Cursor = Cursors.Hand };
 
-            lblStatus = new Label { Text = "Verify the path and click Extract.", Location = new Point(28, 226), Size = new Size(510, 18), Font = new Font("Segoe UI", 9f), ForeColor = DIM };
-            pbExtract = new ProgressBar { Location = new Point(28, 250), Size = new Size(510, 6), Minimum = 0, Maximum = 100, ForeColor = ACCENT, BackColor = Color.FromArgb(30, 30, 30) };
+            lblStatus = new Label { Text = "경로를 확인한 후 '압축 해제'를 클릭하세요.", Location = new Point(28, 226), Size = new Size(510, 18), Font = regFont, ForeColor = DIM };
+            
+            pbExtract = new RoundedProgressBar { Location = new Point(28, 250), Size = new Size(510, 8), Maximum = 100, Value = 0, BarColor = ACCENT, BackColor = Color.FromArgb(30, 30, 30), Radius = 4 };
 
-            btnExtract = MakeBtn("Extract", new Point(28, 272), new Size(510, 52));
-            btnExtract.Font      = new Font("Segoe UI", 13f, FontStyle.Bold);
+            btnExtract = new RoundedButton { Text = "압축 해제 (Extract)", Location = new Point(28, 275), Size = new Size(510, 52) };
+            btnExtract.Font      = new Font(boldFont.FontFamily, 13f);
             btnExtract.BackColor = ACCENT;
             btnExtract.ForeColor = Color.Black;
-            btnExtract.FlatAppearance.BorderSize = 0;
+            btnExtract.HoverBackColor = ACCENT2;
+            btnExtract.HoverForeColor = Color.White;
+            btnExtract.Radius = 12;
             btnExtract.Click      += BtnExtract_Click;
-            btnExtract.MouseEnter += (s, e) => { if (btnExtract.Enabled) { btnExtract.BackColor = ACCENT2; btnExtract.ForeColor = Color.White; } };
-            btnExtract.MouseLeave += (s, e) => { if (btnExtract.Enabled) { btnExtract.BackColor = ACCENT; btnExtract.ForeColor = Color.Black; } };
 
             foreach (Control c in new Control[] { lblTitle, lblSub, picLogo })
                 c.MouseDown += Form_MouseDown;
@@ -91,23 +100,95 @@ namespace XpiderSetup
             txtPath.Text = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "XPIDER Browser");
         }
 
-        private Button MakeBtn(string text, Point loc, Size sz)
+        private void LoadFonts()
         {
-            return new Button { Text = text, Location = loc, Size = sz, FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand };
+            regFont = new Font("Segoe UI", 9f);
+            boldFont = new Font("Segoe UI", 9f, FontStyle.Bold);
+            titleFont = new Font("Segoe UI", 26f, FontStyle.Bold);
+            subFont = new Font("Segoe UI", 8f);
+
+            try
+            {
+                var asm = Assembly.GetExecutingAssembly();
+                string[] names = asm.GetManifestResourceNames();
+                
+                string regRes = null, boldRes = null;
+                foreach (var n in names)
+                {
+                    if (n.EndsWith("Poppins-Regular.ttf", StringComparison.OrdinalIgnoreCase)) regRes = n;
+                    if (n.EndsWith("Poppins-Bold.ttf", StringComparison.OrdinalIgnoreCase)) boldRes = n;
+                }
+
+                if (regRes != null) LoadFontFromResource(asm, regRes);
+                if (boldRes != null) LoadFontFromResource(asm, boldRes);
+
+                if (pfc.Families.Length > 0)
+                {
+                    FontFamily fam = pfc.Families[0];
+                    regFont = new Font(fam, 9f);
+                    boldFont = new Font(fam, 9f, FontStyle.Bold);
+                    titleFont = new Font(fam, 26f, FontStyle.Bold);
+                    subFont = new Font(fam, 8f);
+                }
+            }
+            catch { }
+        }
+
+        private void LoadFontFromResource(Assembly asm, string resName)
+        {
+            using (Stream s = asm.GetManifestResourceStream(resName))
+            {
+                byte[] data = new byte[s.Length];
+                s.Read(data, 0, (int)s.Length);
+                IntPtr ptr = Marshal.AllocCoTaskMem(data.Length);
+                Marshal.Copy(data, 0, ptr, data.Length);
+                pfc.AddMemoryFont(ptr, data.Length);
+                Marshal.FreeCoTaskMem(ptr);
+            }
+        }
+
+        public static GraphicsPath GetRoundedPath(Rectangle rect, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
+            if (radius <= 0) { path.AddRectangle(rect); return path; }
+            int d = radius * 2;
+            path.AddArc(rect.X, rect.Y, d, d, 180, 90);
+            path.AddArc(rect.Right - d, rect.Y, d, d, 270, 90);
+            path.AddArc(rect.Right - d, rect.Bottom - d, d, d, 0, 90);
+            path.AddArc(rect.X, rect.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
             var g = e.Graphics;
-            using (var br = new LinearGradientBrush(new Rectangle(0, 0, Width, 3), Color.FromArgb(60, 0, 229, 255), Color.FromArgb(60, 123, 97, 255), 0f))
-                g.FillRectangle(br, 0, 0, Width, 3);
-            using (var p = new Pen(Color.FromArgb(50, 50, 50), 1))
-                g.DrawRectangle(p, 0, 0, Width - 1, Height - 1);
-            using (var p = new Pen(Color.FromArgb(38, 38, 38), 1))
-                g.DrawLine(p, 28, 104, Width - 28, 104);
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            // Gradient Top Line
+            using (var path = GetRoundedPath(new Rectangle(0, 0, Width, Height), 20))
+            {
+                g.SetClip(path);
+                using (var br = new LinearGradientBrush(new Rectangle(0, 0, Width, 4), Color.FromArgb(60, 0, 229, 255), Color.FromArgb(60, 123, 97, 255), 0f))
+                    g.FillRectangle(br, 0, 0, Width, 4);
+                g.ResetClip();
+            }
+
+            // Border
+            using (var p = new Pen(Color.FromArgb(40, 40, 40), 2))
+            {
+                var rect = new Rectangle(1, 1, Width - 3, Height - 3);
+                g.DrawPath(p, GetRoundedPath(rect, 19));
+            }
+
+            // Textbox Border
             using (var p = new Pen(BORDER, 1))
-                g.DrawRectangle(p, txtPath.Left - 1, txtPath.Top - 5, txtPath.Width + 2, 42);
+            using (var path = GetRoundedPath(new Rectangle(txtPath.Left - 8, txtPath.Top - 8, txtPath.Width + 16, txtPath.Height + 16), 8))
+            {
+                g.FillPath(new SolidBrush(INBG), path);
+                g.DrawPath(p, path);
+            }
         }
 
         private void Form_MouseDown(object sender, MouseEventArgs e)
@@ -141,7 +222,7 @@ namespace XpiderSetup
         private async void BtnExtract_Click(object sender, EventArgs e)
         {
             string dir = txtPath.Text.Trim();
-            if (string.IsNullOrEmpty(dir)) { MessageBox.Show("Please specify a folder path.", "XPIDER Setup", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            if (string.IsNullOrEmpty(dir)) { MessageBox.Show("폴더 경로를 지정해주세요.", "XPIDER Setup", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
             bool shortcut = chkShortcut.Checked;
             btnExtract.Enabled = false; btnExtract.BackColor = Color.FromArgb(40,40,40); btnExtract.ForeColor = Color.FromArgb(80,80,80);
@@ -152,16 +233,18 @@ namespace XpiderSetup
                 await Task.Run(() => ExtractZip(dir, (pct, msg) =>
                     this.Invoke((Action)(() => { pbExtract.Value = pct; lblStatus.Text = msg; }))));
 
-                if (shortcut) { Invoke((Action)(() => lblStatus.Text = "Creating shortcut...")); CreateShortcut(dir); }
+                if (shortcut) { Invoke((Action)(() => lblStatus.Text = "바로가기 생성 중...")); CreateShortcut(dir); }
 
                 this.Invoke((Action)(() =>
                 {
                     pbExtract.Value  = 100;
-                    lblStatus.Text   = "Done!";
+                    lblStatus.Text   = "설치 완료!";
                     lblStatus.ForeColor = ACCENT;
-                    btnExtract.Text      = "Launch XPIDER Browser";
+                    btnExtract.Text      = "브라우저 실행하기 (Launch)";
                     btnExtract.BackColor = ACCENT2;
                     btnExtract.ForeColor = Color.White;
+                    btnExtract.HoverBackColor = ACCENT;
+                    btnExtract.HoverForeColor = Color.Black;
                     btnExtract.Enabled   = true;
                     btnExtract.Click    -= BtnExtract_Click;
                     btnExtract.Click    += (s2, e2) =>
@@ -176,11 +259,12 @@ namespace XpiderSetup
             {
                 this.Invoke((Action)(() =>
                 {
-                    lblStatus.Text      = "Error: " + ex.Message;
+                    lblStatus.Text      = "오류: " + ex.Message;
                     lblStatus.ForeColor = Color.FromArgb(255, 80, 80);
-                    btnExtract.Text     = "Retry";
+                    btnExtract.Text     = "다시 시도 (Retry)";
                     btnExtract.BackColor = Color.FromArgb(100, 0, 0);
                     btnExtract.ForeColor = Color.White;
+                    btnExtract.HoverBackColor = Color.FromArgb(150, 0, 0);
                     btnExtract.Enabled   = true;
                     txtPath.Enabled = true; btnBrowse.Enabled = true; chkShortcut.Enabled = true;
                 }));
@@ -193,7 +277,7 @@ namespace XpiderSetup
             string resName = null;
             foreach (var n in asm.GetManifestResourceNames())
                 if (n.EndsWith("app.zip", StringComparison.OrdinalIgnoreCase)) { resName = n; break; }
-            if (resName == null) throw new Exception("Embedded ZIP not found.");
+            if (resName == null) throw new Exception("내장된 앱 압축 파일을 찾을 수 없습니다.");
 
             using (var stream = asm.GetManifestResourceStream(resName))
             using (var zip = new ZipArchive(stream, ZipArchiveMode.Read))
@@ -203,7 +287,7 @@ namespace XpiderSetup
                 foreach (var entry in zip.Entries)
                 {
                     cur++;
-                    report((int)((cur / (float)total) * 100), string.Format("Extracting... {0}/{1}", cur, total));
+                    report((int)((cur / (float)total) * 100), string.Format("압축 해제 중... {0}/{1}", cur, total));
                     string path = Path.Combine(dest, entry.FullName.Replace('/', Path.DirectorySeparatorChar));
                     if (entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\"))
                         Directory.CreateDirectory(path);
@@ -230,6 +314,105 @@ namespace XpiderSetup
                 lt.InvokeMember("Save",               System.Reflection.BindingFlags.InvokeMethod, null, lnk, null);
             }
             catch { }
+        }
+    }
+
+    public class RoundedButton : Control
+    {
+        public int Radius { get; set; } = 10;
+        public Color HoverBackColor { get; set; } = Color.Gray;
+        public Color HoverForeColor { get; set; } = Color.White;
+        
+        private Color originalBackColor;
+        private Color originalForeColor;
+        private bool isHovered = false;
+
+        public RoundedButton()
+        {
+            this.DoubleBuffered = true;
+            this.Cursor = Cursors.Hand;
+        }
+
+        protected override void OnMouseEnter(EventArgs e)
+        {
+            base.OnMouseEnter(e);
+            if (this.Enabled) {
+                originalBackColor = this.BackColor;
+                originalForeColor = this.ForeColor;
+                this.BackColor = HoverBackColor;
+                this.ForeColor = HoverForeColor;
+                isHovered = true;
+                this.Invalidate();
+            }
+        }
+
+        protected override void OnMouseLeave(EventArgs e)
+        {
+            base.OnMouseLeave(e);
+            if (this.Enabled && isHovered) {
+                this.BackColor = originalBackColor;
+                this.ForeColor = originalForeColor;
+                isHovered = false;
+                this.Invalidate();
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var path = MainForm.GetRoundedPath(new Rectangle(0, 0, Width - 1, Height - 1), Radius))
+            {
+                using (var brush = new SolidBrush(this.BackColor))
+                    e.Graphics.FillPath(brush, path);
+
+                TextRenderer.DrawText(e.Graphics, this.Text, this.Font, new Rectangle(0, 0, Width, Height), this.ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+        }
+    }
+
+    public class RoundedProgressBar : Control
+    {
+        public int Radius { get; set; } = 5;
+        public int Maximum { get; set; } = 100;
+        
+        private int _value = 0;
+        public int Value 
+        { 
+            get => _value; 
+            set { _value = Math.Max(0, Math.Min(value, Maximum)); this.Invalidate(); } 
+        }
+
+        public Color BarColor { get; set; } = Color.Cyan;
+
+        public RoundedProgressBar()
+        {
+            this.DoubleBuffered = true;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            
+            // Draw background
+            using (var path = MainForm.GetRoundedPath(rect, Radius))
+            using (var brush = new SolidBrush(this.BackColor))
+                e.Graphics.FillPath(brush, path);
+
+            // Draw progress bar
+            if (Value > 0)
+            {
+                int fillWidth = (int)((float)Value / Maximum * (Width - 1));
+                if (fillWidth > 0)
+                {
+                    var fillRect = new Rectangle(0, 0, fillWidth, Height - 1);
+                    // To prevent artifacts when width is smaller than radius*2
+                    int currentRadius = Math.Min(Radius, fillWidth / 2);
+                    using (var path = MainForm.GetRoundedPath(fillRect, currentRadius))
+                    using (var brush = new SolidBrush(BarColor))
+                        e.Graphics.FillPath(brush, path);
+                }
+            }
         }
     }
 }
