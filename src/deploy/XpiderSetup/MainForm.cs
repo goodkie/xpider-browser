@@ -329,6 +329,7 @@ namespace XpiderSetup
 
         public RoundedButton()
         {
+            this.SetStyle(ControlStyles.SupportsTransparentBackColor | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
             this.DoubleBuffered = true;
             this.Cursor = Cursors.Hand;
         }
@@ -386,6 +387,7 @@ namespace XpiderSetup
 
         public RoundedProgressBar()
         {
+            this.SetStyle(ControlStyles.SupportsTransparentBackColor | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
             this.DoubleBuffered = true;
         }
 
