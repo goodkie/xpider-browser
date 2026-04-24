@@ -166,7 +166,7 @@ namespace XpiderSetup
                     btnExtract.Click    -= BtnExtract_Click;
                     btnExtract.Click    += (s2, e2) =>
                     {
-                        var exes = Directory.GetFiles(dir, "XPIDErBrowser.exe", SearchOption.AllDirectories);
+                        var exes = Directory.GetFiles(dir, "XPIDERBrowser.exe", SearchOption.AllDirectories);
                         if (exes.Length > 0) System.Diagnostics.Process.Start(exes[0]);
                         Application.Exit();
                     };
