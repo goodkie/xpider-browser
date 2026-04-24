@@ -242,7 +242,7 @@ namespace XpiderSetup
             chkToS.CheckedChanged += (s, e) => btnExtract.Enabled = chkToS.Checked;
 
             lblToSLink = new Label { Location = new Point(130, 97), AutoSize = true, Font = new Font(regFont.FontFamily, 10f, FontStyle.Underline), ForeColor = ACCENT, Cursor = Cursors.Hand };
-            lblToSLink.Click += (s, e) => LaunchChromeAppMode("https://raw.githubusercontent.com/goodkie/xpider-browser/main/TOS.md");
+            lblToSLink.Click += (s, e) => LaunchChromeAppMode($"https://github.com/goodkie/xpider-browser/blob/main/TOS_{currentLang}.md");
 
             lblStatus = new Label { Location = new Point(0, 140), Size = new Size(510, 18), Font = regFont, ForeColor = DIM };
             pbExtract = new RoundedProgressBar { Location = new Point(0, 164), Size = new Size(510, 8), Maximum = 100, Value = 0, BarColor = ACCENT, BackColor = Color.FromArgb(30, 30, 30), Radius = 4 };
@@ -274,7 +274,13 @@ namespace XpiderSetup
             // Adjust Link location based on checkbox text width
             using (Graphics g = CreateGraphics()) {
                 SizeF size = g.MeasureString(chkToS.Text, chkToS.Font);
-                lblToSLink.Location = new Point(chkToS.Left + (int)size.Width + 18, chkToS.Top + 1);
+                int linkX = chkToS.Left + (int)size.Width + 12;
+                // If it's too far right, wrap it to the next line
+                if (linkX + 150 > pnlMain.Width) {
+                    lblToSLink.Location = new Point(chkToS.Left + 25, chkToS.Top + 22);
+                } else {
+                    lblToSLink.Location = new Point(linkX, chkToS.Top + 1);
+                }
             }
             lblToSLink.Text = dict["tosLink"];
             

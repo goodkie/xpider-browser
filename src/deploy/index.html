@@ -296,6 +296,20 @@ header {
   <div class="modal">
     <div class="modal-header">
       <span>📝 TOS.md (이용 약관) 편집</span>
+      <select class="ver-input" id="tosLang" style="width:120px;padding:2px 8px;font-size:11px;" onchange="loadTosContent()">
+        <option value="ko">한국어 (KO)</option>
+        <option value="en">English (EN)</option>
+        <option value="ja">日本語 (JA)</option>
+        <option value="zh">中文 (ZH)</option>
+        <option value="es">Español (ES)</option>
+        <option value="fr">Français (FR)</option>
+        <option value="de">Deutsch (DE)</option>
+        <option value="ru">Русский (RU)</option>
+        <option value="pt">Português (PT)</option>
+        <option value="ar">العربية (AR)</option>
+        <option value="hi">हिन्दी (HI)</option>
+        <option value="it">Italiano (IT)</option>
+      </select>
       <button class="cbtn" onclick="closeTosModal()">X</button>
     </div>
     <div class="modal-body">
@@ -500,12 +514,18 @@ function openActions() {
 // ── TOS 편집 ──────────────────────────────────────────────
 async function openTosModal() {
   if (isBusy) return;
-  const res = await fetch('/api/get-tos').then(r=>r.json()).catch(()=>null);
+  $('tosLang').value = 'ko'; // Default to Korean
+  await loadTosContent();
+  $('tosModal').style.display = 'flex';
+}
+
+async function loadTosContent() {
+  const lang = $('tosLang').value;
+  const res = await fetch(`/api/get-tos?lang=${lang}`).then(r=>r.json()).catch(()=>null);
   if (res && res.content !== undefined) {
     $('tosContent').value = res.content;
-    $('tosModal').style.display = 'flex';
   } else {
-    alert('TOS.md 파일을 불러오지 못했습니다.');
+    alert('TOS 파일을 불러오지 못했습니다.');
   }
 }
 
@@ -516,11 +536,12 @@ function closeTosModal() {
 function saveAndPushTos() {
   if (isBusy) return;
   const content = $('tosContent').value;
-  if (!confirm('수정된 약관을 저장하고 GitHub에 푸시하시겠습니까?')) return;
+  const lang = $('tosLang').value;
+  if (!confirm(`[${lang}] 수정된 약관을 저장하고 GitHub에 푸시하시겠습니까?`)) return;
   
   closeTosModal();
-  addLog('\n── Edit & Push TOS.md ──', false);
-  post('/api/edit-tos', { content });
+  addLog(`\n── Edit & Push TOS_${lang}.md ──`, false);
+  post('/api/edit-tos', { content, lang });
 }
 
 loadInfo();
