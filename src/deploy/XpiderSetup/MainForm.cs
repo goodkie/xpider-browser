@@ -66,13 +66,13 @@ namespace XpiderSetup
             lblPathLbl = new Label { Text = "압축을 풀 폴더 경로:", Location = new Point(28, 112), AutoSize = true, Font = regFont, ForeColor = DIM };
             txtPath    = new TextBox { Location = new Point(36, 138), Size = new Size(400, 32), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font(regFont.FontFamily, 10f) };
 
-            btnBrowse  = new RoundedButton { Text = "찾아보기", Location = new Point(455, 131), Size = new Size(80, 36) };
+            btnBrowse  = new RoundedButton { Text = "찾아보기", Location = new Point(455, 130), Size = new Size(74, 32) };
             btnBrowse.Font      = new Font(regFont.FontFamily, 9f);
             btnBrowse.BackColor = INBG;
             btnBrowse.ForeColor = TEXT;
             btnBrowse.HoverBackColor = Color.FromArgb(45, 45, 45);
             btnBrowse.HoverForeColor = Color.White;
-            btnBrowse.Radius = 8;
+            btnBrowse.Radius = 16;
             btnBrowse.Click      += BtnBrowse_Click;
 
             chkShortcut = new CheckBox { Text = "바탕화면 바로가기 만들기", Location = new Point(28, 182), AutoSize = true, Checked = true, ForeColor = TEXT, Font = new Font(regFont.FontFamily, 10f), BackColor = Color.Transparent, Cursor = Cursors.Hand };
@@ -81,13 +81,13 @@ namespace XpiderSetup
             
             pbExtract = new RoundedProgressBar { Location = new Point(28, 250), Size = new Size(510, 8), Maximum = 100, Value = 0, BarColor = ACCENT, BackColor = Color.FromArgb(30, 30, 30), Radius = 4 };
 
-            btnExtract = new RoundedButton { Text = "압축 해제 (Extract)", Location = new Point(28, 275), Size = new Size(510, 52) };
-            btnExtract.Font      = new Font(boldFont.FontFamily, 13f);
+            btnExtract = new RoundedButton { Text = "압축 해제 (Extract)", Location = new Point(180, 280), Size = new Size(200, 44) };
+            btnExtract.Font      = new Font(boldFont.FontFamily, 11f);
             btnExtract.BackColor = ACCENT;
             btnExtract.ForeColor = Color.Black;
             btnExtract.HoverBackColor = ACCENT2;
             btnExtract.HoverForeColor = Color.White;
-            btnExtract.Radius = 12;
+            btnExtract.Radius = 22;
             btnExtract.Click      += BtnExtract_Click;
 
             foreach (Control c in new Control[] { lblTitle, lblSub, picLogo })
