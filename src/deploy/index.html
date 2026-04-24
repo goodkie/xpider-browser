@@ -63,7 +63,8 @@ header {
 .content { display:grid;grid-template-columns:340px 1fr;overflow:hidden; }
 .panel { padding:20px;overflow-y:auto;border-right:1px solid var(--border); }
 .panel:last-child{border-right:none;}
-::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:var(--muted);border-radius:4px;}
+::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.2);border-radius:4px;}
+::-webkit-scrollbar-track{background:transparent;}
 
 .ptitle {
   font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
@@ -241,25 +242,26 @@ header {
       </button>
     </div>
 
+    <!-- 기타 작업 섹션 (위로 올림) -->
     <div class="divider"></div>
-    <div class="ptitle" style="margin-bottom:8px;">직접 버전 지정</div>
-    <div class="custom-ver">
-      <input class="ver-input" id="customVer" placeholder="예: 2.3.0">
-      <button class="btn btn-cyan" style="width:auto;padding:10px 16px;" onclick="deployCustom()">배포</button>
-    </div>
-
-    <div class="divider"></div>
-    <div class="ptitle" style="margin-bottom:8px;">기타 작업</div>
+    <div class="ptitle" style="margin-bottom:8px;">🛠️ 기타 작업</div>
     <div class="btns">
       <button class="btn btn-sec" onclick="gitPull()">
         <span class="bico">⬇</span><span class="btxt">Git Pull (최신 코드 받기)</span>
       </button>
-      <button class="btn btn-sec" onclick="openTosModal()">
+      <button class="btn btn-cyan" onclick="openTosModal()">
         <span class="bico">📝</span><span class="btxt">TOS.md (약관) 편집 및 푸시</span>
       </button>
       <button class="btn btn-red" onclick="gitRollback()">
         <span class="bico">↩</span><span class="btxt">Rollback (최근 커밋 취소)</span>
       </button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="ptitle" style="margin-bottom:8px;">직접 버전 지정</div>
+    <div class="custom-ver">
+      <input class="ver-input" id="customVer" placeholder="예: 2.3.0">
+      <button class="btn btn-cyan" style="width:auto;padding:10px 16px;" onclick="deployCustom()">배포</button>
     </div>
   </div>
 
