@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
@@ -8,6 +10,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.Win32;
 
 namespace XpiderSetup
 {
@@ -29,27 +32,139 @@ namespace XpiderSetup
         private PrivateFontCollection pfc = new PrivateFontCollection();
         private Font regFont, boldFont, titleFont, subFont;
 
+        private Panel pnlLang, pnlMain;
         private PictureBox picLogo;
         private Label lblTitle, lblSub, lblPathLbl, lblStatus;
         private TextBox txtPath;
-        private RoundedButton btnBrowse, btnExtract, btnClose;
-        private CheckBox chkShortcut;
+        private RoundedButton btnBrowse, btnExtract, btnClose, btnLangNext;
+        private ComboBox cmbLang;
+        private Label lblLangTitle;
+        private CheckBox chkShortcut, chkToS;
+        private Label lblToSLink;
         private RoundedProgressBar pbExtract;
+
+        private string currentLang = "en";
+
+        private Dictionary<string, string> langCodes = new Dictionary<string, string>
+        {
+            {"English", "en"}, {"한국어", "ko"}, {"日本語", "ja"}, {"中文 (简体)", "zh"},
+            {"Español", "es"}, {"Français", "fr"}, {"Deutsch", "de"}, {"Русский", "ru"},
+            {"Português", "pt"}, {"العربية", "ar"}, {"हिन्दी", "hi"}, {"Italiano", "it"}
+        };
+
+        private Dictionary<string, Dictionary<string, string>> i18n = new Dictionary<string, Dictionary<string, string>>
+        {
+            { "en", new Dictionary<string, string> {
+                {"setupTitle", "PORTABLE EDITION  -  SETUP"}, {"langSelect", "Select Language"}, {"next", "Next"},
+                {"extractPath", "Extract to folder path:"}, {"browse", "Browse"}, {"createShortcut", "Create desktop shortcut"},
+                {"agreeTos", "I agree to the "}, {"tosLink", "Terms of Service"}, {"verifyPath", "Verify the path, agree to ToS, and click Extract."},
+                {"extractBtn", "Extract"}, {"pathEmpty", "Please specify a folder path."}, {"creatingShortcut", "Creating shortcut..."},
+                {"done", "Done!"}, {"launch", "Launch XPIDER Browser"}, {"error", "Error: "}, {"retry", "Retry"},
+                {"zipNotFound", "Embedded ZIP not found."}, {"extracting", "Extracting... {0}/{1}"}
+            }},
+            { "ko", new Dictionary<string, string> {
+                {"setupTitle", "포터블 에디션  -  설치"}, {"langSelect", "언어 선택"}, {"next", "다음"},
+                {"extractPath", "압축을 풀 폴더 경로:"}, {"browse", "찾아보기"}, {"createShortcut", "바탕화면 바로가기 만들기"},
+                {"agreeTos", "다음에 동의합니다: "}, {"tosLink", "이용 약관"}, {"verifyPath", "경로 확인 후 약관에 동의하고 압축 해제를 누르세요."},
+                {"extractBtn", "압축 해제 (Extract)"}, {"pathEmpty", "폴더 경로를 지정해주세요."}, {"creatingShortcut", "바로가기 생성 중..."},
+                {"done", "설치 완료!"}, {"launch", "브라우저 실행하기 (Launch)"}, {"error", "오류: "}, {"retry", "다시 시도"},
+                {"zipNotFound", "내장된 앱 압축 파일을 찾을 수 없습니다."}, {"extracting", "압축 해제 중... {0}/{1}"}
+            }},
+            { "ja", new Dictionary<string, string> {
+                {"setupTitle", "ポータブルエディション - セットアップ"}, {"langSelect", "言語を選択"}, {"next", "次へ"},
+                {"extractPath", "展開先のフォルダーパス:"}, {"browse", "参照"}, {"createShortcut", "デスクトップショートカットを作成する"},
+                {"agreeTos", "同意する: "}, {"tosLink", "利用規約"}, {"verifyPath", "パスを確認し、利用規約に同意して「展開」をクリックしてください。"},
+                {"extractBtn", "展開 (Extract)"}, {"pathEmpty", "フォルダーパスを指定してください。"}, {"creatingShortcut", "ショートカットを作成中..."},
+                {"done", "完了!"}, {"launch", "XPIDERブラウザーを起動"}, {"error", "エラー: "}, {"retry", "再試行"},
+                {"zipNotFound", "埋め込みZIPが見つかりません。"}, {"extracting", "展開中... {0}/{1}"}
+            }},
+            { "zh", new Dictionary<string, string> {
+                {"setupTitle", "便携版 - 安装"}, {"langSelect", "选择语言"}, {"next", "下一步"},
+                {"extractPath", "解压到文件夹路径:"}, {"browse", "浏览"}, {"createShortcut", "创建桌面快捷方式"},
+                {"agreeTos", "我同意 "}, {"tosLink", "服务条款"}, {"verifyPath", "请检查路径并同意服务条款，然后点击“解压”。"},
+                {"extractBtn", "解压 (Extract)"}, {"pathEmpty", "请指定文件夹路径。"}, {"creatingShortcut", "正在创建快捷方式..."},
+                {"done", "完成!"}, {"launch", "启动 XPIDER 浏览器"}, {"error", "错误: "}, {"retry", "重试"},
+                {"zipNotFound", "未找到内置的ZIP文件。"}, {"extracting", "解压中... {0}/{1}"}
+            }},
+            { "es", new Dictionary<string, string> {
+                {"setupTitle", "EDICIÓN PORTÁTIL - CONFIGURACIÓN"}, {"langSelect", "Seleccionar idioma"}, {"next", "Siguiente"},
+                {"extractPath", "Extraer a la ruta de la carpeta:"}, {"browse", "Examinar"}, {"createShortcut", "Crear acceso directo"},
+                {"agreeTos", "Acepto los "}, {"tosLink", "Términos de servicio"}, {"verifyPath", "Verifique la ruta, acepte los términos y haga clic en Extraer."},
+                {"extractBtn", "Extraer"}, {"pathEmpty", "Especifique una ruta de carpeta."}, {"creatingShortcut", "Creando acceso directo..."},
+                {"done", "¡Hecho!"}, {"launch", "Iniciar XPIDER Browser"}, {"error", "Error: "}, {"retry", "Reintentar"},
+                {"zipNotFound", "ZIP incrustado no encontrado."}, {"extracting", "Extrayendo... {0}/{1}"}
+            }},
+            { "fr", new Dictionary<string, string> {
+                {"setupTitle", "ÉDITION PORTABLE - INSTALLATION"}, {"langSelect", "Choisir la langue"}, {"next", "Suivant"},
+                {"extractPath", "Extraire vers le dossier :"}, {"browse", "Parcourir"}, {"createShortcut", "Créer un raccourci bureau"},
+                {"agreeTos", "J'accepte les "}, {"tosLink", "Conditions de service"}, {"verifyPath", "Vérifiez le chemin, acceptez les conditions et cliquez sur Extraire."},
+                {"extractBtn", "Extraire"}, {"pathEmpty", "Veuillez spécifier un dossier."}, {"creatingShortcut", "Création du raccourci..."},
+                {"done", "Terminé !"}, {"launch", "Lancer XPIDER Browser"}, {"error", "Erreur : "}, {"retry", "Réessayer"},
+                {"zipNotFound", "ZIP intégré introuvable."}, {"extracting", "Extraction... {0}/{1}"}
+            }},
+            { "de", new Dictionary<string, string> {
+                {"setupTitle", "PORTABLE EDITION - SETUP"}, {"langSelect", "Sprache wählen"}, {"next", "Weiter"},
+                {"extractPath", "In Ordner entpacken:"}, {"browse", "Durchsuchen"}, {"createShortcut", "Desktop-Verknüpfung erstellen"},
+                {"agreeTos", "Ich stimme den "}, {"tosLink", "Nutzungsbedingungen"}, {"verifyPath", "Pfad prüfen, Bedingungen zustimmen und auf Entpacken klicken."},
+                {"extractBtn", "Entpacken"}, {"pathEmpty", "Bitte Ordnerpfad angeben."}, {"creatingShortcut", "Verknüpfung wird erstellt..."},
+                {"done", "Fertig!"}, {"launch", "XPIDER Browser starten"}, {"error", "Fehler: "}, {"retry", "Wiederholen"},
+                {"zipNotFound", "Eingebettetes ZIP nicht gefunden."}, {"extracting", "Entpacken... {0}/{1}"}
+            }},
+            { "ru", new Dictionary<string, string> {
+                {"setupTitle", "ПОРТАТИВНАЯ ВЕРСИЯ - УСТАНОВКА"}, {"langSelect", "Выберите язык"}, {"next", "Далее"},
+                {"extractPath", "Извлечь в папку:"}, {"browse", "Обзор"}, {"createShortcut", "Создать ярлык"},
+                {"agreeTos", "Я согласен с "}, {"tosLink", "Условиями обслуживания"}, {"verifyPath", "Проверьте путь, примите условия и нажмите Извлечь."},
+                {"extractBtn", "Извлечь"}, {"pathEmpty", "Укажите путь к папке."}, {"creatingShortcut", "Создание ярлыка..."},
+                {"done", "Готово!"}, {"launch", "Запустить XPIDER Browser"}, {"error", "Ошибка: "}, {"retry", "Повторить"},
+                {"zipNotFound", "Встроенный ZIP не найден."}, {"extracting", "Извлечение... {0}/{1}"}
+            }},
+            { "pt", new Dictionary<string, string> {
+                {"setupTitle", "EDIÇÃO PORTÁTIL - CONFIGURAÇÃO"}, {"langSelect", "Selecionar Idioma"}, {"next", "Próximo"},
+                {"extractPath", "Extrair para a pasta:"}, {"browse", "Procurar"}, {"createShortcut", "Criar atalho no desktop"},
+                {"agreeTos", "Concordo com os "}, {"tosLink", "Termos de Serviço"}, {"verifyPath", "Verifique o caminho, aceite os termos e clique em Extrair."},
+                {"extractBtn", "Extrair"}, {"pathEmpty", "Especifique o caminho da pasta."}, {"creatingShortcut", "Criando atalho..."},
+                {"done", "Concluído!"}, {"launch", "Iniciar XPIDER Browser"}, {"error", "Erro: "}, {"retry", "Tentar novamente"},
+                {"zipNotFound", "ZIP incorporado não encontrado."}, {"extracting", "Extraindo... {0}/{1}"}
+            }},
+            { "ar", new Dictionary<string, string> {
+                {"setupTitle", "النسخة المحمولة - الإعداد"}, {"langSelect", "اختر اللغة"}, {"next", "التالي"},
+                {"extractPath", "استخراج إلى المجلد:"}, {"browse", "تصفح"}, {"createShortcut", "إنشاء اختصار على سطح المكتب"},
+                {"agreeTos", "أوافق على "}, {"tosLink", "شروط الخدمة"}, {"verifyPath", "تحقق من المسار، وافق على الشروط، واضغط على استخراج."},
+                {"extractBtn", "استخراج"}, {"pathEmpty", "يرجى تحديد مسار المجلد."}, {"creatingShortcut", "جاري إنشاء اختصار..."},
+                {"done", "تم!"}, {"launch", "تشغيل XPIDER Browser"}, {"error", "خطأ: "}, {"retry", "إعادة المحاولة"},
+                {"zipNotFound", "لم يتم العثور على ملف ZIP المدمج."}, {"extracting", "جاري الاستخراج... {0}/{1}"}
+            }},
+            { "hi", new Dictionary<string, string> {
+                {"setupTitle", "पोर्टेबल संस्करण - सेटअप"}, {"langSelect", "भाषा चुनें"}, {"next", "अगला"},
+                {"extractPath", "फ़ोल्डर पथ में निकालें:"}, {"browse", "ब्राउज़"}, {"createShortcut", "डेस्कटॉप शॉर्टकट बनाएं"},
+                {"agreeTos", "मैं सहमत हूँ "}, {"tosLink", "सेवा की शर्तों"}, {"verifyPath", "पथ सत्यापित करें, शर्तों से सहमत हों, और निकालें पर क्लिक करें।"},
+                {"extractBtn", "निकालें"}, {"pathEmpty", "कृपया फ़ोल्डर पथ निर्दिष्ट करें।"}, {"creatingShortcut", "शॉर्टकट बना रहा है..."},
+                {"done", "हो गया!"}, {"launch", "XPIDER Browser लॉन्च करें"}, {"error", "त्रुटि: "}, {"retry", "पुनः प्रयास करें"},
+                {"zipNotFound", "एम्बेडेड ZIP नहीं मिला।"}, {"extracting", "निकाल रहा है... {0}/{1}"}
+            }},
+            { "it", new Dictionary<string, string> {
+                {"setupTitle", "EDIZIONE PORTATILE - SETUP"}, {"langSelect", "Seleziona la lingua"}, {"next", "Avanti"},
+                {"extractPath", "Estrai nella cartella:"}, {"browse", "Sfoglia"}, {"createShortcut", "Crea scorciatoia sul desktop"},
+                {"agreeTos", "Accetto i "}, {"tosLink", "Termini di Servizio"}, {"verifyPath", "Verifica il percorso, accetta i termini e clicca Estrai."},
+                {"extractBtn", "Estrai"}, {"pathEmpty", "Specifica il percorso della cartella."}, {"creatingShortcut", "Creazione scorciatoia..."},
+                {"done", "Fatto!"}, {"launch", "Avvia XPIDER Browser"}, {"error", "Errore: "}, {"retry", "Riprova"},
+                {"zipNotFound", "ZIP incorporato non trovato."}, {"extracting", "Estrazione... {0}/{1}"}
+            }}
+        };
 
         public MainForm()
         {
             LoadFonts();
 
             this.Text            = "XPIDER Browser Setup";
-            this.Size            = new Size(560, 400);
+            this.Size            = new Size(560, 420);
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition   = FormStartPosition.CenterScreen;
             this.BackColor       = BG;
             this.DoubleBuffered  = true;
-
-            // Apply Rounded Corners to the Form
             this.Region = new Region(GetRoundedPath(new Rectangle(0, 0, Width, Height), 20));
 
+            // Global Close Button
             btnClose = new RoundedButton { Text = "X", Location = new Point(Width - 42, 10), Size = new Size(32, 32) };
             btnClose.Font      = new Font(boldFont.FontFamily, 11f);
             btnClose.ForeColor = DIM;
@@ -58,46 +173,131 @@ namespace XpiderSetup
             btnClose.HoverForeColor = Color.White;
             btnClose.Radius = 16;
             btnClose.Click      += (s, e) => Application.Exit();
+            this.Controls.Add(btnClose);
 
+            // Header (Shared)
             picLogo  = new PictureBox { Size = new Size(62, 62), Location = new Point(28, 24), SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Transparent };
             lblTitle = new Label { Text = "XPIDER", Location = new Point(100, 28), AutoSize = true, Font = titleFont, ForeColor = ACCENT };
-            lblSub   = new Label { Text = "PORTABLE EDITION  -  SETUP", Location = new Point(102, 67), AutoSize = true, Font = subFont, ForeColor = ACCENT2 };
+            lblSub   = new Label { Location = new Point(102, 67), AutoSize = true, Font = subFont, ForeColor = ACCENT2 };
+            this.Controls.AddRange(new Control[] { picLogo, lblTitle, lblSub });
 
-            lblPathLbl = new Label { Text = "압축을 풀 폴더 경로:", Location = new Point(28, 112), AutoSize = true, Font = regFont, ForeColor = DIM };
-            txtPath    = new TextBox { Location = new Point(36, 138), Size = new Size(400, 32), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font(regFont.FontFamily, 10f) };
+            LoadLogo();
 
-            btnBrowse  = new RoundedButton { Text = "찾아보기", Location = new Point(455, 130), Size = new Size(74, 32) };
-            btnBrowse.Font      = new Font(regFont.FontFamily, 9f);
+            InitLangPanel();
+            InitMainPanel();
+
+            foreach (Control c in new Control[] { this, lblTitle, lblSub, picLogo, pnlLang, pnlMain })
+                c.MouseDown += Form_MouseDown;
+
+            ApplyLanguage("en"); // Default
+        }
+
+        private void InitLangPanel()
+        {
+            pnlLang = new Panel { Location = new Point(28, 110), Size = new Size(510, 280), BackColor = Color.Transparent };
+            
+            lblLangTitle = new Label { Location = new Point(0, 30), AutoSize = true, Font = new Font(regFont.FontFamily, 12f), ForeColor = TEXT };
+            
+            cmbLang = new ComboBox { Location = new Point(0, 65), Size = new Size(400, 35), DropDownStyle = ComboBoxStyle.DropDownList, Font = new Font(regFont.FontFamily, 12f), BackColor = INBG, ForeColor = TEXT, FlatStyle = FlatStyle.Flat };
+            foreach (var key in langCodes.Keys) cmbLang.Items.Add(key);
+            cmbLang.SelectedIndex = 0;
+
+            btnLangNext = new RoundedButton { Location = new Point(0, 200), Size = new Size(510, 52), Radius = 12 };
+            btnLangNext.Font = new Font(boldFont.FontFamily, 13f);
+            btnLangNext.BackColor = ACCENT;
+            btnLangNext.ForeColor = Color.Black;
+            btnLangNext.HoverBackColor = ACCENT2;
+            btnLangNext.HoverForeColor = Color.White;
+            btnLangNext.Click += (s, e) => {
+                string selectedName = cmbLang.SelectedItem.ToString();
+                currentLang = langCodes[selectedName];
+                ApplyLanguage(currentLang);
+                pnlLang.Visible = false;
+                pnlMain.Visible = true;
+            };
+
+            pnlLang.Controls.AddRange(new Control[] { lblLangTitle, cmbLang, btnLangNext });
+            this.Controls.Add(pnlLang);
+        }
+
+        private void InitMainPanel()
+        {
+            pnlMain = new Panel { Location = new Point(28, 110), Size = new Size(510, 280), BackColor = Color.Transparent, Visible = false };
+
+            lblPathLbl = new Label { Location = new Point(0, 0), AutoSize = true, Font = regFont, ForeColor = DIM };
+            txtPath    = new TextBox { Location = new Point(8, 26), Size = new Size(400, 32), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font(regFont.FontFamily, 10f) };
+            txtPath.Text = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "XPIDER Browser");
+
+            btnBrowse  = new RoundedButton { Location = new Point(427, 19), Size = new Size(80, 36), Radius = 8 };
+            btnBrowse.Font = new Font(regFont.FontFamily, 9f);
             btnBrowse.BackColor = INBG;
             btnBrowse.ForeColor = TEXT;
             btnBrowse.HoverBackColor = Color.FromArgb(45, 45, 45);
             btnBrowse.HoverForeColor = Color.White;
-            btnBrowse.Radius = 16;
-            btnBrowse.Click      += BtnBrowse_Click;
+            btnBrowse.Click += BtnBrowse_Click;
 
-            chkShortcut = new CheckBox { Text = "바탕화면 바로가기 만들기", Location = new Point(28, 182), AutoSize = true, Checked = true, ForeColor = TEXT, Font = new Font(regFont.FontFamily, 10f), BackColor = Color.Transparent, Cursor = Cursors.Hand };
-
-            lblStatus = new Label { Text = "경로를 확인한 후 '압축 해제'를 클릭하세요.", Location = new Point(28, 226), Size = new Size(510, 18), Font = regFont, ForeColor = DIM };
+            chkShortcut = new CheckBox { Location = new Point(0, 70), AutoSize = true, Checked = true, ForeColor = TEXT, Font = new Font(regFont.FontFamily, 10f), BackColor = Color.Transparent, Cursor = Cursors.Hand };
             
-            pbExtract = new RoundedProgressBar { Location = new Point(28, 250), Size = new Size(510, 8), Maximum = 100, Value = 0, BarColor = ACCENT, BackColor = Color.FromArgb(30, 30, 30), Radius = 4 };
+            chkToS = new CheckBox { Location = new Point(0, 95), AutoSize = true, Checked = false, ForeColor = TEXT, Font = new Font(regFont.FontFamily, 10f), BackColor = Color.Transparent, Cursor = Cursors.Hand };
+            chkToS.CheckedChanged += (s, e) => btnExtract.Enabled = chkToS.Checked;
 
-            btnExtract = new RoundedButton { Text = "압축 해제 (Extract)", Location = new Point(180, 280), Size = new Size(200, 44) };
-            btnExtract.Font      = new Font(boldFont.FontFamily, 11f);
+            lblToSLink = new Label { Location = new Point(130, 97), AutoSize = true, Font = new Font(regFont.FontFamily, 10f, FontStyle.Underline), ForeColor = ACCENT, Cursor = Cursors.Hand };
+            lblToSLink.Click += (s, e) => LaunchChromeAppMode("https://raw.githubusercontent.com/goodkie/xpider-browser/main/TOS.md");
+
+            lblStatus = new Label { Location = new Point(0, 140), Size = new Size(510, 18), Font = regFont, ForeColor = DIM };
+            pbExtract = new RoundedProgressBar { Location = new Point(0, 164), Size = new Size(510, 8), Maximum = 100, Value = 0, BarColor = ACCENT, BackColor = Color.FromArgb(30, 30, 30), Radius = 4 };
+
+            btnExtract = new RoundedButton { Location = new Point(0, 189), Size = new Size(510, 52), Radius = 12, Enabled = false };
+            btnExtract.Font = new Font(boldFont.FontFamily, 13f);
             btnExtract.BackColor = ACCENT;
             btnExtract.ForeColor = Color.Black;
             btnExtract.HoverBackColor = ACCENT2;
             btnExtract.HoverForeColor = Color.White;
-            btnExtract.Radius = 22;
-            btnExtract.Click      += BtnExtract_Click;
+            btnExtract.Click += BtnExtract_Click;
 
-            foreach (Control c in new Control[] { lblTitle, lblSub, picLogo })
-                c.MouseDown += Form_MouseDown;
-            this.MouseDown += Form_MouseDown;
+            pnlMain.Controls.AddRange(new Control[] { lblPathLbl, txtPath, btnBrowse, chkShortcut, chkToS, lblToSLink, lblStatus, pbExtract, btnExtract });
+            this.Controls.Add(pnlMain);
+        }
 
-            this.Controls.AddRange(new Control[] { picLogo, lblTitle, lblSub, lblPathLbl, txtPath, btnBrowse, chkShortcut, lblStatus, pbExtract, btnExtract, btnClose });
+        private void ApplyLanguage(string lang)
+        {
+            var dict = i18n[lang];
+            lblSub.Text = dict["setupTitle"];
+            lblLangTitle.Text = dict["langSelect"];
+            btnLangNext.Text = dict["next"];
+            
+            lblPathLbl.Text = dict["extractPath"];
+            btnBrowse.Text = dict["browse"];
+            chkShortcut.Text = dict["createShortcut"];
+            chkToS.Text = dict["agreeTos"];
+            
+            // Adjust Link location based on checkbox text width
+            using (Graphics g = CreateGraphics()) {
+                SizeF size = g.MeasureString(chkToS.Text, chkToS.Font);
+                lblToSLink.Location = new Point(chkToS.Left + (int)size.Width + 18, chkToS.Top + 1);
+            }
+            lblToSLink.Text = dict["tosLink"];
+            
+            lblStatus.Text = dict["verifyPath"];
+            btnExtract.Text = dict["extractBtn"];
+        }
 
-            LoadLogo();
-            txtPath.Text = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "XPIDER Browser");
+        private string GetStr(string key) { return i18n[currentLang][key]; }
+
+        private void LaunchChromeAppMode(string url)
+        {
+            try
+            {
+                string chromePath = (string)Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe", "", null);
+                if (string.IsNullOrEmpty(chromePath))
+                    chromePath = (string)Registry.GetValue(@"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe", "", null);
+
+                if (!string.IsNullOrEmpty(chromePath) && File.Exists(chromePath))
+                    Process.Start(new ProcessStartInfo { FileName = chromePath, Arguments = $"--app=\"{url}\"" });
+                else
+                    Process.Start(url);
+            }
+            catch { try { Process.Start(url); } catch { } }
         }
 
         private void LoadFonts()
@@ -111,7 +311,6 @@ namespace XpiderSetup
             {
                 var asm = Assembly.GetExecutingAssembly();
                 string[] names = asm.GetManifestResourceNames();
-                
                 string regRes = null, boldRes = null;
                 foreach (var n in names)
                 {
@@ -166,7 +365,6 @@ namespace XpiderSetup
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            // Gradient Top Line
             using (var path = GetRoundedPath(new Rectangle(0, 0, Width, Height), 20))
             {
                 g.SetClip(path);
@@ -175,19 +373,17 @@ namespace XpiderSetup
                 g.ResetClip();
             }
 
-            // Border
             using (var p = new Pen(Color.FromArgb(40, 40, 40), 2))
-            {
-                var rect = new Rectangle(1, 1, Width - 3, Height - 3);
-                g.DrawPath(p, GetRoundedPath(rect, 19));
-            }
+                g.DrawPath(p, GetRoundedPath(new Rectangle(1, 1, Width - 3, Height - 3), 19));
 
-            // Textbox Border
-            using (var p = new Pen(BORDER, 1))
-            using (var path = GetRoundedPath(new Rectangle(txtPath.Left - 8, txtPath.Top - 8, txtPath.Width + 16, txtPath.Height + 16), 8))
+            if (pnlMain.Visible)
             {
-                g.FillPath(new SolidBrush(INBG), path);
-                g.DrawPath(p, path);
+                using (var p = new Pen(BORDER, 1))
+                using (var path = GetRoundedPath(new Rectangle(pnlMain.Left + txtPath.Left - 8, pnlMain.Top + txtPath.Top - 8, txtPath.Width + 16, txtPath.Height + 16), 8))
+                {
+                    g.FillPath(new SolidBrush(INBG), path);
+                    g.DrawPath(p, path);
+                }
             }
         }
 
@@ -222,25 +418,25 @@ namespace XpiderSetup
         private async void BtnExtract_Click(object sender, EventArgs e)
         {
             string dir = txtPath.Text.Trim();
-            if (string.IsNullOrEmpty(dir)) { MessageBox.Show("폴더 경로를 지정해주세요.", "XPIDER Setup", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            if (string.IsNullOrEmpty(dir)) { MessageBox.Show(GetStr("pathEmpty"), "XPIDER Setup", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
             bool shortcut = chkShortcut.Checked;
             btnExtract.Enabled = false; btnExtract.BackColor = Color.FromArgb(40,40,40); btnExtract.ForeColor = Color.FromArgb(80,80,80);
-            txtPath.Enabled = false; btnBrowse.Enabled = false; chkShortcut.Enabled = false;
+            txtPath.Enabled = false; btnBrowse.Enabled = false; chkShortcut.Enabled = false; chkToS.Enabled = false;
 
             try
             {
                 await Task.Run(() => ExtractZip(dir, (pct, msg) =>
                     this.Invoke((Action)(() => { pbExtract.Value = pct; lblStatus.Text = msg; }))));
 
-                if (shortcut) { Invoke((Action)(() => lblStatus.Text = "바로가기 생성 중...")); CreateShortcut(dir); }
+                if (shortcut) { Invoke((Action)(() => lblStatus.Text = GetStr("creatingShortcut"))); CreateShortcut(dir); }
 
                 this.Invoke((Action)(() =>
                 {
                     pbExtract.Value  = 100;
-                    lblStatus.Text   = "설치 완료!";
+                    lblStatus.Text   = GetStr("done");
                     lblStatus.ForeColor = ACCENT;
-                    btnExtract.Text      = "브라우저 실행하기 (Launch)";
+                    btnExtract.Text      = GetStr("launch");
                     btnExtract.BackColor = ACCENT2;
                     btnExtract.ForeColor = Color.White;
                     btnExtract.HoverBackColor = ACCENT;
@@ -259,14 +455,14 @@ namespace XpiderSetup
             {
                 this.Invoke((Action)(() =>
                 {
-                    lblStatus.Text      = "오류: " + ex.Message;
+                    lblStatus.Text      = GetStr("error") + ex.Message;
                     lblStatus.ForeColor = Color.FromArgb(255, 80, 80);
-                    btnExtract.Text     = "다시 시도 (Retry)";
+                    btnExtract.Text     = GetStr("retry");
                     btnExtract.BackColor = Color.FromArgb(100, 0, 0);
                     btnExtract.ForeColor = Color.White;
                     btnExtract.HoverBackColor = Color.FromArgb(150, 0, 0);
                     btnExtract.Enabled   = true;
-                    txtPath.Enabled = true; btnBrowse.Enabled = true; chkShortcut.Enabled = true;
+                    txtPath.Enabled = true; btnBrowse.Enabled = true; chkShortcut.Enabled = true; chkToS.Enabled = true;
                 }));
             }
         }
@@ -277,7 +473,7 @@ namespace XpiderSetup
             string resName = null;
             foreach (var n in asm.GetManifestResourceNames())
                 if (n.EndsWith("app.zip", StringComparison.OrdinalIgnoreCase)) { resName = n; break; }
-            if (resName == null) throw new Exception("내장된 앱 압축 파일을 찾을 수 없습니다.");
+            if (resName == null) throw new Exception(GetStr("zipNotFound"));
 
             using (var stream = asm.GetManifestResourceStream(resName))
             using (var zip = new ZipArchive(stream, ZipArchiveMode.Read))
@@ -287,7 +483,7 @@ namespace XpiderSetup
                 foreach (var entry in zip.Entries)
                 {
                     cur++;
-                    report((int)((cur / (float)total) * 100), string.Format("압축 해제 중... {0}/{1}", cur, total));
+                    report((int)((cur / (float)total) * 100), string.Format(GetStr("extracting"), cur, total));
                     string path = Path.Combine(dest, entry.FullName.Replace('/', Path.DirectorySeparatorChar));
                     if (entry.FullName.EndsWith("/") || entry.FullName.EndsWith("\\"))
                         Directory.CreateDirectory(path);
@@ -306,12 +502,12 @@ namespace XpiderSetup
                 string lnkPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "XPIDER Browser.lnk");
                 Type   t   = Type.GetTypeFromProgID("WScript.Shell");
                 object wsh = Activator.CreateInstance(t);
-                object lnk = t.InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, wsh, new object[]{ lnkPath });
+                object lnk = t.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, wsh, new object[]{ lnkPath });
                 Type   lt  = lnk.GetType();
-                lt.InvokeMember("TargetPath",       System.Reflection.BindingFlags.SetProperty, null, lnk, new object[]{ exePath });
-                lt.InvokeMember("WorkingDirectory",  System.Reflection.BindingFlags.SetProperty, null, lnk, new object[]{ Path.GetDirectoryName(exePath) });
-                lt.InvokeMember("Description",       System.Reflection.BindingFlags.SetProperty, null, lnk, new object[]{ "XPIDER Browser" });
-                lt.InvokeMember("Save",               System.Reflection.BindingFlags.InvokeMethod, null, lnk, null);
+                lt.InvokeMember("TargetPath",       BindingFlags.SetProperty, null, lnk, new object[]{ exePath });
+                lt.InvokeMember("WorkingDirectory",  BindingFlags.SetProperty, null, lnk, new object[]{ Path.GetDirectoryName(exePath) });
+                lt.InvokeMember("Description",       BindingFlags.SetProperty, null, lnk, new object[]{ "XPIDER Browser" });
+                lt.InvokeMember("Save",               BindingFlags.InvokeMethod, null, lnk, null);
             }
             catch { }
         }
@@ -332,6 +528,13 @@ namespace XpiderSetup
             this.SetStyle(ControlStyles.SupportsTransparentBackColor | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
             this.DoubleBuffered = true;
             this.Cursor = Cursors.Hand;
+            this.BackColor = Color.Transparent;
+        }
+
+        protected override void OnEnabledChanged(EventArgs e)
+        {
+            base.OnEnabledChanged(e);
+            this.Invalidate();
         }
 
         protected override void OnMouseEnter(EventArgs e)
@@ -363,10 +566,12 @@ namespace XpiderSetup
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using (var path = MainForm.GetRoundedPath(new Rectangle(0, 0, Width - 1, Height - 1), Radius))
             {
-                using (var brush = new SolidBrush(this.BackColor))
+                Color bg = this.Enabled ? this.BackColor : Color.FromArgb(40,40,40);
+                Color fg = this.Enabled ? this.ForeColor : Color.FromArgb(100,100,100);
+                using (var brush = new SolidBrush(bg))
                     e.Graphics.FillPath(brush, path);
 
-                TextRenderer.DrawText(e.Graphics, this.Text, this.Font, new Rectangle(0, 0, Width, Height), this.ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                TextRenderer.DrawText(e.Graphics, this.Text, this.Font, new Rectangle(0, 0, Width, Height), fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
         }
     }
@@ -389,6 +594,7 @@ namespace XpiderSetup
         {
             this.SetStyle(ControlStyles.SupportsTransparentBackColor | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
             this.DoubleBuffered = true;
+            this.BackColor = Color.Transparent;
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -396,19 +602,16 @@ namespace XpiderSetup
             e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             var rect = new Rectangle(0, 0, Width - 1, Height - 1);
             
-            // Draw background
             using (var path = MainForm.GetRoundedPath(rect, Radius))
             using (var brush = new SolidBrush(this.BackColor))
                 e.Graphics.FillPath(brush, path);
 
-            // Draw progress bar
             if (Value > 0)
             {
                 int fillWidth = (int)((float)Value / Maximum * (Width - 1));
                 if (fillWidth > 0)
                 {
                     var fillRect = new Rectangle(0, 0, fillWidth, Height - 1);
-                    // To prevent artifacts when width is smaller than radius*2
                     int currentRadius = Math.Min(Radius, fillWidth / 2);
                     using (var path = MainForm.GetRoundedPath(fillRect, currentRadius))
                     using (var brush = new SolidBrush(BarColor))
