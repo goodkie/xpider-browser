@@ -229,6 +229,21 @@ http.createServer(async (req, res) => {
   if (u.pathname === '/api/info') {
     res.writeHead(200,{'Content-Type':'application/json'}); res.end(JSON.stringify(await getInfo())); return;
   }
+  if (u.pathname === '/api/get-tos' && req.method==='GET') {
+    const tosPath = path.join(ROOT, 'TOS.md');
+    const content = fs.existsSync(tosPath) ? fs.readFileSync(tosPath, 'utf8') : '';
+    res.writeHead(200,{'Content-Type':'application/json'}); res.end(JSON.stringify({ content })); return;
+  }
+  if (u.pathname === '/api/edit-tos' && req.method==='POST') {
+    const { content } = await readBody(req);
+    broadcast('status', 'deploying');
+    fs.writeFileSync(path.join(ROOT, 'TOS.md'), content, 'utf8');
+    await runCmd('git', ['add', 'TOS.md']);
+    await runCmd('git', ['commit', '-m', '"docs: update Terms of Service"']);
+    await runCmd('git', ['push', 'origin', 'main']);
+    broadcast('status', 'idle');
+    res.writeHead(200,{'Content-Type':'application/json'}); res.end('{"ok":true}'); return;
+  }
   if (u.pathname === '/api/deploy-app' && req.method==='POST') {
     const { type } = await readBody(req);
     deployApp(type);

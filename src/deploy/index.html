@@ -170,6 +170,34 @@ header {
 .log-err{color:#f87171;}
 .log-cmd{color:var(--cyan);}
 .log-info{color:var(--accent-lite);}
+
+/* ── 모달 ── */
+.modal-overlay {
+  position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);
+  display:none;align-items:center;justify-content:center;z-index:999;
+}
+.modal {
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);
+  width:600px;max-width:90%;display:flex;flex-direction:column;
+  box-shadow:0 10px 40px rgba(0,0,0,0.8);
+}
+.modal-header {
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  font-weight:700;font-size:14px;display:flex;justify-content:space-between;
+}
+.modal-body {
+  padding:20px;flex:1;
+}
+.modal-footer {
+  padding:16px 20px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:10px;
+}
+.tos-textarea {
+  width:100%;height:300px;background:var(--surface);border:1px solid var(--border);
+  color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;
+  padding:12px;border-radius:var(--r-md);resize:vertical;outline:none;
+}
+.tos-textarea:focus { border-color:var(--accent); }
 </style>
 </head>
 <body>
@@ -226,6 +254,9 @@ header {
       <button class="btn btn-sec" onclick="gitPull()">
         <span class="bico">⬇</span><span class="btxt">Git Pull (최신 코드 받기)</span>
       </button>
+      <button class="btn btn-sec" onclick="openTosModal()">
+        <span class="bico">📝</span><span class="btxt">TOS.md (약관) 편집 및 푸시</span>
+      </button>
       <button class="btn btn-red" onclick="gitRollback()">
         <span class="bico">↩</span><span class="btxt">Rollback (최근 커밋 취소)</span>
       </button>
@@ -255,6 +286,23 @@ header {
   </div>
   <div class="console-log" id="consoleLog">
     <div class="log-line log-info">▶ XPIDER Deploy Center ready.</div>
+  </div>
+</div>
+
+<!-- TOS 모달 -->
+<div class="modal-overlay" id="tosModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>📝 TOS.md (이용 약관) 편집</span>
+      <button class="cbtn" onclick="closeTosModal()">X</button>
+    </div>
+    <div class="modal-body">
+      <textarea class="tos-textarea" id="tosContent" placeholder="약관 내용을 입력하세요..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sec" style="width:auto;" onclick="closeTosModal()">취소</button>
+      <button class="btn btn-prim" style="width:auto;" onclick="saveAndPushTos()">저장 및 푸시</button>
+    </div>
   </div>
 </div>
 
@@ -447,6 +495,31 @@ function openActions() {
   window.open(url, 'XPIDER_ACTIONS', features);
 }
 
+// ── TOS 편집 ──────────────────────────────────────────────
+async function openTosModal() {
+  if (isBusy) return;
+  const res = await fetch('/api/get-tos').then(r=>r.json()).catch(()=>null);
+  if (res && res.content !== undefined) {
+    $('tosContent').value = res.content;
+    $('tosModal').style.display = 'flex';
+  } else {
+    alert('TOS.md 파일을 불러오지 못했습니다.');
+  }
+}
+
+function closeTosModal() {
+  $('tosModal').style.display = 'none';
+}
+
+function saveAndPushTos() {
+  if (isBusy) return;
+  const content = $('tosContent').value;
+  if (!confirm('수정된 약관을 저장하고 GitHub에 푸시하시겠습니까?')) return;
+  
+  closeTosModal();
+  addLog('\n── Edit & Push TOS.md ──', false);
+  post('/api/edit-tos', { content });
+}
 
 loadInfo();
 </script>
