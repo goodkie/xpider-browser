@@ -45,6 +45,110 @@ let currentExtensionId = null;
 let currentPanelTab    = 'history';
 let _releaseUrl        = '';
 
+// ─── 탭 관리자 ───────────────────────────────────────────────
+const tabList    = document.getElementById('tab-list');
+const newTabBtn  = document.getElementById('new-tab-btn');
+const mainWebview = webview; // alias
+
+let tabs = [];          // { id, url, title, element }
+let activeTabId = null;
+let tabCounter  = 0;
+
+function createTab(url = 'start_page.html', switchTo = true) {
+    const id  = ++tabCounter;
+    const tab = {
+        id,
+        url,
+        title: 'New Tab',
+        // 각 탭 DOM 엘리먼트
+        element: null,
+    };
+
+    // 탭 버튼 DOM 생성
+    const el = document.createElement('div');
+    el.className = 'tab-item';
+    el.dataset.tabId = id;
+    el.innerHTML = `<span class="tab-title">New Tab</span><button class="tab-close" title="Close tab">×</button>`;
+
+    el.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('tab-close')) switchTab(id);
+    });
+    el.querySelector('.tab-close').addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeTab(id);
+    });
+
+    tab.element = el;
+    tabList.appendChild(el);
+    tabs.push(tab);
+
+    if (switchTo) switchTab(id, url);
+    return id;
+}
+
+function switchTab(id, forceUrl) {
+    const tab = tabs.find(t => t.id === id);
+    if (!tab) return;
+
+    // 이전 탭 상태 저장
+    if (activeTabId && activeTabId !== id) {
+        const prev = tabs.find(t => t.id === activeTabId);
+        if (prev) prev.url = mainWebview.getURL() || prev.url;
+    }
+
+    activeTabId = id;
+
+    // 모든 탭 비활성화
+    document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+    tab.element.classList.add('active');
+
+    // webview URL 전환
+    const targetUrl = forceUrl || tab.url || 'start_page.html';
+    mainWebview.src = targetUrl;
+    addressBar.value = targetUrl.includes('start_page.html') ? '' : targetUrl;
+
+    // 사이드 패널 닫기
+    sidePanel.classList.add('hidden');
+    currentExtensionId = null;
+}
+
+function closeTab(id) {
+    const idx = tabs.findIndex(t => t.id === id);
+    if (idx === -1) return;
+
+    const tab = tabs[idx];
+    tab.element.remove();
+    tabs.splice(idx, 1);
+
+    if (tabs.length === 0) {
+        // 탭이 없으면 새 탭 열기
+        createTab();
+        return;
+    }
+
+    if (activeTabId === id) {
+        // 닫힌 탭이 활성 탭이면 옆 탭으로 이동
+        const nextIdx = Math.min(idx, tabs.length - 1);
+        switchTab(tabs[nextIdx].id);
+    }
+}
+
+function updateActiveTabTitle(title, url) {
+    const tab = tabs.find(t => t.id === activeTabId);
+    if (!tab) return;
+    tab.title = title || url;
+    tab.url   = url;
+    const span = tab.element.querySelector('.tab-title');
+    if (span) span.textContent = tab.title.substring(0, 24) || 'New Tab';
+}
+
+// 초기 탭 생성
+createTab('start_page.html');
+
+// 새 탭 버튼
+newTabBtn.addEventListener('click', () => createTab());
+
+
 // ─── 데이터 초기화 ────────────────────────────────────────────
 let history   = JSON.parse(localStorage.getItem('xpider-history')   || '[]');
 let bookmarks = JSON.parse(localStorage.getItem('xpider-bookmarks') || '[]');
@@ -100,7 +204,7 @@ document.querySelectorAll('.lang-opt').forEach(opt => {
 });
 
 // ─── 버튼 이벤트 ──────────────────────────────────────────────
-addBtn.onclick = () => { webview.src = 'start_page.html'; addressBar.value = ''; };
+addBtn.onclick = () => createTab();
 toggleSidebarBtn.onclick = () => { appContainer.classList.add('sidebar-collapsed'); localStorage.setItem('sidebar-collapsed', 'true'); };
 sidebarOpener.onclick    = () => { appContainer.classList.remove('sidebar-collapsed'); localStorage.setItem('sidebar-collapsed', 'false'); };
 
@@ -194,13 +298,11 @@ window.electronAPI.on('ext-sync-progress', (msg) => {
     showToast('📦 ' + msg, 4000);
 });
 
-// ── ext-open-url: 익스테션이 chrome.tabs.create/update로 요청한 URL을 메인 webview에서 열기 ─
- window.electronAPI.on('ext-open-url', (url) => {
+// ── ext-open-url: 익스텐션이 chrome.tabs.create/update로 요청한 URL을 새 탭에서 열기 ─
+window.electronAPI.on('ext-open-url', (url) => {
     if (!url) return;
-    webview.src = url;
-    addressBar.value = url;
-    sidePanel.classList.add('hidden');
-    currentExtensionId = null;
+    // 사이드 패널은 그대로 유지하고 새 탭을 메인 영역에 생성
+    createTab(url, true);
 });
 
 // ─── 온보딩 ───────────────────────────────────────────────────
@@ -404,7 +506,10 @@ reloadBtn.addEventListener('click',  () => webview.reload());
 webview.addEventListener('did-start-loading', () => { reloadBtn.textContent = '✕'; });
 webview.addEventListener('did-stop-loading',  () => {
     reloadBtn.textContent = '↻';
-    addressBar.value = webview.getURL();
-    addHistory(webview.getURL(), webview.getTitle());
+    const url   = webview.getURL();
+    const title = webview.getTitle();
+    addressBar.value = url.includes('start_page.html') ? '' : url;
+    addHistory(url, title);
     updateBookmarkIcon();
+    updateActiveTabTitle(title, url);  // 탭 제목 업데이트
 });

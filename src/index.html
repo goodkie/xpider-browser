@@ -24,7 +24,7 @@
             <div id="sidebar-opener" title="Show Sidebar"></div>
             <!-- 좌측 사이드바 -->
             <nav id="opera-sidebar">
-                <button id="add-btn" data-i18n-title="add_page" title="Add Page">+</button>
+                <button id="add-btn" id="new-tab-sidebar-btn" data-i18n-title="add_page" title="New Tab">+</button>
                 <div id="side-dock" class="extensions-controls">
                     <!-- 익스텐션 버튼이 동적으로 추가됨 -->
                 </div>
@@ -95,6 +95,12 @@
                         </div>
                     </div>
                 </header>
+
+                <!-- ── 탭바 ── -->
+                <div id="tab-bar">
+                    <div id="tab-list"></div>
+                    <button id="new-tab-btn" title="New Tab">+</button>
+                </div>
 
                 <main id="webview-container">
                     <webview id="main-webview" src="start_page.html" autosize="on"></webview>
