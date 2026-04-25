@@ -385,13 +385,20 @@ function renderInfo(info) {
   }
   el.innerHTML = '';
   info.extensions.forEach(ext => {
+    const statusColor = ext.status === 'Clean' ? 'var(--green)' : 'var(--yellow)';
+    const statusBg = ext.status === 'Clean' ? 'rgba(16,185,129,.1)' : 'rgba(245,158,11,.1)';
+
     const card = document.createElement('div');
     card.className = 'ext-card';
     card.innerHTML = `
       <div class="ext-head">
-        <span class="ext-name">${ext.name}</span>
-        <div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="ext-name">${ext.name}</span>
+          <span style="font-size:10px;padding:2px 6px;border-radius:4px;color:${statusColor};background:${statusBg};border:1px solid ${statusColor};opacity:0.8;">${ext.status || 'Unknown'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
           <span class="ext-ver" style="margin-right:5px;">v${ext.version}</span>
+          <button class="cbtn" title="GitHub 폴더 열기" onclick="openGitHubFolder('${ext.name}')">🌐</button>
           <button class="cbtn" title="편집" onclick="editExt('${ext.name}')">✏️</button>
           <button class="cbtn" title="삭제" style="color:var(--red);border-color:var(--red);" onclick="deleteExt('${ext.name}')">🗑️</button>
         </div>
@@ -399,12 +406,17 @@ function renderInfo(info) {
       <div class="ext-row">
         <input class="ext-inp" id="inp-${ext.name}" value="${bumpPatch(ext.version)}" placeholder="새 버전">
         <div class="ext-actions">
-          <button class="btn btn-cyan" onclick="syncExt('${ext.name}')">⬇ Sync</button>
+          <button class="btn btn-cyan" onclick="syncExt('${ext.name}')">🔄 Sync & Push</button>
           <button class="btn btn-prim" onclick="deployExt('${ext.name}')">🚀 Deploy</button>
         </div>
       </div>`;
     el.appendChild(card);
   });
+}
+
+function openGitHubFolder(name) {
+  const url = `https://github.com/goodkie/xpider-browser/tree/main/extensions/${name}`;
+  window.open(url, '_blank');
 }
 
 function bumpPatch(ver) {
@@ -455,7 +467,8 @@ function deployExt(name) {
 
 function syncExt(name) {
   if (isBusy) return;
-  addLog(`\n── Extension Sync: ${name} ──`, false);
+  if (!confirm(`'${name}' 코드를 로컬에서 복사하고 GitHub에 동기화(Commit & Push) 하시겠습니까?`)) return;
+  addLog(`\n── Extension Sync & Push: ${name} ──`, false);
   post('/api/sync-ext', { name });
 }
 
