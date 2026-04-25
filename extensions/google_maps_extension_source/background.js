@@ -23,6 +23,7 @@ chrome.storage.local.get(['scrapedData'], (result) => {
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('[BACKGROUND.JS] Received message:', request.action, request);
   if (request.action === 'foundBusiness') {
     handleNewLead(request.data);
   }
@@ -80,6 +81,7 @@ function handleNewLead(lead) {
 
 function updateStorage() {
   chrome.storage.local.set({ scrapedData });
+  console.log('[BACKGROUND.JS] Sending dataUpdated to UI with', scrapedData.length, 'items');
   chrome.runtime.sendMessage({ action: 'dataUpdated', data: scrapedData });
 }
 
