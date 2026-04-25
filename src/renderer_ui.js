@@ -1,25 +1,18 @@
 // ─── DOM 요소 ─────────────────────────────────────────────────
-const webview          = document.getElementById('main-webview');
+const tabsList         = document.getElementById('tabs-list');
+const webviewsWrapper  = document.getElementById('webviews-wrapper');
+const newTabBtn        = document.getElementById('new-tab-btn');
 const addressBar       = document.getElementById('address-bar');
 const backBtn          = document.getElementById('back-btn');
 const forwardBtn       = document.getElementById('forward-btn');
 const reloadBtn        = document.getElementById('reload-btn');
 const extensionsBar    = document.getElementById('side-dock');
 const sidePanel        = document.getElementById('side-panel');
+const sidePanelTitle   = document.getElementById('side-panel-title');
+const closeSidePanelBtn = document.getElementById('close-side-panel-btn');
 const extensionWebview = document.getElementById('extension-webview');
 const settingsBtn      = document.getElementById('settings-btn');
 const settingsMenu     = document.getElementById('settings-menu');
-
-// ── extension-webview에 API 브릿지 preload 주입 ──────────────
-// (webview에 preload 설정은 src 설정 전에 해야 함)
-try {
-  const bridgePath = window.electronAPI.getExtBridgePath();
-  extensionWebview.setAttribute('preload', bridgePath);
-  extensionWebview.setAttribute('allowpopups', '');
-  extensionWebview.setAttribute('nodeintegration', '');
-} catch(e) {
-  console.warn('[XPIDER] ext-bridge preload setup failed:', e);
-}
 const appContainer     = document.getElementById('app-container');
 const addBtn           = document.getElementById('add-btn');
 const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
@@ -44,110 +37,6 @@ const toastMsg         = document.getElementById('toast-msg');
 let currentExtensionId = null;
 let currentPanelTab    = 'history';
 let _releaseUrl        = '';
-
-// ─── 탭 관리자 ───────────────────────────────────────────────
-const tabList    = document.getElementById('tab-list');
-const newTabBtn  = document.getElementById('new-tab-btn');
-const mainWebview = webview; // alias
-
-let tabs = [];          // { id, url, title, element }
-let activeTabId = null;
-let tabCounter  = 0;
-
-function createTab(url = 'start_page.html', switchTo = true) {
-    const id  = ++tabCounter;
-    const tab = {
-        id,
-        url,
-        title: 'New Tab',
-        // 각 탭 DOM 엘리먼트
-        element: null,
-    };
-
-    // 탭 버튼 DOM 생성
-    const el = document.createElement('div');
-    el.className = 'tab-item';
-    el.dataset.tabId = id;
-    el.innerHTML = `<span class="tab-title">New Tab</span><button class="tab-close" title="Close tab">×</button>`;
-
-    el.addEventListener('click', (e) => {
-        if (!e.target.classList.contains('tab-close')) switchTab(id);
-    });
-    el.querySelector('.tab-close').addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeTab(id);
-    });
-
-    tab.element = el;
-    tabList.appendChild(el);
-    tabs.push(tab);
-
-    if (switchTo) switchTab(id, url);
-    return id;
-}
-
-function switchTab(id, forceUrl) {
-    const tab = tabs.find(t => t.id === id);
-    if (!tab) return;
-
-    // 이전 탭 상태 저장
-    if (activeTabId && activeTabId !== id) {
-        const prev = tabs.find(t => t.id === activeTabId);
-        if (prev) prev.url = mainWebview.getURL() || prev.url;
-    }
-
-    activeTabId = id;
-
-    // 모든 탭 비활성화
-    document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
-    tab.element.classList.add('active');
-
-    // webview URL 전환
-    const targetUrl = forceUrl || tab.url || 'start_page.html';
-    mainWebview.src = targetUrl;
-    addressBar.value = targetUrl.includes('start_page.html') ? '' : targetUrl;
-
-    // 사이드 패널 닫기
-    sidePanel.classList.add('hidden');
-    currentExtensionId = null;
-}
-
-function closeTab(id) {
-    const idx = tabs.findIndex(t => t.id === id);
-    if (idx === -1) return;
-
-    const tab = tabs[idx];
-    tab.element.remove();
-    tabs.splice(idx, 1);
-
-    if (tabs.length === 0) {
-        // 탭이 없으면 새 탭 열기
-        createTab();
-        return;
-    }
-
-    if (activeTabId === id) {
-        // 닫힌 탭이 활성 탭이면 옆 탭으로 이동
-        const nextIdx = Math.min(idx, tabs.length - 1);
-        switchTab(tabs[nextIdx].id);
-    }
-}
-
-function updateActiveTabTitle(title, url) {
-    const tab = tabs.find(t => t.id === activeTabId);
-    if (!tab) return;
-    tab.title = title || url;
-    tab.url   = url;
-    const span = tab.element.querySelector('.tab-title');
-    if (span) span.textContent = tab.title.substring(0, 24) || 'New Tab';
-}
-
-// 초기 탭 생성
-createTab('start_page.html');
-
-// 새 탭 버튼
-newTabBtn.addEventListener('click', () => createTab());
-
 
 // ─── 데이터 초기화 ────────────────────────────────────────────
 let history   = JSON.parse(localStorage.getItem('xpider-history')   || '[]');
@@ -204,7 +93,7 @@ document.querySelectorAll('.lang-opt').forEach(opt => {
 });
 
 // ─── 버튼 이벤트 ──────────────────────────────────────────────
-addBtn.onclick = () => createTab();
+addBtn.onclick = () => { createNewTab('start_page.html'); };
 toggleSidebarBtn.onclick = () => { appContainer.classList.add('sidebar-collapsed'); localStorage.setItem('sidebar-collapsed', 'true'); };
 sidebarOpener.onclick    = () => { appContainer.classList.remove('sidebar-collapsed'); localStorage.setItem('sidebar-collapsed', 'false'); };
 
@@ -298,11 +187,14 @@ window.electronAPI.on('ext-sync-progress', (msg) => {
     showToast('📦 ' + msg, 4000);
 });
 
-// ── ext-open-url: 익스텐션이 chrome.tabs.create/update로 요청한 URL을 새 탭에서 열기 ─
-window.electronAPI.on('ext-open-url', (url) => {
-    if (!url) return;
-    // 사이드 패널은 그대로 유지하고 새 탭을 메인 영역에 생성
-    createTab(url, true);
+// Listener for extension-triggered tab updates
+window.electronAPI.on('xpider-renderer-update-active-tab', (props) => {
+    const wv = getActiveWebview();
+    if (wv && props.url) {
+        wv.loadURL(props.url);
+        // Optionally update the address bar immediately
+        addressBar.value = props.url;
+    }
 });
 
 // ─── 온보딩 ───────────────────────────────────────────────────
@@ -392,8 +284,10 @@ function addHistory(url, title) {
 }
 
 function toggleBookmark() {
-    const url = webview.getURL();
-    const title = webview.getTitle();
+    const wv = getActiveWebview();
+    if (!wv) return;
+    const url = wv.getURL();
+    const title = wv.getTitle();
     const index = bookmarks.findIndex(b => b.url === url);
     if (index > -1) bookmarks.splice(index, 1);
     else bookmarks.unshift({ url, title: title || url });
@@ -403,7 +297,8 @@ function toggleBookmark() {
 }
 
 function updateBookmarkIcon() {
-    const url = webview.getURL();
+    const wv = getActiveWebview();
+    const url = wv ? wv.getURL() : '';
     const isBookmarked = bookmarks.some(b => b.url === url);
     bookmarkBtn.classList.toggle('active', isBookmarked);
     bookmarkBtn.textContent = isBookmarked ? '★' : '☆';
@@ -423,7 +318,7 @@ function renderOverlayPanel(tab) {
         const div = document.createElement('div');
         div.className = 'panel-item';
         div.innerHTML = `<div class="item-title">${item.title}</div><div class="item-url">${item.url}</div>`;
-        div.onclick = () => { webview.src = item.url; overlayPanel.classList.add('hidden'); };
+        div.onclick = () => { const wv = getActiveWebview(); if(wv) wv.src = item.url; overlayPanel.classList.add('hidden'); };
         panelList.appendChild(div);
     });
 }
@@ -474,9 +369,24 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
                 sidePanel.classList.toggle('hidden');
             } else {
                 currentExtensionId = ext.id;
-                extensionWebview.src = `chrome-extension://${ext.id}/popup.html`;
+                ext.uiPage = ext.uiPage || 'popup.html';
+                
+                // Add console listener only once
+                if (!extensionWebview.hasAttribute('data-console-attached')) {
+                    extensionWebview.setAttribute('data-console-attached', 'true');
+                    extensionWebview.addEventListener('console-message', (e) => {
+                        window.electronAPI.send('log-from-renderer', `[EXT-WEBVIEW] ${e.message}`);
+                    });
+                }
+                
+                extensionWebview.src = `chrome-extension://${ext.id}/${ext.uiPage}`;
+                sidePanelTitle.textContent = ext.name;
                 sidePanel.classList.remove('hidden');
             }
+        };
+
+        closeSidePanelBtn.onclick = () => {
+            sidePanel.classList.add('hidden');
         };
 
         item.appendChild(btn);
@@ -487,7 +397,106 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
     setTimeout(() => { if (startLangSetup()) startOnboarding(); }, 1000);
 });
 
-// ─── 탐색 ─────────────────────────────────────────────────────
+// ─── 탭 관리 및 탐색 ──────────────────────────────────────────
+let tabs = [];
+let activeTabId = null;
+let tabCounter = 0;
+
+function createNewTab(url = 'start_page.html', makeActive = true) {
+    const tabId = 'tab-' + (++tabCounter);
+    
+    const tabEl = document.createElement('div');
+    tabEl.className = 'tab';
+    tabEl.id = `tab-ui-${tabId}`;
+    tabEl.innerHTML = `<span class="tab-title" id="tab-title-${tabId}">Loading...</span><button class="tab-close" title="Close" onclick="event.stopPropagation(); closeTab('${tabId}')">✕</button>`;
+    tabEl.onclick = () => switchTab(tabId);
+    tabsList.appendChild(tabEl);
+    
+    const wv = document.createElement('webview');
+    wv.id = `webview-${tabId}`;
+    wv.className = 'webview-hidden';
+    wv.setAttribute('autosize', 'on');
+    wv.src = url;
+    webviewsWrapper.appendChild(wv);
+    
+    // FORWARD CONSOLE LOGS FOR DEBUGGING CONTENT SCRIPTS
+    wv.addEventListener('console-message', (e) => {
+        window.electronAPI.send('log-from-renderer', `[MAIN-WEBVIEW] ${e.message}`);
+    });
+    
+    tabs.push({ id: tabId, url, title: 'New Tab' });
+    
+    wv.addEventListener('did-start-loading', () => { 
+        if (activeTabId === tabId) reloadBtn.textContent = '✕'; 
+        document.getElementById(`tab-title-${tabId}`).textContent = 'Loading...';
+    });
+    wv.addEventListener('did-stop-loading', () => {
+        const currentUrl = wv.getURL();
+        const currentTitle = wv.getTitle() || currentUrl;
+        const t = tabs.find(x => x.id === tabId);
+        if (t) { t.url = currentUrl; t.title = currentTitle; }
+        document.getElementById(`tab-title-${tabId}`).textContent = currentTitle;
+        if (activeTabId === tabId) {
+            reloadBtn.textContent = '↻';
+            addressBar.value = currentUrl;
+            updateBookmarkIcon();
+        }
+        addHistory(currentUrl, currentTitle);
+        
+        // Notify extensions for chrome.tabs.onUpdated
+        const realId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999;
+        window.electronAPI.send('xpider-ext-notify-tab-updated', {
+            tabId: realId,
+            changeInfo: { status: 'complete', url: currentUrl },
+            tab: { id: realId, url: currentUrl, title: currentTitle }
+        });
+    });
+    wv.addEventListener('page-title-updated', (e) => {
+        const title = e.title;
+        const t = tabs.find(x => x.id === tabId);
+        if (t) t.title = title;
+        document.getElementById(`tab-title-${tabId}`).textContent = title;
+        if (activeTabId === tabId) document.title = title + ' - XPIDER Browser';
+    });
+    
+    if (makeActive) switchTab(tabId);
+}
+
+function switchTab(tabId) {
+    activeTabId = tabId;
+    tabs.forEach(t => {
+        const isAct = (t.id === tabId);
+        document.getElementById(`tab-ui-${t.id}`).classList.toggle('active', isAct);
+        const wv = document.getElementById(`webview-${t.id}`);
+        if (wv) {
+            wv.className = isAct ? 'webview-active' : 'webview-hidden';
+            if (isAct) {
+                addressBar.value = wv.getURL();
+                updateBookmarkIcon();
+                document.title = (t.title || 'XPIDER Browser') + (t.title ? ' - XPIDER Browser' : '');
+                wv.focus();
+            }
+        }
+    });
+}
+
+function closeTab(tabId) {
+    const idx = tabs.findIndex(t => t.id === tabId);
+    if (idx === -1) return;
+    document.getElementById(`tab-ui-${tabId}`)?.remove();
+    document.getElementById(`webview-${tabId}`)?.remove();
+    tabs.splice(idx, 1);
+    if (activeTabId === tabId) {
+        if (tabs.length > 0) switchTab(tabs[Math.min(idx, tabs.length - 1)].id);
+        else createNewTab();
+    }
+}
+
+if (newTabBtn) newTabBtn.onclick = () => createNewTab();
+window.addEventListener('DOMContentLoaded', () => createNewTab('start_page.html'));
+
+function getActiveWebview() { return activeTabId ? document.getElementById(`webview-${activeTabId}`) : null; }
+
 function navigate() {
     let url = addressBar.value.trim();
     if (!url) return;
@@ -495,21 +504,11 @@ function navigate() {
         if (url.includes('.') && !url.includes(' ')) url = 'https://' + url;
         else url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
     }
-    webview.src = url;
+    const wv = getActiveWebview();
+    if (wv) wv.src = url;
 }
 
 addressBar.addEventListener('keypress', (e) => { if (e.key === 'Enter') navigate(); });
-backBtn.addEventListener('click',    () => { if (webview.canGoBack())    webview.goBack();    });
-forwardBtn.addEventListener('click', () => { if (webview.canGoForward()) webview.goForward(); });
-reloadBtn.addEventListener('click',  () => webview.reload());
-
-webview.addEventListener('did-start-loading', () => { reloadBtn.textContent = '✕'; });
-webview.addEventListener('did-stop-loading',  () => {
-    reloadBtn.textContent = '↻';
-    const url   = webview.getURL();
-    const title = webview.getTitle();
-    addressBar.value = url.includes('start_page.html') ? '' : url;
-    addHistory(url, title);
-    updateBookmarkIcon();
-    updateActiveTabTitle(title, url);  // 탭 제목 업데이트
-});
+backBtn.addEventListener('click',    () => { const wv = getActiveWebview(); if (wv && wv.canGoBack())    wv.goBack();    });
+forwardBtn.addEventListener('click', () => { const wv = getActiveWebview(); if (wv && wv.canGoForward()) wv.goForward(); });
+reloadBtn.addEventListener('click',  () => { const wv = getActiveWebview(); if (wv) wv.reload(); });

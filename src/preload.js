@@ -1,12 +1,12 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const path = require('path');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // ── 단방향 송신 ─────────────────────────────────────────────
   send: (channel, data) => {
     const allowed = [
       'restart_app', 'window-control', 'auth-logout',
-      'check-for-updates', 'open-release-url', 'reload-extensions'
+      'check-for-updates', 'open-release-url', 'reload-extensions',
+      'xpider-ext-notify-tab-updated', 'log-from-renderer'
     ];
     if (allowed.includes(channel)) ipcRenderer.send(channel, data);
   },
@@ -15,7 +15,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   on: (channel, func) => {
     const allowed = [
       'extensions_loaded', 'profile_id', 'app_version',
-      'app-update-result', 'ext-sync-progress', 'ext-open-url'
+      'app-update-result', 'ext-sync-progress',
+      'xpider-renderer-update-active-tab'
     ];
     if (allowed.includes(channel)) {
       ipcRenderer.on(channel, (_, ...args) => func(...args));
@@ -34,7 +35,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllProfiles: ()                       => ipcRenderer.invoke('admin-get-all-profiles'),
   setUserActive:  (userId, isActive)      => ipcRenderer.invoke('admin-set-active', { userId, isActive }),
   forceLogout:    (userId)                => ipcRenderer.invoke('admin-force-logout', { userId }),
-
-  // ── ext-bridge 경로 ─────────────────────────────────────────
-  getExtBridgePath: () => `file://${path.join(__dirname, 'ext-bridge.js').replace(/\\/g, '/')}`,
 });

@@ -24,7 +24,7 @@
             <div id="sidebar-opener" title="Show Sidebar"></div>
             <!-- 좌측 사이드바 -->
             <nav id="opera-sidebar">
-                <button id="add-btn" id="new-tab-sidebar-btn" data-i18n-title="add_page" title="New Tab">+</button>
+                <button id="add-btn" data-i18n-title="add_page" title="Add Page">+</button>
                 <div id="side-dock" class="extensions-controls">
                     <!-- 익스텐션 버튼이 동적으로 추가됨 -->
                 </div>
@@ -32,6 +32,10 @@
             </nav>
 
             <div id="content-area">
+                <div id="tabs-bar" class="tabs-container">
+                    <div id="tabs-list"></div>
+                    <button id="new-tab-btn" title="New Tab">+</button>
+                </div>
                 <header id="browser-header">
                     <div class="nav-controls">
                         <button id="back-btn" data-i18n-title="back" title="Back">←</button>
@@ -96,16 +100,14 @@
                     </div>
                 </header>
 
-                <!-- ── 탭바 ── -->
-                <div id="tab-bar">
-                    <div id="tab-list"></div>
-                    <button id="new-tab-btn" title="New Tab">+</button>
-                </div>
-
                 <main id="webview-container">
-                    <webview id="main-webview" src="start_page.html" autosize="on"></webview>
+                    <div id="webviews-wrapper" style="flex:1; display:flex; position:relative;"></div>
                     <div id="side-panel" class="hidden">
-                        <webview id="extension-webview" autosize="on"></webview>
+                        <div class="side-panel-header">
+                            <span id="side-panel-title">Extension</span>
+                            <button id="close-side-panel-btn" title="Close Panel">&times;</button>
+                        </div>
+                        <webview id="extension-webview" nodeintegration webpreferences="contextIsolation=no"></webview>
                     </div>
                 </main>
             </div>

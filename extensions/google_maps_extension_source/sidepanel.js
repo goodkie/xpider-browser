@@ -12,6 +12,33 @@ document.addEventListener('DOMContentLoaded', () => {
   const findEmailsBtn = document.getElementById('findEmailsBtn');
   const stopEmailsBtn = document.getElementById('stopEmailsBtn');
   
+  // ==========================================
+  // XPIDER IPC BRIDGE POLYFILLS
+  // ==========================================
+  console.log('[SIDEPANEL.JS] Injecting chrome.tabs.query polyfill');
+  chrome.tabs.query = function(queryInfo, callback) {
+      console.log('[XPIDER-BRIDGE] Intercepting chrome.tabs.query');
+      const listener = (event) => {
+          if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'queryTabBridge') {
+              window.removeEventListener('message', listener);
+              const activeTab = event.data.result;
+              console.log('[XPIDER-BRIDGE] Received active tab from main:', activeTab);
+              if (activeTab) callback([activeTab]);
+              else callback([{ id: 999999 }]); // Fallback mock tab
+          }
+      };
+      window.addEventListener('message', listener);
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-get-active-tab', args: {}, id: 'queryTabBridge' }, '*');
+      
+      // Safety timeout in case main process doesn't respond
+      setTimeout(() => {
+          window.removeEventListener('message', listener);
+          console.warn('[XPIDER-BRIDGE] chrome.tabs.query timed out, using fallback');
+          callback([{ id: 999999 }]);
+      }, 1000);
+  };
+  // ==========================================
+
   const leadCountEl = document.getElementById('leadCount');
   const emailCountEl = document.getElementById('emailCount');
   const statusBadge = document.getElementById('botStatus');
@@ -78,22 +105,56 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function checkCurrentTab() {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const activeTab = tabs[0];
+    // We send a request via bridge
+    window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-get-active-tab', args: {}, id: 'checkTab' }, '*');
+    
+    // Also try native as fallback
+    try {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const activeTab = tabs[0];
+        if (activeTab && activeTab.url && activeTab.url.includes('google.com/maps')) {
+          navScreen.classList.add('hidden');
+        } else {
+          navScreen.classList.remove('hidden');
+        }
+      });
+    } catch(e) {}
+  }
+
+  // Handle Bridge Responses
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'checkTab') {
+      const activeTab = event.data.result;
       if (activeTab && activeTab.url && activeTab.url.includes('google.com/maps')) {
         navScreen.classList.add('hidden');
       } else {
         navScreen.classList.remove('hidden');
       }
-    });
+    }
+    if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'tab-updated') {
+        checkCurrentTab();
+    }
+  });
+
+  // XPIDER BRIDGE HELPER
+  function xpiderUpdateTab(props) {
+    console.log('[XPIDER-BRIDGE] Requesting tab update:', props);
+    window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-update-tab', args: props, id: Date.now() }, '*');
   }
 
   goToMapsBtn.addEventListener('click', () => {
-    chrome.tabs.update({ url: 'https://www.google.com/maps' });
+    // Try native first, but also trigger bridge to be sure
+    xpiderUpdateTab({ url: 'https://www.google.com/maps' });
+    try {
+      chrome.tabs.update({ url: 'https://www.google.com/maps' });
+    } catch(e) {
+      console.log('[XPIDER-BRIDGE] Native update failed, relying on bridge');
+    }
   });
 
   // Listen for messages
   chrome.runtime.onMessage.addListener((message) => {
+    console.log('[SIDEPANEL.JS] Received message:', message.action);
     if (message.action === 'dataUpdated') {
       updateUI(message.data);
     } else if (message.action === 'emailCheckStatus') {
@@ -103,9 +164,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  function xpiderSendMessage(tabId, msg) {
+    console.log('[XPIDER-BRIDGE] Requesting message send:', msg);
+    window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-send-message', args: { tabId, message: msg }, id: Date.now() }, '*');
+    try { chrome.tabs.sendMessage(tabId, msg); } catch(e) {}
+  }
+
   startBtn.addEventListener('click', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'start' });
+      xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'start' });
       chrome.runtime.sendMessage({ action: 'startScraping' });
       setUIStatus(true);
     });
@@ -113,7 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   stopBtn.addEventListener('click', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'stop' });
+      xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'stop' });
       chrome.runtime.sendMessage({ action: 'stopScraping' });
       setUIStatus(false);
       
@@ -166,11 +233,11 @@ document.addEventListener('DOMContentLoaded', () => {
       
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         // [Stage 1] Start Scraper
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'start' });
+        xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'start' });
         chrome.runtime.sendMessage({ action: 'startScraping' });
 
         // [Cruiser] Start Map Movement
-        chrome.tabs.sendMessage(tabs[0].id, { 
+        xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { 
           action: 'startCruiser', 
           range: range,
           stepSize: stepSize,
@@ -191,8 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     } else {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'stopCruiser' });
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'stop' });
+        xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'stopCruiser' });
+        xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'stop' });
         chrome.runtime.sendMessage({ action: 'stopScraping' });
         
         setCruiserState('STAGE 2/3: DEEP SEARCH RUNNING...');

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, session, ipcMain, shell, webContents } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 const log  = require('electron-log');
@@ -230,68 +230,126 @@ ipcMain.on('reload-extensions', async () => {
   }
 });
 
-// ─── Extension API Bridge IPC 핸들러 ──────────────────────────
-
-// chrome.tabs.create → 메인 webview에서 URL 오픈
-ipcMain.handle('ext-tabs-create', async (_, createProperties) => {
-  const url = createProperties?.url || 'about:blank';
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('ext-open-url', url);
-  }
-  return { id: 1, url, active: true };
-});
-
-// chrome.tabs.query → 현재 webview URL/Title 반환
-ipcMain.handle('ext-tabs-query', async (_, queryInfo) => {
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    const url   = mainWindow.webContents.getURL();
-    const title = mainWindow.webContents.getTitle();
-    return [{ id: 1, url, title, active: true, currentWindow: true, index: 0 }];
-  }
-  return [];
-});
-
-// chrome.tabs.update → 메인 webview URL 변경
-ipcMain.handle('ext-tabs-update', async (_, { updateProperties }) => {
-  const url = updateProperties?.url;
-  if (url && mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('ext-open-url', url);
-  }
-  return { id: 1, url: url || '' };
-});
-
-// chrome.downloads.download → 외부 브라우저 또는 shell로 다운로드
-ipcMain.handle('ext-downloads-download', async (_, options) => {
-  const url = options?.url;
-  if (url) {
+// --- 익스텐션 호환성 레이어 IPC (Extension Compatibility Layer) ---
+ipcMain.handle('xpider-ext-get-active-tab', async (event) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
     try {
-      // session downloadItem으로 처리
-      mainWindow.webContents.downloadURL(url);
-      log.info(`[Bridge] download initiated: ${url}`);
-    } catch (e) {
-      shell.openExternal(url);
+        const tabInfo = await mainWindow.webContents.executeJavaScript(`
+            (function() {
+                const wv = typeof getActiveWebview === 'function' ? getActiveWebview() : null;
+                return {
+                    id: typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999,
+                    windowId: 1,
+                    active: true,
+                    url: wv.getURL(),
+                    title: wv.getTitle()
+                };
+            })()
+        `);
+        return tabInfo;
+    } catch(e) {
+        log.error('[ExtBridge] get-active-tab error:', e);
+        return null;
     }
-  }
-  return 1; // fake downloadId
 });
 
-// chrome.windows.create → 새 BrowserWindow 생성
-ipcMain.handle('ext-windows-create', async (_, createData) => {
-  const url = createData?.url || 'about:blank';
-  const win = new BrowserWindow({
-    width:  createData?.width  || 900,
-    height: createData?.height || 700,
-    webPreferences: { nodeIntegration: false, contextIsolation: true },
-  });
-  win.loadURL(url);
-  return { id: win.id, focused: true };
+ipcMain.handle('xpider-ext-update-tab', async (event, props) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    try {
+        // Send message to renderer to update the tab
+        mainWindow.webContents.send('xpider-renderer-update-active-tab', props);
+        
+        // Return a mock tab object immediately to satisfy the extension
+        return {
+            id: 999999,
+            windowId: 1,
+            active: true,
+            url: props.url || '',
+            status: 'loading'
+        };
+    } catch(e) {
+        log.error('[ExtBridge] update-tab error:', e);
+        return null;
+    }
 });
 
-// chrome.windows.getCurrent → 현재 창 정보 반환
-ipcMain.handle('ext-windows-get-current', async () => {
-  return { id: 1, focused: true, state: 'normal' };
+ipcMain.on('xpider-ext-notify-tab-updated', (event, data) => {
+    // Notify all extension webview contents
+    const allWebContents = webContents.getAllWebContents();
+    allWebContents.forEach(wc => {
+        // We look for webcontents that are loading chrome-extension://
+        const url = wc.getURL();
+        if (url.startsWith('chrome-extension://')) {
+            wc.send('xpider-ext-tab-updated-event', data);
+        }
+    });
 });
 
+ipcMain.on('log-from-renderer', (event, msg) => {
+    console.log(msg);
+});
+
+ipcMain.handle('xpider-ext-send-message', async (event, data) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    try {
+        const msgJson = JSON.stringify(data.message);
+        const result = await mainWindow.webContents.executeJavaScript(`
+            (async function() {
+                const wv = typeof getActiveWebview === 'function' ? getActiveWebview() : null;
+                if (!wv) return null;
+                // Dispatch message to the webview via postMessage
+                wv.executeJavaScript(\`window.postMessage({ type: 'XPIDER_CONTENT_MSG', message: ${msgJson} }, '*');\`);
+                return { success: true };
+            })()
+        `);
+        return result;
+    } catch(e) {
+        log.error('[ExtBridge] send-message error:', e);
+        return null;
+    }
+});
+
+ipcMain.handle('xpider-ext-execute-script', async (event, injection) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    let codeToExecute = '';
+    
+    if (injection.resolvedFileUrls && injection.resolvedFileUrls.length > 0) {
+        for (const fileUrl of injection.resolvedFileUrls) {
+            try {
+                const response = await fetch(fileUrl);
+                codeToExecute += await response.text() + '\n';
+            } catch (e) {
+                log.error("[ExtBridge] Fetch extension file error:", fileUrl, e);
+            }
+        }
+    } else if (injection.code) {
+        codeToExecute = injection.code;
+    } else if (injection.funcString) {
+        const argsStr = injection.args ? JSON.stringify(injection.args) : '[]';
+        codeToExecute = `(${injection.funcString}).apply(null, ${argsStr})`;
+    }
+
+    if (codeToExecute) {
+        try {
+            const result = await mainWindow.webContents.executeJavaScript(`
+                (async function() {
+                    const wv = typeof getActiveWebview === 'function' ? getActiveWebview() : null;
+                    if (!wv) return null;
+                    try {
+                        return await wv.executeJavaScript(${JSON.stringify(codeToExecute)});
+                    } catch(e) {
+                        return null;
+                    }
+                })()
+            `);
+            return result;
+        } catch (e) {
+            log.error("[ExtBridge] execution error in webview:", e);
+            return null;
+        }
+    }
+    return null;
+});
 
 // 익스텐션 진행 상황을 스플래시/renderer 모두에 전달하는 헬퍼
 function sendExtProgress(msg) {
@@ -358,13 +416,23 @@ async function loadLocalExtensions() {
                      manifest.icons['64'] || Object.values(manifest.icons)[0];
         }
 
+        let defaultUiPage = 'popup.html'; // Default fallback
+        if (manifest.side_panel && manifest.side_panel.default_path) {
+            defaultUiPage = manifest.side_panel.default_path;
+        } else if (manifest.action && manifest.action.default_popup) {
+            defaultUiPage = manifest.action.default_popup;
+        } else if (manifest.browser_action && manifest.browser_action.default_popup) {
+            defaultUiPage = manifest.browser_action.default_popup;
+        }
+
         const ext = await session.defaultSession.extensions.loadExtension(extPath, { allowFileAccess: true });
         results.push({
           id:      ext.id,
           name:    manifest.name || entry.name,
           icon:    iconFile,
           version: manifest.version || '1.0.0',
-          extPath: extPath
+          extPath: extPath,
+          uiPage:  defaultUiPage
         });
         log.info(`[Extensions] Loaded: ${manifest.name} v${manifest.version}`);
       } catch (e) {
@@ -422,14 +490,8 @@ ipcMain.on('trigger-background-sync', () => {
 
 // ─── 앱 시작 ──────────────────────────────────────────────────
 app.whenReady().then(async () => {
-  // 0. Extension API Bridge: 세션 전체에 주입 (background SW 포함 모든 익스텐션 컨텍스트 적용)
-  const bridgePath = path.join(__dirname, 'ext-bridge.js');
-  try {
-    session.defaultSession.setPreloads([bridgePath]);
-    log.info(`[Bridge] Session preload set: ${bridgePath}`);
-  } catch (e) {
-    log.error('[Bridge] Failed to set session preload:', e.message);
-  }
+  // --- 익스텐션 브릿지 주입 (Extension Compatibility Layer) ---
+  session.defaultSession.setPreloads([path.join(__dirname, 'ext-preload.js')]);
 
   // 1. 스플래시 창 먼저 표시
   createSplashWindow();
