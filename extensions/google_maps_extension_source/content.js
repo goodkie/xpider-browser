@@ -1,5 +1,7 @@
 // content.js - GMaps Business Finder: Bulletproof Stage 1 Scraper with Precision AutoCruiser
 
+console.log('[CONTENT.JS] Script loaded and initialized!');
+
 class GMapsBulletproofScraper {
   constructor() {
     this.active = false;
@@ -12,14 +14,18 @@ class GMapsBulletproofScraper {
   }
 
   start() {
-    if (this.active) return;
+    if (this.active) {
+        console.log('[CONTENT.JS] Scraper already active, ignoring start request.');
+        return;
+    }
     this.active = true;
-    console.log('GMaps Business Finder: Bulletproof Stage 1 Started');
+    console.log('[CONTENT.JS] GMaps Business Finder: Bulletproof Stage 1 Started');
     this.initRootObserver();
     this.startMapAutopilot();
   }
 
   stop() {
+    console.log('[CONTENT.JS] GMaps Business Finder: Stopping scraper.');
     this.active = false;
     if (this.rootObserver) this.rootObserver.disconnect();
     if (this.feedObserver) this.feedObserver.disconnect();
@@ -29,6 +35,7 @@ class GMapsBulletproofScraper {
 
   initRootObserver() {
     const sidebar = document.querySelector('div.m6QErb.W67uab') || document.body;
+    console.log('[CONTENT.JS] initRootObserver: binding to', sidebar);
     this.rootObserver = new MutationObserver(() => {
       this.rebindFeedObserver();
     });
@@ -39,8 +46,12 @@ class GMapsBulletproofScraper {
   rebindFeedObserver() {
     if (!this.active) return;
     const feed = document.querySelector('div[role="feed"]');
-    if (!feed) return;
+    if (!feed) {
+        // console.log('[CONTENT.JS] rebindFeedObserver: No feed found yet.'); // Too noisy
+        return;
+    }
     if (this.feedObserver) this.feedObserver.disconnect();
+    console.log('[CONTENT.JS] rebindFeedObserver: Feed found! Binding observer.');
     this.feedObserver = new MutationObserver(() => {
       this.scrapeVisibleCards();
     });
@@ -51,16 +62,32 @@ class GMapsBulletproofScraper {
   scrapeVisibleCards() {
     if (!this.active) return;
     const cards = document.querySelectorAll('div[role="article"], .Nv2Ybe, .THS69c, .Ua67Yy');
-    cards.forEach(card => {
+    if (cards.length > 0 && cards.length !== this.lastCount) {
+        console.log(`[CONTENT.JS] scrapeVisibleCards: Found ${cards.length} cards.`);
+        this.lastCount = cards.length;
+    }
+    
+    let scrapedCount = 0;
+    cards.forEach((card, index) => {
       const link = card.querySelector('a.hfpxzc, a.bm892c, a[href*="/maps/place/"]');
-      if (!link) return;
+      if (!link) {
+          console.log(`[CONTENT.JS] Card ${index}: No link found. Skipped.`);
+          return;
+      }
       const url = link.href;
-      if (!url || this.processedUrls.has(url)) return;
+      if (!url || this.processedUrls.has(url)) {
+          // console.log(`[CONTENT.JS] Card ${index}: URL already processed or missing. Skipped.`);
+          return;
+      }
 
       const nameEl = card.querySelector('.fontHeadlineSmall, .qBF1Pd, [role="heading"]');
-      if (!nameEl) return;
+      if (!nameEl) {
+          console.log(`[CONTENT.JS] Card ${index}: No name element found. Skipped.`);
+          return;
+      }
       
       this.processedUrls.add(url);
+      scrapedCount++;
       const data = {
         name: nameEl.innerText.trim(),
         url: url,
@@ -69,7 +96,22 @@ class GMapsBulletproofScraper {
         reviews: card.querySelector('.UY7F9')?.innerText?.replace(/[()]/g, '') || '0'
       };
 
-      const websiteLink = card.querySelector('a[aria-label*="Website"], a[aria-label*="웹사이트"], a.lcr4fd, a[data-item-id="authority"]');
+      let websiteLink = card.querySelector('a[aria-label*="Website"], a[aria-label*="웹사이트"], a.lcr4fd, a[data-item-id="authority"]');
+      
+      // English-specific fix: Attempt deeper scan if website not found in English UI
+      if (!websiteLink && (document.documentElement.lang.startsWith('en') || window.location.href.includes('hl=en'))) {
+          websiteLink = card.querySelector('a[aria-label*="website" i], a[aria-label*="Visit" i], a[data-tooltip*="Website" i]');
+          if (!websiteLink) {
+              const allLinks = card.querySelectorAll('a[href]');
+              for (const a of allLinks) {
+                  const h = a.href;
+                  if (h && !h.includes('google.com/maps') && !h.includes('google.co.kr/maps') && !h.includes('javascript:') && !h.includes('googleadservices')) {
+                      websiteLink = a;
+                      break;
+                  }
+              }
+          }
+      }
       data.website = websiteLink ? websiteLink.href : 'N/A';
       const phoneMatch = card.innerText.match(/(\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9})/);
       data.phone = phoneMatch ? phoneMatch[0] : 'N/A';
@@ -83,8 +125,12 @@ class GMapsBulletproofScraper {
         if (text.includes('·')) data.address = text.trim();
       });
 
+      console.log(`[CONTENT.JS] Card ${index}: Found Business! Sending to background.`, data);
       chrome.runtime.sendMessage({ action: 'foundBusiness', data });
     });
+    if (scrapedCount > 0) {
+        console.log(`[CONTENT.JS] scrapeVisibleCards: Successfully scraped and sent ${scrapedCount} businesses!`);
+    }
   }
 
   /**
@@ -145,10 +191,22 @@ class GMapsBulletproofScraper {
 const scraper = new GMapsBulletproofScraper();
 
 chrome.runtime.onMessage.addListener((req) => {
+  console.log('[CONTENT.JS] Received chrome.runtime message:', req);
   if (req.action === 'start') scraper.start();
   else if (req.action === 'stop') scraper.stop();
   else if (req.action === 'startCruiser') cruiser.start(req.range, req.stepSize || 9.0, req.speedMult || 1.0);
   else if (req.action === 'stopCruiser') cruiser.stop();
+});
+
+window.addEventListener('message', (e) => {
+  if (e.data && e.data.type === 'XPIDER_CONTENT_MSG') {
+    const req = e.data.message;
+    console.log('[CONTENT.JS] Received XPIDER_CONTENT_MSG:', req);
+    if (req.action === 'start') scraper.start();
+    else if (req.action === 'stop') scraper.stop();
+    else if (req.action === 'startCruiser') cruiser.start(req.range, req.stepSize || 9.0, req.speedMult || 1.0);
+    else if (req.action === 'stopCruiser') cruiser.stop();
+  }
 });
 
 /**
