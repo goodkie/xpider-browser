@@ -269,9 +269,13 @@ async function startDeepSearch(hl) {
     isFindingEmails = true;
     isCancelled = false;
     
-    // Only process leads that haven't been through the Deep Search yet (captured)
-    // or are explicitly pending discovery. Skip leads marked as 'complete'.
-    const leadsToProcess = scrapedData.filter(b => b.status === 'captured' || b.email === 'Pending Stage 2');
+    // Process leads that are new ('captured') or haven't found an email yet
+    const leadsToProcess = scrapedData.filter(b => 
+        b.status === 'captured' || 
+        b.email === 'Pending Stage 2' || 
+        b.email === 'Not Found' || 
+        !b.email || b.email === 'N/A'
+    );
     
     sendLog(`📋 Starting Deep Search for ${leadsToProcess.length} leads (Lang: ${hl})`);
     chrome.runtime.sendMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: 0 });
@@ -286,17 +290,15 @@ async function startDeepSearch(hl) {
             
             let enrichment = { emails: '' };
 
-            if (hl === 'en') {
-                sendLog(`⚡ [EN Mode] Skipping Google Search. Using direct URL for "${lead.name}"`);
-            } else {
-                // Stage 2: Enrichment via Google (Finding Official Website)
-                sendLog(`🔎 [${processedCount}/${leadsToProcess.length}] Stage 2: Finding website for "${lead.name}"`);
+            // Stage 2: Enrichment via Google (If website is missing, even in English)
+            if (!lead.website || lead.website === 'N/A') {
+                sendLog(`🔎 Stage 2: Finding website for "${lead.name}" via Google Search...`);
                 chrome.runtime.sendMessage({ 
                     action: 'emailCheckStatus', 
                     total: leadsToProcess.length, 
                     current: processedCount,
                     stage: 2,
-                    statusText: hl === 'ko' ? `웹사이트 찾는 중... (${lead.name})` : `Finding website... (${lead.name})`
+                    statusText: `Finding website... (${lead.name})`
                 });
 
                 const searchContext = hl === 'ko' ? ' 전화번호 주소 홈페이지' : ' phone address official website';
@@ -306,21 +308,23 @@ async function startDeepSearch(hl) {
                 
                 if (enrichment.homepage) lead.website = enrichment.homepage;
                 if (enrichment.phone && (!lead.phone || lead.phone === 'N/A')) lead.phone = enrichment.phone;
-                if (enrichment.address && (!lead.address || lead.address === 'N/A')) lead.address = enrichment.address;
                 if (enrichment.socials && enrichment.socials.length > 0) {
                     lead.social = enrichment.socials.join(', ');
                 }
+                if (enrichment.emails) lead.email = enrichment.emails;
+            } else {
+                sendLog(`⚡ Website already known: ${lead.website}. Proceeding to deep scan.`);
             }
 
             // Stage 3: Deep Website Scan if website exists
             if (lead.website && lead.website !== 'N/A') {
-                sendLog(`🌐 [${processedCount}/${leadsToProcess.length}] Stage 3: Deep scanning details on ${lead.website}`);
+                sendLog(`🌐 Stage 3: Deep scanning details on ${lead.website}`);
                 chrome.runtime.sendMessage({ 
                     action: 'emailCheckStatus', 
                     total: leadsToProcess.length, 
                     current: processedCount,
                     stage: 3,
-                    statusText: hl === 'ko' ? `상세정보 수집 중... (${lead.name})` : `Scraping details... (${lead.name})`
+                    statusText: `Scraping details... (${lead.name})`
                 });
 
                 const webScan = await scrapeBusinessWebsite(lead.website);
@@ -329,21 +333,15 @@ async function startDeepSearch(hl) {
                     let finalPhone = webScan.phone;
                     
                     // Stage 3.5: Contact Page Autopilot
-                    // If no email/phone on homepage, but contact links exist, visit them!
-                    if ((!finalEmails.length || !finalPhone) && webScan.contactLinks && webScan.contactLinks.length > 0) {
+                    if (!finalEmails.length && webScan.contactLinks && webScan.contactLinks.length > 0) {
                         for (const contactUrl of webScan.contactLinks) {
                             sendLog(`🌐 Navigating to contact page: ${contactUrl}`);
                             const subScan = await scrapeBusinessWebsite(contactUrl);
                             if (subScan) {
                                 if (subScan.emails) finalEmails.push(...subScan.emails.split(', '));
                                 if (!finalPhone && subScan.phone) finalPhone = subScan.phone;
-                                if (subScan.socials && subScan.socials.length > 0) {
-                                    const existingSocials = lead.social ? lead.social.split(', ') : [];
-                                    const combinedSocials = [...new Set([...existingSocials, ...subScan.socials])];
-                                    lead.social = combinedSocials.join(', ');
-                                }
                             }
-                            if (finalEmails.length > 0 && finalPhone) break; // found what we need, stop crawling
+                            if (finalEmails.length > 0) break;
                         }
                     }
 
@@ -354,11 +352,6 @@ async function startDeepSearch(hl) {
                     }
                     if (finalPhone && (!lead.phone || lead.phone === 'N/A')) {
                         lead.phone = finalPhone;
-                    }
-                    if (webScan.socials && webScan.socials.length > 0) {
-                        const existingSocials = lead.social ? lead.social.split(', ') : [];
-                        const combinedSocials = [...new Set([...existingSocials, ...webScan.socials])];
-                        lead.social = combinedSocials.join(', ');
                     }
                 }
             }
