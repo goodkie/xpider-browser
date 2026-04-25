@@ -619,21 +619,8 @@ async function orchestrateSending(urlInput, template) {
     let targetUrl = urlInput.trim();
     if (!targetUrl.startsWith('http')) targetUrl = 'https://' + targetUrl;
 
-    let tabId;
-    if (typeof chrome.tabs.create === 'function') {
-        const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
-        tabId = tab.id;
-    } else {
-        // Electron fallback: Use the active tab (main-webview)
-        const tabs = await chrome.tabs.query({});
-        const activeTab = tabs.find(t => t.active) || tabs[0];
-        if (activeTab) {
-            tabId = activeTab.id;
-        } else {
-            return { success: false, error: "No active tab found" };
-        }
-    }
-    
+    const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
+    const tabId = tab.id;
     campaignState.currentTabId = tabId;
 
     let resolveRef;
