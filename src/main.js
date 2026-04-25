@@ -230,6 +230,69 @@ ipcMain.on('reload-extensions', async () => {
   }
 });
 
+// ─── Extension API Bridge IPC 핸들러 ──────────────────────────
+
+// chrome.tabs.create → 메인 webview에서 URL 오픈
+ipcMain.handle('ext-tabs-create', async (_, createProperties) => {
+  const url = createProperties?.url || 'about:blank';
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('ext-open-url', url);
+  }
+  return { id: 1, url, active: true };
+});
+
+// chrome.tabs.query → 현재 webview URL/Title 반환
+ipcMain.handle('ext-tabs-query', async (_, queryInfo) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const url   = mainWindow.webContents.getURL();
+    const title = mainWindow.webContents.getTitle();
+    return [{ id: 1, url, title, active: true, currentWindow: true, index: 0 }];
+  }
+  return [];
+});
+
+// chrome.tabs.update → 메인 webview URL 변경
+ipcMain.handle('ext-tabs-update', async (_, { updateProperties }) => {
+  const url = updateProperties?.url;
+  if (url && mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('ext-open-url', url);
+  }
+  return { id: 1, url: url || '' };
+});
+
+// chrome.downloads.download → 외부 브라우저 또는 shell로 다운로드
+ipcMain.handle('ext-downloads-download', async (_, options) => {
+  const url = options?.url;
+  if (url) {
+    try {
+      // session downloadItem으로 처리
+      mainWindow.webContents.downloadURL(url);
+      log.info(`[Bridge] download initiated: ${url}`);
+    } catch (e) {
+      shell.openExternal(url);
+    }
+  }
+  return 1; // fake downloadId
+});
+
+// chrome.windows.create → 새 BrowserWindow 생성
+ipcMain.handle('ext-windows-create', async (_, createData) => {
+  const url = createData?.url || 'about:blank';
+  const win = new BrowserWindow({
+    width:  createData?.width  || 900,
+    height: createData?.height || 700,
+    webPreferences: { nodeIntegration: false, contextIsolation: true },
+  });
+  win.loadURL(url);
+  return { id: win.id, focused: true };
+});
+
+// chrome.windows.getCurrent → 현재 창 정보 반환
+ipcMain.handle('ext-windows-get-current', async () => {
+  return { id: 1, focused: true, state: 'normal' };
+});
+
+
 // 익스텐션 진행 상황을 스플래시/renderer 모두에 전달하는 헬퍼
 function sendExtProgress(msg) {
   // 스플래시가 열려있으면 스플래시에 표시

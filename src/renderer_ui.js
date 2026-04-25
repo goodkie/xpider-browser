@@ -9,6 +9,17 @@ const sidePanel        = document.getElementById('side-panel');
 const extensionWebview = document.getElementById('extension-webview');
 const settingsBtn      = document.getElementById('settings-btn');
 const settingsMenu     = document.getElementById('settings-menu');
+
+// ── extension-webview에 API 브릿지 preload 주입 ──────────────
+// (webview에 preload 설정은 src 설정 전에 해야 함)
+try {
+  const bridgePath = window.electronAPI.getExtBridgePath();
+  extensionWebview.setAttribute('preload', bridgePath);
+  extensionWebview.setAttribute('allowpopups', '');
+  extensionWebview.setAttribute('nodeintegration', '');
+} catch(e) {
+  console.warn('[XPIDER] ext-bridge preload setup failed:', e);
+}
 const appContainer     = document.getElementById('app-container');
 const addBtn           = document.getElementById('add-btn');
 const toggleSidebarBtn = document.getElementById('toggle-sidebar-btn');
@@ -181,6 +192,15 @@ function showToast(msg, duration = 3000) {
 // ─── 익스텐션 업데이트 진행 메시지 표시 ─────────────────────────
 window.electronAPI.on('ext-sync-progress', (msg) => {
     showToast('📦 ' + msg, 4000);
+});
+
+// ── ext-open-url: 익스테션이 chrome.tabs.create/update로 요청한 URL을 메인 webview에서 열기 ─
+ window.electronAPI.on('ext-open-url', (url) => {
+    if (!url) return;
+    webview.src = url;
+    addressBar.value = url;
+    sidePanel.classList.add('hidden');
+    currentExtensionId = null;
 });
 
 // ─── 온보딩 ───────────────────────────────────────────────────
