@@ -277,6 +277,15 @@ async function startDeepSearch(hl) {
         !b.email || b.email === 'N/A'
     );
     
+    console.log('[BACKGROUND] Leads to process for Stage 2/3:', leadsToProcess.length, leadsToProcess);
+    
+    if (leadsToProcess.length === 0) {
+        sendLog("⚠️ No eligible leads found for Discovery. (Needs 'captured' or missing email status)");
+        isFindingEmails = false;
+        chrome.runtime.sendMessage({ action: 'emailCheckStatus', finished: true });
+        return;
+    }
+    
     sendLog(`📋 Starting Deep Search for ${leadsToProcess.length} leads (Lang: ${hl})`);
     chrome.runtime.sendMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: 0 });
 
