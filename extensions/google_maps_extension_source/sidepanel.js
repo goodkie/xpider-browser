@@ -30,12 +30,42 @@ document.addEventListener('DOMContentLoaded', () => {
       window.addEventListener('message', listener);
       window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-get-active-tab', args: {}, id: 'queryTabBridge' }, '*');
       
-      // Safety timeout in case main process doesn't respond
       setTimeout(() => {
           window.removeEventListener('message', listener);
-          console.warn('[XPIDER-BRIDGE] chrome.tabs.query timed out, using fallback');
           callback([{ id: 999999 }]);
       }, 1000);
+  };
+
+  chrome.tabs.create = function(props, callback) {
+      console.log('[XPIDER-BRIDGE] Intercepting chrome.tabs.create', props);
+      const listener = (event) => {
+          if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'createTabBridge') {
+              window.removeEventListener('message', listener);
+              if (callback) callback(event.data.result);
+          }
+      };
+      window.addEventListener('message', listener);
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-update-tab', args: props, id: 'createTabBridge' }, '*');
+  };
+
+  chrome.scripting = chrome.scripting || {};
+  chrome.scripting.executeScript = function(injection, callback) {
+      console.log('[XPIDER-BRIDGE] Intercepting chrome.scripting.executeScript', injection);
+      const listener = (event) => {
+          if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'execScriptBridge') {
+              window.removeEventListener('message', listener);
+              if (callback) callback([{ result: event.data.result }]);
+          }
+      };
+      window.addEventListener('message', listener);
+      
+      // If injection contains a function, we need to stringify it
+      if (injection.func) {
+          injection.funcString = injection.func.toString();
+          delete injection.func;
+      }
+
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-execute-script', args: injection, id: 'execScriptBridge' }, '*');
   };
   // ==========================================
 
@@ -97,6 +127,13 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (result.scrapedData) updateUI(result.scrapedData, currentLang);
     if (result.scrapingActive) setUIStatus(true, currentLang);
+
+    // Display version
+    const manifest = chrome.runtime.getManifest();
+    document.getElementById('appVersion').innerText = manifest.version || '1.1.0';
+    
+    // Mark as XPIDER environment for background script
+    chrome.storage.local.set({ isXpider: true });
   });
 
   checkCurrentTab();
@@ -161,8 +198,74 @@ document.addEventListener('DOMContentLoaded', () => {
       updateEmailProgress(message);
     } else if (message.action === 'cruiserUpdate') {
       updateCruiserMonitor(message.data);
+    } else if (message.action === 'PROXY_SCAN') {
+      handleProxyScan(message.url, message.waitMs, message.requestId);
     }
   });
+
+  async function handleProxyScan(url, waitMs, requestId) {
+      console.log('[SIDEPANEL] Performing Proxy Scan for:', url);
+      try {
+          chrome.tabs.create({ url: url, active: false }, (tab) => {
+              if (!tab) return chrome.runtime.sendMessage({ action: 'PROXY_SCAN_RESULT', requestId, result: {} });
+              
+              setTimeout(() => {
+                  chrome.scripting.executeScript({
+                      target: { tabId: tab.id },
+                      func: () => {
+                          const text = document.body ? document.body.innerText : '';
+                          const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+                          const emails = text.match(emailRegex) || [];
+                          const phoneRegex = /\d{2,4}-\d{3,4}-\d{4}/g;
+                          const phones = text.match(phoneRegex) || [];
+                          
+                          let homepage = null;
+                          const cite = document.querySelector('cite');
+                          if (cite) {
+                              const parts = cite.innerText.split(' ');
+                              if (parts[0].includes('http')) homepage = parts[0];
+                          }
+
+                          const contactKeywords = ['contact', 'about', '연락처', '오시는길', '고객센터', '문의', 'team', 'company', 'get-in-touch', 'impressum', 'kontakt'];
+                          let contactLinks = [];
+                          document.querySelectorAll('a').forEach(a => {
+                              const href = a.href || '';
+                              const text = (a.innerText || '').toLowerCase();
+                              if (href.startsWith('http') && contactKeywords.some(kw => href.toLowerCase().includes(kw) || text.includes(kw))) {
+                                  contactLinks.push(href);
+                              }
+                          });
+
+                          const socialRegex = /(?:facebook|instagram|twitter|x|linkedin|youtube|tiktok)\.com\/([a-zA-Z0-9._%+-]+)/gi;
+                          const socials = text.match(socialRegex) || [];
+                          const socialLinks = [];
+                          document.querySelectorAll('a').forEach(a => {
+                              const href = a.href || '';
+                              if (href.match(/(facebook|instagram|twitter|linkedin|youtube|tiktok|x\.com)/i)) {
+                                  socialLinks.push(href);
+                              }
+                          });
+
+                          return {
+                              emails: [...new Set(emails)].join(', '),
+                              phone: phones[0] || null,
+                              homepage: homepage,
+                              socials: [...new Set([...socials.map(s => 'https://' + s), ...socialLinks])].slice(0, 5),
+                              contactLinks: [...new Set(contactLinks)].slice(0, 2),
+                              pageText: text.substring(0, 2000)
+                          };
+                      }
+                  }, (results) => {
+                      const res = results && results[0] ? results[0].result : {};
+                      chrome.runtime.sendMessage({ action: 'PROXY_SCAN_RESULT', requestId, result: res });
+                  });
+              }, waitMs);
+          });
+      } catch (e) {
+          console.error('[SIDEPANEL] Proxy Scan Error:', e);
+          chrome.runtime.sendMessage({ action: 'PROXY_SCAN_RESULT', requestId, result: {} });
+      }
+  }
 
   function xpiderSendMessage(tabId, msg) {
     console.log('[XPIDER-BRIDGE] Requesting message send:', msg);

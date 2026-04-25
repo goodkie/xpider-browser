@@ -256,20 +256,30 @@ ipcMain.handle('xpider-ext-get-active-tab', async (event) => {
 ipcMain.handle('xpider-ext-update-tab', async (event, props) => {
     if (!mainWindow || mainWindow.isDestroyed()) return null;
     try {
-        // Send message to renderer to update the tab
         mainWindow.webContents.send('xpider-renderer-update-active-tab', props);
-        
-        // Return a mock tab object immediately to satisfy the extension
-        return {
-            id: 999999,
-            windowId: 1,
-            active: true,
-            url: props.url || '',
-            status: 'loading'
-        };
+        return { id: 999999, windowId: 1, active: true, url: props.url || '', status: 'loading' };
     } catch(e) {
         log.error('[ExtBridge] update-tab error:', e);
         return null;
+    }
+});
+
+ipcMain.handle('xpider-ext-create-tab', async (event, props) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    try {
+        // In XPIDER, we'll implement this as creating a new webview in the background
+        const result = await mainWindow.webContents.executeJavaScript(`
+            (async function() {
+                if (typeof createBackgroundWebview === 'function') {
+                    return await createBackgroundWebview(${JSON.stringify(props)});
+                }
+                return { id: Date.now(), url: "${props.url || ''}" };
+            })()
+        `);
+        return result;
+    } catch(e) {
+        log.error('[ExtBridge] create-tab error:', e);
+        return { id: Date.now(), url: props.url || '' };
     }
 });
 
@@ -331,9 +341,15 @@ ipcMain.handle('xpider-ext-execute-script', async (event, injection) => {
 
     if (codeToExecute) {
         try {
+            const targetId = injection.target ? injection.target.tabId : null;
             const result = await mainWindow.webContents.executeJavaScript(`
                 (async function() {
-                    const wv = typeof getActiveWebview === 'function' ? getActiveWebview() : null;
+                    let wv = null;
+                    if (${targetId} && typeof getWebviewById === 'function') {
+                        wv = getWebviewById(${targetId});
+                    } else {
+                        wv = typeof getActiveWebview === 'function' ? getActiveWebview() : null;
+                    }
                     if (!wv) return null;
                     try {
                         return await wv.executeJavaScript(${JSON.stringify(codeToExecute)});

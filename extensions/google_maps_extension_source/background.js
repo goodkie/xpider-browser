@@ -194,6 +194,27 @@ async function checkIfOcean(windowId) {
 }
 
 async function scanPageInBrowser(targetUrl, waitMs = 5000) {
+    const settings = await chrome.storage.local.get(['isXpider']);
+    if (settings.isXpider) {
+        return new Promise((resolve) => {
+            const requestId = Date.now().toString() + Math.random().toString(36).substring(7);
+            const listener = (m) => {
+                if (m.action === 'PROXY_SCAN_RESULT' && m.requestId === requestId) {
+                    chrome.runtime.onMessage.removeListener(listener);
+                    resolve(m.result || {});
+                }
+            };
+            chrome.runtime.onMessage.addListener(listener);
+            chrome.runtime.sendMessage({ action: 'PROXY_SCAN', url: targetUrl, waitMs, requestId });
+            
+            // Timeout safety for the proxy
+            setTimeout(() => {
+                chrome.runtime.onMessage.removeListener(listener);
+                resolve({});
+            }, 30000);
+        });
+    }
+
     let tab = null;
     try {
         tab = await chrome.tabs.create({ url: targetUrl, active: false });
@@ -276,15 +297,6 @@ async function startDeepSearch(hl) {
         b.email === 'Not Found' || 
         !b.email || b.email === 'N/A'
     );
-    
-    console.log('[BACKGROUND] Leads to process for Stage 2/3:', leadsToProcess.length, leadsToProcess);
-    
-    if (leadsToProcess.length === 0) {
-        sendLog("⚠️ No eligible leads found for Discovery. (Needs 'captured' or missing email status)");
-        isFindingEmails = false;
-        chrome.runtime.sendMessage({ action: 'emailCheckStatus', finished: true });
-        return;
-    }
     
     sendLog(`📋 Starting Deep Search for ${leadsToProcess.length} leads (Lang: ${hl})`);
     chrome.runtime.sendMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: 0 });

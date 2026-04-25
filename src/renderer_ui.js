@@ -512,3 +512,50 @@ addressBar.addEventListener('keypress', (e) => { if (e.key === 'Enter') navigate
 backBtn.addEventListener('click',    () => { const wv = getActiveWebview(); if (wv && wv.canGoBack())    wv.goBack();    });
 forwardBtn.addEventListener('click', () => { const wv = getActiveWebview(); if (wv && wv.canGoForward()) wv.goForward(); });
 reloadBtn.addEventListener('click',  () => { const wv = getActiveWebview(); if (wv) wv.reload(); });
+
+// ─── Background Webviews for Extension Compatibility ───────────
+const backgroundWebviews = new Map();
+
+window.createBackgroundWebview = async function(props) {
+    const id = Date.now();
+    const wv = document.createElement('webview');
+    wv.style.position = 'fixed';
+    wv.style.top = '-10000px'; // Hide but keep in DOM
+    wv.style.width = '1200px';
+    wv.style.height = '800px';
+    wv.src = props.url || 'about:blank';
+    document.body.appendChild(wv);
+    
+    backgroundWebviews.set(id, wv);
+    
+    // Auto-cleanup after 1 minute to prevent memory leaks
+    setTimeout(() => {
+        if (backgroundWebviews.has(id)) {
+            wv.remove();
+            backgroundWebviews.delete(id);
+        }
+    }, 60000);
+
+    return new Promise((resolve) => {
+        const onDone = () => {
+            wv.removeEventListener('did-finish-load', onDone);
+            wv.removeEventListener('did-fail-load', onDone);
+            const realId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : id;
+            backgroundWebviews.set(realId, wv); // Map by real ID if possible
+            resolve({ id: realId, url: wv.getURL(), status: 'complete' });
+        };
+        wv.addEventListener('did-finish-load', onDone);
+        wv.addEventListener('did-fail-load', onDone);
+        setTimeout(() => onDone(), 10000);
+    });
+};
+
+window.getWebviewById = function(id) {
+    if (backgroundWebviews.has(id)) return backgroundWebviews.get(id);
+    // Check main tabs (active and inactive)
+    const allWebviews = document.querySelectorAll('webview');
+    for (const wv of allWebviews) {
+        if (typeof wv.getWebContentsId === 'function' && wv.getWebContentsId() == id) return wv;
+    }
+    return null;
+};
