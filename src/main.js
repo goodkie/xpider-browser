@@ -422,6 +422,15 @@ ipcMain.on('trigger-background-sync', () => {
 
 // ─── 앱 시작 ──────────────────────────────────────────────────
 app.whenReady().then(async () => {
+  // 0. Extension API Bridge: 세션 전체에 주입 (background SW 포함 모든 익스텐션 컨텍스트 적용)
+  const bridgePath = path.join(__dirname, 'ext-bridge.js');
+  try {
+    session.defaultSession.setPreloads([bridgePath]);
+    log.info(`[Bridge] Session preload set: ${bridgePath}`);
+  } catch (e) {
+    log.error('[Bridge] Failed to set session preload:', e.message);
+  }
+
   // 1. 스플래시 창 먼저 표시
   createSplashWindow();
 
