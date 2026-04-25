@@ -1,0 +1,8 @@
+{
+  "name": "test_ext",
+  "version": "1.0.0",
+  "description": "New Extension",
+  "icons": {
+    "48": "icon.png"
+  }
+}
