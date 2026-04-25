@@ -283,6 +283,23 @@ ipcMain.handle('xpider-ext-create-tab', async (event, props) => {
     }
 });
 
+ipcMain.handle('xpider-ext-remove-tab', async (event, data) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    try {
+        await mainWindow.webContents.executeJavaScript(`
+            (function() {
+                if (typeof removeBackgroundWebview === 'function') {
+                    removeBackgroundWebview(${data.tabId});
+                }
+            })()
+        `);
+        return { success: true };
+    } catch(e) {
+        log.error('[ExtBridge] remove-tab error:', e);
+        return null;
+    }
+});
+
 ipcMain.on('xpider-ext-notify-tab-updated', (event, data) => {
     // Notify all extension webview contents
     const allWebContents = webContents.getAllWebContents();

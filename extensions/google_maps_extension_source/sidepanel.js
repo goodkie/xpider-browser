@@ -45,7 +45,13 @@ document.addEventListener('DOMContentLoaded', () => {
           }
       };
       window.addEventListener('message', listener);
-      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-update-tab', args: props, id: 'createTabBridge' }, '*');
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-create-tab', args: props, id: 'createTabBridge' }, '*');
+  };
+
+  chrome.tabs.remove = function(tabId, callback) {
+      console.log('[XPIDER-BRIDGE] Intercepting chrome.tabs.remove', tabId);
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-remove-tab', args: { tabId }, id: 'removeTabBridge' }, '*');
+      if (callback) callback();
   };
 
   chrome.scripting = chrome.scripting || {};
@@ -142,14 +148,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function checkCurrentTab() {
-    // We send a request via bridge
     window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-get-active-tab', args: {}, id: 'checkTab' }, '*');
-    
-    // Also try native as fallback
     try {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const activeTab = tabs[0];
-        if (activeTab && activeTab.url && activeTab.url.includes('google.com/maps')) {
+        if (activeTab && activeTab.url && activeTab.url.match(/google\.(com|co\.kr|co\.jp|com\.sg|com\.tw|ca|de|fr|it|es|co\.uk|com\.hk)\/maps/i)) {
           navScreen.classList.add('hidden');
         } else {
           navScreen.classList.remove('hidden');
@@ -162,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'checkTab') {
       const activeTab = event.data.result;
-      if (activeTab && activeTab.url && activeTab.url.includes('google.com/maps')) {
+      if (activeTab && activeTab.url && activeTab.url.match(/google\.(com|co\.kr|co\.jp|com\.sg|com\.tw|ca|de|fr|it|es|co\.uk|com\.hk)\/maps/i)) {
         navScreen.classList.add('hidden');
       } else {
         navScreen.classList.remove('hidden');
@@ -257,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       }
                   }, (results) => {
                       const res = results && results[0] ? results[0].result : {};
+                      chrome.tabs.remove(tab.id); // Close background tab
                       chrome.runtime.sendMessage({ action: 'PROXY_SCAN_RESULT', requestId, result: res });
                   });
               }, waitMs);
