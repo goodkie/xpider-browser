@@ -140,29 +140,29 @@
         <div id="lang-setup-overlay" class="hidden">
             <div class="lang-setup-card">
                 <div class="lang-setup-header">
-                    <h1 data-i18n="languages">Select Your Language</h1>
-                    <p data-i18n="welcome_msg">Welcome to XPIDER Browser</p>
+                    <h1 data-i18n="languages" style="color: #f5a623; font-size: 38px; font-weight: 800; margin-bottom: 20px;">언어</h1>
+                    <p data-i18n="welcome_msg" style="color: #888; font-size: 16px;">XPIDER 브라우저에 오신 것을 환영합니다</p>
                 </div>
                 <div class="lang-grid">
-                    <div class="lang-btn" data-lang="ko">🇰🇷 한국어</div>
-                    <div class="lang-btn" data-lang="en">🇺🇸 English</div>
-                    <div class="lang-btn" data-lang="ja">🇯🇵 日本語</div>
-                    <div class="lang-btn" data-lang="zh">🇨🇳 中文</div>
-                    <div class="lang-btn" data-lang="es">🇪🇸 Español</div>
-                    <div class="lang-btn" data-lang="fr">🇫🇷 Français</div>
-                    <div class="lang-btn" data-lang="de">🇩🇪 Deutsch</div>
-                    <div class="lang-btn" data-lang="ru">🇷🇺 Русский</div>
-                    <div class="lang-btn" data-lang="pt">🇵🇹 Português</div>
-                    <div class="lang-btn" data-lang="it">🇮🇹 Italiano</div>
-                    <div class="lang-btn" data-lang="vi">🇻🇳 Tiếng Việt</div>
-                    <div class="lang-btn" data-lang="th">🇹🇭 ไทย</div>
+                    <div class="lang-btn" data-lang="ko"><span class="lang-code">KR</span> 한국어</div>
+                    <div class="lang-btn" data-lang="en"><span class="lang-code">US</span> English</div>
+                    <div class="lang-btn" data-lang="ja"><span class="lang-code">JP</span> 日本語</div>
+                    <div class="lang-btn" data-lang="zh"><span class="lang-code">CN</span> 中文</div>
+                    <div class="lang-btn" data-lang="es"><span class="lang-code">ES</span> Español</div>
+                    <div class="lang-btn" data-lang="fr"><span class="lang-code">FR</span> Français</div>
+                    <div class="lang-btn" data-lang="de"><span class="lang-code">DE</span> Deutsch</div>
+                    <div class="lang-btn" data-lang="ru"><span class="lang-code">RU</span> Русский</div>
+                    <div class="lang-btn" data-lang="pt"><span class="lang-code">PT</span> Português</div>
+                    <div class="lang-btn" data-lang="it"><span class="lang-code">IT</span> Italiano</div>
+                    <div class="lang-btn" data-lang="vi"><span class="lang-code">VN</span> Tiếng Việt</div>
+                    <div class="lang-btn" data-lang="th"><span class="lang-code">TH</span> ไทย</div>
                 </div>
                 <div class="lang-setup-footer">
                     <label class="skip-today">
                         <input type="checkbox" id="lang-dont-show">
-                        <span data-i18n="ob_dont_show">Don't show this again</span>
+                        <span data-i18n="ob_dont_show">다시 보지 않기</span>
                     </label>
-                    <button id="lang-save-btn" class="ob-btn" data-i18n="ob_close">Start Now</button>
+                    <button id="lang-save-btn" class="ob-btn" data-i18n="ob_close" style="background: #f5a623; color: #000; border-radius: 12px; padding: 12px 40px; font-weight: 800; cursor: pointer;">시작하기</button>
                 </div>
             </div>
         </div>
@@ -170,20 +170,22 @@
         <!-- 온보딩 -->
         <div id="onboarding-overlay" class="hidden">
             <div id="onboarding-bubble" class="onboarding-bubble">
-                <div class="bubble-arrow"></div>
                 <div class="bubble-header">
-                    <h2 id="ob-title">App Title</h2>
-                    <span class="step-indicator">1 / 2</span>
+                    <h2 id="ob-title" style="color: #f5a623; font-size: 24px; font-weight: 800;">Business Data Crawler</h2>
+                    <span class="step-indicator" style="background: #333; color: #888; padding: 4px 12px; border-radius: 15px; font-weight: 700;">1 / 2</span>
                 </div>
-                <div class="bubble-body"><p id="ob-desc">Description text goes here.</p></div>
+                <div class="bubble-body" style="margin-top: 20px;">
+                    <p id="ob-desc" style="font-size: 16px; line-height: 1.6; color: #fff;">웹 페이지 내 비즈니스 정보를 한눈에 수집하고 추출하는 강력한 크롤러입니다.</p>
+                </div>
+                <hr style="border: none; border-top: 1px solid #333; margin: 20px 0;">
                 <div class="bubble-footer">
                     <label class="skip-today">
                         <input type="checkbox" id="ob-dont-show">
-                        <span data-i18n="ob_dont_show">Don't show this again</span>
+                        <span data-i18n="ob_dont_show">다시 보지 않기</span>
                     </label>
                     <div class="bubble-actions">
-                        <button id="ob-next-btn" class="ob-btn" data-i18n="ob_next">Next</button>
-                        <button id="ob-close-btn" class="ob-btn secondary hidden" data-i18n="ob_close">Close</button>
+                        <button id="ob-next-btn" class="ob-btn" data-i18n="ob_next" style="background: #f5a623; color: #000; border-radius: 10px; padding: 10px 30px; font-weight: 800; cursor: pointer;">다음</button>
+                        <button id="ob-close-btn" class="ob-btn secondary hidden" data-i18n="ob_close" style="background: #f5a623; color: #000; border-radius: 10px; padding: 10px 30px; font-weight: 800; cursor: pointer;">시작하기</button>
                     </div>
                 </div>
             </div>
