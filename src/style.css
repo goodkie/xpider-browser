@@ -386,19 +386,49 @@ body, html {
 }
 .nav-controls button:hover, #settings-btn:hover { background: var(--bg-hover); }
 
-.address-bar-container { flex-grow: 1; }
+.address-bar-container { 
+    flex-grow: 1; 
+    position: relative;
+    display: flex;
+    align-items: center;
+}
 #address-bar {
     width: 100%;
     background-color: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 8px 16px;
+    padding: 8px 100px 8px 16px; /* Extra right padding for buttons */
     color: var(--text-main);
     font-size: 13px;
     outline: none;
     transition: border-color 0.3s, box-shadow 0.3s;
 }
 #address-bar:focus { border-color: var(--accent); }
+
+.address-bar-btns {
+    position: absolute;
+    right: 10px;
+    display: flex;
+    gap: 4px;
+}
+.address-bar-btns button {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 16px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+.address-bar-btns button:hover {
+    color: var(--accent);
+    background: rgba(255,255,255,0.05);
+}
 
 #webview-container { flex: 1; display: flex; background-color: #fff; position: relative; }
 #main-webview { flex: 1; border: none; }

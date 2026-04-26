@@ -23,6 +23,7 @@ const overlayPanel     = document.getElementById('browser-overlay-panel');
 const panelList        = document.getElementById('panel-list');
 const panelTabs        = document.querySelectorAll('.panel-tab');
 const clearHistoryBtn  = document.getElementById('clear-history-btn');
+const downloadsBtn     = document.getElementById('downloads-btn');
 
 // ── 업데이트 모달 요소 ──────────────────────────────────────
 const updateModal      = document.getElementById('update-modal');
@@ -41,6 +42,7 @@ let _releaseUrl        = '';
 // ─── 데이터 초기화 ────────────────────────────────────────────
 let history   = JSON.parse(localStorage.getItem('xpider-history')   || '[]');
 let bookmarks = JSON.parse(localStorage.getItem('xpider-bookmarks') || '[]');
+let downloads = JSON.parse(localStorage.getItem('xpider-downloads') || '[]');
 
 // ─── 테마 초기화 ──────────────────────────────────────────────
 const savedTheme = localStorage.getItem('app-theme') || 'theme-dark';
@@ -307,18 +309,31 @@ function updateBookmarkIcon() {
 function renderOverlayPanel(tab) {
     currentPanelTab = tab;
     panelList.innerHTML = '';
-    const items = tab === 'history' ? history : bookmarks;
+    
+    let items = [];
+    if (tab === 'history') items = history;
+    else if (tab === 'bookmarks') items = bookmarks;
+    else if (tab === 'downloads') items = downloads;
+
     panelTabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === tab));
-    clearHistoryBtn.classList.toggle('hidden', tab === 'bookmarks');
+    clearHistoryBtn.classList.toggle('hidden', tab !== 'history');
+    
     if (items.length === 0) {
         panelList.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:40px;">Empty</div>`;
         return;
     }
+
     items.forEach(item => {
         const div = document.createElement('div');
         div.className = 'panel-item';
-        div.innerHTML = `<div class="item-title">${item.title}</div><div class="item-url">${item.url}</div>`;
-        div.onclick = () => { const wv = getActiveWebview(); if(wv) wv.src = item.url; overlayPanel.classList.add('hidden'); };
+        
+        if (tab === 'downloads') {
+            div.innerHTML = `<div class="item-title">${item.filename || 'File'}</div><div class="item-url">${item.path || ''}</div>`;
+            div.onclick = () => { if(item.path) window.electronAPI.send('open-path', item.path); };
+        } else {
+            div.innerHTML = `<div class="item-title">${item.title || item.url}</div><div class="item-url">${item.url}</div>`;
+            div.onclick = () => { const wv = getActiveWebview(); if(wv) wv.src = item.url; overlayPanel.classList.add('hidden'); };
+        }
         panelList.appendChild(div);
     });
 }
@@ -328,6 +343,11 @@ historyBtn.onclick  = (e) => {
     e.stopPropagation();
     if (!overlayPanel.classList.contains('hidden') && currentPanelTab === 'history') overlayPanel.classList.add('hidden');
     else { renderOverlayPanel('history'); overlayPanel.classList.remove('hidden'); settingsMenu.classList.add('hidden'); }
+};
+downloadsBtn.onclick = (e) => {
+    e.stopPropagation();
+    if (!overlayPanel.classList.contains('hidden') && currentPanelTab === 'downloads') overlayPanel.classList.add('hidden');
+    else { renderOverlayPanel('downloads'); overlayPanel.classList.remove('hidden'); settingsMenu.classList.add('hidden'); }
 };
 panelTabs.forEach(tab => { tab.onclick = () => renderOverlayPanel(tab.getAttribute('data-tab')); });
 clearHistoryBtn.onclick = () => {

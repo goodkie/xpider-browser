@@ -75,6 +75,7 @@ const translations = {
         ext_send_desc: "入力された宛先にメッセージを自動送信する効率的なビジネスメッセンジャーです。",
         history_tab: "履歴",
         bookmarks_tab: "ブックマーク",
+        downloads_tab: "ダウンロード",
         clear_all: "すべて削除"
     },
     zh: {
@@ -101,6 +102,7 @@ const translations = {
         ext_send_desc: "一种高效的业务信使，可自动向输入目标发送消息。",
         history_tab: "历史记录",
         bookmarks_tab: "收藏夹",
+        downloads_tab: "下载",
         clear_all: "清空所有"
     },
     es: {
