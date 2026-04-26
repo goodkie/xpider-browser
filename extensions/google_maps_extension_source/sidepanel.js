@@ -204,21 +204,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'tab-updated') {
         checkCurrentTab();
     }
-
-    // ── XPIDER 브라우저 언어 동기화 ──
-    if (event.data && event.data.type === 'XPIDER_SYNC_LANG') {
-        console.log('[XPIDER-BRIDGE] Syncing language from browser:', event.data.lang);
-        currentLang = event.data.lang;
-        if (langSelect) langSelect.value = currentLang;
-        chrome.storage.local.set({ language: currentLang }, () => {
-            applyTranslations(currentLang);
-            // UI 상태 다시 업데이트 (번역된 텍스트 적용)
-            chrome.storage.local.get(['scrapedData', 'scrapingActive'], (res) => {
-                updateUI(res.scrapedData || [], currentLang);
-                setUIStatus(res.scrapingActive || false, currentLang);
-            });
-        });
-    }
   });
 
   // XPIDER BRIDGE HELPER

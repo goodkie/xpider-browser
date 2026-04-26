@@ -36,3 +36,9 @@ create-storage-bucket.js
 # 대용량 바이너리 파일
 *.crx
 *.pem
+
+# XPIDER 임시 및 데이터 파일
+data/
+restore_points/
+extension_logs*.txt
+*.exe
