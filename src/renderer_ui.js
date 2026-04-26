@@ -69,6 +69,11 @@ function applyLanguage(lang) {
         const key = el.getAttribute('data-i18n-placeholder');
         if (dict[key]) el.placeholder = dict[key];
     });
+
+    // ── 익스텐션 사이드바에도 언어 동기화 메시지 전송 ──
+    if (extensionWebview) {
+        extensionWebview.executeJavaScript(`window.postMessage({ type: 'XPIDER_SYNC_LANG', lang: '${lang}' }, '*')`);
+    }
 }
 
 applyLanguage(currentLang);
@@ -400,8 +405,17 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
                 }
                 
                 extensionWebview.src = `chrome-extension://${ext.id}/${ext.uiPage}`;
-                sidePanelTitle.textContent = ext.name;
+                
+                // 로드 완료 후 언어 동기화
+                const syncLangOnLoad = () => {
+                    extensionWebview.removeEventListener('did-finish-load', syncLangOnLoad);
+                    const lang = localStorage.getItem('app-lang') || 'ko';
+                    extensionWebview.executeJavaScript(`window.postMessage({ type: 'XPIDER_SYNC_LANG', lang: '${lang}' }, '*')`);
+                };
+                extensionWebview.addEventListener('did-finish-load', syncLangOnLoad);
+
                 sidePanel.classList.remove('hidden');
+                sidePanelTitle.textContent = ext.name;
             }
         };
 
