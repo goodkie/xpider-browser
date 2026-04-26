@@ -559,11 +559,3 @@ window.getWebviewById = function(id) {
     }
     return null;
 };
-
-window.removeBackgroundWebview = function(id) {
-    const wv = backgroundWebviews.get(id);
-    if (wv) {
-        wv.remove();
-        backgroundWebviews.delete(id);
-    }
-};
