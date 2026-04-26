@@ -69,6 +69,11 @@ function applyLanguage(lang) {
         const key = el.getAttribute('data-i18n-placeholder');
         if (dict[key]) el.placeholder = dict[key];
     });
+
+    // Notify extension webview about language change
+    if (extensionWebview && extensionWebview.src) {
+        extensionWebview.executeJavaScript(`window.postMessage({ type: 'XPIDER_EVENT', name: 'language-change', data: { lang: '${lang}' } }, '*')`);
+    }
 }
 
 applyLanguage(currentLang);
@@ -128,6 +133,13 @@ window.electronAPI.on('app_version', (version) => {
     const el = document.getElementById('app-version');
     if (el) el.textContent = version;
     if (modalCurrentVer) modalCurrentVer.textContent = version;
+});
+
+window.electronAPI.on('app_language', (lang) => {
+    if (!localStorage.getItem('app-lang')) {
+        currentLang = lang;
+        applyLanguage(lang);
+    }
 });
 
 // ─── 업데이트 체크 결과 처리 ──────────────────────────────────
@@ -400,6 +412,9 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
                 }
                 
                 extensionWebview.src = `chrome-extension://${ext.id}/${ext.uiPage}`;
+                extensionWebview.addEventListener('did-finish-load', () => {
+                    extensionWebview.executeJavaScript(`window.postMessage({ type: 'XPIDER_EVENT', name: 'language-change', data: { lang: '${currentLang}' } }, '*')`);
+                }, { once: true });
                 sidePanelTitle.textContent = ext.name;
                 sidePanel.classList.remove('hidden');
             }

@@ -69,26 +69,8 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   chrome.downloads = chrome.downloads || {};
-  chrome.downloads.download = async function(options) {
+  chrome.downloads.download = function(options) {
       console.log('[XPIDER-BRIDGE] Intercepting chrome.downloads.download', options);
-      
-      // If it's a blob URL (common for generated CSV/TXT), fetch content and save via main process
-      if (options.url && options.url.startsWith('blob:')) {
-          try {
-              const response = await fetch(options.url);
-              const content = await response.text();
-              window.postMessage({ 
-                  type: 'XPIDER_INVOKE', 
-                  channel: 'xpider-ext-save-file', 
-                  args: { content, filename: options.filename }, 
-                  id: 'saveFileBridge' 
-              }, '*');
-              return;
-          } catch (e) {
-              console.error('[XPIDER-BRIDGE] Failed to fetch blob for download', e);
-          }
-      }
-
       const a = document.createElement('a');
       a.href = options.url;
       a.download = options.filename || 'download';
@@ -163,6 +145,25 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Mark as XPIDER environment for background script
     chrome.storage.local.set({ isXpider: true });
+  });
+
+  // Listen for language change events from XPIDER bridge
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'language-change') {
+      const lang = event.data.data.lang;
+      console.log('[XPIDER-BRIDGE] Language change request received:', lang);
+      if (langSelect.value !== lang) {
+        langSelect.value = lang;
+        currentLang = lang;
+        chrome.storage.local.set({ language: lang }, () => {
+          applyTranslations(lang);
+          chrome.storage.local.get(['scrapedData', 'scrapingActive'], (res) => {
+            updateUI(res.scrapedData || [], lang);
+            setUIStatus(res.scrapingActive || false, lang);
+          });
+        });
+      }
+    }
   });
 
   checkCurrentTab();

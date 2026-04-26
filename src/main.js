@@ -121,6 +121,7 @@ function createWindow() {
     mainWindow.webContents.send('extensions_loaded', loadedExtensionsInfo);
     mainWindow.webContents.send('profile_id', profileId);
     mainWindow.webContents.send('app_version', app.getVersion());
+    mainWindow.webContents.send('app_language', app.getLocale().split('-')[0]);
 
     // 브라우저 렌더링이 완료된 후 백그라운드 동기화 시작 (약간의 지연시간 추가)
     setTimeout(() => {
