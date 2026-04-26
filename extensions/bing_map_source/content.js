@@ -145,7 +145,7 @@ class BingMapsBulletproofScraper {
   scrapeVisibleCards() {
     if (!this.active) return;
 
-    const cards = document.querySelectorAll('button.listingContent_fjvwG, div.b_split_card[role="listitem"], .b_algo, .entity-card');
+    const cards = document.querySelectorAll('button.listingContent_fjvwG, div.b_split_card[role="listitem"], [data-tag="list-item"], .b_algo, .entity-card');
     
     cards.forEach(card => {
       const nameEl = card.querySelector('h3, .b_entityTitle, [title], [role="heading"]');
@@ -544,6 +544,10 @@ class MapCruiser {
             }
         } else {
             this.emptyStepCount = 0;
+            // 3.5. Trigger Scraping
+            console.log("💎 Cruiser: Results detected! Triggering scraper...");
+            this.hud.update({ status: 'Collecting Leads...' });
+            await this.scrapeResultsProactive();
         }
 
         // 4. Status Report
@@ -584,6 +588,29 @@ class MapCruiser {
             await new Promise(r => setTimeout(r, 500));
         }
         return false;
+    }
+
+    async scrapeResultsProactive() {
+        // Force scraper to look at the current view
+        scraper.scrapeVisibleCards();
+        
+        // Minor scroll to trigger any lazy loading
+        const scrollContainer = document.querySelector('div.b_lstcards') || 
+                                document.querySelector('#bm_results') || 
+                                document.querySelector('.b_lstcards_container');
+        if (scrollContainer) {
+            scrollContainer.scrollTop += 100;
+            await new Promise(r => setTimeout(r, 800));
+            scraper.scrapeVisibleCards();
+            scrollContainer.scrollTop -= 100;
+        }
+        
+        // Wait until queue is being processed
+        let waitCount = 0;
+        while (scraper.queue.length > 0 && waitCount < 10) {
+            await new Promise(r => setTimeout(r, 1000));
+            waitCount++;
+        }
     }
 
     hasResults() {
