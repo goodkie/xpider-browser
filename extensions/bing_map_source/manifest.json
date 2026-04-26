@@ -11,6 +11,7 @@
     "sidePanel",
     "offscreen",
     "audioCapture",
+    "downloads",
     "proxy",
     "webRequest",
     "webRequestAuthProvider",

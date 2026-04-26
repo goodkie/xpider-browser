@@ -11,7 +11,62 @@ class GMapsBulletproofScraper {
     this.scrollInterval = null;
     this.autopilotInterval = null;
     this.lastCount = 0;
+    this.initXpiderBanner();
   }
+
+  initXpiderBanner() {
+      const lang = document.documentElement.lang.split('-')[0] || 'en';
+      this.showXpiderBanner(lang);
+      
+      window.addEventListener('message', (e) => {
+          if (e.data && e.data.type === 'XPIDER_EVENT' && e.data.name === 'language-change') {
+              this.showXpiderBanner(e.data.data.lang);
+          }
+      });
+  }
+
+  showXpiderBanner(lang) {
+      const existing = document.getElementById('xpider-onboarding-banner');
+      if (existing) existing.remove();
+
+      const dict = {
+          ko: { title: '비즈니스 탐색 준비 완료!', desc: '사이드바에서 [탐색 시작] 버튼을 눌러 데이터를 수집하세요.' },
+          en: { title: 'Ready to Find Businesses!', desc: 'Click [Start Scraper] in the side panel to collect data.' },
+          ja: { title: 'ビジネス検索の準備ができました！', desc: 'サイドパネルの [探索開始] ボタンをクリックしてデータを収集します。' },
+          zh: { title: '准备好查找商家了！', desc: '点击侧边栏中的 [开始抓取] 按钮收集数据。' }
+      };
+
+      const text = dict[lang] || dict['en'];
+      const banner = document.createElement('div');
+      banner.id = 'xpider-onboarding-banner';
+      banner.innerHTML = \`
+          <div style="font-weight: 800; font-size: 14px; color: #f5a623; margin-bottom: 4px;">XPIDER: \${text.title}</div>
+          <div style="font-size: 12px; opacity: 0.9;">\${text.desc}</div>
+      \`;
+      Object.assign(banner.style, {
+          position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
+          backgroundColor: '#1a1a1a', color: 'white', padding: '15px 25px', borderRadius: '12px',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.6)', zIndex: '10001', textAlign: 'center',
+          border: '1px solid #f5a623', pointerEvents: 'none', animation: 'xpider-fade-up 0.5s ease-out'
+      });
+
+      const style = document.createElement('style');
+      style.textContent = \`
+          @keyframes xpider-fade-up {
+              from { transform: translate(-50%, 20px); opacity: 0; }
+              to { transform: translate(-50%, 0); opacity: 1; }
+          }
+      \`;
+      document.head.appendChild(style);
+      document.body.appendChild(banner);
+
+      setTimeout(() => {
+          banner.style.opacity = '0';
+          banner.style.transition = 'opacity 1s ease';
+          setTimeout(() => banner.remove(), 1000);
+      }, 8000);
+  }
+
 
   start() {
     if (this.active) {

@@ -12,6 +12,62 @@ document.addEventListener('DOMContentLoaded', () => {
   const findEmailsBtn = document.getElementById('findEmailsBtn');
   const stopEmailsBtn = document.getElementById('stopEmailsBtn');
   
+  // ==========================================
+  // XPIDER IPC BRIDGE POLYFILLS
+  // ==========================================
+  console.log('[BING-SIDEPANEL] Injecting XPIDER IPC Bridge Polyfills');
+  chrome.tabs.query = function(queryInfo, callback) {
+      const listener = (event) => {
+          if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'queryTabBridge') {
+              window.removeEventListener('message', listener);
+              callback(event.data.result ? [event.data.result] : [{ id: 999999 }]);
+          }
+      };
+      window.addEventListener('message', listener);
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-get-active-tab', args: {}, id: 'queryTabBridge' }, '*');
+      setTimeout(() => { window.removeEventListener('message', listener); callback([{ id: 999999 }]); }, 1000);
+  };
+
+  chrome.tabs.create = function(props, callback) {
+      const listener = (event) => {
+          if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'createTabBridge') {
+              window.removeEventListener('message', listener);
+              if (callback) callback(event.data.result);
+          }
+      };
+      window.addEventListener('message', listener);
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-create-tab', args: props, id: 'createTabBridge' }, '*');
+  };
+
+  chrome.scripting = chrome.scripting || {};
+  chrome.scripting.executeScript = function(injection, callback) {
+      const listener = (event) => {
+          if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'execScriptBridge') {
+              window.removeEventListener('message', listener);
+              if (callback) callback([{ result: event.data.result }]);
+          }
+      };
+      window.addEventListener('message', listener);
+      if (injection.func) {
+          injection.funcString = injection.func.toString();
+          delete injection.func;
+      }
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-execute-script', args: injection, id: 'execScriptBridge' }, '*');
+  };
+
+  chrome.downloads = chrome.downloads || {};
+  chrome.downloads.download = function(options) {
+      console.log('[BING-SIDEPANEL] Bridged Download:', options.filename);
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-save-file', args: options, id: 'downloadBridge' }, '*');
+  };
+
+  function xpiderSendMessage(tabId, payload) {
+      console.log('[BING-SIDEPANEL] xpiderSendMessage ->', payload.action);
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-tunnel-msg', args: { tabId, payload }, id: 'tunnelBridge' }, '*');
+  }
+  // ==========================================
+
+  
   const leadCountEl = document.getElementById('leadCount');
   const emailCountEl = document.getElementById('emailCount');
   const statusBadge = document.getElementById('botStatus');
@@ -111,11 +167,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const range = parseInt(cruiserRange.value);
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         // [Stage 1] Start Scraper
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'start' });
+        xpiderSendMessage(tabs[0].id, { action: 'start' });
         chrome.runtime.sendMessage({ action: 'startScraping' });
 
         // [Cruiser] Start Map Movement
-        chrome.tabs.sendMessage(tabs[0].id, { 
+        xpiderSendMessage(tabs[0].id, { 
           action: 'startCruiser', 
           range: range 
         });
@@ -133,8 +189,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       // Stop All
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'stopCruiser' });
-        chrome.tabs.sendMessage(tabs[0].id, { action: 'stop' });
+        xpiderSendMessage(tabs[0].id, { action: 'stopCruiser' });
+        xpiderSendMessage(tabs[0].id, { action: 'stop' });
         chrome.runtime.sendMessage({ action: 'stopScraping' });
         chrome.runtime.sendMessage({ action: 'stopEmailCheck' });
         resetCruiserUI();
@@ -169,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   startBtn.addEventListener('click', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'start' });
+      xpiderSendMessage(tabs[0].id, { action: 'start' });
       chrome.runtime.sendMessage({ action: 'startScraping' });
       setUIStatus(true);
     });
@@ -177,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   stopBtn.addEventListener('click', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'stop' });
+      xpiderSendMessage(tabs[0].id, { action: 'stop' });
       chrome.runtime.sendMessage({ action: 'stopScraping' });
       setUIStatus(false);
     });
