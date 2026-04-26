@@ -20,9 +20,8 @@ module.exports = {
     {
       name: '@electron-forge/maker-dmg',
       config: {
-        name: 'XPIDER_Browser',
         format: 'ULFO',
-        window: { width: 600, height: 400 },
+window: { width: 600, height: 400 },
         icon: './assets/icons/mac/icon.icns'
       }
     },

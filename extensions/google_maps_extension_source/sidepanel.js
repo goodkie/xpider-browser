@@ -69,8 +69,26 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   chrome.downloads = chrome.downloads || {};
-  chrome.downloads.download = function(options) {
+  chrome.downloads.download = async function(options) {
       console.log('[XPIDER-BRIDGE] Intercepting chrome.downloads.download', options);
+      
+      // If it's a blob URL (common for generated CSV/TXT), fetch content and save via main process
+      if (options.url && options.url.startsWith('blob:')) {
+          try {
+              const response = await fetch(options.url);
+              const content = await response.text();
+              window.postMessage({ 
+                  type: 'XPIDER_INVOKE', 
+                  channel: 'xpider-ext-save-file', 
+                  args: { content, filename: options.filename }, 
+                  id: 'saveFileBridge' 
+              }, '*');
+              return;
+          } catch (e) {
+              console.error('[XPIDER-BRIDGE] Failed to fetch blob for download', e);
+          }
+      }
+
       const a = document.createElement('a');
       a.href = options.url;
       a.download = options.filename || 'download';

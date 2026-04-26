@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, ipcMain, shell, webContents } = require('electron');
+const { app, BrowserWindow, session, ipcMain, shell, webContents, dialog } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 const log  = require('electron-log');
@@ -316,6 +316,25 @@ ipcMain.handle('xpider-ext-send-message', async (event, data) => {
     } catch(e) {
         log.error('[ExtBridge] send-message error:', e);
         return null;
+    }
+});
+
+ipcMain.handle('xpider-ext-save-file', async (event, data) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    try {
+        const { filePath } = await dialog.showSaveDialog(mainWindow, {
+            defaultPath: data.filename || 'download.txt',
+            title: 'Save Exported Leads'
+        });
+        
+        if (filePath) {
+            fs.writeFileSync(filePath, data.content);
+            return { success: true, path: filePath };
+        }
+        return { success: false, cancelled: true };
+    } catch(e) {
+        log.error('[ExtBridge] save-file error:', e);
+        return { success: false, error: e.message };
     }
 });
 
