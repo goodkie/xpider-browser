@@ -65,6 +65,11 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('[BING-SIDEPANEL] xpiderSendMessage ->', payload.action);
       window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-tunnel-msg', args: { tabId, payload }, id: 'tunnelBridge' }, '*');
   }
+
+  function xpiderUpdateTab(props) {
+      console.log('[BING-SIDEPANEL] Requesting tab update:', props);
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-update-tab', args: props, id: 'updateTabBridge' }, '*');
+  }
   // ==========================================
 
   
@@ -140,7 +145,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   goToMapsBtn.addEventListener('click', () => {
-    chrome.tabs.update({ url: 'https://www.bing.com/maps' });
+    xpiderUpdateTab({ url: 'https://www.bing.com/maps' });
+    try {
+      chrome.tabs.update({ url: 'https://www.bing.com/maps' });
+    } catch(e) {
+      console.log('[BING-SIDEPANEL] Native update failed, bridge handle it.');
+    }
   });
 
   // Listen for messages
