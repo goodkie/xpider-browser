@@ -38,6 +38,7 @@ const toastMsg         = document.getElementById('toast-msg');
 let currentExtensionId = null;
 let currentPanelTab    = 'history';
 let _releaseUrl        = '';
+window.lastActiveTabInfo = null;
 
 // ─── 데이터 초기화 ────────────────────────────────────────────
 let history   = JSON.parse(localStorage.getItem('xpider-history')   || '[]');
@@ -475,6 +476,9 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
             reloadBtn.textContent = '↻';
             addressBar.value = currentUrl;
             updateBookmarkIcon();
+            
+            // Update lastActiveTabInfo
+            window.lastActiveTabInfo = { id: realId, url: currentUrl, title: currentTitle };
         }
         addHistory(currentUrl, currentTitle);
         
@@ -510,6 +514,10 @@ function switchTab(tabId) {
                 updateBookmarkIcon();
                 document.title = (t.title || 'XPIDER Browser') + (t.title ? ' - XPIDER Browser' : '');
                 wv.focus();
+                
+                // Update lastActiveTabInfo
+                const realId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999;
+                window.lastActiveTabInfo = { id: realId, url: wv.getURL(), title: wv.getTitle() || wv.getURL() };
             }
         }
     });

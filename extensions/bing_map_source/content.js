@@ -59,12 +59,12 @@ class BingMapsBulletproofScraper {
       });
 
       const style = document.createElement('style');
-      style.textContent = \`
+      style.textContent = `
           @keyframes xpider-fade-up {
               from { transform: translate(-50%, 20px); opacity: 0; }
               to { transform: translate(-50%, 0); opacity: 1; }
           }
-      \`;
+      `;
       document.head.appendChild(style);
       document.body.appendChild(banner);
 
@@ -294,21 +294,6 @@ class BingMapsBulletproofScraper {
   }
 }
 
-const scraper = new BingMapsBulletproofScraper();
-
-chrome.storage.onChanged.addListener((changes) => {
-    if (changes.scrapingActive) {
-        if (changes.scrapingActive.newValue) scraper.start();
-        else scraper.stop();
-    }
-});
-
-chrome.runtime.onMessage.addListener((req) => {
-  if (req.action === 'start') scraper.start();
-  else if (req.action === 'stop') scraper.stop();
-  else if (req.action === 'startCruiser') cruiser.start(req.range);
-  else if (req.action === 'stopCruiser') cruiser.stop();
-});
 
 /**
  * MissionHUD - High-performance Floating Dashboard for Bing Maps
@@ -711,3 +696,17 @@ window.addEventListener('message', (event) => {
 const scraper = new BingMapsBulletproofScraper();
 const cruiser = new MapCruiser();
 window.cruiser = cruiser; // Global reference for pulseRefresh
+
+chrome.storage.onChanged.addListener((changes) => {
+    if (changes.scrapingActive) {
+        if (changes.scrapingActive.newValue) scraper.start();
+        else scraper.stop();
+    }
+});
+
+chrome.runtime.onMessage.addListener((req) => {
+  if (req.action === 'start') scraper.start();
+  else if (req.action === 'stop') scraper.stop();
+  else if (req.action === 'startCruiser') cruiser.start(req.range, req.stepSize, req.speedMult);
+  else if (req.action === 'stopCruiser') cruiser.stop();
+});
