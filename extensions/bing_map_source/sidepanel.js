@@ -140,16 +140,32 @@ document.addEventListener('DOMContentLoaded', () => {
     if (changeInfo.status === 'complete') checkCurrentTab();
   });
 
+  function isBingMaps(url) {
+    if (!url) return false;
+    return url.includes('bing.com/maps') || url.includes('bing.com/search') || /bing\.[a-z.]+\/maps/.test(url);
+  }
+
   function checkCurrentTab() {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      const activeTab = tabs[0];
-      if (activeTab && activeTab.url && (activeTab.url.includes('bing.com/maps') || activeTab.url.includes('bing.com/search'))) {
+    console.log('[BING-SIDEPANEL] Checking current tab...');
+    window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-get-active-tab', args: {}, id: 'checkTabBridge' }, '*');
+  }
+
+  // Handle Bridge Responses
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'checkTabBridge') {
+      const activeTab = event.data.result;
+      console.log('[BING-SIDEPANEL] Active Tab Info Received:', activeTab ? activeTab.url : 'null');
+      if (activeTab && isBingMaps(activeTab.url)) {
         navScreen.classList.add('hidden');
       } else {
         navScreen.classList.remove('hidden');
       }
-    });
-  }
+    }
+    if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'tab-updated') {
+        console.log('[BING-SIDEPANEL] Tab updated event received, re-checking...');
+        checkCurrentTab();
+    }
+  });
 
   goToMapsBtn.addEventListener('click', () => {
     xpiderUpdateTab({ url: 'https://www.bing.com/maps' });
@@ -320,6 +336,11 @@ document.addEventListener('DOMContentLoaded', () => {
         cruiserMonitor.classList.add('hidden');
     }, 5000);
   }
+
+  checkCurrentTab();
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+    if (changeInfo.status === 'complete') checkCurrentTab();
+  });
 
   startBtn.addEventListener('click', () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {

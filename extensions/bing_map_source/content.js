@@ -482,22 +482,24 @@ class MapCruiser {
         this.hud = new MissionHUD();
     }
 
-    async start(range) {
+    async start(range, stepSize = 9.0, speedMult = 1.0) {
         if (this.active) return;
         this.active = true;
         this.rangeMiles = range;
+        this.stepSize = stepSize;
+        this.speedMult = speedMult;
         
         // Reset Snake Progress
         this.currentXSteps = 0;
         this.currentYSteps = 0;
         this.dirX = 1;
         this.totalDistance = 0;
-        this.maxSteps = Math.ceil(range / 0.25); // Steps for the radius
+        this.maxSteps = Math.ceil(range / (stepSize / 15)); // Adjust steps based on stepSize
         
         const res = await chrome.storage.local.get(['scrapedData']);
         this.leadsAtStart = (res.scrapedData || []).length;
 
-        console.log(`🚀 Cruiser: Mission Start - ${range} Mi Radius Zig-Zag Scan`);
+        console.log(`🚀 Cruiser: Mission Start - ${range} Mi Radius (Step: ${stepSize}, Speed: ${speedMult}x)`);
         this.hud.create();
         this.hud.update({ status: 'Engaging Snake Scan...', direction: 'Initializing' });
         this.run();
@@ -584,8 +586,10 @@ class MapCruiser {
              return;
         }
 
-        // 6. Timing
-        this.interval = setTimeout(() => this.run(), 5500);
+        // 6. Timing (Base 5.5s, adjusted by speedMult)
+        const baseDelay = 5500;
+        const actualDelay = Math.max(1000, baseDelay / this.speedMult);
+        this.interval = setTimeout(() => this.run(), actualDelay);
     }
 
     async checkResultsWithTimeout() {
@@ -637,7 +641,8 @@ class MapCruiser {
             keyCode: key.includes('Up')?38:key.includes('Down')?40:key.includes('Left')?37:39
         };
         
-        for (let i = 0; i < 15; i++) {
+        const repeatCount = Math.ceil((this.stepSize || 9.0) * 1.5); // Heuristic
+        for (let i = 0; i < repeatCount; i++) {
             target.dispatchEvent(new KeyboardEvent('keydown', options));
             target.dispatchEvent(new KeyboardEvent('keyup', options));
         }
@@ -697,11 +702,12 @@ window.addEventListener('message', (event) => {
     console.log('[BING-CONTENT] Bridge received signal:', req.action);
     if (req.action === 'start') scraper.start();
     else if (req.action === 'stop') scraper.stop();
-    else if (req.action === 'startCruiser') cruiser.start(req.range);
+    else if (req.action === 'startCruiser') cruiser.start(req.range, req.stepSize, req.speedMult);
     else if (req.action === 'stopCruiser') cruiser.stop();
   }
 });
 // ==========================================
 
+const scraper = new BingMapsBulletproofScraper();
 const cruiser = new MapCruiser();
 window.cruiser = cruiser; // Global reference for pulseRefresh
