@@ -693,7 +693,7 @@ class MapCruiser {
 // ==========================================
 window.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'XPIDER_CONTENT_MSG') {
-    const req = event.data.payload;
+    const req = event.data.message;
     console.log('[BING-CONTENT] Bridge received signal:', req.action);
     if (req.action === 'start') scraper.start();
     else if (req.action === 'stop') scraper.stop();

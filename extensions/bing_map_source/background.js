@@ -39,18 +39,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
   }
 
-  if (request.action === 'stopEmailCheck') {
-    isFindingEmails = false;
-    isCancelled = true;
-  }
-
-  // Captcha & Solver Actions
-  if (request.action === 'PERFORM_TRANSCRIPTION') {
-      handleTranscription(request.audioData, request.url, sendResponse);
-      return true; // async
-  }
-  if (request.action === 'CAPTCHA_LOG') {
-      sendLog(request.message);
+  if (request.action === 'clearData') {
+      scrapedData = [];
+      isFindingEmails = false;
+      isCancelled = true;
+      sendLog("🧹 Data memory cleared.");
   }
 });
 
@@ -108,6 +101,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function scanPageInBrowser(targetUrl, waitMs = 5000) {
+    // Check if we are in XPIDER environment (set by sidepanel)
+    const settings = await chrome.storage.local.get(['isXpider']);
+    if (settings.isXpider) {
+        return new Promise((resolve) => {
+            const requestId = Date.now().toString() + Math.random().toString(36).substring(7);
+            const listener = (m) => {
+                if (m.action === 'PROXY_SCAN_RESULT' && m.requestId === requestId) {
+                    chrome.runtime.onMessage.removeListener(listener);
+                    resolve(m.result || {});
+                }
+            };
+            chrome.runtime.onMessage.addListener(listener);
+            chrome.runtime.sendMessage({ action: 'PROXY_SCAN', url: targetUrl, waitMs, requestId });
+            
+            // Timeout safety for the proxy
+            setTimeout(() => {
+                chrome.runtime.onMessage.removeListener(listener);
+                resolve({});
+            }, 30000);
+        });
+    }
+
     let tab = null;
     try {
         tab = await chrome.tabs.create({ url: targetUrl, active: false });
@@ -122,42 +137,41 @@ async function scanPageInBrowser(targetUrl, waitMs = 5000) {
                 const phoneRegex = /(\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4})/g;
                 const phones = text.match(phoneRegex) || [];
                 
-                // Social Media Links
-                const socialRegex = /(?:https?:\/\/)?(?:www\.)?(?:facebook|instagram|linkedin|twitter|x|youtube|tiktok)\.com\/[a-zA-Z0-9._\-\/]+/g;
-                const socials = Array.from(document.querySelectorAll('a'))
-                    .map(a => a.href)
-                    .filter(href => href.match(socialRegex));
+                const socialRegex = /(?:facebook|instagram|twitter|x|linkedin|youtube|tiktok)\.com\/([a-zA-Z0-9._%+-]+)/gi;
+                const socials = text.match(socialRegex) || [];
+                const socialLinks = [];
+                document.querySelectorAll('a').forEach(a => {
+                    const href = a.href || '';
+                    if (href.match(/(facebook|instagram|twitter|linkedin|youtube|tiktok|x\.com)/i)) {
+                        socialLinks.push(href);
+                    }
+                });
 
                 // Extract Website from Search Result (Heuristic for "Official Site")
-                const webLinks = Array.from(document.querySelectorAll('a'))
-                    .map(a => a.href)
-                    .filter(href => href && !href.includes('bing.com') && !href.includes('microsoft.com') && !href.includes('google.com') && href.startsWith('http'));
+                let homepage = null;
+                const cite = document.querySelector('cite');
+                if (cite) {
+                    const parts = cite.innerText.split(' ');
+                    if (parts[0].includes('http')) homepage = parts[0];
+                }
 
-                // Contact/About Links (Improved Heuristic with Domain Validation)
-                const currentDomain = window.location.hostname.replace('www.', '');
-                const contactLinks = Array.from(document.querySelectorAll('a'))
-                    .map(a => a.href)
-                    .filter(href => {
-                        try {
-                            const h = href.toLowerCase();
-                            const urlObj = new URL(href);
-                            const isSameDomain = urlObj.hostname.includes(currentDomain);
-                            if (!isSameDomain) return false;
-
-                            const isExternalSocial = h.includes('facebook.com') || h.includes('twitter.com') || h.includes('instagram.com') || h.includes('linkedin.com') || h.includes('x.com') || h.includes('youtube.com');
-                            if (isExternalSocial) return false;
-
-                            const isLikelyContact = h.includes('contact') || h.includes('about') || h.includes('support') || h.includes('tel') || h.includes('mail') || h.includes('info') || h.includes('help') || h.includes('inquiry') || h.includes('location') || h.includes('policy') || h.includes('term');
-                            return isLikelyContact && !h.endsWith('.pdf') && !h.endsWith('.jpg') && !h.endsWith('.png');
-                        } catch(e) { return false; }
-                    });
+                // Contact/About Links
+                const contactKeywords = ['contact', 'about', '연락처', '오시는길', '고객센터', '문의', 'team', 'company', 'get-in-touch', 'impressum', 'kontakt'];
+                let contactLinks = [];
+                document.querySelectorAll('a').forEach(a => {
+                    const href = (a.href || '').toLowerCase();
+                    const text = (a.innerText || '').toLowerCase();
+                    if (href.startsWith('http') && contactKeywords.some(kw => href.includes(kw) || text.includes(kw))) {
+                        contactLinks.push(a.href);
+                    }
+                });
 
                 return {
                     emails: [...new Set(emails)].join(', '),
                     phone: phones[0] || null,
-                    socials: [...new Set(socials)].join(', '),
-                    website: webLinks[0] || null,
-                    contactLinks: [...new Set(contactLinks)].slice(0, 8), // Inspect up to 8 potential pages internally
+                    socials: [...new Set([...socials.map(s => 'https://' + s), ...socialLinks])].join(', '),
+                    website: homepage,
+                    contactLinks: [...new Set(contactLinks)].slice(0, 4),
                     pageText: text.substring(0, 3000)
                 };
             }
@@ -177,44 +191,55 @@ async function startDeepSearch(hl) {
     isFindingEmails = true;
     isCancelled = false;
     
-    sendLog(`📋 Starting Dynamic Search Pipeline...`);
+    const leadsToProcess = scrapedData.filter(b => 
+        b.status === 'captured' || 
+        b.email === 'Pending Stage 2' || 
+        b.email === 'Not Found' || 
+        !b.email || b.email === 'N/A'
+    );
 
-    while (isFindingEmails && !isCancelled) {
-        // Find the next lead that needs processing
-        const lead = scrapedData.find(b => b.status === 'captured' || b.email === 'Pending Stage 2');
-        
-        if (!lead) {
-            // Check if we should keep waiting (if scraping/cruising is still active)
-            const activeState = await chrome.storage.local.get(['scrapingActive']);
-            if (!activeState.scrapingActive) {
-                // No more items and scraping stopped
-                break;
-            }
-            // Still scraping, wait for new leads to appear
-            await new Promise(r => setTimeout(r, 3000));
-            continue;
-        }
+    sendLog(`📋 Starting Deep Search Pipeline for ${leadsToProcess.length} leads...`);
+    chrome.runtime.sendMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: 0 });
+
+    let processedCount = 0;
+    for (const lead of leadsToProcess) {
+        if (isCancelled || !isFindingEmails) break;
+        processedCount++;
 
         try {
-            sendLog(`🔎 Processing Pipeline: "${lead.name}"`);
+            sendLog(`🔎 [${processedCount}/${leadsToProcess.length}] Processing: "${lead.name}"`);
             
-            // Temporary status to avoid re-selection
-            lead.email = 'Exploring...';
-            lead.status = 'processing';
-
             // Stage 2: Enrichment via Bing Search
-            const searchContext = hl === 'ko' ? ' 전화번호 주소 홈페이지' : ' phone address official website';
-            const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(lead.name + searchContext)}`;
-            
-            const enrichment = await scanPageInBrowser(searchUrl, 4000);
-            
-            if (enrichment.phone && (!lead.phone || lead.phone === 'N/A')) lead.phone = enrichment.phone;
-            if (enrichment.website && (!lead.website || lead.website === 'N/A')) lead.website = enrichment.website;
-            if (enrichment.socials && (!lead.socials || lead.socials === 'N/A')) lead.socials = enrichment.socials;
+            if (!lead.website || lead.website === 'N/A') {
+                sendLog(`🔎 Stage 2: Finding website for "${lead.name}" via Bing Search...`);
+                chrome.runtime.sendMessage({ 
+                    action: 'emailCheckStatus', 
+                    total: leadsToProcess.length, 
+                    current: processedCount,
+                    statusText: `Finding website... (${lead.name})`
+                });
+
+                const searchContext = hl === 'ko' ? ' 전화번호 주소 홈페이지' : ' phone address official website';
+                const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(lead.name + searchContext)}`;
+                
+                const enrichment = await scanPageInBrowser(searchUrl, 4000);
+                
+                if (enrichment.website) lead.website = enrichment.website;
+                if (enrichment.phone && (!lead.phone || lead.phone === 'N/A')) lead.phone = enrichment.phone;
+                if (enrichment.socials) lead.socials = enrichment.socials;
+                if (enrichment.emails) lead.email = enrichment.emails;
+            }
 
             // Stage 3: Deep Website Scan if website exists
             if (lead.website && lead.website !== 'N/A') {
-                sendLog(`🌐 External Domain Scan: ${lead.website}`);
+                sendLog(`🌐 Stage 3: Deep scanning ${lead.website}`);
+                chrome.runtime.sendMessage({ 
+                    action: 'emailCheckStatus', 
+                    total: leadsToProcess.length, 
+                    current: processedCount,
+                    statusText: `Scraping details... (${lead.name})`
+                });
+
                 const webScan = await scrapeBusinessWebsite(lead.website);
                 if (webScan) {
                     if (webScan.emails) lead.email = webScan.emails;
@@ -223,20 +248,16 @@ async function startDeepSearch(hl) {
                 }
             }
 
-            if (!lead.email || lead.email === 'Exploring...') {
-                lead.email = enrichment.emails || 'Not Found';
+            if (!lead.email || lead.email === 'Pending Stage 2') {
+                lead.email = 'Not Found';
             }
             
             lead.status = 'complete';
             updateStorage();
-            
-            const total = scrapedData.length;
-            const completed = scrapedData.filter(b => b.status === 'complete').length;
-            chrome.runtime.sendMessage({ action: 'emailCheckStatus', total, current: completed });
+            chrome.runtime.sendMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: processedCount });
 
         } catch (err) {
             sendLog(`⚠️ Pipeline Error: ${err.message}`);
-            lead.status = 'error';
         }
         
         await new Promise(r => setTimeout(r, 2000));
@@ -250,53 +271,10 @@ async function startDeepSearch(hl) {
 async function scrapeBusinessWebsite(url) {
     if (!url || url === 'N/A') return null;
     try {
-        sendLog(`🌐 [Main Scan] ${url}`);
-        const mainResult = await scanPageInBrowser(url, 5000);
-        if (!mainResult) return null;
-
-        let combinedResult = { ...mainResult };
-        
-        // Parallel Sub-page Scanning (Advanced)
-        if (mainResult.contactLinks && mainResult.contactLinks.length > 0) {
-            const subPagesToScan = mainResult.contactLinks.filter(l => l !== url).slice(0, 3); // Take top 3 most relevant sub-pages
-            
-            sendLog(`🔗 Found ${subPagesToScan.length} sub-pages (Contact/About). Scanning in parallel...`);
-            
-            const subResults = await Promise.all(subPagesToScan.map(async (link) => {
-                try {
-                    const res = await scanPageInBrowser(link, 4000);
-                    if (res) sendLog(`✅ Sub-page scan complete: ${link}`);
-                    return res;
-                } catch(e) { return null; }
-            }));
-
-            // Smart Data Integration
-            subResults.forEach(secResult => {
-                if (secResult) {
-                    if (secResult.emails) {
-                        const existing = combinedResult.emails ? combinedResult.emails.split(', ') : [];
-                        const newEmails = secResult.emails.split(', ');
-                        combinedResult.emails = [...new Set([...existing, ...newEmails])].join(', ');
-                    }
-                    if (secResult.socials) {
-                        const existing = combinedResult.socials ? combinedResult.socials.split(', ') : [];
-                        const newSocials = secResult.socials.split(', ');
-                        combinedResult.socials = [...new Set([...existing, ...newSocials])].join(', ');
-                    }
-                    if (secResult.phone && (!combinedResult.phone || combinedResult.phone === 'N/A')) {
-                        combinedResult.phone = secResult.phone;
-                    }
-                }
-            });
-        }
-        
-        const totalEmails = combinedResult.emails ? combinedResult.emails.split(', ').length : 0;
-        const totalSocials = combinedResult.socials ? combinedResult.socials.split(', ').length : 0;
-        sendLog(`🏁 Website Scan Detail: Found ${totalEmails} Emails, ${totalSocials} Socials.`);
-        
-        return combinedResult;
+        const result = await scanPageInBrowser(url, 5000);
+        return result;
     } catch (e) {
-        sendLog(`⚠️ Website Scan Error: ${e.message}`);
         return null;
     }
 }
+

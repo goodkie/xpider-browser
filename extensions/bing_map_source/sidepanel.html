@@ -134,6 +134,22 @@
               <input type="range" id="cruiserRange" min="1" max="333" value="5" class="modern-slider">
             </div>
 
+            <div class="range-control" style="margin-top: 15px; margin-bottom: 20px;">
+              <div class="range-header">
+                <span data-i18n="cruiser_step">Map Drag Step Size</span>
+                <span id="cruiserStepVal" class="range-badge">9.0 Mi</span>
+              </div>
+              <input type="range" id="cruiserStep" min="0.5" max="30" step="0.5" value="9.0" class="modern-slider">
+            </div>
+
+            <div class="range-control" style="margin-top: 5px; margin-bottom: 20px;">
+              <div class="range-header">
+                <span data-i18n="cruiser_speed">Scanning Speed</span>
+                <span id="cruiserSpeedVal" class="range-badge">1.0x (Normal)</span>
+              </div>
+              <input type="range" id="cruiserSpeed" min="0.5" max="5.0" step="0.5" value="1.0" class="modern-slider">
+            </div>
+
             <button id="startCruiserBtn" class="btn-cruiser">
               <span class="shine"></span>
               <span data-i18n="btn_start_cruiser">Initialize Auto-Cruiser</span>
