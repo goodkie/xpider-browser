@@ -152,7 +152,9 @@ class BingMapsBulletproofScraper {
       if (!nameEl) return;
       const name = nameEl.innerText.trim();
       const infoText = card.innerText.trim();
-      const uniqueId = `${name}-${infoText.substring(0, 50)}`; 
+      const phoneMatch = infoText.match(/(\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4})/);
+      const phone = phoneMatch ? phoneMatch[0] : '';
+      const uniqueId = phone ? `${name}-${phone}` : `${name}-${infoText.substring(0, 30)}`; 
       
       if (this.processedUrls.has(uniqueId)) return;
       
@@ -188,7 +190,7 @@ class BingMapsBulletproofScraper {
         await new Promise(r => setTimeout(r, 1500));
 
         // 3. Extract from Detail Panel (Targeting data-tags for stability)
-        const detailPanel = document.querySelector('.singleEntityWrapper_srJlN, #entity_ans, .b_entity_detail, .slide_card, .entity_panel') || document;
+        const detailPanel = document.querySelector('.singleEntityWrapper_srJlN, #entity_ans, .b_entity_detail, .slide_card, .entity_panel') || document.body || document;
         
         const titleEl = detailPanel.querySelector('[data-tag="title"], h2, .b_entityTitle, [role="heading"]');
         const cleanedName = titleEl ? titleEl.innerText.trim() : item.name;
@@ -239,7 +241,7 @@ class BingMapsBulletproofScraper {
             data.address = addressEl.innerText.trim();
         } else {
             // Check secondary information blocks
-            const facts = detailPanel.innerText;
+            const facts = detailPanel.innerText || "";
             const addressMatch = facts.match(/\d+[ ](?:[A-Za-z0-9.-]+[ ]?)+(?:Avenue|Lane|Road|Boulevard|Drive|Street|Way|Ave|Dr|St|Rd|Blvd)[, ]+[A-Za-z ]+[, ]+[A-Z]{2}[ ]+\d{5}/i);
             if (addressMatch) data.address = addressMatch[0];
             else {
@@ -248,6 +250,7 @@ class BingMapsBulletproofScraper {
             }
         }
 
+        console.log(`✅ Business Sent: ${data.name} (Phone: ${data.phone})`);
         chrome.runtime.sendMessage({ action: 'foundBusiness', data });
 
     } catch (err) {
@@ -664,7 +667,7 @@ class MapCruiser {
         const startX = rect.left + rect.width / 2;
         const startY = rect.top + rect.height / 2;
         
-        const moveOffset = 250; // Increased for better range
+        const moveOffset = 450; // Higher offset for better coverage
         let dx = 0, dy = 0;
         if (key === 'ArrowRight') dx = -moveOffset;
         if (key === 'ArrowLeft') dx = moveOffset;
