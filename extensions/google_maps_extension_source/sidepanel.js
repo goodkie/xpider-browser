@@ -67,6 +67,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
       window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-execute-script', args: injection, id: 'execScriptBridge' }, '*');
   };
+
+  chrome.downloads = chrome.downloads || {};
+  chrome.downloads.download = function(options) {
+      console.log('[XPIDER-BRIDGE] Intercepting chrome.downloads.download', options);
+      const a = document.createElement('a');
+      a.href = options.url;
+      a.download = options.filename || 'download';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => a.remove(), 100);
+  };
   // ==========================================
 
   const leadCountEl = document.getElementById('leadCount');
