@@ -460,11 +460,24 @@ async function loadLocalExtensions() {
             defaultUiPage = manifest.browser_action.default_popup;
         }
 
+        // ── 아이콘을 Base64로 로드 (사이드바에서 안정적으로 표시하기 위함) ──
+        let iconBase64 = null;
+        try {
+            const fullIconPath = path.join(extPath, iconFile);
+            if (fs.existsSync(fullIconPath)) {
+                const iconBuf = fs.readFileSync(fullIconPath);
+                iconBase64 = `data:image/png;base64,${iconBuf.toString('base64')}`;
+            }
+        } catch (err) {
+            log.error(`[Extensions] Icon load error (${entry.name}):`, err.message);
+        }
+
         const ext = await session.defaultSession.extensions.loadExtension(extPath, { allowFileAccess: true });
         results.push({
           id:      ext.id,
           name:    manifest.name || entry.name,
           icon:    iconFile,
+          iconData: iconBase64,
           version: manifest.version || '1.0.0',
           extPath: extPath,
           uiPage:  defaultUiPage

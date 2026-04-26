@@ -349,8 +349,8 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
         btn.className = 'ext-btn';
         btn.title = ext.name;
 
-        // ── 아이콘: 각 익스텐션의 48px 아이콘 우선 사용 ──────
-        const iconUrl = `chrome-extension://${ext.id}/${ext.icon}`;
+        // ── 아이콘: Base64 데이터를 우선 사용, 실패 시 chrome-extension URL 사용 ──────
+        const iconUrl = ext.iconData || `chrome-extension://${ext.id}/${ext.icon}`;
         const img = new Image();
         img.onload  = () => { btn.style.backgroundImage = `url('${iconUrl}')`; };
         img.onerror = () => { btn.style.backgroundImage = `url('assets/icon.png')`; };
