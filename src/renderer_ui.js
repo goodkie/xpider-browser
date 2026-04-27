@@ -546,7 +546,8 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
 
     // Handle target="_blank" links (new window) by creating a new XPIDER tab
     wv.addEventListener('new-window', (e) => {
-        console.log('[WEBVIEW] New window requested:', e.url);
+        e.preventDefault(); // Stop the default behavior
+        console.log('[WEBVIEW] New window prevented & redirected to new tab:', e.url);
         createNewTab(e.url);
     });
 
