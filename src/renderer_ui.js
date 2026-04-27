@@ -11,6 +11,11 @@ const sidePanel        = document.getElementById('side-panel');
 const sidePanelTitle   = document.getElementById('side-panel-title');
 const closeSidePanelBtn = document.getElementById('close-side-panel-btn');
 const extensionWebview = document.getElementById('extension-webview');
+
+window.electronAPI.on('open-new-tab', (url) => {
+    console.log('[IPC] Opening new tab from main process:', url);
+    createNewTab(url);
+});
 const settingsBtn      = document.getElementById('settings-btn');
 const settingsMenu     = document.getElementById('settings-menu');
 const appContainer     = document.getElementById('app-container');
@@ -490,7 +495,11 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     const tabEl = document.createElement('div');
     tabEl.className = 'tab';
     tabEl.id = `tab-ui-${tabId}`;
-    tabEl.innerHTML = `<span class="tab-title" id="tab-title-${tabId}">Loading...</span><button class="tab-close" title="Close" onclick="event.stopPropagation(); closeTab('${tabId}')">✕</button>`;
+    tabEl.innerHTML = `
+        <img class="tab-favicon" id="tab-favicon-${tabId}" src="assets/icon.png">
+        <span class="tab-title" id="tab-title-${tabId}">Loading...</span>
+        <button class="tab-close" title="Close" onclick="event.stopPropagation(); closeTab('${tabId}')">✕</button>
+    `;
     tabEl.onclick = () => switchTab(tabId);
     tabsList.appendChild(tabEl);
     
@@ -547,8 +556,12 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     // Handle target="_blank" links (new window) by creating a new XPIDER tab
     wv.addEventListener('new-window', (e) => {
         e.preventDefault(); // Stop the default behavior
-        console.log('[WEBVIEW] New window prevented & redirected to new tab:', e.url);
-        createNewTab(e.url);
+        const { url, disposition } = e;
+        console.log('[WEBVIEW] New window/tab requested:', url, 'Disposition:', disposition);
+        
+        // Match Chromium's disposition behavior
+        const makeActive = (disposition !== 'background-tab');
+        createNewTab(url, makeActive);
     });
 
     wv.addEventListener('page-title-updated', (e) => {
@@ -557,6 +570,13 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
         if (t) t.title = title;
         document.getElementById(`tab-title-${tabId}`).textContent = title;
         if (activeTabId === tabId) document.title = title + ' - XPIDER Browser';
+    });
+
+    wv.addEventListener('page-favicon-updated', (e) => {
+        if (e.favicons && e.favicons.length > 0) {
+            const iconUrl = e.favicons[0];
+            document.getElementById(`tab-favicon-${tabId}`).src = iconUrl;
+        }
     });
     
     if (makeActive) switchTab(tabId);

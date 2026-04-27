@@ -361,18 +361,27 @@ body, html {
 .tab {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    min-width: 120px;
-    max-width: 200px;
-    height: 100%;
-    padding: 0 10px;
-    background-color: rgba(255, 255, 255, 0.03);
+    gap: 8px;
+    min-width: 140px;
+    max-width: 220px;
+    height: 32px;
+    padding: 0 12px;
+    background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border);
     border-bottom: none;
-    border-radius: 8px 8px 0 0;
+    border-radius: 10px 10px 0 0;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
     user-select: none;
+    position: relative;
+    margin-top: 6px;
+}
+
+.tab-favicon {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    flex-shrink: 0;
 }
 
 .tab:hover { background-color: var(--bg-hover); }
@@ -385,16 +394,17 @@ body, html {
 }
 
 .tab-title {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--text-dim);
-    font-weight: 600;
+    font-weight: 500;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;
     pointer-events: none;
 }
 
-.tab.active .tab-title { color: var(--text-main); }
+.tab.active .tab-title { color: var(--text-main); font-weight: 600; }
 
 .tab-close {
     font-size: 14px;

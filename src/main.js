@@ -115,6 +115,12 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
+  
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    mainWindow.webContents.send('open-new-tab', url);
+    return { action: 'deny' };
+  });
+
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
   mainWindow.webContents.on('did-finish-load', () => {
