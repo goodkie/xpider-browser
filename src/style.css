@@ -199,54 +199,96 @@ body, html {
 
 .ext-btn:hover { transform: scale(1.15); border-color: var(--accent); }
 
-/* 띠용! 프리뷰 풍선 고도화 */
+/* 띠용! 프리뷰 풍선 고도화 (텍스트 기반 세련된 팝업) */
 .snapshot-balloon {
     position: absolute;
     left: 65px;
     top: 50%;
-    transform-origin: left center;
-    background: var(--bg-sidebar);
+    transform: translateY(-50%) scale(0.8);
+    background: rgba(26, 26, 26, 0.95);
     border: 1px solid var(--accent);
-    padding: 15px;
-    border-radius: 20px;
-    box-shadow: 0 25px 70px rgba(0,0,0,0.6);
+    padding: 18px;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 15px rgba(247, 183, 49, 0.2);
     z-index: 5000;
     pointer-events: none;
     display: none;
-    animation: bouncy-in 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
-    max-height: 80vh;
-    overflow: hidden;
-    backdrop-filter: blur(10px);
+    width: 260px;
+    backdrop-filter: blur(12px);
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    opacity: 0;
 }
 
 .ext-item:hover .snapshot-balloon {
     display: block;
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+    animation: slide-in-left 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes slide-in-left {
+    from { opacity: 0; transform: translateY(-50%) translateX(-15px) scale(0.9); }
+    to { opacity: 1; transform: translateY(-50%) translateX(0) scale(1); }
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
 }
 
 .preview-title {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 800;
-    color: var(--accent);
-    margin-bottom: 12px;
+    color: #fff;
+    margin-bottom: 0;
+    text-transform: none;
+    letter-spacing: 0.5px;
+}
+
+.preview-tag {
+    font-size: 9px;
+    background: var(--accent);
+    color: #000;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+}
+
+.preview-desc {
+    font-size: 12px;
+    line-height: 1.6;
+    color: #bbb;
+    margin-bottom: 15px;
+}
+
+.preview-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 9px;
+    color: var(--text-dim);
     text-transform: uppercase;
-    letter-spacing: 1px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    padding-bottom: 8px;
+    letter-spacing: 0.5px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 10px;
 }
 
-.preview-img {
-    width: auto;
-    max-width: 450px; /* Reduced specific width to handle tall images better */
-    height: auto;
-    max-height: 60vh;
-    border-radius: 12px;
-    display: block;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+.pulse-dot {
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse-dot 1.5s infinite;
 }
 
-@keyframes bouncy-in {
-    0% { transform: scale(0) translateX(-30px); opacity: 0; }
-    100% { transform: scale(0.5) translateX(0); opacity: 1; }
+@keyframes pulse-dot {
+    0% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 #toggle-sidebar-btn {

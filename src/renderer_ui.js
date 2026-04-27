@@ -389,13 +389,36 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
         img.onerror = () => { btn.style.backgroundImage = `url('assets/icon.png')`; };
         img.src = iconUrl;
 
-        // ── 풍선 프리뷰 ──────────────────────────────────────
+        // ── 띠용! 프리뷰 풍선 (텍스트형 세련된 팝업으로 변경) ────────────────
         const balloon = document.createElement('div');
         balloon.className = 'snapshot-balloon';
-        const previewSrc = ext.name.toLowerCase().includes('collect')
-            ? 'assets/previews/collect-list-preview.png'
-            : 'assets/previews/send-message-preview.png';
-        balloon.innerHTML = `<div class="preview-title">${ext.name}</div><img src="${previewSrc}" class="preview-img">`;
+        
+        const dict = window.translations[currentLang] || window.translations['en'];
+        let title = ext.name;
+        let desc = "";
+        
+        if (ext.name.toLowerCase().includes('collect')) {
+            title = dict.ext_collect_title || ext.name;
+            desc = dict.ext_collect_desc || "";
+        } else if (ext.name.toLowerCase().includes('send')) {
+            title = dict.ext_send_title || ext.name;
+            desc = dict.ext_send_desc || "";
+        } else if (ext.name.toLowerCase().includes('bing')) {
+            title = "Bing Maps Business Finder";
+            desc = currentLang === 'ko' ? "빙 맵스에서 비즈니스 정보를 수집하고 이메일을 찾는 도구입니다." : "Tools for collecting business info and finding emails on Bing Maps.";
+        }
+        
+        balloon.innerHTML = `
+            <div class="preview-header">
+                <div class="preview-title">${title}</div>
+                <div class="preview-tag">PRO</div>
+            </div>
+            <div class="preview-desc">${desc}</div>
+            <div class="preview-footer">
+                <span>XPIDER Powered Engine</span>
+                <span class="pulse-dot"></span>
+            </div>
+        `;
 
         btn.onclick = () => {
             if (currentExtensionId === ext.id) {
