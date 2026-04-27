@@ -3,7 +3,7 @@ const badgeCounts = new Map();
 chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === "install") {
     await chrome.storage.local.set({
-      autosearch: false,
+      autosearch: true,
       collectEmails: true,
       allEmailsList: []
     });

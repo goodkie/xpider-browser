@@ -197,7 +197,26 @@ function showToast(msg, duration = 3000) {
     showToast._timer = setTimeout(() => updateToast.classList.add('hidden'), duration);
 }
 
-// ─── 익스텐션 업데이트 진행 메시지 표시 ─────────────────────────
+// Listener for extension-triggered tab updates
+window.electronAPI.on('xpider-renderer-update-badge', (data) => {
+    const { count, extId } = data;
+    // Find the button associated with this extId
+    // We need to store extId in the button or look it up
+    const buttons = document.querySelectorAll('.ext-btn');
+    buttons.forEach(btn => {
+        if (btn.getAttribute('data-ext-id') === extId) {
+            let badge = btn.querySelector('.ext-badge');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.className = 'ext-badge';
+                btn.appendChild(badge);
+            }
+            badge.textContent = count > 0 ? count : '';
+            badge.style.display = count > 0 ? 'flex' : 'none';
+        }
+    });
+});
+
 window.electronAPI.on('ext-sync-progress', (msg) => {
     showToast('📦 ' + msg, 4000);
 });
@@ -381,6 +400,7 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
         const btn = document.createElement('button');
         btn.className = 'ext-btn';
         btn.title = ext.name;
+        btn.setAttribute('data-ext-id', ext.id);
 
         // ── 아이콘: Base64 데이터를 우선 사용, 실패 시 chrome-extension URL 사용 ──────
         const iconUrl = ext.iconData || `chrome-extension://${ext.id}/${ext.icon}`;
@@ -403,6 +423,9 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
         } else if (ext.name.toLowerCase().includes('send')) {
             title = dict.ext_send_title || ext.name;
             desc = dict.ext_send_desc || "";
+        } else if (ext.name.toLowerCase().includes('email')) {
+            title = dict.ext_email_title || ext.name;
+            desc = dict.ext_email_desc || "";
         } else if (ext.name.toLowerCase().includes('bing')) {
             title = "Bing Maps Business Finder";
             desc = currentLang === 'ko' ? "빙 맵스에서 비즈니스 정보를 수집하고 이메일을 찾는 도구입니다." : "Tools for collecting business info and finding emails on Bing Maps.";

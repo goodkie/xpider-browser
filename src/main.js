@@ -296,6 +296,12 @@ ipcMain.on('xpider-ext-notify-tab-updated', (event, data) => {
     });
 });
 
+ipcMain.on('xpider-ext-update-badge', (event, data) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('xpider-renderer-update-badge', data);
+    }
+});
+
 ipcMain.on('log-from-renderer', (event, msg) => {
     console.log(msg);
 });

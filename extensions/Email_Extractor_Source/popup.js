@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load Settings
   chrome.storage.local.get(['autosearch', 'collectEmails', 'allEmailsList', 'language'], (result) => {
-    autosearchToggle.checked = result.autosearch || false;
+    autosearchToggle.checked = result.autosearch !== false;
     collectEmailsToggle.checked = result.collectEmails !== false;
     
     const lang = result.language || 'en';

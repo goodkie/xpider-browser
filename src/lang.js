@@ -23,7 +23,9 @@ const translations = {
         ext_send_desc: "입력된 대상에게 자동으로 메시지를 발송하는 효율적인 비즈니스 메신저입니다.",
         history_tab: "방문 기록",
         bookmarks_tab: "즐겨찾기",
-        clear_all: "모두 삭제"
+        clear_all: "모두 삭제",
+        ext_email_title: "Email Extractor",
+        ext_email_desc: "웹서핑중 모든이메일 주소를 수집하는 강력한 이메일 수집기"
     },
     en: {
         app_title: "XPIDER Browser",
@@ -49,7 +51,9 @@ const translations = {
         ext_send_desc: "An efficient business messenger that automatically sends messages to the input targets.",
         history_tab: "History",
         bookmarks_tab: "Bookmarks",
-        clear_all: "Clear All"
+        clear_all: "Clear All",
+        ext_email_title: "Email Extractor",
+        ext_email_desc: "A powerful email collector that gathers all email addresses while surfing the web."
     },
     ja: {
         app_title: "XPIDER ブラウザ",

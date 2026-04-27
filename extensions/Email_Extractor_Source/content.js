@@ -47,8 +47,19 @@ function initialScan() {
 
   if (count > 0 || currentEmails.size > 0) {
     chrome.runtime.sendMessage({ type: "UPDATE_BADGE", count: currentEmails.size });
+    // Notify XPIDER Shell for sidebar badge
+    window.postMessage({ 
+      type: 'XPIDER_SEND', 
+      channel: 'xpider-ext-update-badge', 
+      data: { count: currentEmails.size, extId: chrome.runtime.id } 
+    }, '*');
   } else {
     chrome.runtime.sendMessage({ type: "UPDATE_BADGE", count: 0 });
+    window.postMessage({ 
+      type: 'XPIDER_SEND', 
+      channel: 'xpider-ext-update-badge', 
+      data: { count: 0, extId: chrome.runtime.id } 
+    }, '*');
   }
 
   return count;
@@ -70,9 +81,13 @@ function startObserver() {
           }
         });
       });
-      const diff = processText(addedText);
       if (diff > 0) {
         chrome.runtime.sendMessage({ type: "UPDATE_BADGE", count: currentEmails.size });
+        window.postMessage({ 
+          type: 'XPIDER_SEND', 
+          channel: 'xpider-ext-update-badge', 
+          data: { count: currentEmails.size, extId: chrome.runtime.id } 
+        }, '*');
       }
     }, 1500); // 1.5s debounce for performance
   });
