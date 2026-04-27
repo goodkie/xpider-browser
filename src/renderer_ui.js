@@ -498,6 +498,12 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     wv.id = `webview-${tabId}`;
     wv.className = 'webview-hidden';
     wv.setAttribute('autosize', 'on');
+    wv.setAttribute('allowpopups', ''); // Essential for many sites
+    
+    // Set a standard Chrome User Agent to avoid "blank page" or bot detection issues
+    const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
+    wv.useragent = CHROME_UA;
+
     wv.src = url;
     webviewsWrapper.appendChild(wv);
     
@@ -589,13 +595,32 @@ function getActiveWebview() { return activeTabId ? document.getElementById(`webv
 
 function navigate() {
     let url = addressBar.value.trim();
+    console.log('[NAVIGATE] Input:', url);
     if (!url) return;
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        if (url.includes('.') && !url.includes(' ')) url = 'https://' + url;
-        else url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
+    
+    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('about:') && !url.startsWith('chrome-extension://')) {
+        if (url.includes('.') && !url.includes(' ')) {
+            url = 'https://' + url;
+        } else {
+            url = 'https://www.google.com/search?q=' + encodeURIComponent(url);
+        }
     }
+    
+    console.log('[NAVIGATE] Final URL:', url);
     const wv = getActiveWebview();
-    if (wv) wv.src = url;
+    if (wv) {
+        console.log('[NAVIGATE] Loading URL into webview:', wv.id);
+        try {
+            wv.loadURL(url);
+        } catch (e) {
+            console.error('[NAVIGATE] loadURL failed, falling back to .src:', e);
+            wv.src = url;
+        }
+    } else {
+        console.error('[NAVIGATE] No active webview found!');
+        // Try creating a new tab if no active one exists
+        createNewTab(url);
+    }
 }
 
 addressBar.addEventListener('keypress', (e) => { if (e.key === 'Enter') navigate(); });
