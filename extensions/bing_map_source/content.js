@@ -694,30 +694,58 @@ class MapCruiser {
     }
 
     simulateDrag(element, startX, startY, endX, endY) {
+        const createEvent = (type, x, y, options = {}) => {
+            const common = {
+                bubbles: true,
+                cancelable: true,
+                clientX: x,
+                clientY: y,
+                screenX: x,
+                screenY: y,
+                view: window,
+                ...options
+            };
+            // Use PointerEvent for modern engines (MapLibre/MapBox)
+            return new PointerEvent(type, {
+                ...common,
+                pointerId: 1,
+                width: 1,
+                height: 1,
+                pressure: 0.5,
+                pointerType: 'mouse',
+                isPrimary: true,
+                button: type === 'pointerup' ? -1 : 0,
+                buttons: type === 'pointerup' ? 0 : 1
+            });
+        };
+
         const createMouseEvent = (type, x, y) => {
             return new MouseEvent(type, {
                 bubbles: true,
                 cancelable: true,
                 clientX: x,
                 clientY: y,
-                buttons: 1, // Primary button
+                buttons: type === 'mouseup' ? 0 : 1,
                 button: 0,
                 view: window
             });
         };
 
-        // 1. Mouse Down
+        // 1. Down
+        element.dispatchEvent(createEvent('pointerdown', startX, startY));
         element.dispatchEvent(createMouseEvent('mousedown', startX, startY));
         
-        // 2. Multiple Steps for Mouse Move (MapLibre recognition fix)
-        const steps = 8;
+        // 2. Move (Multiple steps for smooth recognition)
+        const steps = 12;
         for (let i = 1; i <= steps; i++) {
             const currentX = startX + (endX - startX) * (i / steps);
             const currentY = startY + (endY - startY) * (i / steps);
+            element.dispatchEvent(createEvent('pointermove', currentX, currentY));
             element.dispatchEvent(createMouseEvent('mousemove', currentX, currentY));
         }
         
-        // 3. Mouse Up
+        // 3. Up
+        element.dispatchEvent(createEvent('pointerup', endX, endY));
         element.dispatchEvent(createMouseEvent('mouseup', endX, endY));
     }
 }
