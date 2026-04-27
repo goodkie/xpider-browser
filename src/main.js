@@ -438,7 +438,24 @@ ipcMain.handle('xpider-ext-storage-clear', async () => {
 });
 
 ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => {
-    // Relay message to all other webContents
+    // 1. Proactive Sync: If it's a lead discovery, update our bridge storage immediately
+    if (message.action === 'foundBusiness' && message.data) {
+        if (!extStorage.scrapedData) extStorage.scrapedData = [];
+        const exists = extStorage.scrapedData.some(d => d.placeId === message.data.placeId);
+        if (!exists) {
+            extStorage.scrapedData.push(message.data);
+            saveExtStorage();
+            
+            // Broadcast storage change to all listening UI components
+            const changes = { scrapedData: { newValue: extStorage.scrapedData } };
+            const all = webContents.getAllWebContents();
+            all.forEach(wc => {
+                try { wc.send('xpider-ext-storage-changed', changes); } catch(e) {}
+            });
+        }
+    }
+
+    // 2. Relay message to all other webContents (Sidepanel/Content Scripts)
     const all = webContents.getAllWebContents();
     const senderId = event.sender.id;
     all.forEach(wc => {
@@ -446,6 +463,14 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
             try { wc.send('xpider-ext-runtime-on-message', message); } catch(e) {}
         }
     });
+
+    // 3. ALSO relay to the native extension background workers
+    loadedExtensionsInfo.forEach(ext => {
+        try {
+            session.defaultSession.extensions.sendMessage(ext.id, message).catch(() => {});
+        } catch(e) {}
+    });
+    
     return { success: true };
 });
 
