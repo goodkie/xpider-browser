@@ -13,6 +13,11 @@ class BingMapsBulletproofScraper {
     
     console.log('BingMaps Scraper: Content Script Loaded');
     
+    // Heartbeat for debugging injection
+    setInterval(() => {
+        console.log(`[XPIDER-HEARTBEAT] BingMaps Scraper is alive. Active: ${this.active}`);
+    }, 10000);
+    
     // Sync active state from storage
     chrome.storage.local.get(['scrapingActive'], (res) => {
         if (res.scrapingActive) this.start();

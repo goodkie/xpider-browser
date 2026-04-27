@@ -559,12 +559,26 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
                 const currentUrl = wv.getURL();
                 for (const cs of ext.manifest.content_scripts) {
                     const matches = cs.matches.some(m => {
-                        // Simple Glob-to-Regex conversion for extension matches
-                        const pattern = m.replace(/[.+^${}()|[\]\\]/g, '\\$&') // escape regex chars
-                                         .replace(/\\\*/g, '.*') // * -> .*
-                                         .replace(/\\\?/g, '.'); // ? -> .
-                        const regex = new RegExp('^' + pattern.replace('http:', 'https?:') + '$');
-                        return regex.test(currentUrl);
+                        try {
+                            // Robust Match Pattern to Regex
+                            let pattern = m;
+                            // Handle *://
+                            if (pattern.startsWith('*://')) {
+                                pattern = 'https?://' + pattern.substring(4);
+                            }
+                            // Escape regex chars except * and ?
+                            pattern = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+                                             .replace(/\\\*/g, '.*')
+                                             .replace(/\\\?/g, '.');
+                            
+                            const regex = new RegExp('^' + pattern + '$', 'i');
+                            const isMatch = regex.test(currentUrl);
+                            if (isMatch) console.log(`[XPIDER-INJECT] URL Match! Pattern: ${m} matches ${currentUrl}`);
+                            return isMatch;
+                        } catch (err) {
+                            console.error('[XPIDER-INJECT] Pattern Error:', m, err);
+                            return false;
+                        }
                     });
 
                     if (matches && cs.js) {
@@ -572,8 +586,21 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
                             try {
                                 const code = await window.electronAPI.getExtensionScript(ext.id, jsPath);
                                 if (code) {
-                                    console.log(`[XPIDER-INJECT] Injecting ${jsPath} from ${ext.name} into ${currentUrl}`);
-                                    wv.executeJavaScript(code).catch(err => {
+                                    // Inject a marker to avoid double injection
+                                    const markerId = `xpider_ext_${ext.id}_${jsPath.replace(/[^a-z0-9]/gi, '_')}`;
+                                    const wrappedCode = `
+                                        (function() {
+                                            if (window['${markerId}']) return;
+                                            window['${markerId}'] = true;
+                                            console.log('[XPIDER-RUNTIME] Executing ${jsPath} from ${ext.name}');
+                                            try {
+                                                ${code}
+                                            } catch(e) {
+                                                console.error('[XPIDER-RUNTIME] Error in ${jsPath}:', e);
+                                            }
+                                        })();
+                                    `;
+                                    wv.executeJavaScript(wrappedCode).catch(err => {
                                         console.error(`[XPIDER-INJECT] Exec Error (${jsPath}):`, err);
                                     });
                                 }
