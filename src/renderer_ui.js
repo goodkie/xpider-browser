@@ -480,6 +480,9 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
         item.appendChild(balloon);
         extensionsBar.appendChild(item);
     });
+    
+    // Store extensions for manual injection into webviews
+    window.loadedExtensions = extensions;
 
     setTimeout(() => { if (startLangSetup()) startOnboarding(); }, 1000);
 });
@@ -548,6 +551,41 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
         }
         addHistory(currentUrl, currentTitle);
         
+        // Manual Content Script Injection Fallback (Ensures extensions work in webviews)
+        if (window.loadedExtensions) {
+            window.loadedExtensions.forEach(async (ext) => {
+                if (!ext.manifest || !ext.manifest.content_scripts) return;
+                
+                const currentUrl = wv.getURL();
+                for (const cs of ext.manifest.content_scripts) {
+                    const matches = cs.matches.some(m => {
+                        // Simple Glob-to-Regex conversion for extension matches
+                        const pattern = m.replace(/[.+^${}()|[\]\\]/g, '\\$&') // escape regex chars
+                                         .replace(/\\\*/g, '.*') // * -> .*
+                                         .replace(/\\\?/g, '.'); // ? -> .
+                        const regex = new RegExp('^' + pattern.replace('http:', 'https?:') + '$');
+                        return regex.test(currentUrl);
+                    });
+
+                    if (matches && cs.js) {
+                        for (const jsPath of cs.js) {
+                            try {
+                                const code = await window.electronAPI.getExtensionScript(ext.id, jsPath);
+                                if (code) {
+                                    console.log(`[XPIDER-INJECT] Injecting ${jsPath} from ${ext.name} into ${currentUrl}`);
+                                    wv.executeJavaScript(code).catch(err => {
+                                        console.error(`[XPIDER-INJECT] Exec Error (${jsPath}):`, err);
+                                    });
+                                }
+                            } catch (e) {
+                                console.error(`[XPIDER-INJECT] Load Error (${jsPath}):`, e);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
         window.electronAPI.send('xpider-ext-notify-tab-updated', {
             tabId: realId,
             changeInfo: { status: 'complete', url: currentUrl },

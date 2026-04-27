@@ -379,6 +379,21 @@ ipcMain.handle('xpider-ext-send-message', async (event, data) => {
     }
 });
 
+ipcMain.handle('xpider-ext-get-script', async (event, { extId, scriptPath }) => {
+    try {
+        const ext = loadedExtensionsInfo.find(e => e.id === extId);
+        if (!ext) return null;
+        const fullPath = path.join(ext.path, scriptPath);
+        if (fs.existsSync(fullPath)) {
+            return fs.readFileSync(fullPath, 'utf8');
+        }
+        return null;
+    } catch(e) {
+        log.error('[ExtBridge] get-script error:', e);
+        return null;
+    }
+});
+
 ipcMain.handle('xpider-ext-save-file', async (event, data) => {
     if (!mainWindow || mainWindow.isDestroyed()) return null;
     try {
@@ -539,7 +554,8 @@ async function loadLocalExtensions() {
           icon:    iconFile,
           iconData: iconBase64,
           version: manifest.version || '1.0.0',
-          extPath: extPath,
+          path:    extPath,
+          manifest: manifest,
           uiPage:  defaultUiPage
         });
         log.info(`[Extensions] Loaded: ${manifest.name} v${manifest.version}`);

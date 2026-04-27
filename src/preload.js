@@ -37,4 +37,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllProfiles: ()                       => ipcRenderer.invoke('admin-get-all-profiles'),
   setUserActive:  (userId, isActive)      => ipcRenderer.invoke('admin-set-active', { userId, isActive }),
   forceLogout:    (userId)                => ipcRenderer.invoke('admin-force-logout', { userId }),
+  getExtensionScript: (extId, scriptPath) => ipcRenderer.invoke('xpider-ext-get-script', { extId, scriptPath }),
 });
