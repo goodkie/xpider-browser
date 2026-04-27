@@ -165,8 +165,17 @@ class BingMapsBulletproofScraper {
         '.b_lstCard'
     ];
     const cards = document.querySelectorAll(selectors.join(', '));
+    if (cards.length > 0) {
+        console.log(`[XPIDER-SCRAPER] Detected ${cards.length} potential business cards.`);
+    }
     
     cards.forEach(card => {
+      // Visual feedback: Highlight detected cards
+      if (!card.dataset.xpiderDetected) {
+          card.style.border = '1px solid rgba(245, 166, 35, 0.4)';
+          card.dataset.xpiderDetected = 'true';
+      }
+
       const nameEl = card.querySelector('h3, .b_entityTitle, [title], [role="heading"], .listingTitle');
       if (!nameEl) return;
       const name = nameEl.innerText.trim();
@@ -205,28 +214,33 @@ class BingMapsBulletproofScraper {
         // 1. Click the card to open detail panel
         item.element.click();
         
-        // 2. Wait for panel to load
-        await new Promise(r => setTimeout(r, 1500));
+        // 2. Wait for panel to load (Short wait for modern fast loading)
+        await new Promise(r => setTimeout(r, 1200));
 
-        // 3. Extract from Detail Panel (Targeting data-tags for stability)
-        const detailPanel = document.querySelector('.singleEntityWrapper_srJlN, #entity_ans, .b_entity_detail, .slide_card, .entity_panel') || document.body || document;
+        // 3. Extract from Detail Panel
+        const detailPanel = document.querySelector('.singleEntityWrapper_srJlN, #entity_ans, .b_entity_detail, .slide_card, .entity_panel, [class*="detailPanel"], [class*="entityPanel"]') || item.element;
         
-        const titleEl = detailPanel.querySelector('[data-tag="title"], h2, .b_entityTitle, [role="heading"]');
+        const titleEl = detailPanel.querySelector('[data-tag="title"], h2, .b_entityTitle, [role="heading"], .listingTitle');
         const cleanedName = titleEl ? titleEl.innerText.trim() : item.name;
+
+        // Fallback info from card itself if panel extraction fails
+        const cardText = item.element.innerText || "";
+        const phoneMatch = cardText.match(/(\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4})/);
+        const cardPhone = phoneMatch ? phoneMatch[0] : 'N/A';
 
         const data = {
           name: cleanedName,
           url: window.location.href,
           placeId: item.id,
-          rating: detailPanel.querySelector('.b_rating, .stars, [aria-label*="rating"]')?.innerText || 'N/A',
-          reviews: detailPanel.querySelector('.b_rev_Count, .b_rating + span, [aria-label*="reviews"]')?.innerText?.replace(/[()]/g, '') || '0',
+          rating: detailPanel.querySelector('.b_rating, .stars, [aria-label*="rating"], [class*="rating"]')?.innerText || 'N/A',
+          reviews: detailPanel.querySelector('.b_rev_Count, .b_rating + span, [aria-label*="reviews"], [class*="reviewCount"]')?.innerText?.replace(/[()]/g, '') || '0',
           website: 'N/A',
-          phone: 'N/A',
-          category: detailPanel.querySelector('.b_entitySubtitle, .listingSubtitle_srJlN')?.innerText || 'N/A',
+          phone: cardPhone,
+          category: detailPanel.querySelector('.b_entitySubtitle, .listingSubtitle_srJlN, [class*="subtitle"]')?.innerText || 'N/A',
           address: 'N/A'
         };
 
-        // Website extraction (Priority on decoding redirects)
+        // Website extraction
         const allLinks = Array.from(detailPanel.querySelectorAll('a[href]'));
         let actualWebsite = 'N/A';
         const websiteLink = allLinks.find(a => a.href.includes('alink/link?url=') || 
@@ -241,32 +255,26 @@ class BingMapsBulletproofScraper {
                     if (decoded) rawUrl = decoded;
                 } catch (e) {}
             }
-            // Second layer of cleaning for Bing Place links hidden in redirects
             if (!rawUrl.includes('bing.com/places') && !rawUrl.includes('bing.com/maps')) {
                 actualWebsite = rawUrl;
             }
         }
         data.website = actualWebsite;
 
-        // Phone extraction
-        const phoneEl = detailPanel.querySelector('a[data-tag="phone"], a[href^="tel:"], .b_phone');
+        // Phone extraction (Update if panel has better info)
+        const phoneEl = detailPanel.querySelector('a[data-tag="phone"], a[href^="tel:"], .b_phone, [class*="phone"]');
         if (phoneEl) {
             data.phone = phoneEl.innerText.trim() || phoneEl.href.replace('tel:', '');
         }
 
         // Address extraction
-        const addressEl = detailPanel.querySelector('[data-tag="address"], .b_address, .b_factrow [title="Address"] + div');
+        const addressEl = detailPanel.querySelector('[data-tag="address"], .b_address, .b_factrow [title="Address"] + div, [class*="address"]');
         if (addressEl) {
             data.address = addressEl.innerText.trim();
         } else {
-            // Check secondary information blocks
-            const facts = detailPanel.innerText || "";
-            const addressMatch = facts.match(/\d+[ ](?:[A-Za-z0-9.-]+[ ]?)+(?:Avenue|Lane|Road|Boulevard|Drive|Street|Way|Ave|Dr|St|Rd|Blvd)[, ]+[A-Za-z ]+[, ]+[A-Z]{2}[ ]+\d{5}/i);
-            if (addressMatch) data.address = addressMatch[0];
-            else {
-                const cardSub = item.element.querySelector('.b_entitySubtitle, .listingSubtitle_srJlN');
-                if (cardSub) data.address = cardSub.innerText.trim();
-            }
+            // Check card for address fallback
+            const cardSub = item.element.querySelector('.b_entitySubtitle, .listingSubtitle_srJlN, [class*="subtitle"]');
+            if (cardSub) data.address = cardSub.innerText.trim();
         }
 
         console.log(`✅ Business Sent: ${data.name} (Phone: ${data.phone})`);
