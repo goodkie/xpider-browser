@@ -543,6 +543,13 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
             tab: { id: realId, url: currentUrl, title: currentTitle }
         });
     });
+
+    // Handle target="_blank" links (new window) by creating a new XPIDER tab
+    wv.addEventListener('new-window', (e) => {
+        console.log('[WEBVIEW] New window requested:', e.url);
+        createNewTab(e.url);
+    });
+
     wv.addEventListener('page-title-updated', (e) => {
         const title = e.title;
         const t = tabs.find(x => x.id === tabId);
