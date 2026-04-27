@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const activeTab = tabs[0];
-        if (activeTab && isGmaps(activeTab.url)) {
+        if (activeTab && isMapPage(activeTab.url)) {
           navScreen.classList.add('hidden');
         } else {
           // If native query says we are NOT on maps, but we are in XPIDER, 
