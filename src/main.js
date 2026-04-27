@@ -1,4 +1,4 @@
-const { app, BrowserWindow, session, ipcMain, shell, webContents, dialog } = require('electron');
+const { app, BrowserWindow, session, ipcMain, shell, webContents, dialog, Menu, MenuItem, clipboard } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 const log  = require('electron-log');
@@ -115,9 +115,10 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
-  
+
   // Global handler to catch all window.open / target="_blank" from ANY webview or tab
   app.on('web-contents-created', (event, contents) => {
+    // 1. Handle New Windows -> Redirect to Tabs
     contents.setWindowOpenHandler(({ url }) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('open-new-tab', url);
@@ -125,7 +126,46 @@ function createWindow() {
       return { action: 'deny' };
     });
     
-    // Also disable context menu for better UI control if needed (optional)
+    // 2. Handle Context Menu (Right Click)
+    contents.on('context-menu', (event, params) => {
+      const menu = new Menu();
+      
+      // Navigation
+      menu.append(new MenuItem({ label: 'Back', click: () => contents.goBack(), enabled: contents.canGoBack() }));
+      menu.append(new MenuItem({ label: 'Forward', click: () => contents.goForward(), enabled: contents.canGoForward() }));
+      menu.append(new MenuItem({ label: 'Reload', click: () => contents.reload() }));
+      menu.append(new MenuItem({ type: 'separator' }));
+
+      // Link specific
+      if (params.linkURL) {
+        menu.append(new MenuItem({ label: 'Open link in new tab', click: () => {
+          if (mainWindow) mainWindow.webContents.send('open-new-tab', params.linkURL);
+        }}));
+        menu.append(new MenuItem({ label: 'Copy link address', click: () => clipboard.writeText(params.linkURL) }));
+        menu.append(new MenuItem({ type: 'separator' }));
+      }
+
+      // Text/Selection specific
+      if (params.selectionText) {
+        menu.append(new MenuItem({ label: 'Copy', role: 'copy' }));
+        menu.append(new MenuItem({ type: 'separator' }));
+      }
+      if (params.isEditable) {
+        menu.append(new MenuItem({ label: 'Paste', role: 'paste' }));
+        menu.append(new MenuItem({ type: 'separator' }));
+      }
+
+      // Image specific
+      if (params.hasImageContents) {
+        menu.append(new MenuItem({ label: 'Copy Image', click: () => contents.copyImageAt(params.x, params.y) }));
+        menu.append(new MenuItem({ type: 'separator' }));
+      }
+
+      // Developer Tools
+      menu.append(new MenuItem({ label: 'Inspect Element', click: () => contents.inspectElement(params.x, params.y) }));
+      
+      menu.popup({ window: mainWindow });
+    });
   });
 
   mainWindow.once('ready-to-show', () => mainWindow.show());
