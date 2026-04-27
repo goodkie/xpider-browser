@@ -65,6 +65,58 @@ document.addEventListener('DOMContentLoaded', () => {
   function xpiderUpdateTab(props) {
       window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-update-tab', args: props, id: 'updateTabBridge' }, '*');
   }
+
+  // --- XPIDER STORAGE BRIDGE ---
+  chrome.storage.local.get = function(keys, callback) {
+      const id = 'storageGet_' + Date.now();
+      const listener = (event) => {
+          if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === id) {
+              window.removeEventListener('message', listener);
+              callback(event.data.result);
+          }
+      };
+      window.addEventListener('message', listener);
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-storage-get', args: { keys }, id }, '*');
+  };
+
+  chrome.storage.local.set = function(items, callback) {
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-storage-set', args: { items } }, '*');
+      if (callback) setTimeout(callback, 50);
+  };
+
+  chrome.storage.local.clear = function(callback) {
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-storage-clear', args: {} }, '*');
+      if (callback) setTimeout(callback, 50);
+  };
+
+  chrome.storage.onChanged.addListener = function(callback) {
+      window.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'storage-changed') {
+              callback(event.data.data);
+          }
+      });
+  };
+
+  // --- XPIDER RUNTIME BRIDGE ---
+  chrome.runtime.sendMessage = function(message, callback) {
+      const id = 'runtimeSend_' + Date.now();
+      const listener = (event) => {
+          if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === id) {
+              window.removeEventListener('message', listener);
+              if (callback) callback(event.data.result);
+          }
+      };
+      window.addEventListener('message', listener);
+      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-runtime-send-message', args: { message }, id }, '*');
+  };
+
+  chrome.runtime.onMessage.addListener = function(callback) {
+      window.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'runtime-on-message') {
+              callback(event.data.data, {}, () => {});
+          }
+      });
+  };
   // ==========================================
 
   const leadCountEl = document.getElementById('leadCount');

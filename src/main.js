@@ -394,6 +394,61 @@ ipcMain.handle('xpider-ext-get-script', async (event, { extId, scriptPath }) => 
     }
 });
 
+// ─── EXTENSION STORAGE EMULATION ───────────────────────────
+let extStorage = {};
+const storagePath = path.join(app.getPath('userData'), 'extension-storage.json');
+if (fs.existsSync(storagePath)) {
+    try { extStorage = JSON.parse(fs.readFileSync(storagePath, 'utf8')); } catch(e) {}
+}
+
+function saveExtStorage() {
+    try { fs.writeFileSync(storagePath, JSON.stringify(extStorage, null, 2)); } catch(e) {}
+}
+
+ipcMain.handle('xpider-ext-storage-get', async (event, { keys }) => {
+    if (!keys) return extStorage;
+    if (typeof keys === 'string') return { [keys]: extStorage[keys] };
+    if (Array.isArray(keys)) {
+        const res = {};
+        keys.forEach(k => { if (extStorage[k] !== undefined) res[k] = extStorage[k]; });
+        return res;
+    }
+    return extStorage;
+});
+
+ipcMain.handle('xpider-ext-storage-set', async (event, { items }) => {
+    const changes = {};
+    for (const [key, val] of Object.entries(items)) {
+        changes[key] = { oldValue: extStorage[key], newValue: val };
+        extStorage[key] = val;
+    }
+    saveExtStorage();
+    // Broadcast change to all webContents
+    const all = webContents.getAllWebContents();
+    all.forEach(wc => {
+        try { wc.send('xpider-ext-storage-changed', changes); } catch(e) {}
+    });
+    return { success: true };
+});
+
+ipcMain.handle('xpider-ext-storage-clear', async () => {
+    extStorage = {};
+    saveExtStorage();
+    return { success: true };
+});
+
+ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => {
+    // Relay message to all other webContents
+    const all = webContents.getAllWebContents();
+    const senderId = event.sender.id;
+    all.forEach(wc => {
+        if (wc.id !== senderId) {
+            try { wc.send('xpider-ext-runtime-on-message', message); } catch(e) {}
+        }
+    });
+    return { success: true };
+});
+
 ipcMain.handle('xpider-ext-save-file', async (event, data) => {
     if (!mainWindow || mainWindow.isDestroyed()) return null;
     try {
