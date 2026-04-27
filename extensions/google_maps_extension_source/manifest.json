@@ -216,6 +216,7 @@
     "https://www.google.co.za/maps/*",
     "https://www.google.co.zm/maps/*",
     "https://www.google.co.zw/maps/*",
+    "https://www.bing.com/maps/*",
     "<all_urls>"
   ],
   "icons": {
@@ -438,7 +439,8 @@
         "https://www.google.ws/maps/*",
         "https://www.google.co.za/maps/*",
         "https://www.google.co.zm/maps/*",
-        "https://www.google.co.zw/maps/*"
+        "https://www.google.co.zw/maps/*",
+        "https://www.bing.com/maps/*"
       ],
       "js": ["content.js"],
       "run_at": "document_end"

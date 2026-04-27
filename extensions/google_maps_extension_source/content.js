@@ -1,4 +1,4 @@
-// content.js - GMaps Business Finder: Bulletproof Stage 1 Scraper with Precision AutoCruiser
+// content.js - Business Finder Pro: Bulletproof Scraper with Precision AutoCruiser (XPIDER Edition)
 
 console.log('[CONTENT.JS] Script loaded and initialized!');
 
@@ -32,17 +32,17 @@ class GMapsBulletproofScraper {
       const dict = {
           ko: { title: '비즈니스 탐색 준비 완료!', desc: '사이드바에서 [탐색 시작] 버튼을 눌러 데이터를 수집하세요.' },
           en: { title: 'Ready to Find Businesses!', desc: 'Click [Start Scraper] in the side panel to collect data.' },
-          ja: { title: 'ビジネス検索の準備ができました！', desc: 'サイドパネルの [探索開始] ボタンをクリックしてデータを収集します。' },
+          ja: { title: 'ビジネス検索の準備ができました！', desc: 'サイドパネル의 [探索開始] ボタンをクリックしてデータを収集します。' },
           zh: { title: '准备好查找商家了！', desc: '点击侧边栏中的 [开始抓取] 按钮收集数据。' }
       };
 
       const text = dict[lang] || dict['en'];
       const banner = document.createElement('div');
       banner.id = 'xpider-onboarding-banner';
-      banner.innerHTML = \`
-          <div style="font-weight: 800; font-size: 14px; color: #f5a623; margin-bottom: 4px;">XPIDER: \${text.title}</div>
-          <div style="font-size: 12px; opacity: 0.9;">\${text.desc}</div>
-      \`;
+      banner.innerHTML = `
+          <div style="font-weight: 800; font-size: 14px; color: #f5a623; margin-bottom: 4px;">XPIDER: ${text.title}</div>
+          <div style="font-size: 12px; opacity: 0.9;">${text.desc}</div>
+      `;
       Object.assign(banner.style, {
           position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
           backgroundColor: '#1a1a1a', color: 'white', padding: '15px 25px', borderRadius: '12px',
@@ -51,12 +51,12 @@ class GMapsBulletproofScraper {
       });
 
       const style = document.createElement('style');
-      style.textContent = \`
+      style.textContent = `
           @keyframes xpider-fade-up {
               from { transform: translate(-50%, 20px); opacity: 0; }
               to { transform: translate(-50%, 0); opacity: 1; }
           }
-      \`;
+      `;
       document.head.appendChild(style);
       document.body.appendChild(banner);
 
@@ -66,7 +66,6 @@ class GMapsBulletproofScraper {
           setTimeout(() => banner.remove(), 1000);
       }, 8000);
   }
-
 
   start() {
     if (this.active) {
@@ -180,6 +179,13 @@ class GMapsBulletproofScraper {
         if (text.includes('·')) data.address = text.trim();
       });
 
+      // Korean Address Fallback
+      if (!data.address || data.address === 'N/A') {
+          const krAddrRegex = /(([가-힣]+(시|도|특별자치시|특별자치도)\s+)?([가-힣]+(시|군|구)\s+)?([가-힣\d]+(읍|면|동|가|리)\s+)?([가-힣A-Za-z\d]+(로|길|대로)\s+[\d-]+|[가-힣\d]+(동|가|리|읍|면)\s+[\d-]+)(\s*번지)?(\s*,?\s*(지하\s*)?[\d가-힣A-Za-z]+(층|호|동|빌딩|센터|타워|아파트|상가|프라자|스퀘어|파크|관|단지))?(\s*[\d가-힣A-Za-z]+(호|층))?)/;
+          const krMatch = card.innerText.match(krAddrRegex);
+          if (krMatch) data.address = krMatch[0];
+      }
+
       console.log(`[CONTENT.JS] Card ${index}: Found Business! Sending to background.`, data);
       chrome.runtime.sendMessage({ action: 'foundBusiness', data });
     });
@@ -243,7 +249,169 @@ class GMapsBulletproofScraper {
   sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 }
 
-const scraper = new GMapsBulletproofScraper();
+class BingMapsBulletproofScraper {
+  constructor() {
+    this.active = false;
+    this.processedUrls = new Set();
+    this.rootObserver = null;
+    this.feedObserver = null;
+    this.lastCount = 0;
+    this.initXpiderBanner();
+  }
+
+  initXpiderBanner() {
+      const lang = document.documentElement.lang.split('-')[0] || 'en';
+      this.showXpiderBanner(lang);
+      
+      window.addEventListener('message', (e) => {
+          if (e.data && e.data.type === 'XPIDER_EVENT' && e.data.name === 'language-change') {
+              this.showXpiderBanner(e.data.data.lang);
+          }
+      });
+  }
+
+  showXpiderBanner(lang) {
+      const existing = document.getElementById('xpider-onboarding-banner');
+      if (existing) existing.remove();
+
+      const dict = {
+          ko: { title: '비즈니스 탐색 준비 완료!', desc: '사이드바에서 [탐색 시작] 버튼을 눌러 데이터를 수집하세요.' },
+          en: { title: 'Ready to Find Businesses!', desc: 'Click [Start Scraper] in the side panel to collect data.' },
+          ja: { title: 'ビジネス検索の準備ができました！', desc: 'サイドパネル의 [探索開始] ボタンをクリックしてデータを収集します。' },
+          zh: { title: '准备好查找商家了！', desc: '点击侧边栏中的 [开始抓取] 按钮收集数据。' }
+      };
+
+      const text = dict[lang] || dict['en'];
+      const banner = document.createElement('div');
+      banner.id = 'xpider-onboarding-banner';
+      banner.innerHTML = `
+          <div style="font-weight: 800; font-size: 14px; color: #f5a623; margin-bottom: 4px;">XPIDER: ${text.title}</div>
+          <div style="font-size: 12px; opacity: 0.9;">${text.desc}</div>
+      `;
+      Object.assign(banner.style, {
+          position: 'fixed', bottom: '30px', left: '50%', transform: 'translateX(-50%)',
+          backgroundColor: '#1a1a1a', color: 'white', padding: '15px 25px', borderRadius: '12px',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.6)', zIndex: '10001', textAlign: 'center',
+          border: '1px solid #f5a623', pointerEvents: 'none', animation: 'xpider-fade-up 0.5s ease-out'
+      });
+
+      const style = document.createElement('style');
+      style.textContent = `
+          @keyframes xpider-fade-up {
+              from { transform: translate(-50%, 20px); opacity: 0; }
+              to { transform: translate(-50%, 0); opacity: 1; }
+          }
+      `;
+      document.head.appendChild(style);
+      document.body.appendChild(banner);
+
+      setTimeout(() => {
+          banner.style.opacity = '0';
+          banner.style.transition = 'opacity 1s ease';
+          setTimeout(() => banner.remove(), 1000);
+      }, 8000);
+  }
+
+  start() {
+    if (this.active) return;
+    this.active = true;
+    console.log('[CONTENT.JS] Bing Maps Business Finder: Started');
+    this.initRootObserver();
+  }
+
+  stop() {
+    this.active = false;
+    if (this.rootObserver) this.rootObserver.disconnect();
+    if (this.feedObserver) this.feedObserver.disconnect();
+    console.log('[CONTENT.JS] Bing Maps Business Finder: Stopped');
+  }
+
+  initRootObserver() {
+    const listContainer = document.querySelector('#bm_listing_container') || document.body;
+    console.log('[CONTENT.JS] initRootObserver (Bing): binding to', listContainer);
+    this.rootObserver = new MutationObserver(() => this.rebindFeedObserver());
+    this.rootObserver.observe(listContainer, { childList: true, subtree: false });
+    this.rebindFeedObserver();
+  }
+
+  rebindFeedObserver() {
+    if (!this.active) return;
+    const feed = document.querySelector('div[aria-label*="Search results"], .bm_listing_card_container');
+    if (this.feedObserver) this.feedObserver.disconnect();
+    if (feed) {
+        console.log('[CONTENT.JS] rebindFeedObserver (Bing): Feed found!');
+        this.feedObserver = new MutationObserver(() => this.scrapeVisibleCards());
+        this.feedObserver.observe(feed, { childList: true, subtree: true });
+    }
+    this.scrapeVisibleCards();
+  }
+
+  scrapeVisibleCards() {
+    if (!this.active) return;
+    const cards = document.querySelectorAll('button[class*="listingContent"], .bm_listing_card');
+    
+    let scrapedCount = 0;
+    cards.forEach((card, index) => {
+      const nameEl = card.querySelector('h3, button[title], [class*="title"]');
+      if (!nameEl) return;
+      
+      const name = (nameEl.innerText || nameEl.getAttribute('title') || "").trim();
+      const key = name + (card.innerText.substring(0, 50));
+      if (!name || this.processedUrls.has(key)) return;
+      
+      this.processedUrls.add(key);
+      scrapedCount++;
+
+      const data = {
+        name: name.split('\n')[0],
+        url: window.location.href,
+        rating: card.querySelector('.b_rating, [class*="rating"]')?.innerText || 'N/A',
+        reviews: card.querySelector('.b_revcnt, [class*="revcnt"]')?.innerText || '0'
+      };
+
+      // Address extraction (Targeting Bing's generic div structure)
+      let address = 'N/A';
+      const divs = Array.from(card.querySelectorAll('div')).filter(d => d.innerText.length > 5);
+      if (divs.length >= 3) {
+          // Typically the 3rd or 4th substantial div contains the address in Bing Maps
+          address = divs[Math.min(3, divs.length - 1)].innerText.trim();
+      }
+      
+      const krAddrRegex = /(([가-힣]+(시|도|특별자치시|특별자치도)\s+)?([가-힣]+(시|군|구)\s+)?([가-힣\d]+(읍|면|동|가|리)\s+)?([가-힣A-Za-z\d]+(로|길|대로)\s+[\d-]+|[가-힣\d]+(동|가|리|읍|면)\s+[\d-]+)(\s*번지)?(\s*,?\s*(지하\s*)?[\d가-힣A-Za-z]+(층|호|동|빌딩|센터|타워|아파트|상가|프라자|스퀘어|파크|관|단지))?(\s*[\d가-힣A-Za-z]+(호|층))?)/;
+      if (address === 'N/A' || address.length < 5 || !address.match(/[가-힣\d]/)) {
+          const match = card.innerText.match(krAddrRegex);
+          if (match) address = match[0];
+      }
+      data.address = address;
+
+      const phoneMatch = card.innerText.match(/(\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{3,4}[-.\s]?\d{4})/);
+      data.phone = phoneMatch ? phoneMatch[0] : 'N/A';
+
+      const websiteEl = card.querySelector('a[aria-label*="Website"], a[href*="http"]:not([href*="bing.com"])');
+      data.website = websiteEl ? websiteEl.href : 'N/A';
+
+      console.log(`[CONTENT.JS] Bing Card ${index}: Found!`, data);
+      chrome.runtime.sendMessage({ action: 'foundBusiness', data });
+    });
+  }
+
+  async waitUntilFinished() {
+    const feed = document.querySelector('div[aria-label*="Search results"], .bm_listing_card_container');
+    if (!feed) return;
+    feed.scrollTop = feed.scrollHeight;
+    await new Promise(r => setTimeout(r, 2000));
+    this.scrapeVisibleCards();
+  }
+
+  sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+}
+
+let scraper = null;
+if (window.location.href.includes('bing.com/maps')) {
+    scraper = new BingMapsBulletproofScraper();
+} else {
+    scraper = new GMapsBulletproofScraper();
+}
 
 chrome.runtime.onMessage.addListener((req) => {
   console.log('[CONTENT.JS] Received chrome.runtime message:', req);
@@ -525,6 +693,8 @@ class MapCruiser {
         const centerY = window.innerHeight / 2;
         const target = document.elementFromPoint(centerX, centerY) || 
                       document.querySelector('canvas.widget-scene-canvas') || 
+                      document.querySelector('#bm_mapSurface') ||
+                      document.querySelector('.MicrosoftMap') ||
                       document.body;
 
         const rect = target.getBoundingClientRect();

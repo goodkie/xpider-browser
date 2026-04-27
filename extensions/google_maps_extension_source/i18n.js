@@ -3,8 +3,9 @@
 const translations = {
   en: {
     nav_title: "Ready to Find Businesses?",
-    nav_desc: "Please navigate to Google Maps to start fetching leads.",
+    nav_desc: "Please navigate to Google or Bing Maps to start fetching leads.",
     nav_btn: "Go to Google Maps",
+    nav_btn_bing: "Go to Bing Maps",
     app_subtitle: "Business Finder",
     status_idle: "Idle",
     status_active: "Scraping...",
@@ -54,8 +55,9 @@ const translations = {
   },
   ko: {
     nav_title: "비즈니스를 찾을 준비가 되셨나요?",
-    nav_desc: "리드 수집을 시작하려면 구글 지도로 이동해 주세요.",
+    nav_desc: "리드 수집을 시작하려면 구글 또는 빙 지도로 이동해 주세요.",
     nav_btn: "구글 지도로 이동",
+    nav_btn_bing: "빙 지도로 이동",
     app_subtitle: "비즈니스 파인더",
     status_idle: "대기 중",
     status_active: "수집 중...",
