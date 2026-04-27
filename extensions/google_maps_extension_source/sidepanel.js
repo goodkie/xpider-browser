@@ -7,11 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const exportCsv = document.getElementById('exportCsv');
   const exportTxt = document.getElementById('exportTxt');
   const exportSheet = document.getElementById('exportSheet');
-   const goToMapsBtn = document.getElementById('goToMapsBtn');
-   const goToBingBtn = document.getElementById('goToBingBtn');
-   const navScreen = document.getElementById('navScreen');
-   const findEmailsBtn = document.getElementById('findEmailsBtn');
-   const stopEmailsBtn = document.getElementById('stopEmailsBtn');
+  const goToMapsBtn = document.getElementById('goToMapsBtn');
+  const goToBingBtn = document.getElementById('goToBingBtn');
+  const navScreen = document.getElementById('navScreen');
+  const findEmailsBtn = document.getElementById('findEmailsBtn');
+  const stopEmailsBtn = document.getElementById('stopEmailsBtn');
   
   // ==========================================
   // XPIDER IPC BRIDGE POLYFILLS
@@ -172,11 +172,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (changeInfo.status === 'complete') checkCurrentTab();
   });
 
-  function isSupportedMap(url) {
+  function isMapPage(url) {
     if (!url) return false;
-    const isGoogle = url.includes('google.com/maps') || url.includes('google.co.kr/maps') || url.includes('google.co.jp/maps') || /google\.[a-z.]+\/maps/.test(url);
-    const isBing = url.includes('bing.com/maps');
-    return isGoogle || isBing;
+    const isG = url.includes('google.com/maps') || url.includes('google.co.kr/maps') || url.includes('google.co.jp/maps') || /google\.[a-z.]+\/maps/.test(url);
+    const isB = url.includes('bing.com/maps');
+    return isG || isB;
   }
 
   function checkCurrentTab() {
@@ -185,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const activeTab = tabs[0];
-        if (activeTab && isSupportedMap(activeTab.url)) {
+        if (activeTab && isGmaps(activeTab.url)) {
           navScreen.classList.add('hidden');
         } else {
           // If native query says we are NOT on maps, but we are in XPIDER, 
@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'checkTab') {
       const activeTab = event.data.result;
-      if (activeTab && isSupportedMap(activeTab.url)) {
+      if (activeTab && isMapPage(activeTab.url)) {
         navScreen.classList.add('hidden');
       } else {
         navScreen.classList.remove('hidden');
@@ -217,22 +217,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   goToMapsBtn.addEventListener('click', () => {
-    // Try native first, but also trigger bridge to be sure
     xpiderUpdateTab({ url: 'https://www.google.com/maps' });
     try {
       chrome.tabs.update({ url: 'https://www.google.com/maps' });
-    } catch(e) {
-      console.log('[XPIDER-BRIDGE] Native update failed, relying on bridge');
-    }
+    } catch(e) {}
   });
 
   goToBingBtn.addEventListener('click', () => {
     xpiderUpdateTab({ url: 'https://www.bing.com/maps' });
     try {
       chrome.tabs.update({ url: 'https://www.bing.com/maps' });
-    } catch(e) {
-      console.log('[XPIDER-BRIDGE] Native update failed, relying on bridge');
-    }
+    } catch(e) {}
   });
 
   // Listen for messages
