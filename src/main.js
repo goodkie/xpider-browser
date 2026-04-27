@@ -238,12 +238,13 @@ ipcMain.handle('xpider-ext-get-active-tab', async (event) => {
         const tabInfo = await mainWindow.webContents.executeJavaScript(`
             (function() {
                 const wv = typeof getActiveWebview === 'function' ? getActiveWebview() : null;
+                if (!wv) return null;
                 return {
                     id: typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999,
                     windowId: 1,
                     active: true,
-                    url: wv.getURL(),
-                    title: wv.getTitle()
+                    url: typeof wv.getURL === 'function' ? wv.getURL() : (wv.src || ''),
+                    title: typeof wv.getTitle === 'function' ? wv.getTitle() : ''
                 };
             })()
         `);

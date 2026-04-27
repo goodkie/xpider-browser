@@ -510,14 +510,23 @@ function switchTab(tabId) {
         if (wv) {
             wv.className = isAct ? 'webview-active' : 'webview-hidden';
             if (isAct) {
-                addressBar.value = wv.getURL();
+                addressBar.value = typeof wv.getURL === 'function' ? wv.getURL() : (wv.src || '');
                 updateBookmarkIcon();
                 document.title = (t.title || 'XPIDER Browser') + (t.title ? ' - XPIDER Browser' : '');
                 wv.focus();
                 
                 // Update lastActiveTabInfo
                 const realId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999;
-                window.lastActiveTabInfo = { id: realId, url: wv.getURL(), title: wv.getTitle() || wv.getURL() };
+                const currentUrl = typeof wv.getURL === 'function' ? wv.getURL() : (wv.src || '');
+                const currentTitle = typeof wv.getTitle === 'function' ? wv.getTitle() : '';
+                window.lastActiveTabInfo = { id: realId, url: currentUrl, title: currentTitle || currentUrl };
+                
+                // Notify extensions about tab change so sidepanels can update their active state
+                window.electronAPI.send('xpider-ext-notify-tab-updated', {
+                    tabId: realId,
+                    changeInfo: { status: 'complete', url: currentUrl },
+                    tab: { id: realId, url: currentUrl, title: currentTitle || currentUrl }
+                });
             }
         }
     });
