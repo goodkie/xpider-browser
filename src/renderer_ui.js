@@ -512,6 +512,7 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     wv.className = 'webview-hidden';
     wv.setAttribute('autosize', 'on');
     wv.setAttribute('allowpopups', ''); 
+    wv.setAttribute('preload', 'ext-preload.js'); 
     
     const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
     wv.useragent = CHROME_UA;

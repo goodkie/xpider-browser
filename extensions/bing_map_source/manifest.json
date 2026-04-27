@@ -46,8 +46,7 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.bing.com/maps*",
-        "*://*.bing.com/search*"
+        "*://*.bing.com/*"
       ],
       "js": ["content.js"],
       "run_at": "document_end"
