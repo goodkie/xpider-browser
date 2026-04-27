@@ -81,6 +81,7 @@ function startObserver() {
           }
         });
       });
+      const diff = processText(addedText);
       if (diff > 0) {
         chrome.runtime.sendMessage({ type: "UPDATE_BADGE", count: currentEmails.size });
         window.postMessage({ 
