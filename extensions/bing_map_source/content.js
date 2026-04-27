@@ -106,7 +106,9 @@ class BingMapsBulletproofScraper {
         const scrollContainer = document.querySelector('div.b_lstcards') || 
                                 document.querySelector('#bm_results') || 
                                 document.querySelector('.scrollable') ||
-                                document.querySelector('.b_lstcards_container');
+                                document.querySelector('.b_lstcards_container') ||
+                                document.querySelector('[role="main"] .scrollable') ||
+                                document.querySelector('#bm_side_container');
                                 
         if (scrollContainer) {
           scrollContainer.scrollTop += 800;
@@ -120,7 +122,7 @@ class BingMapsBulletproofScraper {
           this.lastScrollHeight = scrollContainer.scrollTop;
 
           if (this.scrollStuckCount > 3) {
-              const moreBtn = document.querySelector('a.b_more, .b_showMore, [aria-label*="Next"]');
+              const moreBtn = document.querySelector('a.b_more, .b_showMore, [aria-label*="Next"], [aria-label*="더 보기"]');
               if (moreBtn && moreBtn.offsetParent) {
                   moreBtn.click();
                   this.scrollStuckCount = 0;
@@ -132,7 +134,10 @@ class BingMapsBulletproofScraper {
   }
 
   rebindListObserver() {
-    const list = document.querySelector('div.b_lstcards') || document.querySelector('.b_lstcards_container');
+    const list = document.querySelector('div.b_lstcards') || 
+                 document.querySelector('.b_lstcards_container') || 
+                 document.querySelector('[role="list"]') ||
+                 document.querySelector('#bm_results');
     if (!list || this.currentList === list) return;
     
     if (this.listObserver) this.listObserver.disconnect();
@@ -145,10 +150,19 @@ class BingMapsBulletproofScraper {
   scrapeVisibleCards() {
     if (!this.active) return;
 
-    const cards = document.querySelectorAll('button.listingContent_fjvwG, div.b_split_card[role="listitem"], [data-tag="list-item"], .b_algo, .entity-card');
+    const selectors = [
+        'button[class*="listingContent"]',
+        'div.b_split_card[role="listitem"]',
+        '[data-tag="list-item"]',
+        '[role="listitem"]',
+        '.b_algo',
+        '.entity-card',
+        '.b_lstCard'
+    ];
+    const cards = document.querySelectorAll(selectors.join(', '));
     
     cards.forEach(card => {
-      const nameEl = card.querySelector('h3, .b_entityTitle, [title], [role="heading"]');
+      const nameEl = card.querySelector('h3, .b_entityTitle, [title], [role="heading"], .listingTitle');
       if (!nameEl) return;
       const name = nameEl.innerText.trim();
       const infoText = card.innerText.trim();
