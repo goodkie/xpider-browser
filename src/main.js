@@ -116,9 +116,16 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
   
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    mainWindow.webContents.send('open-new-tab', url);
-    return { action: 'deny' };
+  // Global handler to catch all window.open / target="_blank" from ANY webview or tab
+  app.on('web-contents-created', (event, contents) => {
+    contents.setWindowOpenHandler(({ url }) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('open-new-tab', url);
+      }
+      return { action: 'deny' };
+    });
+    
+    // Also disable context menu for better UI control if needed (optional)
   });
 
   mainWindow.once('ready-to-show', () => mainWindow.show());

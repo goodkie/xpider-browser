@@ -500,23 +500,25 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
         <span class="tab-title" id="tab-title-${tabId}">Loading...</span>
         <button class="tab-close" title="Close" onclick="event.stopPropagation(); closeTab('${tabId}')">✕</button>
     `;
-    tabEl.onclick = () => switchTab(tabId);
+    tabEl.onmousedown = (e) => {
+        if (e.button === 0) switchTab(tabId);
+        if (e.button === 1) closeTab(tabId); // Middle click to close
+    };
     tabsList.appendChild(tabEl);
     
+    // Webview creation
     const wv = document.createElement('webview');
     wv.id = `webview-${tabId}`;
     wv.className = 'webview-hidden';
     wv.setAttribute('autosize', 'on');
-    wv.setAttribute('allowpopups', ''); // Essential for many sites
+    wv.setAttribute('allowpopups', ''); 
     
-    // Set a standard Chrome User Agent to avoid "blank page" or bot detection issues
     const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
     wv.useragent = CHROME_UA;
 
     wv.src = url;
     webviewsWrapper.appendChild(wv);
     
-    // FORWARD CONSOLE LOGS FOR DEBUGGING CONTENT SCRIPTS
     wv.addEventListener('console-message', (e) => {
         window.electronAPI.send('log-from-renderer', `[MAIN-WEBVIEW] ${e.message}`);
     });
@@ -526,8 +528,10 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     wv.addEventListener('did-start-loading', () => { 
         if (activeTabId === tabId) reloadBtn.textContent = '✕'; 
         document.getElementById(`tab-title-${tabId}`).textContent = 'Loading...';
+        document.getElementById(`tab-ui-${tabId}`).classList.add('loading');
     });
     wv.addEventListener('did-stop-loading', () => {
+        document.getElementById(`tab-ui-${tabId}`).classList.remove('loading');
         const currentUrl = wv.getURL();
         const currentTitle = wv.getTitle() || currentUrl;
         const realId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999;
@@ -539,29 +543,15 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
             reloadBtn.textContent = '↻';
             addressBar.value = currentUrl;
             updateBookmarkIcon();
-            
-            // Update lastActiveTabInfo
             window.lastActiveTabInfo = { id: realId, url: currentUrl, title: currentTitle };
         }
         addHistory(currentUrl, currentTitle);
         
-        // Notify extensions for chrome.tabs.onUpdated
         window.electronAPI.send('xpider-ext-notify-tab-updated', {
             tabId: realId,
             changeInfo: { status: 'complete', url: currentUrl },
             tab: { id: realId, url: currentUrl, title: currentTitle }
         });
-    });
-
-    // Handle target="_blank" links (new window) by creating a new XPIDER tab
-    wv.addEventListener('new-window', (e) => {
-        e.preventDefault(); // Stop the default behavior
-        const { url, disposition } = e;
-        console.log('[WEBVIEW] New window/tab requested:', url, 'Disposition:', disposition);
-        
-        // Match Chromium's disposition behavior
-        const makeActive = (disposition !== 'background-tab');
-        createNewTab(url, makeActive);
     });
 
     wv.addEventListener('page-title-updated', (e) => {
@@ -574,8 +564,7 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
 
     wv.addEventListener('page-favicon-updated', (e) => {
         if (e.favicons && e.favicons.length > 0) {
-            const iconUrl = e.favicons[0];
-            document.getElementById(`tab-favicon-${tabId}`).src = iconUrl;
+            document.getElementById(`tab-favicon-${tabId}`).src = e.favicons[0];
         }
     });
     

@@ -422,6 +422,16 @@ body, html {
 }
 .tab-close:hover { background-color: rgba(255, 255, 255, 0.1); color: var(--text-main); }
 
+.tab.loading .tab-title {
+    animation: tab-pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes tab-pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+}
+
 #new-tab-btn {
     background: transparent;
     border: none;
