@@ -107,7 +107,7 @@ function stopObserver() {
 
 // Auto-run observer if setting is checked
 chrome.storage.local.get(['autosearch'], (res) => {
-  if (res.autosearch) startObserver();
+  if (res && res.autosearch) startObserver();
 });
 
 chrome.storage.onChanged.addListener((changes) => {
