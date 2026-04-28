@@ -148,6 +148,240 @@ window.electronAPI.on('app_language', (lang) => {
     }
 });
 
+
+
+// ─── 실시간 시스템 진단 터미널 엔진 ───────────────────────────
+const sysDiagBtn = document.getElementById('sys-diag-btn');
+const diagModal = document.getElementById('diag-modal');
+const diagTerminal = document.getElementById('diag-log-terminal');
+const diagSnapshot = document.getElementById('diag-snapshot');
+const diagStatus = document.getElementById('diag-status');
+const copyDiagBtn = document.getElementById('copy-diag-btn');
+const closeDiagBtn = document.getElementById('close-diag-btn');
+const diagClearBtn = document.getElementById('diag-clear-btn');
+const diagAutoScrollBtn = document.getElementById('diag-autoscroll-btn');
+const diagLevelFilter = document.getElementById('diag-level-filter');
+const diagSourceFilter = document.getElementById('diag-source-filter');
+
+let allLogs = [];
+let diagAutoScroll = true;
+let diagLiveListenerAttached = false;
+
+const LOG_COLORS = {
+    ERROR:   { bg: '#2a0000', fg: '#ff5555', icon: '❌' },
+    WARN:    { bg: '#1a1400', fg: '#ffcc00', icon: '⚠️' },
+    NAV:     { bg: '#001020', fg: '#55aaff', icon: '🔗' },
+    'NAV-SPA':{ bg: '#001020', fg: '#55ccff', icon: '↪' },
+    INFO:    { bg: '#000',    fg: '#cccccc', icon: 'ℹ' },
+    LOG:     { bg: '#000',    fg: '#aaaaaa', icon: '·' },
+    UI:      { bg: '#001a00', fg: '#55ff55', icon: '🖥' },
+    DEBUG:   { bg: '#0a000a', fg: '#9966ff', icon: '🔍' },
+};
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function makeLogRow(entry) {
+    const c = LOG_COLORS[entry.level] || LOG_COLORS.LOG;
+    return `<div style="padding:1px 4px; background:${c.bg}; border-left:2px solid ${c.fg}33; margin-bottom:1px; white-space:pre-wrap; word-break:break-all;">` +
+        `<span style="color:#555;">${escHtml(entry.t)}</span> ` +
+        `<span style="color:${c.fg}; font-weight:bold; min-width:60px; display:inline-block;">${c.icon}[${escHtml(entry.level)}]</span> ` +
+        `<span style="color:#77aaff;">[${escHtml(entry.source)}]</span> ` +
+        `<span style="color:${c.fg};">${escHtml(entry.msg)}</span>` +
+        `</div>`;
+}
+
+function renderLogs() {
+    if (!diagTerminal) return;
+    const lvl = diagLevelFilter ? diagLevelFilter.value : 'ALL';
+    const src = diagSourceFilter ? diagSourceFilter.value : 'ALL';
+    const filtered = allLogs.filter(e => {
+        const levelOk = lvl === 'ALL' || e.level === lvl || (lvl === 'NAV' && e.level.startsWith('NAV'));
+        const srcOk = src === 'ALL' || e.source.includes(src);
+        return levelOk && srcOk;
+    });
+    diagTerminal.innerHTML = filtered.map(makeLogRow).join('');
+    if (diagAutoScroll) diagTerminal.scrollTop = diagTerminal.scrollHeight;
+    if (diagStatus) diagStatus.textContent = `${allLogs.length}개 로그 | 필터된 항목: ${filtered.length}개 | 실시간 수신 중...`;
+}
+
+function appendLogEntry(entry) {
+    allLogs.push(entry);
+    if (allLogs.length > 1000) allLogs.shift(); // 최대 1000개 유지
+    const lvl = diagLevelFilter ? diagLevelFilter.value : 'ALL';
+    const src = diagSourceFilter ? diagSourceFilter.value : 'ALL';
+    const levelOk = lvl === 'ALL' || entry.level === lvl || (lvl === 'NAV' && entry.level.startsWith('NAV'));
+    const srcOk = src === 'ALL' || entry.source.includes(src);
+    if (diagModal && !diagModal.classList.contains('hidden') && levelOk && srcOk && diagTerminal) {
+        diagTerminal.insertAdjacentHTML('beforeend', makeLogRow(entry));
+        if (diagAutoScroll) diagTerminal.scrollTop = diagTerminal.scrollHeight;
+        const total = allLogs.length;
+        if (diagStatus) diagStatus.textContent = `${total}개 로그 | 실시간 수신 중...`;
+    }
+}
+
+// 실시간 로그 스트림 수신 (한 번만 등록)
+if (!diagLiveListenerAttached) {
+    diagLiveListenerAttached = true;
+    window.electronAPI.on('xpider-live-log', (entry) => appendLogEntry(entry));
+}
+
+async function openDiagnostics() {
+    try {
+        diagModal.classList.remove('hidden');
+        if (diagTerminal) diagTerminal.innerHTML = '<div style="color:#555; padding:10px;">⏳ 로그 수집 중...</div>';
+        const data = await window.electronAPI.invoke('get-system-logs');
+        
+        // Snapshot 업데이트
+        if (diagSnapshot) {
+            const ext = (data.activeExtensions || []).map(e => `<span style="color:#fa0;">${escHtml(e.name)}</span> v${escHtml(e.version)}`).join(' | ');
+            diagSnapshot.innerHTML = [
+                `<span>🕒 ${escHtml(data.timestamp?.slice(11,19) || '')}</span>`,
+                `<span>📦 v${escHtml(data.appVersion || '')}</span>`,
+                `<span>💾 ${escHtml(String(data.memMB || 0))}MB</span>`,
+                `<span>⏱ 가동 ${escHtml(String(data.uptime || 0))}초</span>`,
+                `<span>📋 리드 ${escHtml(String(data.storageLeads || 0))}개</span>`,
+                `<span>🪟 창 ${escHtml(String(data.windows || 0))}개</span>`,
+                `<span>🔌 ${ext || '없음'}</span>`
+            ].join('<span style="color:#333; margin:0 5px;">|</span>');
+        }
+
+        // 최근 로그 초기화 (이전 로그 보존, 새 히스토리 병합)
+        const history = data.recentLogs || [];
+        if (allLogs.length === 0) allLogs = history;
+        renderLogs();
+    } catch (e) {
+        if (diagTerminal) diagTerminal.innerHTML = `<div style="color:#f55;">❌ 오류: ${escHtml(e.message)}</div>`;
+    }
+}
+
+if (sysDiagBtn) sysDiagBtn.onclick = openDiagnostics;
+if (closeDiagBtn) closeDiagBtn.onclick = () => diagModal.classList.add('hidden');
+if (diagClearBtn) diagClearBtn.onclick = () => { allLogs = []; if (diagTerminal) diagTerminal.innerHTML = ''; if (diagStatus) diagStatus.textContent = '지움'; };
+if (diagAutoScrollBtn) {
+    diagAutoScrollBtn.onclick = () => {
+        diagAutoScroll = !diagAutoScroll;
+        diagAutoScrollBtn.textContent = diagAutoScroll ? '▼ 자동스크롤 ON' : '⏸ 자동스크롤 OFF';
+        diagAutoScrollBtn.style.background = diagAutoScroll ? '#1a3a1a' : '#1a1a1a';
+        diagAutoScrollBtn.style.color = diagAutoScroll ? '#0f0' : '#888';
+    };
+}
+if (diagLevelFilter) diagLevelFilter.onchange = renderLogs;
+if (diagSourceFilter) diagSourceFilter.onchange = renderLogs;
+if (copyDiagBtn) {
+    copyDiagBtn.onclick = () => {
+        const text = allLogs.map(e => `[${e.t}][${e.level}][${e.source}] ${e.msg}`).join('\n');
+        navigator.clipboard.writeText(text).then(() => {
+            copyDiagBtn.textContent = '✅ Copied!';
+            setTimeout(() => { copyDiagBtn.textContent = '📋 Copy All'; }, 2000);
+        });
+    };
+}
+
+// Ctrl+Shift+L 단축키
+window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key === 'L') { e.preventDefault(); openDiagnostics(); }
+});
+
+// ─── AutoCruiser Hardware Engine (Direct Move Version) ─────────────────
+let cruiserActive = false;
+let cruiserDirection = 1;
+let cruiserStepPx = 0;
+let pixelsPerMile = 0;
+
+function startHardwareCruiser(config = {}) {
+    cruiserActive = true;
+    const wv = getActiveWebview();
+    if (!wv) return;
+
+    const url = wv.getURL();
+    const zoomMatch = url.match(/@.*,([0-9.]+)z/);
+    const latMatch = url.match(/@(-?[0-9.]+),/);
+    const zoom = zoomMatch ? parseFloat(zoomMatch[1]) : 15;
+    const lat = latMatch ? parseFloat(latMatch[1]) : 37.0;
+    
+    const degreesPerMileX = 1 / (Math.cos(lat * Math.PI / 180) * 69.17);
+    pixelsPerMile = (Math.pow(2, zoom) * 256) / (360 * degreesPerMileX);
+    
+    cruiserStepPx = (config.stepSize || 9.0) * pixelsPerMile;
+    cruiserDirection = 1;
+
+    console.log(`[CRUISER] Hardware engine ready. StepPx=${Math.round(cruiserStepPx)}`);
+}
+
+async function performHardwareMove(direction = 'HORIZONTAL') {
+    if (!cruiserActive) return;
+    const wv = getActiveWebview();
+    if (!wv) return;
+
+    if (direction === 'HORIZONTAL') {
+        const dx = cruiserDirection * cruiserStepPx;
+        await simulateHardwareDrag(wv, dx, 0);
+    } else if (direction === 'SOUTH') {
+        await simulateHardwareDrag(wv, 0, cruiserStepPx);
+    } else if (direction === 'REVERSE') {
+        cruiserDirection *= -1;
+        await simulateHardwareDrag(wv, 0, cruiserStepPx);
+    }
+}
+
+function stopHardwareCruiser() {
+    cruiserActive = false;
+    if (cruiserInterval) clearInterval(cruiserInterval);
+    cruiserInterval = null;
+    console.log('[CRUISER] Stopped.');
+}
+
+async function simulateHardwareDrag(wv, dx, dy) {
+    if (!wv) return;
+    
+    // Ensure webview is focused for input events
+    try { wv.focus(); } catch(e) {}
+
+    const startX = Math.round(wv.offsetWidth / 2);
+    const startY = Math.round(wv.offsetHeight / 2);
+    const endX = Math.round(startX - dx);
+    const endY = Math.round(startY - dy);
+
+    if (isNaN(startX) || isNaN(startY)) {
+        console.warn('[CRUISER] Invalid dimensions for drag:', wv.offsetWidth, wv.offsetHeight);
+        return;
+    }
+
+    const steps = 15; // Increased for smoother movement
+    
+    // Mouse Down
+    wv.sendInputEvent({ 
+        type: 'mouseDown', 
+        x: startX, y: startY, 
+        button: 'left', clickCount: 1 
+    });
+    
+    // Longer wait for G-Maps to anchor the drag
+    await new Promise(r => setTimeout(r, 150));
+
+    for (let i = 1; i <= steps; i++) {
+        const curX = Math.round(startX + (endX - startX) * (i / steps));
+        const curY = Math.round(startY + (endY - startY) * (i / steps));
+        wv.sendInputEvent({ 
+            type: 'mouseMove', 
+            x: curX, y: curY,
+            button: 'left'
+        });
+        await new Promise(r => setTimeout(r, 15));
+    }
+
+    // Mouse Up
+    wv.sendInputEvent({ 
+        type: 'mouseUp', 
+        x: endX, y: endY, 
+        button: 'left', clickCount: 1 
+    });
+    
+    console.log(`[CRUISER] Hardware Drag: (${startX},${startY}) -> (${endX},${endY})`);
+}
+
 // ─── 업데이트 체크 결과 처리 ──────────────────────────────────
 window.electronAPI.on('app-update-result', (result) => {
     if (!result) return;
@@ -230,9 +464,74 @@ window.electronAPI.on('ext-sync-progress', (msg) => {
 window.electronAPI.on('xpider-renderer-update-active-tab', (props) => {
     const wv = getActiveWebview();
     if (wv && props.url) {
-        wv.loadURL(props.url);
-        // Optionally update the address bar immediately
+        wv.loadURL(props.url).catch(e => {
+            // ignore ERR_ABORTED from overlapping loadURL calls
+            if (e.code !== 'ERR_ABORTED') console.error('loadURL Error:', e);
+        });
         addressBar.value = props.url;
+    }
+});
+
+// ── XPIDER_CONTENT_RELAY: content.js → renderer (sendMessage 릴레이 & 크루저 신호) ──
+// content.js는 웹뷰(프리로드 없음) 안에서 실행되며, XPIDER_BRIDGE_RELAY postMessage로
+// ext-preload.js → main.js → xpider-ext-runtime-on-message → 모든 WebContents에 브로드캐스트됨.
+// renderer_ui.js는 xpider-ext-runtime-on-message 채널로 수신.
+window.electronAPI.on('xpider-ext-runtime-on-message', async (message) => {
+    if (!message || !message.action) return;
+    console.log('[XPIDER-RUNTIME-MSG] Received:', message.action);
+
+    if (message.action === 'startHardwareCruiser') {
+        console.log('[CRUISER] ▶ Starting hardware cruiser via runtime message', message.config);
+        startHardwareCruiser(message.config || {});
+    }
+    if (message.action === 'stopHardwareCruiser') {
+        console.log('[CRUISER] ⏹ Stopping hardware cruiser via runtime message');
+        stopHardwareCruiser();
+    }
+    if (message.action === 'performHardwareMove') {
+        await performHardwareMove(message.direction || 'HORIZONTAL');
+    }
+    if (message.action === 'skipHardwareCruiserLine') {
+        console.log('[CRUISER] ⏭ Skip signal received. Reversing and moving SOUTH...');
+        await performHardwareMove('REVERSE');
+    }
+    // ③ 실시간 cruiserUpdate → extension webview(sidepanel)로 중계
+    if (message.action === 'cruiserUpdate') {
+        if (extensionWebview && extensionWebview.src) {
+            extensionWebview.executeJavaScript(
+                `window.postMessage({ type: 'XPIDER_EVENT', name: 'runtime-on-message', data: ${JSON.stringify(message)} }, '*')`
+            ).catch(() => {});
+        }
+    }
+    // ⑤ cruiserStopped / scrapingFinished → sidepanel로 Stage2 트리거
+    if (message.action === 'cruiserStopped' || message.action === 'scrapingFinished') {
+        if (extensionWebview && extensionWebview.src) {
+            extensionWebview.executeJavaScript(
+                `window.postMessage({ type: 'XPIDER_EVENT', name: 'cruiser-stopped', data: {} }, '*')`
+            ).catch(() => {});
+        }
+    }
+    // storage-changed 이벤트: foundBusiness 저장 후 sidepanel 실시간 업데이트
+    if (message.action === 'foundBusiness' && message.data) {
+        // relay to storage then notify sidepanel
+        try {
+            await window.electronAPI.relayContentMessage({ message });
+        } catch(e) {}
+    }
+});
+
+// ── XPIDER_CONTENT_RELAY (레거시 호환 - foundBusiness 전용) ──
+window.addEventListener('message', async (event) => {
+    if (!event.data || event.data.type !== 'XPIDER_CONTENT_RELAY') return;
+    const { message, extId } = event.data;
+    console.log('[XPIDER-RELAY] Received from content script:', message.action, extId);
+    
+    if (message.action === 'foundBusiness' && message.data) {
+        try {
+            await window.electronAPI.relayContentMessage({ message });
+        } catch(e) {
+            console.error('[XPIDER-RELAY] Failed to relay:', e);
+        }
     }
 });
 
@@ -517,11 +816,11 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     wv.setAttribute('allowpopups', ''); 
     wv.setAttribute('preload', 'ext-preload.js'); 
     
-    const CHROME_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36';
-    wv.useragent = CHROME_UA;
+    // Remove custom UA to improve loading speed/compatibility
+    // wv.useragent = ...
 
-    wv.src = url;
     webviewsWrapper.appendChild(wv);
+    wv.src = url;
     
     wv.addEventListener('console-message', (e) => {
         window.electronAPI.send('log-from-renderer', `[MAIN-WEBVIEW] ${e.message}`);
@@ -544,74 +843,15 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
         if (t) { t.url = currentUrl; t.title = currentTitle; }
         document.getElementById(`tab-title-${tabId}`).textContent = currentTitle;
         if (activeTabId === tabId) {
-            reloadBtn.textContent = '↻';
             addressBar.value = currentUrl;
             updateBookmarkIcon();
-            window.lastActiveTabInfo = { id: realId, url: currentUrl, title: currentTitle };
+            const tabInfo = { id: realId, url: currentUrl, title: currentTitle, windowId: 1, active: true };
+            window.lastActiveTabInfo = tabInfo;
+            window.electronAPI.send('xpider-ext-report-active-tab', tabInfo);
         }
         addHistory(currentUrl, currentTitle);
-        
-        // Manual Content Script Injection Fallback (Ensures extensions work in webviews)
-        if (window.loadedExtensions) {
-            window.loadedExtensions.forEach(async (ext) => {
-                if (!ext.manifest || !ext.manifest.content_scripts) return;
-                
-                const currentUrl = wv.getURL();
-                for (const cs of ext.manifest.content_scripts) {
-                    const matches = cs.matches.some(m => {
-                        try {
-                            // Robust Match Pattern to Regex
-                            let pattern = m;
-                            // Handle *://
-                            if (pattern.startsWith('*://')) {
-                                pattern = 'https?://' + pattern.substring(4);
-                            }
-                            // Escape regex chars except * and ?
-                            pattern = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&')
-                                             .replace(/\\\*/g, '.*')
-                                             .replace(/\\\?/g, '.');
-                            
-                            const regex = new RegExp('^' + pattern + '$', 'i');
-                            const isMatch = regex.test(currentUrl);
-                            if (isMatch) console.log(`[XPIDER-INJECT] URL Match! Pattern: ${m} matches ${currentUrl}`);
-                            return isMatch;
-                        } catch (err) {
-                            console.error('[XPIDER-INJECT] Pattern Error:', m, err);
-                            return false;
-                        }
-                    });
 
-                    if (matches && cs.js) {
-                        for (const jsPath of cs.js) {
-                            try {
-                                const code = await window.electronAPI.getExtensionScript(ext.id, jsPath);
-                                if (code) {
-                                    // Inject a marker to avoid double injection
-                                    const markerId = `xpider_ext_${ext.id}_${jsPath.replace(/[^a-z0-9]/gi, '_')}`;
-                                    const wrappedCode = `
-                                        (function() {
-                                            if (window['${markerId}']) return;
-                                            window['${markerId}'] = true;
-                                            console.log('[XPIDER-RUNTIME] Executing ${jsPath} from ${ext.name}');
-                                            try {
-                                                ${code}
-                                            } catch(e) {
-                                                console.error('[XPIDER-RUNTIME] Error in ${jsPath}:', e);
-                                            }
-                                        })();
-                                    `;
-                                    wv.executeJavaScript(wrappedCode).catch(err => {
-                                        console.error(`[XPIDER-INJECT] Exec Error (${jsPath}):`, err);
-                                    });
-                                }
-                            } catch (e) {
-                                console.error(`[XPIDER-INJECT] Load Error (${jsPath}):`, e);
-                            }
-                        }
-                    }
-                }
-            });
-        }
+        // 수동 인젝션 블록 삭제됨 (Native loadExtension에서 처리)
 
         window.electronAPI.send('xpider-ext-notify-tab-updated', {
             tabId: realId,
@@ -651,9 +891,10 @@ function switchTab(tabId) {
                 document.title = (t.title || 'XPIDER Browser') + (t.title ? ' - XPIDER Browser' : '');
                 wv.focus();
                 
-                // Update lastActiveTabInfo
                 const realId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999;
-                window.lastActiveTabInfo = { id: realId, url: wv.getURL(), title: wv.getTitle() || wv.getURL() };
+                const tabInfo = { id: realId, url: wv.getURL(), title: wv.getTitle() || wv.getURL(), windowId: 1, active: true };
+                window.lastActiveTabInfo = tabInfo;
+                window.electronAPI.send('xpider-ext-report-active-tab', tabInfo);
             }
         }
     });
@@ -673,6 +914,12 @@ function closeTab(tabId) {
 
 if (newTabBtn) newTabBtn.onclick = () => createNewTab();
 window.addEventListener('DOMContentLoaded', () => createNewTab('start_page.html'));
+
+// Expose to window for Electron bridge access
+window.getActiveWebview = getActiveWebview;
+window.createNewTab = createNewTab;
+window.switchTab = switchTab;
+window.closeTab = closeTab;
 
 function getActiveWebview() { return activeTabId ? document.getElementById(`webview-${activeTabId}`) : null; }
 
@@ -720,9 +967,10 @@ window.createBackgroundWebview = async function(props) {
     wv.style.position = 'fixed';
     wv.style.top = '-10000px'; // Hide but keep in DOM
     wv.style.width = '1200px';
+    wv.style.width = '1200px';
     wv.style.height = '800px';
-    wv.src = props.url || 'about:blank';
     document.body.appendChild(wv);
+    wv.src = props.url || 'about:blank';
     
     backgroundWebviews.set(id, wv);
     

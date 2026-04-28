@@ -46,6 +46,7 @@
                         <input type="text" id="address-bar" data-i18n-placeholder="placeholder_url" placeholder="Enter URL or search...">
                         <div class="address-bar-btns">
                             <button id="bookmark-btn" title="Bookmark">★</button>
+                            <button id="sys-diag-btn" title="System Diagnostics Log">📊</button>
                             <button id="history-btn" title="History">🕒</button>
                             <button id="downloads-btn" title="Downloads">📥</button>
                         </div>
@@ -103,7 +104,40 @@
                 </header>
 
                 <main id="webview-container">
-                    <div id="webviews-wrapper" style="flex:1; display:flex; position:relative;"></div>
+                    <div id="diag-modal" class="modal hidden">
+        <div class="modal-content" style="width:800px; max-width:95vw; height:85vh; display:flex; flex-direction:column; padding:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-shrink:0;">
+                <div>
+                    <h3 style="margin:0; color:var(--accent); font-size:16px;">📊 System Live Diagnostics</h3>
+                    <div id="diag-status" style="font-size:11px; color:#888; margin-top:4px;">준비 중...</div>
+                </div>
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <select id="diag-level-filter" style="background:#222; color:#ccc; border:1px solid #444; border-radius:6px; padding:4px 8px; font-size:11px;">
+                        <option value="ALL">전체 레벨</option>
+                        <option value="ERROR">❌ ERROR</option>
+                        <option value="WARN">⚠️ WARN</option>
+                        <option value="NAV">🔗 NAV</option>
+                        <option value="INFO">ℹ️ INFO</option>
+                    </select>
+                    <select id="diag-source-filter" style="background:#222; color:#ccc; border:1px solid #444; border-radius:6px; padding:4px 8px; font-size:11px;">
+                        <option value="ALL">전체 소스</option>
+                        <option value="MAIN">Main Process</option>
+                        <option value="WV">WebView</option>
+                        <option value="RENDERER">Renderer</option>
+                    </select>
+                    <button id="diag-autoscroll-btn" class="btn" style="padding:4px 10px; font-size:11px; background:#1a3a1a; color:#0f0; border-color:#0a0;">▼ 자동스크롤 ON</button>
+                    <button id="diag-clear-btn" class="btn" style="padding:4px 10px; font-size:11px;">🗑 Clear</button>
+                    <button id="copy-diag-btn" class="btn btn-yellow" style="padding:4px 10px; font-size:11px;">📋 Copy All</button>
+                    <button id="close-diag-btn" class="btn" style="padding:4px 10px; font-size:11px;">✕</button>
+                </div>
+            </div>
+            <!-- System Snapshot -->
+            <div id="diag-snapshot" style="background:#0a0a0a; border:1px solid #333; border-radius:8px; padding:12px; font-family:monospace; font-size:11px; color:#6af; margin-bottom:10px; flex-shrink:0; display:flex; gap:20px; flex-wrap:wrap;"></div>
+            <!-- Live Log Terminal -->
+            <div id="diag-log-terminal" style="flex:1; overflow-y:auto; background:#000; border:1px solid #1a1a1a; border-radius:8px; padding:10px; font-family:'Cascadia Code','Consolas',monospace; font-size:11px; line-height:1.5;"></div>
+        </div>
+    </div>
+    <div id="webviews-wrapper" style="flex:1; display:flex; position:relative;"></div>
                     <div id="side-panel" class="hidden">
                         <div class="side-panel-header">
                             <span id="side-panel-title">Extension</span>

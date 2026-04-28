@@ -11,7 +11,9 @@
     "make:win-zip": "electron-forge make --platform=win32 --arch=x64 --targets=@electron-forge/maker-zip",
     "make:mac": "electron-forge make --platform=darwin --arch=x64",
     "make:mac-arm": "electron-forge make --platform=darwin --arch=arm64",
-    "publish": "electron-forge publish"
+    "publish": "electron-forge publish",
+    "sync": "git add -A && git commit -m \"dev-sync: %date% %time%\" && git push origin main",
+    "sync:ext": "cd extensions/google_maps_extension_source && git add -A && git commit -m \"ext-sync\" && git push"
   },
   "keywords": [],
   "author": "Antigravity",

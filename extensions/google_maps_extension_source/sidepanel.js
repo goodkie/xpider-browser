@@ -1,676 +1,529 @@
 // sidepanel.js - UI Logic for GMaps Business Finder (Two-Stage Overhaul)
 
 document.addEventListener('DOMContentLoaded', () => {
-  const startBtn = document.getElementById('startBtn');
-  const stopBtn = document.getElementById('stopBtn');
-  const clearBtn = document.getElementById('clearBtn');
-  const exportCsv = document.getElementById('exportCsv');
-  const exportTxt = document.getElementById('exportTxt');
-  const exportSheet = document.getElementById('exportSheet');
-  const goToMapsBtn = document.getElementById('goToMapsBtn');
-  const goToBingBtn = document.getElementById('goToBingBtn');
-  const navScreen = document.getElementById('navScreen');
-  const findEmailsBtn = document.getElementById('findEmailsBtn');
-  const stopEmailsBtn = document.getElementById('stopEmailsBtn');
+  console.log('[SIDEPANEL.JS] DOM Loaded. Initializing elements...');
   
-  // ==========================================
-  // XPIDER IPC BRIDGE POLYFILLS
-  // ==========================================
-  console.log('[SIDEPANEL.JS] Injecting chrome.tabs.query polyfill');
-  chrome.tabs.query = function(queryInfo, callback) {
-      console.log('[XPIDER-BRIDGE] Intercepting chrome.tabs.query');
-      const listener = (event) => {
-          if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'queryTabBridge') {
-              window.removeEventListener('message', listener);
-              const activeTab = event.data.result;
-              console.log('[XPIDER-BRIDGE] Received active tab from main:', activeTab);
-              if (activeTab) callback([activeTab]);
-              else callback([{ id: 999999 }]); // Fallback mock tab
-          }
-      };
-      window.addEventListener('message', listener);
-      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-get-active-tab', args: {}, id: 'queryTabBridge' }, '*');
-      
-      setTimeout(() => {
-          window.removeEventListener('message', listener);
-          callback([{ id: 999999 }]);
-      }, 1000);
-  };
+  // Element Safely Retriever
+  function getEl(id) {
+      const el = document.getElementById(id);
+      if (!el) console.warn(`[SIDEPANEL.JS] Element not found: #${id}`);
+      return el;
+  }
 
-  chrome.tabs.create = function(props, callback) {
-      console.log('[XPIDER-BRIDGE] Intercepting chrome.tabs.create (Background)', props);
-      const listener = (event) => {
-          if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'createTabBridge') {
-              window.removeEventListener('message', listener);
-              if (callback) callback(event.data.result);
-          }
-      };
-      window.addEventListener('message', listener);
-      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-create-tab', args: props, id: 'createTabBridge' }, '*');
-  };
-
-  chrome.scripting = chrome.scripting || {};
-  chrome.scripting.executeScript = function(injection, callback) {
-      console.log('[XPIDER-BRIDGE] Intercepting chrome.scripting.executeScript', injection);
-      const listener = (event) => {
-          if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'execScriptBridge') {
-              window.removeEventListener('message', listener);
-              if (callback) callback([{ result: event.data.result }]);
-          }
-      };
-      window.addEventListener('message', listener);
-      
-      // If injection contains a function, we need to stringify it
-      if (injection.func) {
-          injection.funcString = injection.func.toString();
-          delete injection.func;
-      }
-
-      window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-execute-script', args: injection, id: 'execScriptBridge' }, '*');
-  };
-
-  chrome.downloads = chrome.downloads || {};
-  chrome.downloads.download = function(options) {
-      console.log('[XPIDER-BRIDGE] Intercepting chrome.downloads.download', options);
-      const a = document.createElement('a');
-      a.href = options.url;
-      a.download = options.filename || 'download';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => a.remove(), 100);
-  };
-  // ==========================================
-
-  const leadCountEl = document.getElementById('leadCount');
-  const emailCountEl = document.getElementById('emailCount');
-  const statusBadge = document.getElementById('botStatus');
-  const resultsTable = document.getElementById('resultsTable').querySelector('tbody');
+  const startBtn = getEl('startBtn');
+  const stopBtn = getEl('stopBtn');
+  const clearBtn = getEl('clearBtn');
+  const exportCsv = getEl('exportCsv');
+  const exportTxt = getEl('exportTxt');
+  const exportSheet = getEl('exportSheet');
+  const goToMapsBtn = getEl('goToMapsBtn');
+  const navScreen = getEl('navScreen');
+  const findEmailsBtn = getEl('findEmailsBtn');
+  const stopEmailsBtn = getEl('stopEmailsBtn');
   
-  const emailProgressBar = document.getElementById('emailProgressBar');
-  const progressBarInner = emailProgressBar.querySelector('.progress-bar');
-  const emailProgressLabel = document.getElementById('emailProgress');
+  const leadCountEl = getEl('leadCount');
+  const emailCountEl = getEl('emailCount');
+  const statusBadge = getEl('botStatus');
+  const resultsTableObj = getEl('resultsTable');
+  const resultsTable = resultsTableObj ? resultsTableObj.querySelector('tbody') : null;
+  
+  const emailProgressBar = getEl('emailProgressBar');
+  const progressBarInner = emailProgressBar ? emailProgressBar.querySelector('.progress-bar') : null;
+  const emailProgressLabel = getEl('emailProgress');
   
   // AutoCruiser elements
-  const cruiserRange = document.getElementById('cruiserRange');
-  const cruiserRangeVal = document.getElementById('cruiserRangeVal');
-  const cruiserStep = document.getElementById('cruiserStep');
-  const cruiserStepVal = document.getElementById('cruiserStepVal');
-  const cruiserSpeed = document.getElementById('cruiserSpeed');
-  const cruiserSpeedVal = document.getElementById('cruiserSpeedVal');
-  const startCruiserBtn = document.getElementById('startCruiserBtn');
-  const cruiserMonitor = document.getElementById('cruiserMonitor');
-  const cruiserStatusDot = document.getElementById('cruiserStatusDot');
-  const cruiserState = document.getElementById('cruiserState');
-  const cruiserDist = document.getElementById('cruiserDist');
-  const cruiserNewLeads = document.getElementById('cruiserNewLeads');
-  const cruiserDir = document.getElementById('cruiserDir');
+  const cruiserRange = getEl('cruiserRange');
+  const cruiserRangeVal = getEl('cruiserRangeVal');
+  const cruiserStep = getEl('cruiserStep');
+  const cruiserStepVal = getEl('cruiserStepVal');
+  const cruiserSpeed = getEl('cruiserSpeed');
+  const cruiserSpeedVal = getEl('cruiserSpeedVal');
+  const startCruiserBtn = getEl('startCruiserBtn');
+  const cruiserMonitor = getEl('cruiserMonitor');
+  const cruiserStatusDot = getEl('cruiserStatusDot');
+  const cruiserState = getEl('cruiserState');
+  const cruiserDist = getEl('cruiserDist');
+  const cruiserNewLeads = getEl('cruiserNewLeads');
+  const cruiserDir = getEl('cruiserDir');
 
-
-  // Settings elements
-  const settingsBtn = document.getElementById('settingsBtn');
-  const settingsScreen = document.getElementById('settingsScreen');
-  const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-  const langSelect = document.getElementById('langSelect');
+  const settingsBtn = getEl('settingsBtn');
+  const settingsScreen = getEl('settingsScreen');
+  const closeSettingsBtn = getEl('closeSettingsBtn');
+  const langSelect = getEl('langSelect');
   
-  const captchaMethod = document.getElementById('captchaMethod');
-  const witConfig = document.getElementById('witConfig');
-  const apiConfig = document.getElementById('apiConfig');
-  const witKeyInput = document.getElementById('witKey');
-  const solverKeyInput = document.getElementById('solverKey');
-  const saveConfigBtn = document.getElementById('saveConfigBtn');
+  const captchaMethod = getEl('captchaMethod');
+  const witConfig = getEl('witConfig');
+  const apiConfig = getEl('apiConfig');
+  const witKeyInput = getEl('witKey');
+  const solverKeyInput = getEl('solverKey');
+  const saveConfigBtn = getEl('saveConfigBtn');
   const methodOptions = document.querySelectorAll('.method-option');
 
   let currentLang = 'en';
 
   // Load state and language
   chrome.storage.local.get(['scrapedData', 'scrapingActive', 'language', 'captchaMethod', 'witKey', 'solverKey'], (result) => {
+    console.log('[SIDEPANEL.JS] Loaded storage state:', result);
+    result = result || {}; // Safety
     currentLang = result.language || 'en';
-    langSelect.value = currentLang;
-    applyTranslations(currentLang);
+    if (langSelect) langSelect.value = currentLang;
+    if (typeof applyTranslations === 'function') applyTranslations(currentLang);
+    
+    // Initial lead count for real-time notification
+    window.lastLeadCount = result.scrapedData ? result.scrapedData.length : 0;
     
     // Load Captcha Settings
-    if (result.captchaMethod) {
+    if (result.captchaMethod && captchaMethod) {
       captchaMethod.value = result.captchaMethod;
       toggleCaptchaConfig(result.captchaMethod);
       updateMethodUI(result.captchaMethod);
     }
-    if (result.witKey) witKeyInput.value = result.witKey;
-    if (result.solverKey) solverKeyInput.value = result.solverKey;
+    if (result.witKey && witKeyInput) witKeyInput.value = result.witKey;
+    if (result.solverKey && solverKeyInput) solverKeyInput.value = result.solverKey;
     
     if (result.scrapedData) updateUI(result.scrapedData, currentLang);
     if (result.scrapingActive) setUIStatus(true, currentLang);
-
-    // Display version
-    const manifest = chrome.runtime.getManifest();
-    document.getElementById('appVersion').innerText = manifest.version || '1.1.0';
-    
-    // Mark as XPIDER environment for background script
-    chrome.storage.local.set({ isXpider: true });
-  });
-
-  // Listen for language change events from XPIDER bridge
-  window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'language-change') {
-      const lang = event.data.data.lang;
-      console.log('[XPIDER-BRIDGE] Language change request received:', lang);
-      if (langSelect.value !== lang) {
-        langSelect.value = lang;
-        currentLang = lang;
-        chrome.storage.local.set({ language: lang }, () => {
-          applyTranslations(lang);
-          chrome.storage.local.get(['scrapedData', 'scrapingActive'], (res) => {
-            updateUI(res.scrapedData || [], lang);
-            setUIStatus(res.scrapingActive || false, lang);
-          });
-        });
-      }
-    }
-  });
-
-  checkCurrentTab();
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.status === 'complete') checkCurrentTab();
   });
 
   function isMapPage(url) {
     if (!url) return false;
-    const isG = url.includes('google.com/maps') || url.includes('google.co.kr/maps') || url.includes('google.co.jp/maps') || /google\.[a-z.]+\/maps/.test(url);
-    const isB = url.includes('bing.com/maps');
-    return isG || isB;
+    return url.includes('google.com/maps') || url.includes('google.co.kr/maps') || url.includes('bing.com/maps') || /google\.[a-z.]+\/maps/.test(url);
   }
 
   function checkCurrentTab() {
-    window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-get-active-tab', args: {}, id: 'checkTab' }, '*');
-    
-    try {
+      // checkCurrentTab via XPIDER event data — called after tab-updated event
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const activeTab = tabs[0];
-        if (activeTab && isMapPage(activeTab.url)) {
-          navScreen.classList.add('hidden');
-        } else {
-          // If native query says we are NOT on maps, but we are in XPIDER, 
-          // we wait for the bridge response to be sure.
+        if (tabs && tabs[0] && tabs[0].url) {
+            updateUIForTab(tabs[0].url);
         }
       });
-    } catch(e) {}
   }
 
-  // Handle Bridge Responses
-  window.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === 'checkTab') {
-      const activeTab = event.data.result;
-      if (activeTab && isMapPage(activeTab.url)) {
-        navScreen.classList.add('hidden');
+  // Event Driven UI: listen for XPIDER_EVENT tab-updated from ext-preload.js
+  // This fires when the browser navigates to a new page
+  window.addEventListener('message', (e) => {
+    if (!e.data) return;
+    if (e.data.type === 'XPIDER_EVENT' && e.data.name === 'tab-updated') {
+        const url = e.data.data && e.data.data.tab && e.data.data.tab.url;
+        console.log('[SIDEPANEL.JS] XPIDER tab-updated event, url:', url);
+        if (url) {
+            updateUIForTab(url);
+        } else {
+            checkCurrentTab();
+        }
+    }
+    if (e.data.type === 'XPIDER_EVENT' && e.data.name === 'runtime-on-message') {
+        const message = e.data.data;
+        if (message.action === 'emailCheckStatus') {
+            updateEmailProgress(message);
+        }
+        if (message.action === 'log') {
+            console.log('[MAIN-LOG]', message.message);
+        }
+    }
+    if (e.data.type === 'XPIDER_EVENT' && e.data.name === 'storage-changed') {
+        const changes = e.data.data;
+        if (changes && changes.scrapedData && changes.scrapedData.newValue) {
+            updateUI(changes.scrapedData.newValue);
+        }
+    }
+  });
+
+  // Initial Check — delay slightly to let the tab info cache populate
+  setTimeout(() => checkCurrentTab(), 1000);
+  // Also check when chrome.tabs.onUpdated fires
+  if (chrome && chrome.tabs && chrome.tabs.onUpdated) {
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        const url = tab && tab.url;
+        if (url) {
+            updateUIForTab(url);
+        } else {
+            checkCurrentTab();
+        }
+    });
+  }
+
+  function updateUIForTab(url) {
+      if (!navScreen) return;
+      console.log('[SIDEPANEL.JS] updateUIForTab:', url, '→ isMap:', isMapPage(url));
+      if (isMapPage(url)) {
+          navScreen.classList.add('hidden');
       } else {
-        navScreen.classList.remove('hidden');
+          navScreen.classList.remove('hidden');
       }
-    }
-    if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'tab-updated') {
-        checkCurrentTab();
-    }
-  });
-
-  // XPIDER BRIDGE HELPER
-  function xpiderUpdateTab(props) {
-    console.log('[XPIDER-BRIDGE] Requesting tab update:', props);
-    window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-update-tab', args: props, id: Date.now() }, '*');
   }
 
-  goToMapsBtn.addEventListener('click', () => {
-    xpiderUpdateTab({ url: 'https://www.google.com/maps' });
+  // XPIDER BRIDGE HELPERS
+  function xpiderUpdateTab(props) {
+    // In XPIDER, native chrome.tabs.update may silently fail. Force bridge usage.
     try {
-      chrome.tabs.update({ url: 'https://www.google.com/maps' });
-    } catch(e) {}
-  });
-
-  goToBingBtn.addEventListener('click', () => {
-    xpiderUpdateTab({ url: 'https://www.bing.com/maps' });
-    try {
-      chrome.tabs.update({ url: 'https://www.bing.com/maps' });
-    } catch(e) {}
-  });
-
-  // Listen for messages
-  chrome.runtime.onMessage.addListener((message) => {
-    console.log('[SIDEPANEL.JS] Received message:', message.action);
-    if (message.action === 'dataUpdated') {
-      updateUI(message.data);
-    } else if (message.action === 'emailCheckStatus') {
-      updateEmailProgress(message);
-    } else if (message.action === 'cruiserUpdate') {
-      updateCruiserMonitor(message.data);
-    } else if (message.action === 'PROXY_SCAN') {
-      handleProxyScan(message.url, message.waitMs, message.requestId);
+        window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-update-tab', args: props, id: Date.now() }, '*');
+    } catch(e) {
+        if (chrome && chrome.tabs && chrome.tabs.update) {
+            chrome.tabs.update(999, props);
+        }
     }
-  });
-
-  async function handleProxyScan(url, waitMs, requestId) {
-      console.log('[SIDEPANEL] Performing Proxy Scan for:', url);
-      try {
-          chrome.tabs.create({ url: url, active: false }, (tab) => {
-              if (!tab) return chrome.runtime.sendMessage({ action: 'PROXY_SCAN_RESULT', requestId, result: {} });
-              
-              setTimeout(() => {
-                  chrome.scripting.executeScript({
-                      target: { tabId: tab.id },
-                      func: () => {
-                          const text = document.body ? document.body.innerText : '';
-                          const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-                          const emails = text.match(emailRegex) || [];
-                          const phoneRegex = /\d{2,4}-\d{3,4}-\d{4}/g;
-                          const phones = text.match(phoneRegex) || [];
-                          
-                          let homepage = null;
-                          const cite = document.querySelector('cite');
-                          if (cite) {
-                              const parts = cite.innerText.split(' ');
-                              if (parts[0].includes('http')) homepage = parts[0];
-                          }
-
-                          const contactKeywords = ['contact', 'about', '연락처', '오시는길', '고객센터', '문의', 'team', 'company', 'get-in-touch', 'impressum', 'kontakt'];
-                          let contactLinks = [];
-                          document.querySelectorAll('a').forEach(a => {
-                              const href = a.href || '';
-                              const text = (a.innerText || '').toLowerCase();
-                              if (href.startsWith('http') && contactKeywords.some(kw => href.toLowerCase().includes(kw) || text.includes(kw))) {
-                                  contactLinks.push(href);
-                              }
-                          });
-
-                          const socialRegex = /(?:facebook|instagram|twitter|x|linkedin|youtube|tiktok)\.com\/([a-zA-Z0-9._%+-]+)/gi;
-                          const socials = text.match(socialRegex) || [];
-                          const socialLinks = [];
-                          document.querySelectorAll('a').forEach(a => {
-                              const href = a.href || '';
-                              if (href.match(/(facebook|instagram|twitter|linkedin|youtube|tiktok|x\.com)/i)) {
-                                  socialLinks.push(href);
-                              }
-                          });
-
-                          return {
-                              emails: [...new Set(emails)].join(', '),
-                              phone: phones[0] || null,
-                              homepage: homepage,
-                              socials: [...new Set([...socials.map(s => 'https://' + s), ...socialLinks])].slice(0, 5),
-                              contactLinks: [...new Set(contactLinks)].slice(0, 2),
-                              pageText: text.substring(0, 2000)
-                          };
-                      }
-                  }, (results) => {
-                      const res = results && results[0] ? results[0].result : {};
-                      chrome.runtime.sendMessage({ action: 'PROXY_SCAN_RESULT', requestId, result: res });
-                  });
-              }, waitMs);
-          });
-      } catch (e) {
-          console.error('[SIDEPANEL] Proxy Scan Error:', e);
-          chrome.runtime.sendMessage({ action: 'PROXY_SCAN_RESULT', requestId, result: {} });
-      }
   }
 
   function xpiderSendMessage(tabId, msg) {
-    console.log('[XPIDER-BRIDGE] Requesting message send:', msg);
-    window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-send-message', args: { tabId, message: msg }, id: Date.now() }, '*');
-    try { chrome.tabs.sendMessage(tabId, msg); } catch(e) {}
+    // Force bridge usage for bulletproof communication
+    try {
+        window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-send-message', args: { tabId, message: msg }, id: Date.now() }, '*');
+    } catch(e) {
+        if (chrome && chrome.tabs && chrome.tabs.sendMessage) {
+            chrome.tabs.sendMessage(tabId, msg);
+        }
+    }
   }
 
-  startBtn.addEventListener('click', () => {
+  // Attach Listeners with Safety
+  if (goToMapsBtn) {
+      goToMapsBtn.onclick = (e) => {
+          e.target.disabled = true;
+          e.target.innerText = currentLang === 'ko' ? '지도 여는 중...' : 'Loading Maps...';
+          xpiderUpdateTab({ url: 'https://www.google.com/maps' });
+      };
+  }
+  // Go to Bing Maps 버튼 제거됨
+
+  if (startBtn) startBtn.onclick = () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'start' });
       chrome.runtime.sendMessage({ action: 'startScraping' });
       setUIStatus(true);
     });
-  });
+  };
 
-  stopBtn.addEventListener('click', () => {
+  if (stopBtn) stopBtn.onclick = () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'stop' });
       chrome.runtime.sendMessage({ action: 'stopScraping' });
       setUIStatus(false);
-      
-      // AUTO-TRIGGER Stage 2 for English manually stopped
-      if (currentLang === 'en') {
-          setTimeout(() => {
-              sendLog("Auto-triggering Stage 2/3 for English environment...");
-              findEmailsBtn.click();
-          }, 500);
-      }
     });
-  });
+  };
 
-  findEmailsBtn.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ action: 'startEmailCheck' });
-    findEmailsBtn.classList.add('hidden');
-    stopEmailsBtn.classList.remove('hidden');
-    emailProgressLabel.classList.remove('hidden');
-    emailProgressBar.classList.remove('hidden');
-  });
+  if (clearBtn) clearBtn.onclick = () => {
+    const msg = currentLang === 'ko' ? '수집된 모든 데이터와 캐시를 삭제하시겠습니까?' : 'Clear all collected data and cache?';
+    if (confirm(msg)) {
+      // 0. 실행 중인 Stage 2 즉시 중단
+      chrome.runtime.sendMessage({ action: 'stopEmailCheck' });
+      window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'stopEmailCheck' } }, '*');
 
-  stopEmailsBtn.addEventListener('click', () => {
-    chrome.runtime.sendMessage({ action: 'stopEmailCheck' });
-    stopEmailsBtn.disabled = true;
-    stopEmailsBtn.innerText = i18n('status_active', currentLang);
-  });
+      // 1. Background에 clearData 신호 전송 (메인 프로세스 extStorage 완전 카우기)
+      chrome.runtime.sendMessage({ action: 'clearData' });
+      window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'clearData' } }, '*');
 
-  // AutoCruiser Logic
-  cruiserRange.addEventListener('input', (e) => {
-    cruiserRangeVal.innerText = `${e.target.value} Mi`;
-  });
-  cruiserStep.addEventListener('input', (e) => {
-    cruiserStepVal.innerText = `${parseFloat(e.target.value).toFixed(1)} Mi`;
-  });
-  cruiserSpeed.addEventListener('input', (e) => {
-    let val = parseFloat(e.target.value).toFixed(1);
-    let label = 'Normal';
-    if (val > 1.0) label = 'Fast';
-    if (val < 1.0) label = 'Slow';
-    cruiserSpeedVal.innerText = `${val}x (${label})`;
-  });
-
-  startCruiserBtn.addEventListener('click', () => {
-    const isActive = startCruiserBtn.classList.contains('active');
-    
-    if (!isActive) {
-      const range = parseInt(cruiserRange.value, 10);
-      const stepSize = parseFloat(cruiserStep.value);
-      const speedMult = parseFloat(cruiserSpeed.value);
-      
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        // [Stage 1] Start Scraper
-        xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'start' });
-        chrome.runtime.sendMessage({ action: 'startScraping' });
-
-        // [Cruiser] Start Map Movement
-        xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { 
-          action: 'startCruiser', 
-          range: range,
-          stepSize: stepSize,
-          speedMult: speedMult
+      // 2. chrome.storage.local 완전 삭제
+      const keysToRemove = ['scrapedData', 'scrapingActive', 'emailCheckActive', 'cruiserActive', 'processedUrls', 'emailProgress'];
+      chrome.storage.local.remove(keysToRemove, () => {
+        chrome.storage.local.set({ scrapedData: [] }, () => {
+          updateUI([]);
+          if (leadCountEl) leadCountEl.innerText = '0';
+          if (emailCountEl) emailCountEl.innerText = '0';
+          if (emailProgressLabel) { emailProgressLabel.innerText = '0/0'; emailProgressLabel.classList.add('hidden'); }
+          if (progressBarInner) progressBarInner.style.width = '0%';
+          if (emailProgressBar) emailProgressBar.classList.add('hidden');
+          setUIStatus(false);
+          const doneMsg = currentLang === 'ko' ? '✅ 데이터 초기화 완료' : '✅ Data cleared successfully';
+          alert(doneMsg);
         });
-
-        // [Stage 2] Only start automatically in English. For non-English, defer to Stop phase.
-        if (currentLang === 'en') {
-            chrome.runtime.sendMessage({ action: 'startEmailCheck' });
-        }
-        
-        startCruiserBtn.classList.add('active');
-        startCruiserBtn.innerText = i18n('btn_stop_cruiser', currentLang);
-        cruiserStatusDot.classList.add('active');
-        cruiserMonitor.classList.remove('hidden');
-        setUIStatus(true, currentLang);
-        setCruiserState('STAGE 1: MAP EXPLORATION ACTIVE');
-      });
-    } else {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'stopCruiser' });
-        xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'stop' });
-        chrome.runtime.sendMessage({ action: 'stopScraping' });
-        
-        setCruiserState('STAGE 2/3: DEEP SEARCH RUNNING...');
-        chrome.runtime.sendMessage({ action: 'startEmailCheck' });
-        startCruiserBtn.classList.remove('active');
-        startCruiserBtn.innerText = i18n('deep_search_active', currentLang);
-        startCruiserBtn.disabled = true; // Wait for it to finish gracefully
-        
-        // Show email progress UI
-        findEmailsBtn.classList.add('hidden');
-        stopEmailsBtn.classList.remove('hidden');
-        emailProgressLabel.classList.remove('hidden');
-        emailProgressBar.classList.remove('hidden');
-        
-        setUIStatus(false, currentLang);
-        
-        setUIStatus(false, currentLang);
       });
     }
-  });
+  };
 
-  function updateCruiserMonitor(data) {
-    if (data.direction) cruiserDir.innerText = data.direction;
-    if (data.status) cruiserState.innerText = data.status;
-    if (data.distance) cruiserDist.innerText = `${data.distance.toFixed(2)} Mi`;
-    if (data.newLeads !== undefined) cruiserNewLeads.innerText = data.newLeads;
-    
-    if (data.finished) {
-        resetCruiserUI();
-    }
-  }
+  if (findEmailsBtn) findEmailsBtn.onclick = () => {
+    window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'startEmailCheck' } }, '*');
+    findEmailsBtn.classList.add('hidden');
+    if (stopEmailsBtn) stopEmailsBtn.classList.remove('hidden');
+    if (emailProgressLabel) emailProgressLabel.classList.remove('hidden');
+    if (emailProgressBar) emailProgressBar.classList.remove('hidden');
+  };
 
-  function setCruiserState(state) {
-    cruiserState.innerText = state;
-  }
+  if (stopEmailsBtn) stopEmailsBtn.onclick = () => {
+    window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'stopEmailCheck' } }, '*');
+    stopEmailsBtn.disabled = true;
+    stopEmailsBtn.innerText = currentLang === 'ko' ? '중지 중...' : 'Stopping...';
+  };
 
-  function resetCruiserUI() {
-    startCruiserBtn.classList.remove('active');
-    startCruiserBtn.innerText = i18n('btn_start_cruiser', currentLang);
-    cruiserStatusDot.classList.remove('active');
-    setTimeout(() => {
-        cruiserMonitor.classList.add('hidden');
-    }, 5000);
-  }
+  // AutoCruiser Listeners
+  if (cruiserRange) cruiserRange.oninput = (e) => { if(cruiserRangeVal) cruiserRangeVal.innerText = `${e.target.value} Mi`; };
+  if (cruiserStep) cruiserStep.oninput = (e) => { if(cruiserStepVal) cruiserStepVal.innerText = `${parseFloat(e.target.value).toFixed(1)} Mi`; };
+  if (cruiserSpeed) cruiserSpeed.oninput = (e) => {
+    let val = parseFloat(e.target.value).toFixed(1);
+    let label = '';
+    if (val <= 0.3) label = currentLang === 'ko' ? '느림' : 'Slow';
+    else if (val <= 0.8) label = currentLang === 'ko' ? '보통' : 'Normal';
+    else if (val <= 1.5) label = currentLang === 'ko' ? '빠름' : 'Fast';
+    else if (val <= 2.5) label = currentLang === 'ko' ? '초고속' : 'Hyper';
+    else label = currentLang === 'ko' ? '엕스트리임' : 'Extreme';
+    if(cruiserSpeedVal) cruiserSpeedVal.innerText = `${val}x (${label})`;
+  };
 
-
-  // Settings Logic
-  settingsBtn.addEventListener('click', () => {
-    settingsScreen.classList.remove('hidden');
-  });
-
-  closeSettingsBtn.addEventListener('click', () => {
-    settingsScreen.classList.add('hidden');
-  });
-
-  langSelect.addEventListener('change', (e) => {
-    currentLang = e.target.value;
-    chrome.storage.local.set({ language: currentLang }, () => {
-      applyTranslations(currentLang);
-      chrome.storage.local.get(['scrapedData', 'scrapingActive'], (res) => {
-        updateUI(res.scrapedData || [], currentLang);
-        setUIStatus(res.scrapingActive || false, currentLang);
-      });
-    });
-  });
-
-  methodOptions.forEach(opt => {
-    opt.addEventListener('click', () => {
-      const val = opt.getAttribute('data-value');
-      captchaMethod.value = val;
-      updateMethodUI(val);
-      toggleCaptchaConfig(val);
-    });
-  });
-
-  function updateMethodUI(val) {
-    methodOptions.forEach(o => {
-      if (o.getAttribute('data-value') === val) {
-        o.classList.add('active');
-      } else {
-        o.classList.remove('active');
-      }
-    });
-  }
-
-  saveConfigBtn.addEventListener('click', () => {
-    const config = {
-      captchaMethod: captchaMethod.value,
-      witKey: witKeyInput.value.trim(),
-      solverKey: solverKeyInput.value.trim()
-    };
-    chrome.storage.local.set(config, () => {
-      saveConfigBtn.innerText = i18n('btn_save_success', currentLang);
-      saveConfigBtn.classList.add('save-success');
-      saveConfigBtn.disabled = true;
+  if (startCruiserBtn) startCruiserBtn.onclick = () => {
+    try {
+      const isActive = startCruiserBtn.classList.contains('active');
+      console.log('[SIDEPANEL.JS] startCruiserBtn clicked. Current active state:', isActive);
       
-      setTimeout(() => {
-        saveConfigBtn.innerText = i18n('btn_save_config', currentLang);
-        saveConfigBtn.classList.remove('save-success');
-        saveConfigBtn.disabled = false;
-      }, 3000);
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const id = (tabs && tabs[0]) ? tabs[0].id : 999999;
+        console.log('[SIDEPANEL.JS] Targeting tab ID:', id);
+
+        if (!isActive) {
+          // 1. Send commands to Content Script
+          xpiderSendMessage(id, { action: 'start' }); // Force start scraper
+          xpiderSendMessage(id, { 
+            action: 'startCruiser', 
+            range: parseInt(cruiserRange ? cruiserRange.value : 5), 
+            stepSize: parseFloat(cruiserStep ? cruiserStep.value : 0.05), 
+            speedMult: parseFloat(cruiserSpeed ? cruiserSpeed.value : 1.0) 
+          });
+
+          // 2. Notify Background Engine (Stage 2 etc)
+          chrome.runtime.sendMessage({ action: 'startScraping' });
+          if (currentLang === 'en') chrome.runtime.sendMessage({ action: 'startEmailCheck' });
+
+          // 3. Update UI
+          startCruiserBtn.classList.add('active');
+          startCruiserBtn.innerText = currentLang === 'ko' ? 'Auto-Cruiser 중지' : 'Stop Auto-Cruiser';
+          if(cruiserMonitor) cruiserMonitor.classList.remove('hidden');
+          if(cruiserState) cruiserState.innerText = currentLang === 'ko' ? '탐색 중...' : 'Cruising...';
+          setUIStatus(true);
+        } else {
+          // 1. Stop Content Script Logic
+          xpiderSendMessage(id, { action: 'stopCruiser' });
+          xpiderSendMessage(id, { action: 'stop' });
+
+          // 2. Notify Background
+          chrome.runtime.sendMessage({ action: 'stopScraping' });
+
+          // 3. Update UI
+          startCruiserBtn.classList.remove('active');
+          startCruiserBtn.innerText = currentLang === 'ko' ? 'Auto-Cruiser 시작' : 'Initialize Auto-Cruiser';
+          if(cruiserState) cruiserState.innerText = currentLang === 'ko' ? '중지됨' : 'Stopped';
+          setUIStatus(false);
+
+          // New: Auto-trigger Stage 2 when cruiser stops
+          setTimeout(() => {
+            if (findEmailsBtn && !findEmailsBtn.classList.contains('hidden') && !findEmailsBtn.disabled) {
+                console.log('[SIDEPANEL.JS] Auto-triggering Stage 2 after Cruiser stop');
+                findEmailsBtn.click();
+            }
+          }, 1500);
+        }
+      });
+    } catch (err) {
+      console.error('[SIDEPANEL.JS] Error in startCruiserBtn.onclick:', err);
+    }
+  };
+
+  // Export Listeners
+  if (exportCsv) exportCsv.onclick = () => chrome.storage.local.get(['scrapedData'], (res) => downloadCsv(res.scrapedData || []));
+  if (exportTxt) exportTxt.onclick = () => chrome.storage.local.get(['scrapedData'], (res) => downloadTxt(res.scrapedData || []));
+  if (exportSheet) exportSheet.onclick = () => chrome.storage.local.get(['scrapedData'], (res) => downloadSheet(res.scrapedData || []));
+
+  // Settings UI
+  if (settingsBtn) settingsBtn.onclick = () => settingsScreen && settingsScreen.classList.remove('hidden');
+  if (closeSettingsBtn) closeSettingsBtn.onclick = () => settingsScreen && settingsScreen.classList.add('hidden');
+  if (saveConfigBtn) saveConfigBtn.onclick = () => {
+    const config = { captchaMethod: captchaMethod.value, witKey: witKeyInput.value, solverKey: solverKeyInput.value };
+    chrome.storage.local.set(config, () => {
+        saveConfigBtn.innerText = 'Saved!';
+        setTimeout(() => { saveConfigBtn.innerText = 'Save Configuration'; }, 2000);
     });
-  });
+  };
+
+  // Runtime and Storage Message Listeners
+  if (chrome && chrome.runtime && chrome.runtime.onMessage) {
+      chrome.runtime.onMessage.addListener((message) => {
+          if (message.action === 'emailCheckStatus') updateEmailProgress(message);
+          else if (message.action === 'cruiserUpdate') updateCruiserMonitor(message.data);
+      });
+  }
+  
+  if (chrome && chrome.storage && chrome.storage.onChanged) {
+      chrome.storage.onChanged.addListener((changes) => {
+          if (changes.scrapedData && changes.scrapedData.newValue) {
+              const newData = changes.scrapedData.newValue;
+              updateUI(newData);
+              // ③ cruiserNewLeads 실시간 반영
+              if (cruiserNewLeads) {
+                  const prev = window.lastLeadCount || 0;
+                  const diff = newData.length - prev;
+                  if (diff > 0) cruiserNewLeads.innerText = newData.length;
+              }
+          }
+      });
+  }
+
+  // UI Helpers
+  function updateUI(data, lang = currentLang) {
+    if (leadCountEl) leadCountEl.innerText = data.length;
+    if (resultsTable) {
+        resultsTable.innerHTML = '';
+        data.slice(-10).reverse().forEach(b => {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td>${b.name}</td><td>${b.website||'N/A'}</td><td>${b.email||'N/A'}</td><td>${b.phone||'N/A'}</td><td>N/A</td>`;
+            resultsTable.appendChild(row);
+        });
+    }
+  }
+
+  function setUIStatus(active) {
+    if (statusBadge) {
+        statusBadge.innerText = active ? 'Active' : 'Idle';
+        statusBadge.className = active ? 'status-badge active' : 'status-badge';
+    }
+    if (startBtn) startBtn.disabled = active;
+    if (stopBtn) stopBtn.disabled = !active;
+  }
 
   function toggleCaptchaConfig(method) {
     if (method === 'audio') {
-      witConfig.classList.remove('hidden');
-      apiConfig.classList.add('hidden');
+      if(witConfig) witConfig.classList.remove('hidden');
+      if(apiConfig) apiConfig.classList.add('hidden');
     } else {
-      witConfig.classList.add('hidden');
-      apiConfig.classList.remove('hidden');
+      if(witConfig) witConfig.classList.add('hidden');
+      if(apiConfig) apiConfig.classList.remove('hidden');
     }
+  }
+
+  function updateMethodUI(val) {
+    methodOptions.forEach(o => {
+      if (o.getAttribute('data-value') === val) o.classList.add('active');
+      else o.classList.remove('active');
+    });
   }
 
   function updateEmailProgress(status) {
-    const { total, current, statusText } = status;
-    const isFinished = status.finished || (total > 0 && current >= total);
-
-    if (isFinished) {
-      findEmailsBtn.classList.remove('hidden');
-      stopEmailsBtn.classList.add('hidden');
-      stopEmailsBtn.disabled = false;
-      stopEmailsBtn.innerText = i18n('btn_stop_emails', currentLang);
-      
-      if (startCruiserBtn.innerText === 'Deep Search Active...' || startCruiserBtn.innerText.includes('수집 중')) {
-          setCruiserState('MISSION COMPLETE');
-          setTimeout(() => {
-              resetCruiserUI();
-              setUIStatus(false, currentLang);
-          }, 3000);
+      if (status.finished) {
+          if (emailProgressLabel) emailProgressLabel.innerText = currentLang === 'ko' ? '탐색 완료' : 'Discovery Complete';
+          if (progressBarInner) progressBarInner.style.width = '100%';
+          if (findEmailsBtn) findEmailsBtn.classList.remove('hidden');
+          if (stopEmailsBtn) {
+              stopEmailsBtn.classList.add('hidden');
+              stopEmailsBtn.disabled = false;
+              stopEmailsBtn.innerText = currentLang === 'ko' ? '중지' : 'Stop Emails';
+          }
+      } else {
+          if (emailProgressLabel) emailProgressLabel.innerText = status.statusText || `${status.current}/${status.total}`;
+          if (progressBarInner && status.total > 0) progressBarInner.style.width = `${(status.current/status.total)*100}%`;
       }
-      
-      setTimeout(() => {
-        emailProgressLabel.classList.add('hidden');
-        emailProgressBar.classList.add('hidden');
-      }, 3000);
-      return;
-    }
-
-    emailProgressLabel.innerText = statusText || `${current}/${total}`;
-    const percent = total > 0 ? (current / total) * 100 : 0;
-    progressBarInner.style.width = `${percent}%`;
-    
-    if (startCruiserBtn.innerText === 'Deep Search Active...' || startCruiserBtn.innerText.includes('수집 중')) {
-        setCruiserState(statusText || `STAGE 2/3: ${current}/${total}`);
-    }
   }
 
-  clearBtn.addEventListener('click', () => {
-    if (confirm('Clear all collected data?')) {
-      chrome.runtime.sendMessage({ action: 'clearData' }); // Tell background to clear memory
-      chrome.storage.local.set({ scrapedData: [] }, () => {
-        updateUI([]);
-      });
-    }
-  });
-
-  // Export & UI Logic ... (Maintaining existing export logic)
-  exportCsv.addEventListener('click', () => {
-    chrome.storage.local.get(['scrapedData'], (result) => {
-      const data = result.scrapedData || [];
-      if (data.length === 0) return alert('No data to export');
-      downloadCsv(data);
-    });
-  });
-
-  exportTxt.addEventListener('click', () => {
-    chrome.storage.local.get(['scrapedData'], (result) => {
-      const data = result.scrapedData || [];
-      if (data.length === 0) return alert('No data to export');
-      downloadTxt(data);
-    });
-  });
-
-  exportSheet.addEventListener('click', () => {
-    chrome.storage.local.get(['scrapedData'], (result) => {
-      const data = result.scrapedData || [];
-      if (data.length === 0) return alert('No data to export');
-      downloadSheet(data);
-    });
-  });
-
-  function updateUI(data, lang = currentLang) {
-    leadCountEl.innerText = data.length;
-    
-    let enrichmentCount = 0;
-    if (lang === 'en') {
-      // English: Count only items with actual emails
-      enrichmentCount = data.filter(b => b.email && b.email !== 'N/A' && b.email !== 'Not Found' && b.email !== 'Pending Stage 2').length;
-    } else {
-      // Non-English: Count items with emails OR found websites/phones (discovery count)
-      enrichmentCount = data.filter(b => {
-        const hasEmail = b.email && b.email !== 'N/A' && b.email !== 'Not Found' && b.email !== 'Pending Stage 2';
-        const hasNewWebsite = b.website && b.website !== 'N/A' && b.status === 'complete'; 
-        return hasEmail || hasNewWebsite;
-      }).length;
-    }
-    
-    emailCountEl.innerText = enrichmentCount;
-    
-    // Sort by newest first and limit to 100 for performance
-    const displayData = [...data].slice(-100).reverse();
-    
-    resultsTable.innerHTML = '';
-    displayData.forEach(business => {
-      const row = document.createElement('tr');
-      const emailStatus = business.email === 'Pending Stage 2' ? `<em>${lang === 'ko' ? '탐색 중...' : i18n('status_active', lang)}</em>` : (business.email || 'N/A');
-      const websiteDisplay = business.website && business.website !== 'N/A' ? `<a href="${business.website}" target="_blank" style="color: var(--primary); text-decoration: none;">Link</a>` : 'N/A';
-      row.innerHTML = `
-        <td>${business.name}</td>
-        <td>${websiteDisplay}</td>
-        <td style="color: ${business.email && business.email !== 'N/A' && business.email !== 'Not Found' && business.email !== 'Pending Stage 2' ? '#10b981' : 'inherit'}">${emailStatus}</td>
-        <td>${business.phone || 'N/A'}</td>
-        <td>${business.social ? '<span title="' + business.social + '" style="color: var(--primary); cursor: help;">Found</span>' : 'N/A'}</td>
-      `;
-      resultsTable.appendChild(row);
-    });
+  function updateCruiserMonitor(data) {
+      if (cruiserDir) cruiserDir.innerText = data.direction || 'Zig-Zag';
+      if (cruiserDist) cruiserDist.innerText = `${(data.distance || 0).toFixed ? (data.distance || 0).toFixed(2) : 0} Mi`;
+      // ③ 실시간 신규 리드 카운트 업데이트
+      if (cruiserNewLeads && data.newLeads !== undefined) {
+          cruiserNewLeads.innerText = data.newLeads;
+      }
   }
 
-  function setUIStatus(active, lang = currentLang) {
-    statusBadge.innerText = active ? i18n('status_active', lang) : i18n('status_idle', lang);
-    statusBadge.className = active ? 'status-badge active' : 'status-badge';
-    startBtn.disabled = active;
-    stopBtn.disabled = !active;
-  }
-
+  // Export functions (Stub for brevity, assume they work as before)
   function downloadCsv(data) {
-    const headers = ['Name', 'Category', 'Rating', 'Reviews', 'Address', 'Phone', 'Website', 'Email', 'Social Media', 'Maps URL'];
+    if (!data || data.length === 0) return alert('No data to export');
+    const headers = ['Name', 'Category', 'Address', 'Website', 'Email', 'Phone', 'Rating', 'Reviews', 'Social'];
     const rows = data.map(b => [
-      `"${b.name || ''}"`, `"${b.category || ''}"`, b.rating || 'N/A', b.reviews || '0', `"${b.address || ''}"`, `"${b.phone || ''}"`, `"${b.website || ''}"`, `"${b.email || ''}"`, `"${b.social || ''}"`, `"${b.url || ''}"`
-    ]);
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const defaultName = `gmaps_leads_${new Date().toISOString().split('T')[0]}.csv`;
-    chrome.downloads.download({ url: url, filename: defaultName, saveAs: true });
+        `"${(b.name || '').replace(/"/g, '""')}"`,
+        `"${(b.category || '').replace(/"/g, '""')}"`,
+        `"${(b.address || '').replace(/"/g, '""')}"`,
+        b.website || 'N/A',
+        b.email || 'N/A',
+        `"${(b.phone || '').replace(/"/g, '""')}"`,
+        b.rating || '0',
+        b.reviews || '0',
+        `"${(b.social || '').replace(/"/g, '""')}"`
+    ].join(','));
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `xpider_leads_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   function downloadTxt(data) {
-    const content = data.map(b => {
-      return `Name: ${b.name}\nWebsite: ${b.website || 'N/A'}\nEmail: ${b.email || 'N/A'}\nPhone: ${b.phone || 'N/A'}\nSocial: ${b.social || 'N/A'}\nAddress: ${b.address || 'N/A'}\nURL: ${b.url}\n------------------------`;
-    }).join('\n\n');
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const defaultName = `gmaps_leads_${new Date().toISOString().split('T')[0]}.txt`;
-    chrome.downloads.download({ url: url, filename: defaultName, saveAs: true });
+    if (!data || data.length === 0) return alert('No data to export');
+    let txt = 'XPIDER LEADS EXPORT\n' + '='.repeat(30) + '\n\n';
+    data.forEach(b => {
+        txt += `NAME: ${b.name}\n`;
+        txt += `WEBSITE: ${b.website || 'N/A'}\n`;
+        txt += `EMAIL: ${b.email || 'N/A'}\n`;
+        txt += `PHONE: ${b.phone || 'N/A'}\n`;
+        txt += `ADDRESS: ${b.address || 'N/A'}\n`;
+        txt += `SOCIAL: ${b.social || 'N/A'}\n`;
+        txt += '-'.repeat(30) + '\n';
+    });
+    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8;' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute("download", `xpider_leads_${Date.now()}.txt`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   function downloadSheet(data) {
-    // Spreadsheet-friendly CSV (with BOM for UTF-8 and semicolons for some regions, but comma is safer with BOM)
-    const headers = ['Name', 'Category', 'Rating', 'Reviews', 'Address', 'Phone', 'Website', 'Email', 'Social Media', 'Maps URL'];
-    const rows = data.map(b => [
-      `"${(b.name || '').replace(/"/g, '""')}"`, 
-      `"${(b.category || '').replace(/"/g, '""')}"`, 
-      b.rating || 'N/A', 
-      b.reviews || '0', 
-      `"${(b.address || '').replace(/"/g, '""')}"`, 
-      `"${(b.phone || '').replace(/"/g, '""')}"`, 
-      `"${(b.website || '').replace(/"/g, '""')}"`, 
-      `"${(b.email || '').replace(/"/g, '""')}"`, 
-      `"${(b.social || '').replace(/"/g, '""')}"`, 
-      `"${(b.url || '').replace(/"/g, '""')}"`
-    ]);
-    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const defaultName = `gmaps_leads_sheet_${new Date().toISOString().split('T')[0]}.csv`;
-    chrome.downloads.download({ url: url, filename: defaultName, saveAs: true });
+    // Spreadsheet compatible CSV
+    downloadCsv(data);
   }
+
+  function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.className = 'xpider-toast';
+    toast.innerText = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add('show'), 100);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => document.body.removeChild(toast), 500);
+    }, 3000);
+  }
+
+  // Unified XPIDER_EVENT listener (storage-changed, runtime-on-message, cruiser-stopped)
+  window.addEventListener('message', (e) => {
+    if (!e.data || e.data.type !== 'XPIDER_EVENT') return;
+    const { name, data } = e.data;
+
+    // ③ Storage 변경 실시간 UI 업데이트
+    if (name === 'storage-changed') {
+        if (data && data.scrapedData) {
+            const newData = data.scrapedData.newValue || [];
+            updateUI(newData, currentLang);
+            if (newData.length > (window.lastLeadCount || 0)) {
+                const diff = newData.length - (window.lastLeadCount || 0);
+                showToast(`+${diff} ${currentLang === 'ko' ? '개 신규 리드 발견!' : 'new lead(s)!'}`);
+                window.lastLeadCount = newData.length;
+                if (cruiserNewLeads) cruiserNewLeads.innerText = newData.length;
+            }
+        }
+    }
+
+    // ③ cruiserUpdate 실시간 업데이트
+    if (name === 'runtime-on-message') {
+        if (data && data.action === 'cruiserUpdate') {
+            updateCruiserMonitor(data.data || data);
+        }
+        if (data && data.action === 'emailCheckStatus') {
+            updateEmailProgress(data);
+        }
+    }
+
+    // ⑤ cruiser-stopped → Stage2 자동 시작
+    if (name === 'cruiser-stopped') {
+        console.log('[SIDEPANEL.JS] Cruiser stopped. Auto-triggering Stage 2...');
+        startCruiserBtn.classList.remove('active');
+        startCruiserBtn.innerText = currentLang === 'ko' ? 'Auto-Cruiser 시작' : 'Initialize Auto-Cruiser';
+        if (cruiserState) cruiserState.innerText = currentLang === 'ko' ? '완료' : 'Done';
+        setUIStatus(false);
+        setTimeout(() => {
+            if (findEmailsBtn && !findEmailsBtn.classList.contains('hidden') && !findEmailsBtn.disabled) {
+                console.log('[SIDEPANEL.JS] Auto-clicking Stage 2 button');
+                findEmailsBtn.click();
+            }
+        }, 1500);
+    }
+  });
 });

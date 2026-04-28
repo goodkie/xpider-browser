@@ -110,6 +110,17 @@ async function checkAppUpdate() {
 async function syncExtensionsFromGitHub(extDir, onProgress) {
   const progress = (msg) => { if (typeof onProgress === 'function') onProgress(msg); };
   const result = { updated: [], installed: [] };
+  let extFolders = []; // try 블록 밖에 선언 → cleanup 코드에서 접근 가능
+
+  // ── 개발 모드에서는 GitHub 자동 업데이트 비활성화 ──────────────
+  // 개발 중에는 browser/extensions/ 폴더를 직접 편집하므로
+  // GitHub 버전이 로컬 수정을 덮어쓰는 것을 방지합니다.
+  // 배포(app.isPackaged) 환경에서만 자동 업데이트가 실행됩니다.
+  if (!app.isPackaged) {
+    console.log('[Updater] DEV MODE: GitHub auto-update skipped. Edit extensions/ directly.');
+    progress('⚙️ 개발 모드: GitHub 자동 업데이트 건너뜀 (extensions/ 폴더 직접 편집 모드)');
+    return result;
+  }
 
   try {
     const res = await githubGet(`/repos/${REPO_OWNER}/${REPO_NAME}/contents/extensions`);
@@ -119,7 +130,7 @@ async function syncExtensionsFromGitHub(extDir, onProgress) {
       return result;
     }
 
-    const extFolders = res.body.filter(item => item.type === 'dir');
+    extFolders = res.body.filter(item => item.type === 'dir');
     progress(`🔍 ${extFolders.length}개 익스텐션 버전 확인 중...`);
 
     for (const folder of extFolders) {

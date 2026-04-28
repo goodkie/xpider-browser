@@ -15,12 +15,9 @@
       <div class="nav-banner-content">
         <div class="nav-banner-text">
           <h2 data-i18n="nav_title">Ready to Find Businesses?</h2>
-          <p data-i18n="nav_desc">Please navigate to Google Maps or Bing Maps to start fetching leads.</p>
+          <p data-i18n="nav_desc">Please navigate to Google Maps to start fetching leads.</p>
         </div>
-        <div class="nav-btns" style="display: flex; gap: 8px;">
-          <button id="goToMapsBtn" class="btn btn-blue btn-small" data-i18n="nav_btn">Go to Google Maps</button>
-          <button id="goToBingBtn" class="btn btn-blue btn-small" data-i18n="nav_btn_bing">Go to Bing Maps</button>
-        </div>
+        <button id="goToMapsBtn" class="btn btn-blue btn-small" data-i18n="nav_btn">Go to Google Maps</button>
       </div>
     </div>
 
@@ -74,9 +71,6 @@
           </div>
         </div>
         <button id="saveConfigBtn" class="btn btn-green" data-i18n="btn_save_config" style="margin-top: 10px;">Save Configuration</button>
-        <div class="version-info" style="margin: 10px 0; font-size: 12px; color: #94a3b8; text-align: center;">
-          <span>Version: </span><span id="appVersion">1.1.0</span>
-        </div>
         <button id="closeSettingsBtn" class="btn btn-blue" data-i18n="close_btn">Close</button>
       </div>
     </div>
@@ -151,9 +145,9 @@
         <div class="range-control" style="margin-top: 5px; margin-bottom: 20px;">
           <div class="range-header">
             <span data-i18n="cruiser_speed">Scanning Speed</span>
-            <span id="cruiserSpeedVal" class="range-badge">1.0x (Normal)</span>
+            <span id="cruiserSpeedVal" class="range-badge">0.3x (느림)</span>
           </div>
-          <input type="range" id="cruiserSpeed" min="0.5" max="5.0" step="0.5" value="1.0" class="modern-slider">
+          <input type="range" id="cruiserSpeed" min="0.1" max="3.0" step="0.1" value="0.3" class="modern-slider">
         </div>
 
         <button id="startCruiserBtn" class="btn-cruiser">

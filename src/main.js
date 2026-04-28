@@ -13,6 +13,13 @@ protocol.registerSchemesAsPrivileged([
   { scheme: 'chrome-extension', privileges: { standard: true, secure: true, corsEnabled: true, supportFetchAPI: true } }
 ]);
 
+// ─── Chromium 스위치 (구글 맵 드래그 및 성능 최적화) ─────────────
+app.commandLine.appendSwitch('disable-features', 'TouchpadAndWheelScrollLatching,AsyncWheelEvents');
+app.commandLine.appendSwitch('disable-touch-adjustment');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+
 // --- Multi-Instance / Profile Support (Portable Isolation) ---
 const profileArg = process.argv.find(a => a.startsWith('--profile='));
 const profileId  = profileArg ? profileArg.split('=')[1] : '1';
@@ -35,8 +42,41 @@ log.info(`[Portable] UserData Path: ${app.getPath('userData')}`);
 // ─── 윈도우 핸들 ──────────────────────────────────────────────
 let splashWindow = null;
 let loginWindow  = null;
-let mainWindow   = null;
 let loadedExtensionsInfo = [];
+let lastActiveTabByWindow = {}; // Cache active tab per windowId
+
+// ─── 전역 실시간 로그 링버퍼 ──────────────────────────────────
+const LOG_RING_SIZE = 500;
+const logRingBuffer = [];
+
+// ─── 원본 console 함수 먼저 저장 (xLog보다 앞에 위치해야 순환 참조 방지) ────
+const _origLog = console.log;
+const _origErr = console.error;
+
+function xLog(level, source, ...args) {
+    const entry = {
+        t: new Date().toISOString().slice(11, 23), // HH:MM:SS.mmm
+        level,
+        source,
+        msg: args.map(a => {
+            if (typeof a === 'object') { try { return JSON.stringify(a); } catch(e) { return String(a); } }
+            return String(a);
+        }).join(' ')
+    };
+    if (logRingBuffer.length >= LOG_RING_SIZE) logRingBuffer.shift();
+    logRingBuffer.push(entry);
+    // 원본 console 함수 사용 → 오버라이드된 console.error/log 호출 금지 (순환 재귀 방지)
+    if (level === 'ERROR') _origErr(`[${entry.source}] ${entry.msg}`);
+    else _origLog(`[${entry.source}] ${entry.msg}`);
+    // Forward to all renderer windows in real-time
+    webContents.getAllWebContents().forEach(wc => {
+        try { wc.send('xpider-live-log', entry); } catch(e) {}
+    });
+}
+
+// Intercept console.log/error to also capture them (xLog 정의 이후에 배치)
+console.log = (...args) => { _origLog(...args); xLog('INFO', 'MAIN', ...args); };
+console.error = (...args) => { _origErr(...args); xLog('ERROR', 'MAIN', ...args); };
 
 
 // ─── 스플래시 창 ───────────────────────────────────────────────
@@ -208,6 +248,77 @@ ipcMain.handle('auth-check-session', async () => {
   return s || null;
 });
 
+ipcMain.handle('get-system-logs', async () => {
+    try {
+        // Gather all webContents info
+        const wcs = webContents.getAllWebContents().map(wc => ({
+            id: wc.id,
+            type: wc.getType(),
+            url: (() => { try { return wc.getURL(); } catch(e) { return 'N/A'; } })()
+        }));
+        
+        const info = {
+            timestamp: new Date().toISOString(),
+            appVersion: app.getVersion(),
+            platform: process.platform,
+            arch: process.arch,
+            uptime: Math.floor(process.uptime()),
+            memMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
+            activeExtensions: (loadedExtensionsInfo || []).map(e => ({ 
+                name: e.name, id: e.id, version: e.version,
+                uiPage: e.uiPage || 'popup.html'
+            })),
+            storageLeads: (extStorage && extStorage.scrapedData) ? extStorage.scrapedData.length : 0,
+            cruiserState: {
+                isRunning: false, // updated by IPC from renderer
+                leadsBeforeCruise: 0
+            },
+            webContents: wcs,
+            windows: BrowserWindow.getAllWindows().length,
+            recentLogs: [...logRingBuffer].slice(-200) // last 200 entries
+        };
+        return info;
+    } catch (e) {
+        return { error: e.message, stack: e.stack };
+    }
+});
+
+// ─── 모든 WebContents 콘솔 캡처 리스너 ─────────────────────────
+app.on('web-contents-created', (_, wc) => {
+    const getType = () => { try { return wc.getType(); } catch(e) { return '?'; } };
+    const getUrl = () => { try { return wc.getURL().substring(0, 80); } catch(e) { return '?'; } };
+
+    wc.on('console-message', (e, level, message, line, sourceId) => {
+        const lvl = ['LOG','WARN','ERROR','DEBUG'][level] || 'LOG';
+        xLog(lvl, `WV:${getType()}`, `${message} (${sourceId?.split('/').pop() || ''}:${line})`);
+    });
+
+    wc.on('did-fail-load', (e, code, desc, url) => {
+        xLog('ERROR', `WV:${getType()}`, `LOAD FAIL [${code}] ${desc} → ${url}`);
+    });
+
+    wc.on('did-navigate', (e, url) => {
+        xLog('NAV', `WV:${getType()}`, `→ ${url.substring(0, 100)}`);
+    });
+
+    wc.on('did-navigate-in-page', (e, url) => {
+        xLog('NAV-SPA', `WV:${getType()}`, `→ ${url.substring(0, 100)}`);
+    });
+
+    wc.on('crashed', () => {
+        xLog('ERROR', `WV:${getType()}`, `CRASHED at ${getUrl()}`);
+    });
+
+    wc.on('unresponsive', () => {
+        xLog('WARN', `WV:${getType()}`, `UNRESPONSIVE at ${getUrl()}`);
+    });
+});
+
+// ─── IPC 메시지 로깅 ─────────────────────────────────────────
+ipcMain.on('log-from-renderer', (event, msg) => {
+    xLog('UI', 'RENDERER', msg);
+});
+
 // auth-success 중복 실행 방지 플래그
 let _authSuccessFired = false;
 
@@ -286,11 +397,19 @@ ipcMain.on('reload-extensions', async () => {
 
 // --- 익스텐션 호환성 레이어 IPC (Extension Compatibility Layer) ---
 ipcMain.handle('xpider-ext-get-active-tab', async (event) => {
+    // Return cached info immediately if available
+    const winId = 1; // Assuming single window for now
+    if (lastActiveTabByWindow[winId]) {
+        return lastActiveTabByWindow[winId];
+    }
+
     if (!mainWindow || mainWindow.isDestroyed()) return null;
     try {
         const tabInfo = await mainWindow.webContents.executeJavaScript(`
             (function() {
-                const wv = typeof getActiveWebview === 'function' ? getActiveWebview() : null;
+                if (typeof window.getActiveWebview !== 'function') return null;
+                const wv = window.getActiveWebview();
+                if (!wv) return null;
                 return {
                     id: typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999,
                     windowId: 1,
@@ -300,6 +419,7 @@ ipcMain.handle('xpider-ext-get-active-tab', async (event) => {
                 };
             })()
         `);
+        if (tabInfo) lastActiveTabByWindow[winId] = tabInfo;
         return tabInfo;
     } catch(e) {
         log.error('[ExtBridge] get-active-tab error:', e);
@@ -307,10 +427,17 @@ ipcMain.handle('xpider-ext-get-active-tab', async (event) => {
     }
 });
 
+ipcMain.on('xpider-ext-report-active-tab', (event, tabInfo) => {
+    lastActiveTabByWindow[1] = tabInfo;
+});
+
 ipcMain.handle('xpider-ext-update-tab', async (event, props) => {
+    console.log(`[NAV-TRACE] Received update-tab request for: ${props.url}`);
     if (!mainWindow || mainWindow.isDestroyed()) return null;
     try {
+        const startTime = Date.now();
         mainWindow.webContents.send('xpider-renderer-update-active-tab', props);
+        console.log(`[NAV-TRACE] Forwarded update-tab to renderer in ${Date.now() - startTime}ms`);
         return { id: 999999, windowId: 1, active: true, url: props.url || '', status: 'loading' };
     } catch(e) {
         log.error('[ExtBridge] update-tab error:', e);
@@ -341,10 +468,16 @@ ipcMain.on('xpider-ext-notify-tab-updated', (event, data) => {
     // Notify all extension webview contents
     const allWebContents = webContents.getAllWebContents();
     allWebContents.forEach(wc => {
-        // We look for webcontents that are loading chrome-extension://
         const url = wc.getURL();
         if (url.startsWith('chrome-extension://')) {
             wc.send('xpider-ext-tab-updated-event', data);
+            // onActivated 전용 채널 (onUpdated와 분리하여 중복 수신 방지)
+            if (data.changeInfo && data.changeInfo.status === 'complete') {
+                wc.send('xpider-ext-tab-activated-event', {
+                    tabId: data.tabId,
+                    windowId: (data.tab && data.tab.windowId) || 1
+                });
+            }
         }
     });
 });
@@ -431,30 +564,96 @@ ipcMain.handle('xpider-ext-storage-set', async (event, { items }) => {
     return { success: true };
 });
 
+ipcMain.handle('xpider-ext-storage-remove', async (event, { keys }) => {
+    if (!keys) return { success: true };
+    const changes = {};
+    const keyList = Array.isArray(keys) ? keys : [keys];
+    keyList.forEach(k => {
+        changes[k] = { oldValue: extStorage[k], newValue: undefined };
+        delete extStorage[k];
+    });
+    saveExtStorage();
+    // Broadcast change to all webContents
+    const all = webContents.getAllWebContents();
+    all.forEach(wc => {
+        try { wc.send('xpider-ext-storage-changed', changes); } catch(e) {}
+    });
+    return { success: true };
+});
+
 ipcMain.handle('xpider-ext-storage-clear', async () => {
     extStorage = {};
     saveExtStorage();
     return { success: true };
 });
 
+// ─── RUNTIME MESSAGE RELAY (Content -> Sidepanel) ───────────
 ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => {
-    // 1. Proactive Sync: If it's a lead discovery, update our bridge storage immediately
+    if (!message) return { success: false };
+    
+    // 1. Handle Business Data
     if (message.action === 'foundBusiness' && message.data) {
+        const biz = message.data;
         if (!extStorage.scrapedData) extStorage.scrapedData = [];
-        const exists = extStorage.scrapedData.some(d => d.placeId === message.data.placeId);
+        
+        // Prevent duplicates using placeId (preferred) or name+address
+        const exists = extStorage.scrapedData.some(b => 
+            (biz.placeId && b.placeId === biz.placeId) || 
+            (b.name === biz.name && b.address === biz.address)
+        );
+
         if (!exists) {
-            extStorage.scrapedData.push(message.data);
+            const lead = {
+                ...biz,
+                id: Date.now() + Math.random().toString(36).substring(2, 9),
+                email: biz.email || 'Pending Stage 2',
+                status: 'captured'
+            };
+            extStorage.scrapedData.push(lead);
             saveExtStorage();
             
-            // Broadcast storage change to all listening UI components
-            const changes = { scrapedData: { newValue: extStorage.scrapedData } };
+            // Broadcast storage change to all webContents (sidepanel will react)
+            const changes = { scrapedData: { oldValue: null, newValue: extStorage.scrapedData } };
             const all = webContents.getAllWebContents();
             all.forEach(wc => {
                 try { wc.send('xpider-ext-storage-changed', changes); } catch(e) {}
             });
         }
     }
+    
+    // ── CLEAR DATA (반드시 early return — relay 차단) ──
+    if (message.action === 'clearData') {
+        log.info('[ExtBridge] clearData received — wiping ALL data');
+        // 1. 메인 프로세스 메모리 즉시 초기화
+        extStorage.scrapedData = [];
+        const clearKeys = ['scrapingActive', 'emailCheckActive', 'cruiserActive', 'processedUrls', 'emailProgress'];
+        clearKeys.forEach(k => delete extStorage[k]);
+        // 2. 파일에 강제 저장
+        try { fs.writeFileSync(storagePath, JSON.stringify({ scrapedData: [] }, null, 2)); } catch(e) { log.error('[ClearData] File write failed:', e.message); }
+        // 3. Stage 2 엔진 강제 중단 (isDeepSearching은 true로 유지하여 재시작 방지)
+        deepSearchCancel = true;
+        if (crawlerWindow && !crawlerWindow.isDestroyed()) {
+            try { crawlerWindow.close(); } catch(e) {}
+            crawlerWindow = null;
+        }
+        isDeepSearching = false;
+        // 4. 모든 webContents에 브로드캐스트
+        const clearChanges = { scrapedData: { oldValue: null, newValue: [] } };
+        webContents.getAllWebContents().forEach(wc => {
+            try { wc.send('xpider-ext-storage-changed', clearChanges); } catch(e) {}
+        });
+        log.info('[ClearData] Done — extStorage.scrapedData is now []');
+        return { success: true }; // early return: relay 하지 않음
+    }
 
+    // ── STAGE 2 TRIGGERS ──
+    if (message.action === 'startEmailCheck') {
+        startDeepSearchInMain();
+    }
+    if (message.action === 'stopEmailCheck') {
+        stopDeepSearchInMain();
+    }
+    
     // 2. Relay message to all other webContents (Sidepanel/Content Scripts)
     const all = webContents.getAllWebContents();
     const senderId = event.sender.id;
@@ -464,7 +663,7 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
         }
     });
 
-    // 3. ALSO relay to the native extension background workers
+    // 3. Optional: Relay to background workers (if present)
     loadedExtensionsInfo.forEach(ext => {
         try {
             session.defaultSession.extensions.sendMessage(ext.id, message).catch(() => {});
@@ -473,6 +672,243 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
     
     return { success: true };
 });
+
+// Relay for manual polling (legacy/fallback)
+ipcMain.handle('relayContentMessage', async (event, { message }) => {
+    return { success: true }; 
+});
+
+// ─── STAGE 2: HEADLESS DISCOVERY ENGINE ─────────────────────
+let isDeepSearching = false;
+let deepSearchCancel = false;
+let crawlerWindow = null;
+
+function broadcastExtMessage(msg) {
+    webContents.getAllWebContents().forEach(wc => {
+        try { wc.send('xpider-ext-runtime-on-message', msg); } catch(e) {}
+    });
+}
+
+function broadcastStorageUpdate() {
+    saveExtStorage();
+    const changes = { scrapedData: { oldValue: null, newValue: extStorage.scrapedData } };
+    webContents.getAllWebContents().forEach(wc => {
+        try { wc.send('xpider-ext-storage-changed', changes); } catch(e) {}
+    });
+}
+
+async function scanPageInCrawler(url, waitMs = 5000) {
+    if (!crawlerWindow || crawlerWindow.isDestroyed()) return {};
+    try {
+        await crawlerWindow.loadURL(url);
+        // Wait a bit for JS to render
+        await new Promise(r => setTimeout(r, waitMs));
+        
+        const result = await crawlerWindow.webContents.executeJavaScript(`
+            (function() {
+                const text = document.body ? document.body.innerText : '';
+                const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+                const emails = text.match(emailRegex) || [];
+                
+                const phoneRegex = /\\+?\\d{1,4}?[-.\\s]?\\(?\\d{1,3}?\\)?[-.\\s]?\\d{1,4}[-.\\s]?\\d{1,4}[-.\\s]?\\d{1,9}/g;
+                const phones = text.match(phoneRegex) || [];
+                
+                // Address pattern matching (simplified for US/EU formats)
+                const addressRegex = /\\d{1,5}\\s[A-Za-z0-9\\s.,-]+(?:Avenue|Ave|Street|St|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Way|Court|Ct|Plaza|Square|Sq|Suite|Ste|Unit|Building|Bldg)[.,\\s]+[A-Za-z\\s]+[.,\\s]+[A-Z]{2}\\s\\d{5}(?:-\\d{4})?/gi;
+                const addresses = text.match(addressRegex) || [];
+
+                let homepage = null;
+                const cite = document.querySelector('cite');
+                if (cite) {
+                    const parts = cite.innerText.split(' ');
+                    if (parts[0].includes('http')) homepage = parts[0];
+                }
+
+                const contactKeywords = ['contact', 'about', '연락처', '오시는길', '고객센터', '문의', 'team', 'company', 'get-in-touch', 'impressum', 'kontakt'];
+                let contactLinks = [];
+                document.querySelectorAll('a').forEach(a => {
+                    const href = a.href || '';
+                    const aText = (a.innerText || '').toLowerCase();
+                    if (href.startsWith('http') && contactKeywords.some(kw => href.toLowerCase().includes(kw) || aText.includes(kw))) {
+                        contactLinks.push(href);
+                    }
+                });
+
+                const socialRegex = /(?:facebook|instagram|twitter|x|linkedin|youtube|tiktok)\\.com\\/([a-zA-Z0-9._%+-]+)/gi;
+                const socials = text.match(socialRegex) || [];
+                const socialLinks = [];
+                document.querySelectorAll('a').forEach(a => {
+                    const href = a.href || '';
+                    if (href.match(/(facebook|instagram|twitter|linkedin|youtube|tiktok|x\\.com)/i)) {
+                        socialLinks.push(href);
+                    }
+                });
+
+                return {
+                    emails: [...new Set(emails)].join(', '),
+                    phone: phones[0] || null,
+                    address: addresses[0] || null,
+                    homepage: homepage,
+                    socials: [...new Set([...socials.map(s => 'https://' + s), ...socialLinks])].slice(0, 5),
+                    contactLinks: [...new Set(contactLinks)].slice(0, 2)
+                };
+            })();
+        `);
+        return result || {};
+    } catch (e) {
+        log.error("[Crawler] Scan failed:", e);
+        return {};
+    }
+}
+
+async function startDeepSearchInMain() {
+    const sendLog = (msg) => {
+        console.log(`[STAGE2-TRACE] ${msg}`);
+        broadcastExtMessage({ action: 'log', message: `[STAGE2] ${msg}` });
+    };
+
+    sendLog("Discovery Engine Started.");
+    if (isDeepSearching) {
+        sendLog("Engine already running. Ignoring start request.");
+        return;
+    }
+    isDeepSearching = true;
+    deepSearchCancel = false;
+
+    // 항상 최신 extStorage를 파일에서 다시 읽음 (Clear Data 후 stale 방지)
+    try {
+        if (fs.existsSync(storagePath)) {
+            const fresh = JSON.parse(fs.readFileSync(storagePath, 'utf8'));
+            // 파일의 scrapedData가 더 최신이면 사용, 메모리가 비어있으면 파일 우선
+            if (Array.isArray(fresh.scrapedData)) {
+                extStorage.scrapedData = fresh.scrapedData;
+            }
+        }
+    } catch(e) { log.error('[Stage2] Fresh read failed:', e.message); }
+
+    if (!extStorage.scrapedData) extStorage.scrapedData = [];
+    const leadsToProcess = extStorage.scrapedData.filter(b => b.status === 'captured' || b.email === 'Pending Stage 2' || !b.status);
+    sendLog(`Found ${leadsToProcess.length} leads to process.`);
+    
+    if (leadsToProcess.length === 0) {
+        sendLog('No leads to process. Stage 2 aborted.');
+        isDeepSearching = false;
+        broadcastExtMessage({ action: 'emailCheckStatus', total: 0, current: 0, finished: true });
+        return;
+    }
+    
+    broadcastExtMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: 0 });
+
+    if (leadsToProcess.length > 0) {
+        sendLog("Creating crawler window...");
+        crawlerWindow = new BrowserWindow({
+            show: false, 
+            webPreferences: { nodeIntegration: false, contextIsolation: true }
+        });
+    }
+
+    let processedCount = 0;
+    for (const lead of leadsToProcess) {
+        if (deepSearchCancel) {
+            sendLog("Discovery cancelled by user.");
+            break;
+        }
+        processedCount++;
+        sendLog(`[${processedCount}/${leadsToProcess.length}] Processing: ${lead.name}`);
+
+        try {
+            let targetUrl = lead.website && lead.website !== 'N/A' ? lead.website : null;
+            
+            if (!targetUrl) {
+                sendLog(`No website for ${lead.name}. Searching Google...`);
+                broadcastExtMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: processedCount, stage: 2, statusText: `Searching for ${lead.name}...` });
+                const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(lead.name + " official website contact email")}`;
+                const enrich = await scanPageInCrawler(searchUrl, 3000);
+                if (enrich.homepage) {
+                    targetUrl = enrich.homepage;
+                    sendLog(`Found website via search: ${targetUrl}`);
+                }
+            }
+
+            if (targetUrl && !targetUrl.includes('google.com')) {
+                sendLog(`Navigating to official site: ${targetUrl}`);
+                broadcastExtMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: processedCount, stage: 3, statusText: `Scraping: ${lead.name}` });
+                
+                const webScan = await scanPageInCrawler(targetUrl, 4500);
+                let finalEmails = webScan.emails ? webScan.emails.split(', ') : [];
+                let finalPhone = webScan.phone;
+                let finalAddress = webScan.address;
+                let finalSocials = webScan.socials || [];
+
+                sendLog(`Homepage results: Emails(${finalEmails.length}), Phone(${finalPhone?1:0}), Address(${finalAddress?1:0}), Socials(${finalSocials.length})`);
+
+                // Stage 3.5: Contact Page Autopilot
+                if ((!finalEmails.length || !finalPhone || !finalAddress) && webScan.contactLinks && webScan.contactLinks.length > 0) {
+                    const uniqueLinks = [...new Set(webScan.contactLinks)].slice(0, 3); // Limit to top 3 links
+                    sendLog(`Missing some info. Checking contact pages: ${uniqueLinks.join(', ')}`);
+                    for (const contactUrl of uniqueLinks) {
+                        sendLog(`-> Scanning contact page: ${contactUrl}`);
+                        const subScan = await scanPageInCrawler(contactUrl, 3500);
+                        if (subScan.emails) finalEmails.push(...subScan.emails.split(', '));
+                        if (!finalPhone && subScan.phone) finalPhone = subScan.phone;
+                        if (!finalAddress && subScan.address) finalAddress = subScan.address;
+                        if (subScan.socials) finalSocials.push(...subScan.socials);
+                        
+                        if (finalEmails.length > 0 && finalPhone && finalAddress) {
+                            sendLog("All info found. Stopping crawl for this lead.");
+                            break;
+                        }
+                    }
+                }
+
+                const uniqueEmails = [...new Set(finalEmails)].filter(e => e).join(', ');
+                if (uniqueEmails) {
+                    lead.email = uniqueEmails;
+                    sendLog(`Found Emails: ${uniqueEmails}`);
+                } else {
+                    lead.email = 'Not Found';
+                }
+                
+                if (finalPhone && (!lead.phone || lead.phone === 'N/A')) lead.phone = finalPhone;
+                if (finalAddress && (!lead.address || lead.address === 'N/A')) lead.address = finalAddress;
+                
+                if (finalSocials.length > 0) {
+                    const existingSocials = lead.social ? lead.social.split(', ') : [];
+                    lead.social = [...new Set([...existingSocials, ...finalSocials])].join(', ');
+                    sendLog(`Found Socials: ${lead.social}`);
+                }
+            } else {
+                sendLog(`Skipping ${lead.name} (No valid website found)`);
+                lead.email = 'No Website';
+            }
+
+            lead.status = 'complete';
+            broadcastStorageUpdate();
+            broadcastExtMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: processedCount });
+
+        } catch (e) {
+            sendLog(`ERROR processing ${lead.name}: ${e.message}`);
+        }
+        await new Promise(r => setTimeout(r, 500));
+    }
+
+    if (crawlerWindow && !crawlerWindow.isDestroyed()) {
+        crawlerWindow.close();
+        crawlerWindow = null;
+    }
+    isDeepSearching = false;
+    sendLog("Discovery Engine Finished.");
+    broadcastExtMessage({ action: 'emailCheckStatus', finished: true });
+}
+
+function stopDeepSearchInMain() {
+    deepSearchCancel = true;
+    isDeepSearching = false;
+    if (crawlerWindow && !crawlerWindow.isDestroyed()) {
+        crawlerWindow.close();
+        crawlerWindow = null;
+    }
+}
 
 ipcMain.handle('xpider-ext-save-file', async (event, data) => {
     if (!mainWindow || mainWindow.isDestroyed()) return null;
@@ -562,31 +998,14 @@ function getExtDir() {
     : path.join(__dirname, '..', 'extensions');
 }
 
-// 개발 모드: 로컬 소스에서 복사
-function syncLocalExtensions(extDir) {
-  if (app.isPackaged) return;
-  const sources = [
-    { src: 'e:/vivpr/ai/collect-list_v2/extension', dest: 'collect-list' },
-    { src: 'e:/vivpr/ai/send message',               dest: 'send-message' }
-  ];
-  if (!fs.existsSync(extDir)) fs.mkdirSync(extDir, { recursive: true });
-  sources.forEach(({ src, dest }) => {
-    if (fs.existsSync(src)) {
-      try { fs.cpSync(src, path.join(extDir, dest), { recursive: true, force: true }); }
-      catch (e) { log.error('LocalSync error:', dest, e.message); }
-    }
-  });
-}
 
 async function loadLocalExtensions() {
   try {
     const extDir = getExtDir();
     if (!fs.existsSync(extDir)) fs.mkdirSync(extDir, { recursive: true });
 
-    // 1. 개발모드 로컬 소스 동기화 비활성화
-    // (이 로직이 켜져 있으면 GitHub에서 다운받은 최신 익스텐션이
-    //  로컬 PC의 옛날 소스 폴더 내용으로 계속 덮어씌워져서 업데이트가 안 된 것처럼 보입니다.)
-    // syncLocalExtensions(extDir);
+    // 개발모드 직접 편집: extensions/ 폴더를 직접 작업 위치로 사용
+    // (syncLocalExtensions 불필요 — browser/extensions/ 폴더에서 바로 편집)
 
     // 2. 로컬 폴더 스캔 → 브라우저에 로드
     const results = [];
