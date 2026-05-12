@@ -1,4 +1,4 @@
-// background.js - GMaps Business Finder: Stage 2 (On-Demand Email Finder)
+// background.js - GMaps Business Finder: Stage 2 Discovery Engine (Extension-Native)
 try {
   importScripts('business_filters.js', 'captcha_solver.js');
 } catch (e) {
@@ -22,18 +22,26 @@ chrome.storage.local.get(['scrapedData'], (result) => {
   if (result.scrapedData) scrapedData = result.scrapedData;
 });
 
+// ─── 메시지 핸들러 (Stage 2 트리거 포함) ────────────────────────────
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[BACKGROUND.JS] Received message:', request.action, request);
+
   if (request.action === 'foundBusiness') {
     handleNewLead(request.data);
   }
 
-  // startEmailCheck is now handled exclusively by main.js (XPIDER Main Process)
-  // to avoid chrome.tabs.create errors in the extension background worker.
-  
+  // ── Stage 2 트리거 ─ XPIDER에서는 main.js가 독점 제어 ──
+  // main.js의 startDeepSearchInMain()이 Stage 2를 담당.
+  // background.js에서 중복 실행하면 데이터 충돌 발생 → 비활성화.
+  if (request.action === 'startEmailCheck') {
+    // startDeepSearch(request.hl || 'en'); // ← DISABLED: main.js가 처리
+    sendLog('[BG] startEmailCheck received — delegated to main.js XPIDER engine.');
+  }
+
   if (request.action === 'stopEmailCheck') {
     isFindingEmails = false;
     isCancelled = true;
+    sendLog('🛑 Discovery cancelled by user.');
   }
 
   // Captcha & Solver Actions
@@ -55,7 +63,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       isFindingEmails = false;
       isCancelled = true;
       isPaused = false;
-      // Storage의 모든 스크래핑 관련 키 완전 삭제
       const keysToRemove = ['scrapedData', 'scrapingActive', 'emailCheckActive', 'cruiserActive', 'processedUrls', 'emailProgress'];
       chrome.storage.local.remove(keysToRemove, () => {
           chrome.storage.local.set({ scrapedData: [] });
@@ -64,36 +71,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+// ─── 신규 업체 추가 ─ XPIDER 모드에서는 main.js가 저장소 관리 ─────────
 function handleNewLead(lead) {
-  // Deduplicate
+  // XPIDER main.js가 foundBusiness를 직접 처리하고 extStorage에 저장함.
+  // background.js는 로컬 목록만 유지 (UI 표시용), storage 덮어쓰기 없음.
   const exists = scrapedData.find(b => b.placeId === lead.placeId || (b.name === lead.name && b.url === lead.url));
   if (exists) return;
-
   scrapedData.push({
     ...lead,
     id: Date.now() + Math.random().toString(36).substr(2, 9),
     email: 'Pending Stage 2',
     status: 'captured'
   });
-  
-  updateStorage();
+  // updateStorage() 호출 제거 — main.js가 extStorage 단독 관리
+  // chrome.storage.local.set 호출 시 main.js Stage 2 결과를 덮어씌우는 버그 방지
+  console.log('[BACKGROUND.JS] handleNewLead: delegated to main.js, local count:', scrapedData.length);
 }
 
-// startEmailDiscovery and findEmailsFromWebsite have been removed in favor of startDeepSearch
-
 function updateStorage() {
-  chrome.storage.local.set({ scrapedData });
-  console.log('[BACKGROUND.JS] Sending dataUpdated to UI with', scrapedData.length, 'items');
-  chrome.runtime.sendMessage({ action: 'dataUpdated', data: scrapedData });
+  // XPIDER 모드: chrome.storage.local.set은 main.js가 독점 관리
+  // 이 함수를 직접 호출하지 않도록 handleNewLead에서 제거됨
+  // (Stage 2 결과 덮어쓰기 방지)
+  console.log('[BACKGROUND.JS] updateStorage: skipping direct set (main.js manages storage)');
+  chrome.runtime.sendMessage({ action: 'dataUpdated', data: scrapedData }).catch(() => {});
 }
 
 async function sendLog(msg) {
-  console.log(`[Background] ${msg}`);
+  console.log(`[BG-STAGE2] ${msg}`);
   chrome.runtime.sendMessage({ action: 'log', message: msg }).catch(() => {});
 }
 
+// ─── CAPTCHA 핸들러 ───────────────────────────────────────────────
 async function handleTranscription(audioData, audioUrl, sendResponse) {
-    const keys = await chrome.storage.local.get(['witKey', 'solverKey', 'captchaMethod']);
+    const keys = await chrome.storage.local.get(['witKey', 'captchaMethod']);
     try {
         const text = await CAPTCHA_SOLVER.transcribeAudio(audioUrl, { audioSttKey: keys.witKey }, audioData);
         sendResponse({ text });
@@ -104,8 +114,6 @@ async function handleTranscription(audioData, audioUrl, sendResponse) {
 
 async function checkLockdown(tabId) {
     if (isSolvingCaptcha) return;
-    
-    // Simple check: is the tab redirected to /sorry/?
     try {
         const tab = await chrome.tabs.get(tabId);
         if (tab.url && tab.url.includes('/sorry/')) {
@@ -119,11 +127,11 @@ async function solveCaptcha(tabId) {
     if (isSolvingCaptcha) return;
     isSolvingCaptcha = true;
     try {
-        const keys = await chrome.storage.local.get(['captchaMethod', 'witKey', 'solverKey']);
-        if (keys.captchaMethod === 'audio' && keys.witKey) {
+        const keys = await chrome.storage.local.get(['captchaMethod', 'witKey']);
+        // Only audio bypass with Wit.ai is supported now
+        if (keys.witKey) {
             await CAPTCHA_SOLVER.solveAudioBypass(tabId);
         }
-        // Wait bit for resolve
         await new Promise(r => setTimeout(r, 5000));
     } catch (e) {
         sendLog(`❌ Solver error: ${e.message}`);
@@ -141,23 +149,18 @@ async function createOffscreen() {
   });
 }
 
-// Add these to the message listener
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'START_NATIVE_STT') {
     createOffscreen().then(() => {
       chrome.runtime.sendMessage({ ...request, action: 'START_NATIVE_STT' });
     });
-    return true; 
+    return true;
   }
-  if (request.action === 'NATIVE_STT_RESULT') {
-    // This is handled by the caller waiting for storage or a global map
-  }
-  
   if (request.action === 'CHECK_OCEAN') {
     checkIfOcean(sender.tab.windowId).then(isOcean => {
         sendResponse({ isOcean: isOcean });
     });
-    return true; // async
+    return true;
   }
 });
 
@@ -166,9 +169,7 @@ async function checkIfOcean(windowId) {
         try {
             await createOffscreen();
             const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'jpeg', quality: 50 });
-            
             const reqId = Date.now().toString();
-            
             const listener = (m) => {
                 if (m.action === 'SEA_RESULT' && m.requestId === reqId) {
                     chrome.runtime.onMessage.removeListener(listener);
@@ -176,221 +177,215 @@ async function checkIfOcean(windowId) {
                 }
             };
             chrome.runtime.onMessage.addListener(listener);
-            
-            chrome.runtime.sendMessage({
-                action: 'ANALYZE_SEA_SCREENSHOT',
-                dataUrl: dataUrl,
-                requestId: reqId
-            });
-            
-            // Timeout safety
-            setTimeout(() => {
-                chrome.runtime.onMessage.removeListener(listener);
-                resolve(false);
-            }, 3000);
+            chrome.runtime.sendMessage({ action: 'ANALYZE_SEA_SCREENSHOT', dataUrl, requestId: reqId });
+            setTimeout(() => { chrome.runtime.onMessage.removeListener(listener); resolve(false); }, 3000);
         } catch (e) {
-            console.error("Ocean check failed", e);
             resolve(false);
         }
     });
 }
 
-async function scanPageInBrowser(targetUrl, waitMs = 5000) {
-    let tab = null;
-    try {
-        tab = await chrome.tabs.create({ url: targetUrl, active: false });
-        // Poll for target content or captcha
-        let elapsed = 0;
-        while (elapsed < 15000 && !isCancelled) {
-            await checkLockdown(tab.id);
-            await new Promise(r => setTimeout(r, 1000));
-            elapsed += 1000;
-            if (elapsed >= waitMs) break; 
+// ─── CRAWL 요청-응답 브리지 (chrome.tabs.create 대신 main.js에 위임) ──────
+// XPIDER에서 extension background는 chrome.tabs.create를 사용할 수 없음.
+// 대신 main.js의 BrowserWindow 크롤 서비스에 CRAWL_URL 요청을 보냄.
+const pendingCrawls = new Map();
+
+chrome.runtime.onMessage.addListener((request) => {
+    if (request.action === 'CRAWL_RESULT' && request.requestId) {
+        const resolve = pendingCrawls.get(request.requestId);
+        if (resolve) {
+            resolve(request.result || {});
+            pendingCrawls.delete(request.requestId);
         }
+    }
+});
 
-        const result = await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: () => {
-                const text = document.body ? document.body.innerText : '';
-                const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-                const emails = text.match(emailRegex) || [];
-                const phoneRegex = /\d{2,4}-\d{3,4}-\d{4}/g;
-                const phones = text.match(phoneRegex) || [];
-                
-                // Try to find official website link in search results if it was a search
-                let homepage = null;
-                const cite = document.querySelector('cite');
-                if (cite) {
-                    const parts = cite.innerText.split(' ');
-                    if (parts[0].includes('http')) homepage = parts[0];
-                }
+async function scanPageInBrowser(targetUrl, waitMs = 5000) {
+    return new Promise((resolve) => {
+        const requestId = `crawl_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+        pendingCrawls.set(requestId, resolve);
 
-                // Find potential contact page links
-                const contactKeywords = ['contact', 'about', '연락처', '오시는길', '고객센터', '문의', 'team', 'company', 'get-in-touch', 'impressum', 'kontakt'];
-                let contactLinks = [];
-                document.querySelectorAll('a').forEach(a => {
-                    const href = a.href || '';
-                    const text = (a.innerText || '').toLowerCase();
-                    if (href.startsWith('http') && contactKeywords.some(kw => href.toLowerCase().includes(kw) || text.includes(kw))) {
-                        contactLinks.push(href);
-                    }
-                });
-
-                // Social Media detection
-                const socialRegex = /(?:facebook|instagram|twitter|x|linkedin|youtube|tiktok)\.com\/([a-zA-Z0-9._%+-]+)/gi;
-                const socials = text.match(socialRegex) || [];
-                const socialLinks = [];
-                document.querySelectorAll('a').forEach(a => {
-                    const href = a.href || '';
-                    if (href.match(/(facebook|instagram|twitter|linkedin|youtube|tiktok|x\.com)/i)) {
-                        socialLinks.push(href);
-                    }
-                });
-
-                return {
-                    emails: [...new Set(emails)].join(', '),
-                    phone: phones[0] || null,
-                    homepage: homepage,
-                    socials: [...new Set([...socials.map(s => 'https://' + s), ...socialLinks])].slice(0, 5),
-                    contactLinks: [...new Set(contactLinks)].slice(0, 2), // Keep up to 2 unique contact pages
-                    pageText: text.substring(0, 2000)
-                };
-            }
+        chrome.runtime.sendMessage({
+            action: 'CRAWL_URL',
+            url: targetUrl,
+            requestId,
+            waitMs
+        }).catch(() => {
+            pendingCrawls.delete(requestId);
+            resolve({});
         });
 
-        return result[0].result;
-    } catch (e) {
-        console.error("Scan failed:", e);
-        return {};
-    } finally {
-        if (tab) chrome.tabs.remove(tab.id).catch(() => {});
-    }
+        // 30초 타임아웃 (안전장치)
+        setTimeout(() => {
+            if (pendingCrawls.has(requestId)) {
+                pendingCrawls.delete(requestId);
+                console.warn(`[BG] CRAWL_URL timeout for: ${targetUrl}`);
+                resolve({});
+            }
+        }, 30000);
+    });
 }
-async function startDeepSearch(hl) {
-    if (isFindingEmails) return;
+
+
+// ─── STAGE 2: 수집 오케스트레이터 ────────────────────────────────────
+async function startDeepSearch(hl = 'en') {
+    if (isFindingEmails) {
+        sendLog('⚠️ Discovery Engine already running. Ignoring start request.');
+        return;
+    }
     isFindingEmails = true;
     isCancelled = false;
-    
-    // Only process leads that haven't been through the Deep Search yet (captured)
-    // or are explicitly pending discovery. Skip leads marked as 'complete'.
-    const leadsToProcess = scrapedData.filter(b => b.status === 'captured' || b.email === 'Pending Stage 2');
-    
-    sendLog(`📋 Starting Deep Search for ${leadsToProcess.length} leads (Lang: ${hl})`);
-    chrome.runtime.sendMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: 0 });
+
+    sendLog('🚀 Discovery Engine Started.');
+
+    // 최신 데이터를 Storage에서 로드 (Clear Data 후 stale 방지)
+    const stored = await chrome.storage.local.get(['scrapedData']);
+    if (stored.scrapedData && Array.isArray(stored.scrapedData)) {
+        scrapedData = stored.scrapedData;
+    }
+
+    const leadsToProcess = scrapedData.filter(b =>
+        b.status === 'captured' || b.email === 'Pending Stage 2' || !b.status
+    );
+
+    sendLog(`📋 Found ${leadsToProcess.length} leads to process.`);
+
+    if (leadsToProcess.length === 0) {
+        sendLog('📭 No leads to process. Stage 2 aborted.');
+        isFindingEmails = false;
+        chrome.runtime.sendMessage({ action: 'emailCheckStatus', total: 0, current: 0, finished: true }).catch(() => {});
+        return;
+    }
+
+    chrome.runtime.sendMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: 0 }).catch(() => {});
 
     let processedCount = 0;
     for (const lead of leadsToProcess) {
-        if (isCancelled || !isFindingEmails) break;
+        if (isCancelled || !isFindingEmails) {
+            sendLog('🛑 Discovery cancelled by user.');
+            break;
+        }
         processedCount++;
+        sendLog(`🔎 [${processedCount}/${leadsToProcess.length}] Processing: ${lead.name}`);
 
         try {
-            sendLog(`🔎 [${processedCount}/${leadsToProcess.length}] Processing: "${lead.name}"`);
-            
-            let enrichment = { emails: '' };
+            let targetUrl = (lead.website && lead.website !== 'N/A') ? lead.website : null;
 
-            if (hl === 'en') {
-                sendLog(`⚡ [EN Mode] Skipping Google Search. Using direct URL for "${lead.name}"`);
+            // ── STEP 1: 웹사이트가 없으면 Google에서 검색 ──
+            if (!targetUrl) {
+                sendLog(`🔍 No website for "${lead.name}". Searching Google...`);
+                chrome.runtime.sendMessage({
+                    action: 'emailCheckStatus',
+                    total: leadsToProcess.length, current: processedCount,
+                    stage: 1, statusText: `Searching: ${lead.name}`
+                }).catch(() => {});
+
+                const searchQuery = hl === 'ko'
+                    ? `${lead.name} 전화번호 주소 홈페이지`
+                    : `${lead.name} official website contact email`;
+                const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}&hl=${hl}`;
+                const enrich = await scanPageInBrowser(searchUrl, 3000);
+
+                if (enrich.homepage && !enrich.homepage.includes('google.com')) {
+                    targetUrl = enrich.homepage;
+                    sendLog(`✅ Found website via Google: ${targetUrl}`);
+                    // 구글 결과에서 얻은 phone/address도 바로 저장
+                    if (enrich.phone && (!lead.phone || lead.phone === 'N/A')) lead.phone = enrich.phone;
+                    if (enrich.address && (!lead.address || lead.address === 'N/A')) lead.address = enrich.address;
+                }
+            }
+
+            if (!targetUrl || targetUrl.includes('google.com')) {
+                sendLog(`⏭️ Skipping "${lead.name}" — no valid website found.`);
+                lead.email = 'No Website';
+                lead.status = 'complete';
+                updateStorage();
+                continue;
+            }
+
+            // ── STEP 2: 홈페이지 로드 → 콘택트 링크 수집 ──
+            chrome.runtime.sendMessage({
+                action: 'emailCheckStatus',
+                total: leadsToProcess.length, current: processedCount,
+                stage: 2, statusText: `Opening site: ${lead.name}`
+            }).catch(() => {});
+            sendLog(`🌐 [STEP 2] Loading homepage: ${targetUrl}`);
+
+            const homeScan = await scanPageInBrowser(targetUrl, 4000);
+            const homeEmailCount = homeScan.emails ? homeScan.emails.split(',').filter(e => e.trim()).length : 0;
+            sendLog(`📊 Homepage: Emails(${homeEmailCount}), ContactLinks(${(homeScan.contactLinks||[]).length}), Socials(${(homeScan.socials||[]).length})`);
+
+            let finalEmails = homeScan.emails ? homeScan.emails.split(', ').filter(e => e) : [];
+            let finalPhone = homeScan.phone || null;
+            let finalAddress = homeScan.address || null;
+            let finalSocials = [...(homeScan.socials || [])];
+
+            // ── STEP 3: 콘택트 페이지 순차 방문 ──
+            const contactLinks = [...new Set(homeScan.contactLinks || [])].slice(0, 3);
+            if (contactLinks.length > 0) {
+                sendLog(`📞 [STEP 3] Found ${contactLinks.length} contact page(s). Visiting...`);
+                for (const contactUrl of contactLinks) {
+                    if (isCancelled || !isFindingEmails) break;
+                    sendLog(`  → Scanning contact page: ${contactUrl}`);
+                    chrome.runtime.sendMessage({
+                        action: 'emailCheckStatus',
+                        total: leadsToProcess.length, current: processedCount,
+                        stage: 3, statusText: `Contact page: ${lead.name}`
+                    }).catch(() => {});
+
+                    const contactScan = await scanPageInBrowser(contactUrl, 3500);
+
+                    if (contactScan.emails) {
+                        const newEmails = contactScan.emails.split(', ').filter(e => e);
+                        finalEmails = [...new Set([...finalEmails, ...newEmails])];
+                    }
+                    if (!finalPhone && contactScan.phone) finalPhone = contactScan.phone;
+                    if (!finalAddress && contactScan.address) finalAddress = contactScan.address;
+                    if (contactScan.socials && contactScan.socials.length > 0) {
+                        finalSocials = [...new Set([...finalSocials, ...contactScan.socials])];
+                    }
+                    sendLog(`  📈 Contact results: Emails(${finalEmails.length}), Phone(${finalPhone?'✓':'✗'}), Address(${finalAddress?'✓':'✗'}), Socials(${finalSocials.length})`);
+                }
             } else {
-                // Stage 2: Enrichment via Google (Finding Official Website)
-                sendLog(`🔎 [${processedCount}/${leadsToProcess.length}] Stage 2: Finding website for "${lead.name}"`);
-                chrome.runtime.sendMessage({ 
-                    action: 'emailCheckStatus', 
-                    total: leadsToProcess.length, 
-                    current: processedCount,
-                    stage: 2,
-                    statusText: hl === 'ko' ? `웹사이트 찾는 중... (${lead.name})` : `Finding website... (${lead.name})`
-                });
-
-                const searchContext = hl === 'ko' ? ' 전화번호 주소 홈페이지' : ' phone address official website';
-                const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(lead.name + searchContext)}&hl=${hl}`;
-                
-                enrichment = await scanPageInBrowser(searchUrl, 4000);
-                
-                if (enrichment.homepage) lead.website = enrichment.homepage;
-                if (enrichment.phone && (!lead.phone || lead.phone === 'N/A')) lead.phone = enrichment.phone;
-                if (enrichment.address && (!lead.address || lead.address === 'N/A')) lead.address = enrichment.address;
-                if (enrichment.socials && enrichment.socials.length > 0) {
-                    lead.social = enrichment.socials.join(', ');
-                }
+                sendLog(`ℹ️ [STEP 3] No contact page links found on homepage.`);
             }
 
-            // Stage 3: Deep Website Scan if website exists
-            if (lead.website && lead.website !== 'N/A') {
-                sendLog(`🌐 [${processedCount}/${leadsToProcess.length}] Stage 3: Deep scanning details on ${lead.website}`);
-                chrome.runtime.sendMessage({ 
-                    action: 'emailCheckStatus', 
-                    total: leadsToProcess.length, 
-                    current: processedCount,
-                    stage: 3,
-                    statusText: hl === 'ko' ? `상세정보 수집 중... (${lead.name})` : `Scraping details... (${lead.name})`
-                });
+            // ── STEP 4: 수집 결과를 lead에 저장 ──
+            const uniqueEmails = [...new Set(finalEmails)].filter(e => e).join(', ');
+            lead.email = uniqueEmails || 'Not Found';
+            if (uniqueEmails) sendLog(`📧 Found Emails: ${uniqueEmails}`);
 
-                const webScan = await scrapeBusinessWebsite(lead.website);
-                if (webScan) {
-                    let finalEmails = webScan.emails ? webScan.emails.split(', ') : [];
-                    let finalPhone = webScan.phone;
-                    
-                    // Stage 3.5: Contact Page Autopilot
-                    // If no email/phone on homepage, but contact links exist, visit them!
-                    if ((!finalEmails.length || !finalPhone) && webScan.contactLinks && webScan.contactLinks.length > 0) {
-                        for (const contactUrl of webScan.contactLinks) {
-                            sendLog(`🌐 Navigating to contact page: ${contactUrl}`);
-                            const subScan = await scrapeBusinessWebsite(contactUrl);
-                            if (subScan) {
-                                if (subScan.emails) finalEmails.push(...subScan.emails.split(', '));
-                                if (!finalPhone && subScan.phone) finalPhone = subScan.phone;
-                                if (subScan.socials && subScan.socials.length > 0) {
-                                    const existingSocials = lead.social ? lead.social.split(', ') : [];
-                                    const combinedSocials = [...new Set([...existingSocials, ...subScan.socials])];
-                                    lead.social = combinedSocials.join(', ');
-                                }
-                            }
-                            if (finalEmails.length > 0 && finalPhone) break; // found what we need, stop crawling
-                        }
-                    }
-
-                    const uniqueEmails = [...new Set(finalEmails)].filter(e => e).join(', ');
-                    if (uniqueEmails) {
-                        lead.email = uniqueEmails;
-                        sendLog(`✅ Found emails: ${uniqueEmails}`);
-                    }
-                    if (finalPhone && (!lead.phone || lead.phone === 'N/A')) {
-                        lead.phone = finalPhone;
-                    }
-                    if (webScan.socials && webScan.socials.length > 0) {
-                        const existingSocials = lead.social ? lead.social.split(', ') : [];
-                        const combinedSocials = [...new Set([...existingSocials, ...webScan.socials])];
-                        lead.social = combinedSocials.join(', ');
-                    }
-                }
+            if (finalPhone && (!lead.phone || lead.phone === 'N/A')) {
+                lead.phone = finalPhone;
+                sendLog(`📞 Found Phone: ${finalPhone}`);
+            }
+            if (finalAddress && (!lead.address || lead.address === 'N/A')) {
+                lead.address = finalAddress;
+                sendLog(`📍 Found Address: ${finalAddress}`);
+            }
+            if (finalSocials.length > 0) {
+                const existingSocials = lead.social ? lead.social.split(', ') : [];
+                lead.social = [...new Set([...existingSocials, ...finalSocials])].join(', ');
+                sendLog(`🔗 Found Socials: ${lead.social}`);
             }
 
-            if (!lead.email || lead.email === 'Pending Stage 2') {
-                lead.email = enrichment.emails || 'Not Found';
-            }
-            
             lead.status = 'complete';
             updateStorage();
-            chrome.runtime.sendMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: processedCount });
+            chrome.runtime.sendMessage({
+                action: 'emailCheckStatus',
+                total: leadsToProcess.length, current: processedCount
+            }).catch(() => {});
+            sendLog(`✅ [DONE] ${lead.name} → Next lead...`);
 
         } catch (err) {
-            sendLog(`⚠️ Error during deep search for "${lead.name}": ${err.message}`);
+            sendLog(`⚠️ Error processing "${lead.name}": ${err.message}`);
         }
-        
-        await new Promise(r => setTimeout(r, 2000));
+
+        // ── STEP 5: 다음 업체로 이동 ──
+        await new Promise(r => setTimeout(r, 500));
     }
 
     isFindingEmails = false;
-    sendLog(`🏁 Deep Search Complete.`);
-    chrome.runtime.sendMessage({ action: 'emailCheckStatus', finished: true });
-}
-
-async function scrapeBusinessWebsite(url) {
-    if (!url || url === 'N/A') return null;
-    try {
-        const result = await scanPageInBrowser(url, 5000);
-        return result;
-    } catch (e) {
-        return null;
-    }
+    sendLog('🏁 Discovery Engine Finished.');
+    chrome.runtime.sendMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: processedCount, finished: true }).catch(() => {});
 }

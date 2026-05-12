@@ -13,7 +13,8 @@ const zipName = `xpider_restore_point_${timestamp}.zip`;
 const zip = new AdmZip();
 
 const rootDir = __dirname;
-const exclude = ['node_modules', '.git', 'out', 'snapshots', 'portable_temp', 'assets', 'restore_points', 'data'];
+const exclude = ['node_modules', '.git', 'out', 'snapshots', '_snapshots_full', '_RESTORE_POINTS', 'portable_temp', 'assets', 'restore_points', 'data'];
+const excludeExtensions = ['.exe', '.zip', '.psd'];
 
 function addFiles(dir) {
     const items = fs.readdirSync(dir);
@@ -24,6 +25,7 @@ function addFiles(dir) {
         if (exclude.some(ex => relPath === ex || relPath.startsWith(ex + path.sep))) return;
         
         const stat = fs.statSync(fullPath);
+        if (!stat.isDirectory() && excludeExtensions.some(ext => item.toLowerCase().endsWith(ext))) return;
         if (stat.isDirectory()) {
             addFiles(fullPath);
         } else {

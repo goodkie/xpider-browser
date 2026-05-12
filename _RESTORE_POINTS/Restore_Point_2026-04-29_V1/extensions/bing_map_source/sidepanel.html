@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GMaps Business Finder</title>
+  <link rel="stylesheet" href="sidepanel.css">
+  <link rel="icon" type="image/png" href="icon.png">
+  <script src="i18n.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Navigation Banner (Shown when not on Google Maps) -->
+    <div id="navScreen" class="nav-banner hidden">
+      <div class="nav-banner-content">
+        <div class="nav-banner-text">
+          <h2 data-i18n="nav_title">Ready to Find Businesses?</h2>
+          <p data-i18n="nav_desc">Please navigate to Google or Bing Maps to start fetching leads.</p>
+        </div>
+        <div class="nav-btns">
+          <button id="goToMapsBtn" class="btn btn-blue btn-small" data-i18n="nav_btn">Go to Google Maps</button>
+          <button id="goToBingBtn" class="btn btn-blue btn-small" data-i18n="nav_btn_bing">Go to Bing Maps</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div id="settingsScreen" class="overlay hidden">
+      <div class="settings-content">
+        <h2 data-i18n="settings_title">Settings</h2>
+        <div class="settings-group">
+          <label data-i18n="lang_label">Language</label>
+          <select id="langSelect">
+            <option value="en">English</option>
+            <option value="ko">한국어</option>
+            <option value="ja">日本語</option>
+            <option value="zh_cn">简体中文</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="it">Italiano</option>
+            <option value="pt">Português</option>
+            <option value="ru">Русский</option>
+            <option value="vi">Tiếng Việt</option>
+            <option value="hi">हिन्दी</option>
+          </select>
+        </div>
+
+        <div class="settings-group">
+          <label data-i18n="settings_captcha">CAPTCHA Bypass</label>
+          <div class="method-toggle-container">
+            <div class="method-option active" data-value="audio">
+              <span class="m-icon">🎤</span>
+              <span data-i18n="method_free">Free (Wit.ai)</span>
+            </div>
+            <div class="method-option" data-value="api">
+              <span class="m-icon">⚡</span>
+              <span data-i18n="method_paid">Paid (Solver API)</span>
+            </div>
+            <input type="hidden" id="captchaMethod" value="audio">
+          </div>
+          <div id="witConfig" class="config-subgroup">
+            <input type="password" id="witKey" placeholder="Wit.ai Server Access Token" data-i18n-placeholder="label_wit_key">
+            <div class="api-help">
+              <a href="https://wit.ai/apps" target="_blank" data-i18n="get_api_link">Get API Key</a>
+            </div>
+          </div>
+          <div id="apiConfig" class="config-subgroup hidden">
+            <input type="password" id="solverKey" placeholder="2Captcha / NopeCHA Key" data-i18n-placeholder="label_solver_key">
+            <div class="api-help">
+              <a href="https://2captcha.com/setting" target="_blank" style="margin-right:10px;">2Captcha</a>
+              <a href="https://nopecha.com/manage" target="_blank">NopeCHA</a>
+            </div>
+          </div>
+        </div>
+        <button id="saveConfigBtn" class="btn btn-green" data-i18n="btn_save_config" style="margin-top: 10px;">Save Configuration</button>
+        <div class="version-info" style="margin: 10px 0; font-size: 12px; color: #94a3b8; text-align: center;">
+          <span>Version: </span><span id="appVersion">1.1.0</span>
+        </div>
+        <button id="closeSettingsBtn" class="btn btn-blue" data-i18n="close_btn">Close</button>
+      </div>
+    </div>
+
+    <header>
+      <button id="settingsBtn" class="settings-icon-btn" title="Settings">⚙️</button>
+      <div class="logo">
+        <img src="icon.png" alt="Logo" class="logo-img">
+        <h1>GMaps <span data-i18n="app_subtitle">Business Finder</span></h1>
+      </div>
+      <div class="status-badge" id="botStatus" data-i18n="status_idle">Idle</div>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <label data-i18n="leads_found">Leads Found</label>
+        <span id="leadCount">0</span>
+      </div>
+      <div class="stat-card">
+        <label data-i18n="emails_found">Emails Found</label>
+        <span id="emailCount">0</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="startBtn" class="btn btn-blue" data-i18n="btn_start">Stage 1: Start Scraping</button>
+      <button id="stopBtn" class="btn btn-red" data-i18n="btn_stop" disabled>Stop</button>
+      <button id="clearBtn" class="btn btn-outline-red" data-i18n="btn_clear">Clear Data</button>
+    </div>
+
+    <div class="stage2-section">
+      <div class="section-header">
+        <h3 data-i18n="stage2_title">Stage 2: Email Discovery</h3>
+        <span id="emailProgress" class="progress-label hidden">0/0</span>
+      </div>
+      <div class="stage2-controls">
+        <button id="findEmailsBtn" class="btn btn-green" data-i18n="btn_find_emails">Find Emails from Websites</button>
+        <button id="stopEmailsBtn" class="btn btn-red hidden" data-i18n="btn_stop_emails">Stop Discovery</button>
+      </div>
+      <div id="emailProgressBar" class="progress-container hidden">
+        <div class="progress-bar"></div>
+      </div>
+    </div>
+    
+    <!-- AutoCruiser Section: Cutting Edge UI -->
+    <div class="cruiser-container">
+      <div class="cruiser-header">
+        <div class="cruiser-title">
+          <span class="icon-rocket">🚀</span>
+          <h3 data-i18n="cruiser_title">AutoCruiser Pro</h3>
+        </div>
+        <div id="cruiserStatusDot" class="status-dot"></div>
+      </div>
+      
+      <div class="cruiser-content">
+        <div class="range-control">
+          <div class="range-header">
+            <span data-i18n="cruiser_range">Exploration Range</span>
+            <span id="cruiserRangeVal" class="range-badge">5 Mi</span>
+          </div>
+          <input type="range" id="cruiserRange" min="1" max="333" value="5" class="modern-slider">
+        </div>
+
+        <div class="range-control" style="margin-top: 15px; margin-bottom: 20px;">
+          <div class="range-header">
+            <span data-i18n="cruiser_step">Map Drag Step Size</span>
+            <span id="cruiserStepVal" class="range-badge">9.0 Mi</span>
+          </div>
+          <input type="range" id="cruiserStep" min="0.5" max="30" step="0.5" value="9.0" class="modern-slider">
+        </div>
+
+        <div class="range-control" style="margin-top: 5px; margin-bottom: 20px;">
+          <div class="range-header">
+            <span data-i18n="cruiser_speed">Scanning Speed</span>
+            <span id="cruiserSpeedVal" class="range-badge">1.0x (Normal)</span>
+          </div>
+          <input type="range" id="cruiserSpeed" min="0.5" max="5.0" step="0.5" value="1.0" class="modern-slider">
+        </div>
+
+        <button id="startCruiserBtn" class="btn-cruiser">
+          <span class="shine"></span>
+          <span data-i18n="btn_start_cruiser">Initialize Auto-Cruiser</span>
+        </button>
+
+        <!-- Real-time Monitor Panel -->
+        <div id="cruiserMonitor" class="cruiser-monitor hidden">
+          <div class="monitor-grid">
+            <div class="monitor-unit">
+              <div class="unit-label" data-i18n="monitor_pattern">Pattern</div>
+              <div id="cruiserDir" class="unit-value">Zig-Zag</div>
+            </div>
+            <div class="monitor-unit">
+              <div class="unit-label" data-i18n="monitor_state">Status</div>
+              <div id="cruiserState" class="unit-value">Moving...</div>
+            </div>
+            <div class="monitor-unit">
+              <div class="unit-label" data-i18n="monitor_distance">Covered</div>
+              <div id="cruiserDist" class="unit-value">0.0 Mi</div>
+            </div>
+            <div class="monitor-unit">
+              <div class="unit-label" data-i18n="monitor_found">New Leads</div>
+              <div id="cruiserNewLeads" class="unit-value">0</div>
+            </div>
+          </div>
+          <div class="monitor-radar">
+            <div class="radar-circle"></div>
+            <div class="radar-sweep"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="export-section">
+      <h3 data-i18n="export_title">Export Leads</h3>
+      <div class="export-btns">
+        <button id="exportCsv" class="btn btn-yellow" data-i18n="export_csv">CSV</button>
+        <button id="exportTxt" class="btn btn-yellow" data-i18n="export_txt">TXT</button>
+        <button id="exportSheet" class="btn btn-yellow" data-i18n="export_sheet">Sheet</button>
+      </div>
+    </div>
+
+    <div class="preview-section">
+      <div class="preview-header">
+        <h3 data-i18n="recent_leads">Recent Leads</h3>
+        <div id="loadingSpinner" class="spinner hidden"></div>
+      </div>
+      <div class="table-container">
+        <table id="resultsTable">
+          <thead>
+            <tr>
+              <th data-i18n="th_name">Business Name</th>
+              <th data-i18n="th_website">Website</th>
+              <th data-i18n="th_email">Email</th>
+              <th data-i18n="th_phone">Phone</th>
+              <th data-i18n="th_social">Social Media</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Rows injected here -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <footer>
+      <p data-i18n="footer_text">GMaps Business Finder • Full Version</p>
+    </footer>
+  </div>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

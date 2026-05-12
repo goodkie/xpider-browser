@@ -4,7 +4,8 @@
   "description": "Custom Chromium Browser for XPIDER",
   "main": "src/main.js",
   "scripts": {
-    "start": "electron-forge start",
+    "clean-locks": "powershell -NoProfile -Command \"Get-ChildItem -Path 'data','$env:APPDATA\\\\xpider-browser' -Filter LOCK -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue; Write-Host '[XPIDER] LOCK files cleaned'\"",
+    "start": "npm run clean-locks && electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "make:win": "electron-forge make --platform=win32 --arch=x64",

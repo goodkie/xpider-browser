@@ -203,26 +203,59 @@
             </div>
         </div>
 
-        <!-- 온보딩 -->
+        <!-- 온보딩 - 모든 익스텐션 한화면 소개 -->
         <div id="onboarding-overlay" class="hidden">
-            <div id="onboarding-bubble" class="onboarding-bubble">
-                <div class="bubble-header">
-                    <h2 id="ob-title" style="color: #f5a623; font-size: 24px; font-weight: 800;">Business Data Crawler</h2>
-                    <span class="step-indicator" style="background: #333; color: #888; padding: 4px 12px; border-radius: 15px; font-weight: 700;">1 / 2</span>
+            <div id="onboarding-modal" class="onboarding-modal">
+                <div class="ob-modal-header">
+                    <div class="ob-logo-row">
+                        <img src="assets/icon.png" class="ob-logo" alt="XPIDER">
+                        <div>
+                            <h1 class="ob-headline">Welcome to <span class="ob-accent">XPIDER</span></h1>
+                            <p class="ob-subline">세계 최강의 비즈니스 데이터 수집 브라우저</p>
+                        </div>
+                    </div>
                 </div>
-                <div class="bubble-body" style="margin-top: 20px;">
-                    <p id="ob-desc" style="font-size: 16px; line-height: 1.6; color: #fff;">웹 페이지 내 비즈니스 정보를 한눈에 수집하고 추출하는 강력한 크롤러입니다.</p>
+                <div class="ob-ext-grid">
+                    <!-- Card 1: Local Business Data Crawler -->
+                    <div class="ob-ext-card" data-color="#f5a623">
+                        <div class="ob-ext-icon">🕷️</div>
+                        <div class="ob-ext-body">
+                            <div class="ob-ext-badge" style="background:rgba(245,166,35,0.15);color:#f5a623;">Multi-Engine · AI 추출</div>
+                            <h3 class="ob-ext-name">Local Business Crawler <span class="ob-ext-ver">Pro</span></h3>
+                            <p class="ob-ext-sub">검색엔진을 가로질러 — 업체명 하나가 완전한 리드로</p>
+                            <p class="ob-ext-desc">구글·네이버·빙 등 10개 검색엔진에서 키워드 검색 후, 업체명·홈페이지·컨택 페이지를 자동 추적하여 이메일·전화·주소·SNS까지 한 번에 수집합니다.</p>
+                            <div class="ob-tags"><span>🔍 4단계 딥스캔</span><span>📧 이메일 자동추출</span><span>🤖 캡차 자동우회</span></div>
+                        </div>
+                    </div>
+                    <!-- Card 2: Google Maps -->
+                    <div class="ob-ext-card" data-color="#34d399">
+                        <div class="ob-ext-icon">🗺️</div>
+                        <div class="ob-ext-body">
+                            <div class="ob-ext-badge" style="background:rgba(52,211,153,0.15);color:#34d399;">Google Maps · 위치기반</div>
+                            <h3 class="ob-ext-name">Google Maps <span class="ob-ext-ver">Scraper</span></h3>
+                            <p class="ob-ext-sub">지도 위 모든 업체를 — 리드 리스트로 변환</p>
+                            <p class="ob-ext-desc">구글 맵에서 검색어로 주변 업체를 탐색하고, 업체명·별점·전화·홈페이지·이메일을 자동 수집합니다. CSV/JSON 즉시 내보내기 지원.</p>
+                            <div class="ob-tags"><span>📍 위치기반 수집</span><span>⭐ 별점 필터</span><span>📊 CSV 내보내기</span></div>
+                        </div>
+                    </div>
+                    <!-- Card 3: Bing Maps -->
+                    <div class="ob-ext-card" data-color="#60a5fa">
+                        <div class="ob-ext-icon">🔵</div>
+                        <div class="ob-ext-body">
+                            <div class="ob-ext-badge" style="background:rgba(96,165,250,0.15);color:#60a5fa;">Bing Maps · MS 생태계</div>
+                            <h3 class="ob-ext-name">Bing Maps <span class="ob-ext-ver">Scraper</span></h3>
+                            <p class="ob-ext-sub">MS의 지도 데이터를 — 당신의 영업 데이터베이스로</p>
+                            <p class="ob-ext-desc">Bing Maps에서 업체를 검색하고 상세 비즈니스 정보를 자동으로 수집합니다. Google Maps와 교차 검증으로 더 완전한 데이터를 확보하세요.</p>
+                            <div class="ob-tags"><span>🌐 크로스 검증</span><span>📞 전화 자동추출</span><span>💾 JSON 내보내기</span></div>
+                        </div>
+                    </div>
                 </div>
-                <hr style="border: none; border-top: 1px solid #333; margin: 20px 0;">
-                <div class="bubble-footer">
+                <div class="ob-modal-footer">
                     <label class="skip-today">
                         <input type="checkbox" id="ob-dont-show">
                         <span data-i18n="ob_dont_show">다시 보지 않기</span>
                     </label>
-                    <div class="bubble-actions">
-                        <button id="ob-next-btn" class="ob-btn" data-i18n="ob_next" style="background: #f5a623; color: #000; border-radius: 10px; padding: 10px 30px; font-weight: 800; cursor: pointer;">다음</button>
-                        <button id="ob-close-btn" class="ob-btn secondary hidden" data-i18n="ob_close" style="background: #f5a623; color: #000; border-radius: 10px; padding: 10px 30px; font-weight: 800; cursor: pointer;">시작하기</button>
-                    </div>
+                    <button id="ob-close-btn" class="ob-start-btn">🚀 지금 시작하기</button>
                 </div>
             </div>
         </div>

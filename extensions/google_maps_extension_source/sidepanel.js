@@ -3,6 +3,11 @@
 document.addEventListener('DOMContentLoaded', () => {
   console.log('[SIDEPANEL.JS] DOM Loaded. Initializing elements...');
   
+  function safeSendMessage(msg) {
+      window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: msg }, '*');
+      try { chrome.runtime.sendMessage(msg).catch(()=>{}); } catch(e) {}
+  }
+
   // Element Safely Retriever
   function getEl(id) {
       const el = document.getElementById(id);
@@ -124,7 +129,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.data.type === 'XPIDER_EVENT' && e.data.name === 'storage-changed') {
         const changes = e.data.data;
         if (changes && changes.scrapedData && changes.scrapedData.newValue) {
-            updateUI(changes.scrapedData.newValue);
+            const nd = changes.scrapedData.newValue;
+            updateUI(nd);
+            // ✅ chrome.storage.local.set 제거 → xpider-ext-storage-set 순환 루프 방지
+            // Export는 chrome.storage.local.get 대신 IPC로 직접 extStorage를 읽음
         }
     }
   });
@@ -148,6 +156,22 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('[SIDEPANEL.JS] updateUIForTab:', url, '→ isMap:', isMapPage(url));
       if (isMapPage(url)) {
           navScreen.classList.add('hidden');
+
+          // ★ 구글맵 로딩 완료 → 30초 딜레이 후 오버레이 숨김
+          const overlay = document.getElementById('mapsLoadingOverlay');
+          if (overlay && overlay.style.display === 'flex') {
+              const msg = document.getElementById('mapsLoadingMsg');
+              if (msg) msg.textContent = currentLang === 'ko' ? '초기화 중... (30초 소요)' : 'Initializing... (30s)';
+              
+              if (window.mapsLoadingTimeout) clearTimeout(window.mapsLoadingTimeout);
+              window.mapsLoadingTimeout = setTimeout(() => {
+                  overlay.style.display = 'none';
+                  if (goToMapsBtn) {
+                      goToMapsBtn.disabled = false;
+                      goToMapsBtn.innerText = currentLang === 'ko' ? '구글맵으로 이동' : 'Go to Google Maps';
+                  }
+              }, 30000);
+          }
       } else {
           navScreen.classList.remove('hidden');
       }
@@ -180,16 +204,40 @@ document.addEventListener('DOMContentLoaded', () => {
   if (goToMapsBtn) {
       goToMapsBtn.onclick = (e) => {
           e.target.disabled = true;
-          e.target.innerText = currentLang === 'ko' ? '지도 여는 중...' : 'Loading Maps...';
-          xpiderUpdateTab({ url: 'https://www.google.com/maps' });
+
+          // ★ 딕 오버레이 표시
+          const overlay = document.getElementById('mapsLoadingOverlay');
+          const msg     = document.getElementById('mapsLoadingMsg');
+          if (overlay) {
+              if (msg) msg.textContent = currentLang === 'ko' ? '구글맵을 여는 중...' : 'Opening Google Maps...';
+              overlay.style.display = 'flex';
+          }
+
+          // 검색어가 있으면 바로 검색 결과 맵으로 이동
+          const keyword = (document.getElementById('keyword') || document.getElementById('searchInput') || document.getElementById('keywordInput'));
+          const kw = keyword ? keyword.value.trim() : '';
+          const mapsUrl = kw
+              ? `https://www.google.com/maps/search/${encodeURIComponent(kw)}`
+              : 'https://www.google.com/maps';
+
+          xpiderUpdateTab({ url: mapsUrl });
+
+          // 30초 후 오버레이 자동 숨김 (보험)
+          if (window.mapsFallbackTimeout) clearTimeout(window.mapsFallbackTimeout);
+          window.mapsFallbackTimeout = setTimeout(() => {
+              if (overlay) overlay.style.display = 'none';
+              e.target.disabled = false;
+              e.target.innerText = currentLang === 'ko' ? '구글맵으로 이동' : 'Go to Google Maps';
+          }, 30000);
       };
   }
+
   // Go to Bing Maps 버튼 제거됨
 
   if (startBtn) startBtn.onclick = () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'start' });
-      chrome.runtime.sendMessage({ action: 'startScraping' });
+      safeSendMessage({ action: 'startScraping' });
       setUIStatus(true);
     });
   };
@@ -197,7 +245,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (stopBtn) stopBtn.onclick = () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       xpiderSendMessage(tabs[0] ? tabs[0].id : 999999, { action: 'stop' });
-      chrome.runtime.sendMessage({ action: 'stopScraping' });
+      safeSendMessage({ action: 'stopScraping' });
+      // Stage 2도 함께 중단
+      safeSendMessage({ action: 'stopEmailCheck' });
       setUIStatus(false);
     });
   };
@@ -206,12 +256,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const msg = currentLang === 'ko' ? '수집된 모든 데이터와 캐시를 삭제하시겠습니까?' : 'Clear all collected data and cache?';
     if (confirm(msg)) {
       // 0. 실행 중인 Stage 2 즉시 중단
-      chrome.runtime.sendMessage({ action: 'stopEmailCheck' });
-      window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'stopEmailCheck' } }, '*');
+      safeSendMessage({ action: 'stopEmailCheck' });
 
       // 1. Background에 clearData 신호 전송 (메인 프로세스 extStorage 완전 카우기)
-      chrome.runtime.sendMessage({ action: 'clearData' });
-      window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'clearData' } }, '*');
+      safeSendMessage({ action: 'clearData' });
 
       // 2. chrome.storage.local 완전 삭제
       const keysToRemove = ['scrapedData', 'scrapingActive', 'emailCheckActive', 'cruiserActive', 'processedUrls', 'emailProgress'];
@@ -232,15 +280,17 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   if (findEmailsBtn) findEmailsBtn.onclick = () => {
-    window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'startEmailCheck' } }, '*');
+    safeSendMessage({ action: 'startEmailCheck' });
     findEmailsBtn.classList.add('hidden');
     if (stopEmailsBtn) stopEmailsBtn.classList.remove('hidden');
     if (emailProgressLabel) emailProgressLabel.classList.remove('hidden');
     if (emailProgressBar) emailProgressBar.classList.remove('hidden');
+    // ✅ Bug 1 Fix: Stage 2 실행 시 상태 'Active'로 표시
+    setUIStatus(true);
   };
 
   if (stopEmailsBtn) stopEmailsBtn.onclick = () => {
-    window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'stopEmailCheck' } }, '*');
+    safeSendMessage({ action: 'stopEmailCheck' });
     stopEmailsBtn.disabled = true;
     stopEmailsBtn.innerText = currentLang === 'ko' ? '중지 중...' : 'Stopping...';
   };
@@ -279,8 +329,8 @@ document.addEventListener('DOMContentLoaded', () => {
           });
 
           // 2. Notify Background Engine (Stage 2 etc)
-          chrome.runtime.sendMessage({ action: 'startScraping' });
-          if (currentLang === 'en') chrome.runtime.sendMessage({ action: 'startEmailCheck' });
+          safeSendMessage({ action: 'startScraping' });
+          if (currentLang === 'en') safeSendMessage({ action: 'startEmailCheck' });
 
           // 3. Update UI
           startCruiserBtn.classList.add('active');
@@ -293,8 +343,9 @@ document.addEventListener('DOMContentLoaded', () => {
           xpiderSendMessage(id, { action: 'stopCruiser' });
           xpiderSendMessage(id, { action: 'stop' });
 
-          // 2. Notify Background
-          chrome.runtime.sendMessage({ action: 'stopScraping' });
+          // 2. Notify Background (Stage 1 & Stage 2 All Stop)
+          safeSendMessage({ action: 'stopScraping' });
+          safeSendMessage({ action: 'stopEmailCheck' });
 
           // 3. Update UI
           startCruiserBtn.classList.remove('active');
@@ -317,9 +368,14 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Export Listeners
-  if (exportCsv) exportCsv.onclick = () => chrome.storage.local.get(['scrapedData'], (res) => downloadCsv(res.scrapedData || []));
-  if (exportTxt) exportTxt.onclick = () => chrome.storage.local.get(['scrapedData'], (res) => downloadTxt(res.scrapedData || []));
-  if (exportSheet) exportSheet.onclick = () => chrome.storage.local.get(['scrapedData'], (res) => downloadSheet(res.scrapedData || []));
+  // Export: chrome.storage.local 대신 IPC로 직접 extStorage(최신 Stage 2 결과)를 읽음
+  // chrome.storage.local.get은 xpider-ext-storage-set 순환 루프를 유발할 수 있음
+  async function getLatestData() {
+      return window.latestScrapedData || [];
+  }
+  if (exportCsv) exportCsv.onclick = async () => { const d = await getLatestData(); downloadCsv(d); };
+  if (exportTxt) exportTxt.onclick = async () => { const d = await getLatestData(); downloadTxt(d); };
+  if (exportSheet) exportSheet.onclick = async () => { const d = await getLatestData(); downloadCsv(d); };
 
   // Settings UI
   if (settingsBtn) settingsBtn.onclick = () => settingsScreen && settingsScreen.classList.remove('hidden');
@@ -345,24 +401,32 @@ document.addEventListener('DOMContentLoaded', () => {
           if (changes.scrapedData && changes.scrapedData.newValue) {
               const newData = changes.scrapedData.newValue;
               updateUI(newData);
-              // ③ cruiserNewLeads 실시간 반영
+              // ✅ window.lastLeadCount 동기화
               if (cruiserNewLeads) {
                   const prev = window.lastLeadCount || 0;
                   const diff = newData.length - prev;
                   if (diff > 0) cruiserNewLeads.innerText = newData.length;
               }
+              window.lastLeadCount = newData.length;
           }
       });
   }
 
   // UI Helpers
   function updateUI(data, lang = currentLang) {
+    window.latestScrapedData = data;
     if (leadCountEl) leadCountEl.innerText = data.length;
+    // emailCountEl: 실제 이메일 수집된 건수
+    if (emailCountEl) {
+        const found = data.filter(b => b.email && b.email !== 'N/A' && b.email !== 'Not Found' && b.email !== 'Pending Stage 2' && b.email !== 'No Website').length;
+        emailCountEl.innerText = found;
+    }
     if (resultsTable) {
         resultsTable.innerHTML = '';
         data.slice(-10).reverse().forEach(b => {
             const row = document.createElement('tr');
-            row.innerHTML = `<td>${b.name}</td><td>${b.website||'N/A'}</td><td>${b.email||'N/A'}</td><td>${b.phone||'N/A'}</td><td>N/A</td>`;
+            const socialShort = b.social ? b.social.split(',')[0].trim() : 'N/A';
+            row.innerHTML = `<td>${b.name}</td><td>${b.website||'N/A'}</td><td>${b.email||'N/A'}</td><td>${b.phone||'N/A'}</td><td title="${b.social||''}"> ${socialShort}</td>`;
             resultsTable.appendChild(row);
         });
     }
@@ -370,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function setUIStatus(active) {
     if (statusBadge) {
-        statusBadge.innerText = active ? 'Active' : 'Idle';
+        statusBadge.innerText = active ? 'Active' : 'Ready';
         statusBadge.className = active ? 'status-badge active' : 'status-badge';
     }
     if (startBtn) startBtn.disabled = active;
@@ -402,11 +466,22 @@ document.addEventListener('DOMContentLoaded', () => {
           if (stopEmailsBtn) {
               stopEmailsBtn.classList.add('hidden');
               stopEmailsBtn.disabled = false;
-              stopEmailsBtn.innerText = currentLang === 'ko' ? '중지' : 'Stop Emails';
+              stopEmailsBtn.innerText = currentLang === 'ko' ? '중지' : 'Stop';
           }
+          // ✅ Bug 1 Fix: 완료 시 Idle로 복귀
+          setUIStatus(false);
+          // ✅ Bug 2 Fix: 완료 후 최종 카운트 반영
+          chrome.storage.local.get(['scrapedData'], (res) => {
+              if (emailCountEl && res.scrapedData) {
+                  const found = res.scrapedData.filter(b => b.email && b.email !== 'N/A' && b.email !== 'Not Found' && b.email !== 'Pending Stage 2' && b.email !== 'No Website').length;
+                  emailCountEl.innerText = found;
+              }
+          });
       } else {
           if (emailProgressLabel) emailProgressLabel.innerText = status.statusText || `${status.current}/${status.total}`;
           if (progressBarInner && status.total > 0) progressBarInner.style.width = `${(status.current/status.total)*100}%`;
+          // ✅ Bug 2 Fix: 진행 중 실시간 카운트 업데이트
+          if (emailCountEl && status.current > 0) emailCountEl.innerText = status.current;
       }
   }
 
@@ -419,7 +494,22 @@ document.addEventListener('DOMContentLoaded', () => {
       }
   }
 
-  // Export functions (Stub for brevity, assume they work as before)
+  // ✅ Bug 3 Fix: OS 저장 다이얼로그를 통한 다운로드 (XPIDER IPC 청어 다운로드 나오지 않는 문제 해결)
+  async function saveViaIPC(content, filename) {
+      try {
+          const res = await window.xpiderBridge?.invoke?.('xpider-ext-save-file', { content, filename });
+          if (!res || !res.success) throw new Error('IPC fallback');
+      } catch(e) {
+          const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.setAttribute('download', filename);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+      }
+  }
+
   function downloadCsv(data) {
     if (!data || data.length === 0) return alert('No data to export');
     const headers = ['Name', 'Category', 'Address', 'Website', 'Email', 'Phone', 'Rating', 'Reviews', 'Social'];
@@ -435,13 +525,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `"${(b.social || '').replace(/"/g, '""')}"`
     ].join(','));
     const csvContent = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `xpider_leads_${Date.now()}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    saveViaIPC('\uFEFF' + csvContent, `xpider_leads_${Date.now()}.csv`);
   }
 
   function downloadTxt(data) {
@@ -456,13 +540,7 @@ document.addEventListener('DOMContentLoaded', () => {
         txt += `SOCIAL: ${b.social || 'N/A'}\n`;
         txt += '-'.repeat(30) + '\n';
     });
-    const blob = new Blob([txt], { type: 'text/plain;charset=utf-8;' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", `xpider_leads_${Date.now()}.txt`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    saveViaIPC(txt, `xpider_leads_${Date.now()}.txt`);
   }
 
   function downloadSheet(data) {
@@ -492,6 +570,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data && data.scrapedData) {
             const newData = data.scrapedData.newValue || [];
             updateUI(newData, currentLang);
+            // ✅ chrome.storage.local.set 제거 → 순환 루프 방지
+            // (extStorage는 main.js가 단독 관리, 사이드패널은 표시만 담당)
             if (newData.length > (window.lastLeadCount || 0)) {
                 const diff = newData.length - (window.lastLeadCount || 0);
                 showToast(`+${diff} ${currentLang === 'ko' ? '개 신규 리드 발견!' : 'new lead(s)!'}`);
@@ -500,6 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }
+
 
     // ③ cruiserUpdate 실시간 업데이트
     if (name === 'runtime-on-message') {
@@ -511,19 +592,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // ⑤ cruiser-stopped → Stage2 자동 시작
+    // ⑤ cruiser-stopped → UI 상태만 리셋 (Stage 2 자동 시작 제거)
     if (name === 'cruiser-stopped') {
-        console.log('[SIDEPANEL.JS] Cruiser stopped. Auto-triggering Stage 2...');
+        console.log('[SIDEPANEL.JS] Cruiser stopped.');
         startCruiserBtn.classList.remove('active');
         startCruiserBtn.innerText = currentLang === 'ko' ? 'Auto-Cruiser 시작' : 'Initialize Auto-Cruiser';
         if (cruiserState) cruiserState.innerText = currentLang === 'ko' ? '완료' : 'Done';
         setUIStatus(false);
-        setTimeout(() => {
-            if (findEmailsBtn && !findEmailsBtn.classList.contains('hidden') && !findEmailsBtn.disabled) {
-                console.log('[SIDEPANEL.JS] Auto-clicking Stage 2 button');
-                findEmailsBtn.click();
-            }
-        }, 1500);
     }
   });
 });

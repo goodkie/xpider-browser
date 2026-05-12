@@ -76,11 +76,32 @@ class GMapsBulletproofScraper {
     this.feedObserver = new MutationObserver(() => this._onFeedChanged());
     this.feedObserver.observe(feed, { childList: true, subtree: true });
     console.log('[SCRAPER] Feed observer bound:', feed.className || feed.tagName);
+    
+    // [강화된 로직] 맵 드래그 등으로 새로운 검색 결과가 로드되면, 맨 아래까지 차례로 자동 스크롤 트리거
+    if (!this.collecting) {
+        setTimeout(() => {
+            if (this.active && !this.collecting) {
+                console.log('[SCRAPER] 새 검색 결과 감지 -> 차례로 자동 스크롤 시작!');
+                this.waitUntilFinished();
+            }
+        }, 2000); // 새 결과가 렌더링될 시간을 충분히 줌
+    }
   }
 
   _onFeedChanged() {
-    // Lightweight immediate scrape on DOM change (no scroll)
+    // Lightweight immediate scrape on DOM change
     this._scrapeCards();
+    
+    // [강화] 수동 맵 드래그 시 피드 내용이 바뀌면 자동으로 맨아래까지 스크롤하도록 연계
+    if (this.active && !this.collecting) {
+        clearTimeout(this._scrollDebounce);
+        this._scrollDebounce = setTimeout(() => {
+            if (this.active && !this.collecting) {
+                console.log('[SCRAPER] 리스트 업데이트 감지 -> 차례로 자동 스크롤 시작!');
+                this.waitUntilFinished();
+            }
+        }, 1500);
+    }
   }
 
   // ── Feed Locator ──────────────────────────────────────────────
@@ -97,16 +118,24 @@ class GMapsBulletproofScraper {
   // ── Card Extraction ───────────────────────────────────────────
   _extractCardData(card) {
     const link = card.querySelector('a.hfpxzc, a[href*="/maps/place/"]');
-    if (!link) return null;
+    if (!link) {
+        // console.debug('[SCRAPER-DEBUG] No link found in card', card.className);
+        return null;
+    }
 
     const url  = link.href || '';
     const name = (
       card.querySelector('.fontHeadlineSmall')?.innerText ||
       card.querySelector('.qBF1Pd')?.innerText ||
       card.querySelector('[role="heading"]')?.innerText ||
+      card.getAttribute('aria-label') ||
       ''
     ).trim();
-    if (!name || !url) return null;
+    
+    if (!name || !url) {
+        console.warn('[SCRAPER] Missing name or url:', { name, url });
+        return null;
+    }
 
     // Dedup by URL
     const id = url.split('?')[0];
@@ -115,27 +144,33 @@ class GMapsBulletproofScraper {
 
     // Rating & reviews
     const rating  = card.querySelector('.MW4etd')?.innerText?.trim() || 'N/A';
-    const reviews = card.querySelector('.UY7F9')?.innerText?.replace(/[()]/g, '').trim() || '0';
+    const reviews = card.querySelector('.UY7F9, .fontBodyMedium .e4rVHe .muMOJe')?.innerText?.replace(/[()]/g, '').trim() || '0';
 
     // Category & address (from subtitle spans)
     let category = 'N/A', address = 'N/A';
-    card.querySelectorAll('.W4E7P, .AJ7S2, .Ua67Yy, .lqhpnc, .rllt__details div').forEach(el => {
+    const subLines = card.querySelectorAll('.W4E7P, .AJ7S2, .Ua67Yy, .lqhpnc, .rllt__details div, .W4Efsd span');
+    subLines.forEach(el => {
       const t = el.innerText?.trim() || '';
-      if (!t) return;
-      if (t.includes('·')) { address = t; }
-      else if (category === 'N/A' && !t.match(/^\d/) && t.length > 2) { category = t; }
+      if (!t || t.length < 2) return;
+      if (t.includes('·')) { 
+          // address often contains dots or follows a dot
+          const parts = t.split('·');
+          if (parts[1]) address = parts[1].trim();
+      } else if (category === 'N/A' && !t.match(/^\d/) && t.length > 2) { 
+          category = t; 
+      } else if (t.match(/\d+/) && address === 'N/A') {
+          address = t;
+      }
     });
 
-    // Website
+    // Website - Google Maps List view now hides Website button often.
     const websiteEl = card.querySelector(
       'a[aria-label*="Website"], a[aria-label*="웹사이트"], a[data-item-id="authority"], a.lcr4fd'
     );
     const website = websiteEl?.href || 'N/A';
 
-    // Phone (regex from full card text)
-    const phoneMatch = (card.innerText || '').match(
-      /(\+?\d[\d\s\-().]{6,18}\d)/
-    );
+    // Phone
+    const phoneMatch = (card.innerText || '').match(/(\+?\d[\d\s\-().]{6,18}\d)/);
     const phone = phoneMatch ? phoneMatch[0].trim() : 'N/A';
 
     // PlaceId from URL
@@ -151,11 +186,16 @@ class GMapsBulletproofScraper {
 
     const cardSelectors = [
       'div[role="article"]',
+      '.Nv2PK', '.THOPZb', '.CpccDe', // New selectors from 2026 UI
       '.Nv2Ybe', '.THS69c', '.lqhpnc',
       '.VkpSff', '.hQ9O4b',
     ];
     const cards = document.querySelectorAll(cardSelectors.join(','));
     let newCount = 0;
+
+    if (cards.length === 0) {
+        console.debug('[SCRAPER] No cards found with current selectors.');
+    }
 
     cards.forEach(card => {
       const data = this._extractCardData(card);
@@ -176,58 +216,35 @@ class GMapsBulletproofScraper {
   // _getScrollContainer: 실제 스크롤 가능한 컨테이너 탐색
   // ══════════════════════════════════════════════════════════════
   _getScrollContainer() {
-    // 0순위: 현재 화면에 보이는 비즈니스 카드의 직계 부모 체인 탐색 (가장 확실함)
-    const card = document.querySelector('div[role="article"], .Nv2Ybe, .THS69c, .Ua67Yy');
-    if (card) {
-      let curr = card.parentElement;
-      for (let i = 0; i < 10 && curr && curr !== document.body; i++) {
-        const s = window.getComputedStyle(curr);
-        if ((s.overflowY === 'auto' || s.overflowY === 'scroll') && curr.scrollHeight > curr.clientHeight) {
-          console.log('[SCRAPER] Found container via card parent chain:', curr.className?.substring(0, 50));
-          return curr;
-        }
-        curr = curr.parentElement;
-      }
-    }
-
-    // 1순위: role="feed" 자체가 스크롤 가능한지 확인
+    // 1. role="feed" (가장 표준적인 결과 목록 영역)
     const feed = document.querySelector('div[role="feed"]');
     if (feed && feed.scrollHeight > feed.clientHeight) return feed;
 
-    // 2순위: feed의 부모 체인 탐색
-    if (feed) {
-      let parent = feed.parentElement;
-      for (let i = 0; i < 6 && parent; i++) {
-        if (parent.scrollHeight > parent.clientHeight) return parent;
-        parent = parent.parentElement;
+    // 2. 검색결과 카드들의 공통 부모를 역추적 (가장 확실한 방법)
+    const card = document.querySelector('div[role="article"], .Nv2Ybe, .THS69c, .Ua67Yy');
+    if (card) {
+      let el = card.parentElement;
+      for (let i = 0; i < 15 && el && el !== document.body; i++) {
+        const st = window.getComputedStyle(el);
+        if ((st.overflowY === 'auto' || st.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 20) {
+          console.log('[SCRAPER] Found scroll container via parent chain:', el.className?.substring(0, 30));
+          return el;
+        }
+        el = el.parentElement;
       }
     }
 
-    // 3순위: 알려진 클래스명 및 속성
+    // 3. 알려진 클래스명 및 속성
     const candidates = [
       '.m6QErb.DxyBCb.klm67c',
       'div[aria-label*="Results for"]',
       'div[aria-label*="결과"]',
       '.m6QErb[tabindex="-1"]',
-      '#qa0fg', // 특정 버전 ID
     ];
     for (const sel of candidates) {
       const el = document.querySelector(sel);
       if (el && el.scrollHeight > el.clientHeight) return el;
     }
-
-    // 4순위: 최후의 수단 - 가장 큰 스크롤 가능한 영역
-    const allDivs = [...document.querySelectorAll('div')];
-    const scrollable = allDivs
-      .filter(d => {
-        const s = window.getComputedStyle(d);
-        return (s.overflowY === 'auto' || s.overflowY === 'scroll') &&
-               d.scrollHeight > d.clientHeight + 100 &&
-               d.clientWidth > 200 && d.clientWidth < 800;
-      })
-      .sort((a, b) => b.scrollHeight - a.scrollHeight);
-
-    if (scrollable.length > 0) return scrollable[0];
 
     return null;
   }
@@ -238,6 +255,17 @@ class GMapsBulletproofScraper {
   async waitUntilFinished() {
     if (this.collecting) return;
     this.collecting = true;
+
+    // ★ [핵심 수정] 컨테이너 검색 전 바다/빈 구역 사전 검사
+    // 바다 위에서는 어떤 컨테이너도 찾을 필요 없이 즉시 반환
+    if (typeof cruiser !== 'undefined') {
+      const preCheck = cruiser._detectEmptyZone();
+      if (preCheck) {
+        console.log(`[SCRAPER] 🚫 Pre-check: ${preCheck} detected — skipping collection loop instantly.`);
+        this.collecting = false;
+        return;
+      }
+    }
 
     // HUD 업데이트 (크루저가 실행 중인 경우)
     if (typeof cruiser !== 'undefined' && cruiser.hud) {
@@ -279,15 +307,23 @@ class GMapsBulletproofScraper {
     while (this.active && round < 100) {
       round++;
       
-      // 스크롤 수행 (4단계 - 초강력 콤보)
-      container.dispatchEvent(new WheelEvent('wheel', { deltaY: 800, bubbles: true }));
-      container.scrollBy({ top: 800, behavior: 'smooth' });
-      container.dispatchEvent(new KeyboardEvent('keydown', { key: 'PageDown', keyCode: 34, bubbles: true }));
-      container.scrollTop = container.scrollHeight;
+      const step = Math.max(container.clientHeight * 0.8, 600);
+      container.dispatchEvent(new WheelEvent('wheel', { deltaY: step, bubbles: true }));
+      container.scrollBy({ top: step, behavior: 'smooth' });
+      container.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', keyCode: 40, bubbles: true }));
 
       await sleep(1000);
       
-      this._scrapeCards();
+      const newFound = this._scrapeCards();
+
+      // [조기 종료 강화] 첫 라운드에서 결과가 없고 "결과 없음" 텍스트가 명확하면 즉시 종료
+      if (round === 1 && this.processedIds.size === lastCount) {
+         const emptyZone = cruiser._detectEmptyZone();
+         if (emptyZone) {
+            console.log(`[SCRAPER] ⚡ Early exit: ${emptyZone} detected in round 1`);
+            break;
+         }
+      }
 
       const progress = Math.min(100, Math.round(
         (container.scrollTop / Math.max(1, container.scrollHeight - container.clientHeight)) * 100
@@ -305,11 +341,18 @@ class GMapsBulletproofScraper {
       if (h === lastHeight && c === lastCount) {
         stagnant++;
         console.log(`[SCRAPER] ⏸ Stagnant ${stagnant}/5 | scrollH변화없음=${h} leads변화없음=${c}`);
-        if (stagnant >= 5) {
-          // 강제 자극: 살짝 위로 올렸다가 다시 바닥으로
-          container.scrollTop -= 300;
+        
+        // [강화] 데이터가 아예 없는 상태에서의 정체는 더 빨리 포기
+        const emptyThresh = (c === 0) ? 2 : 5;
+        if (stagnant >= emptyThresh) {
+          if (c === 0) {
+              console.log('[SCRAPER] 🏁 No data stagnant exit.');
+              break;
+          }
+          // 데이터가 있는 경우만 강제 자극 시도
+          container.scrollBy({ top: -400, behavior: 'smooth' });
           await sleep(500);
-          container.scrollTop = container.scrollHeight + 500;
+          container.scrollBy({ top: 600, behavior: 'smooth' });
           await sleep(1500);
           if (container.scrollHeight === h && this.processedIds.size === lastCount) {
             console.log('[SCRAPER] 🏁 Final stagnation — 수집 완료.');
@@ -363,45 +406,28 @@ class GMapsBulletproofScraper {
   }
 
   async forceSearchThisArea() {
-    const TEXTS = [
-      'Search this area', '이 지역 검색', '현재 화면에서 검색',
-      '현재 지도에서 검색', 'Search here', 'このエリアを検索',
-      '여기 검색', '재검색', 'Redo search here', '재검색하기',
-      'Buscar en esta área', 'Rechercher ici', 'Hier suchen',
-      '이 영역 검색', '지도에서 검색',
+    const SELS = [
+      'button.NlVald', 
+      'button.X69Czc', 
+      'button[jsaction*="searchThisArea"]',
+      'button[aria-label*="이 지역 검색"]',
+      'button[aria-label*="Search this area"]'
     ];
 
     const click = (el) => {
       ['mousedown','mouseup','click'].forEach(type =>
         el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }))
       );
-      console.log('[SCRAPER] ✔ Clicked search button:', el.innerText?.trim() || el.getAttribute('aria-label') || el.tagName);
+      console.log('[SCRAPER] ✔ Clicked Search Button:', el.innerText?.trim() || el.tagName);
       return true;
     };
 
-    // Attempt 1: CSS selectors (fastest)
-    const CSS = [
-      'button.NlVald', 'button.X69Czc', '.Hz7p5c button', '.L6Bbsd',
-      'button[aria-label*="이 지역"]', 'button[aria-label*="Search this"]',
-      'button[aria-label*="Redo search"]', 'button[jsaction*="searchThisArea"]',
-      '[role="button"][aria-label*="이 지역"]', 'div.s6Hshc button',
-      '.search-here-button', '.YzWBM button', 'button[jsaction*="dg_search"]',
-    ];
-    for (const sel of CSS) {
+    for (const sel of SELS) {
       const el = document.querySelector(sel);
-      if (el && el.offsetParent !== null) return click(el);
-    }
-
-    // Attempt 2: Text walk
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
-    let node;
-    while ((node = walker.nextNode())) {
-      if (node.offsetParent === null) continue;
-      const t = (node.innerText || node.textContent || '').trim();
-      if (!t || t.length > 40) continue;
-      if (TEXTS.some(tx => t.includes(tx))) {
-        const btn = node.closest('button,[role="button"]') || (node.tagName === 'BUTTON' ? node : null);
-        if (btn) return click(btn);
+      if (el && el.offsetParent !== null) {
+        // 평점 버튼 오클릭 방지: 화면 상단 중앙 영역인지 확인
+        const rect = el.getBoundingClientRect();
+        if (rect.top < 200) return click(el);
       }
     }
 
@@ -531,6 +557,7 @@ class MapCruiser {
     this.lineSteps   = 0;
     this.totalLines  = 0;
     this.noResStreak = 0;
+    this.targetSteps = 0;  // 방향 반전 후 이동해야 할 목표 스텔 수
   }
 
   start(config = {}) {
@@ -539,7 +566,7 @@ class MapCruiser {
     this.stepSize  = config.stepSize  || 9.0;
     this.range     = config.range     || 5;
     this.speedMult = config.speedMult || 0.3;
-    this.dist = this.lineSteps = this.totalLines = this.noResStreak = 0;
+    this.dist = this.lineSteps = this.totalLines = this.noResStreak = this.targetSteps = 0;
     this.direction = 1;
 
     this.hud.create();
@@ -561,7 +588,10 @@ class MapCruiser {
 
   _delay() {
     // 0.1x → 80s, 0.3x → 26.7s, 1.0x → 8s, 3.0x → 2.7s
-    return Math.max(2000, 8000 / Math.min(this.speedMult, 3.0));
+    const base = Math.max(2000, 8000 / Math.min(this.speedMult, 3.0));
+    // ★ [핵심 수정] 빈 구역 연속 감지 중에는 딜레이를 최소화 (빠른 스킵을 위해)
+    if (this.noResStreak > 0) return 2000;
+    return base;
   }
 
   async _loop() {
@@ -574,7 +604,8 @@ class MapCruiser {
         this.dist += this.stepSize;
         this.lineSteps++;
         this.hud.update({ status: 'MOVING...' });
-        sendToXpider({ action: 'performHardwareMove', direction: 'HORIZONTAL' });
+        // ★ [핀스] 현재 this.direction 값을 메시지에 포함하여 렌더러에서 직접 사용
+        sendToXpider({ action: 'performHardwareMove', direction: 'HORIZONTAL', cruiserDir: this.direction });
         await sleep(2000); // Wait for drag to finish
       } else {
         // First time: just initialize
@@ -600,6 +631,23 @@ class MapCruiser {
       }
 
       // ── 4. Ocean / No-results detection ──
+      // ★ targetSteps: 방향 반전 후 채워야 할 스텝 수 (이전 줄 스텝 수)
+      //    targetSteps > 0 이면 아직 "반전 귀환" 중이므로 감지 건너뜀
+      if (this.targetSteps > 0 && this.lineSteps < this.targetSteps) {
+        // 귀환 중 — noResStreak 초기화하고 감지 스킵
+        this.noResStreak = 0;
+        this.hud.update({ status: `↩ RETURNING (${this.lineSteps}/${this.targetSteps})`, streak: 0 });
+        // Speed Delay 스킵 없이 계속 이동
+        const waitTime = this._delay();
+        await sleep(waitTime);
+        continue;
+      }
+      // 목표 스텝에 도달했으면 targetSteps 초기화
+      if (this.targetSteps > 0 && this.lineSteps >= this.targetSteps) {
+        console.log(`[CRUISER] ✅ Return complete (${this.lineSteps} steps). Resuming normal scan.`);
+        this.targetSteps = 0;
+      }
+
       const zone = this._detectEmptyZone();
       if (zone) {
         this.noResStreak++;
@@ -608,13 +656,33 @@ class MapCruiser {
         this.noResStreak = 0;
       }
 
-      // ── 5. Reversal / South Turn ──
-      const thresh = zone === 'OCEAN' ? 2 : 3;
+      // ── 5. 다음 줄 이동 판정 (바다/빈 구역 3회 연속) ──
+      const thresh = 3;
       if (this.noResStreak >= thresh) {
+        // ★ 이전 줄에서 이동한 스텝 수를 기억 (반전 후 동일 거리 진행)
+        const prevSteps = this.lineSteps;
         this.noResStreak = 0;
         this.lineSteps = 0;
-        this.hud.update({ status: 'REVERSING' });
-        sendToXpider({ action: 'skipHardwareCruiserLine' });
+        this.totalLines++;
+
+        // 방향 반전
+        this.direction *= -1;
+        const newDir = this.direction > 0 ? 'EAST' : 'WEST';
+        const skipMsg = zone === 'OCEAN'
+          ? `🌊 바다 ${thresh}회 감지 — ${newDir}으로 반전 (목표: ${prevSteps}스텝)`
+          : `⚠️ 빈구역 ${thresh}회 감지 — ${newDir}으로 반전 (목표: ${prevSteps}스텝)`;
+        console.log(`[CRUISER] ${skipMsg}`);
+
+        // 반전 후 이전 줄 스텝 수만큼 이동할 목표 설정
+        this.targetSteps = prevSteps;
+
+        this.hud.update({
+          status: zone === 'OCEAN' ? '🌊 REVERSE+SOUTH' : '⚠️ REVERSE+SOUTH',
+          direction: newDir, streak: 0
+        });
+
+        // renderer에 방향 반전 + 남쪽 이동 신호를 전송 (newDirection 포함)
+        sendToXpider({ action: 'reverseAndMoveSouth', newDirection: this.direction });
         await sleep(4000);
         continue;
       }
@@ -634,19 +702,55 @@ class MapCruiser {
     }
   }
 
+
   _detectEmptyZone() {
-    const cards = document.querySelectorAll('div[role="article"],.Nv2Ybe,.THS69c');
-    if (cards.length > 0) return null;
+    const cards = document.querySelectorAll('div[role="article"],.Nv2Ybe,.THS69c,.Nv2PK,.O099S');
+    const txt = (document.body.innerText || '').toLowerCase();
+    const html = (document.body.innerHTML || '').toLowerCase();
+    
+    // ── 1. 비즈니스 카드 존재 확인 ──
+    if (cards.length > 0) {
+      return null;
+    }
 
-    const txt = document.body.innerText;
-    if (/\bOcean\b|\bSea\b|바다|해상|대양|海洋|Oceano|Océan|Meer/i.test(txt)) return 'OCEAN';
-    if (/찾을 수 없|결과가 없|No results|can't find|No places found/i.test(txt))  return 'EMPTY';
+    // ── 2. 바다/해양 텍스트 감지 (다국어 확장) ──
+    const oceanRegex = /ocean|sea|gulf|bay|pacific|atlantic|mediterranean|바다|해상|대양|해양|태평양|대서양|海洋|oceano|oc\u00e9an|meer|mar\b|mer\b/i;
+    if (oceanRegex.test(txt)) {
+      console.log('[CRUISER] 🌊 Detection: OCEAN (via keywords)');
+      return 'OCEAN';
+    }
 
-    const btn = document.querySelector('button.NlVald,button.X69Czc,button[aria-label*="이 지역"]');
-    if (btn && btn.offsetParent !== null) return 'EMPTY';
+    // ── 3. 빈 결과 텍스트 감지 (다국어 확장) ──
+    const noResultsRegex = /찾을 수 없|결과가 없|no results|can't find|no places found|aucun r\u00e9sultat|keine ergebnisse|no se ha|no se ha podido|no hay resultados/i;
+    if (noResultsRegex.test(txt)) {
+      console.log('[CRUISER] ⚠️ Detection: EMPTY (via "No Results" text)');
+      return 'EMPTY';
+    }
+
+    // ── 4. 검색 버튼 존재 확인 (중요: 카드는 없는데 버튼만 떠있는 경우) ──
+    const searchBtn = document.querySelector('button.NlVald, button.X69Czc, button[aria-label*="이 지역"], button[aria-label*="Search this area"], button[aria-label*="rechercher"]');
+    if (searchBtn && (searchBtn.offsetParent !== null || searchBtn.offsetWidth > 0)) {
+      console.log('[CRUISER] ⚠️ Detection: EMPTY (Search button visible but 0 cards)');
+      return 'EMPTY';
+    }
+
+    // ── 5. HTML 인디케이터 ( water, coast 등 배경 요소 분석 ) ──
+    if (html.includes('ocean') || html.includes('water-mask') || html.includes('water_layer')) {
+       console.log('[CRUISER] 🌊 Detection: OCEAN (via HTML indicators)');
+       return 'OCEAN';
+    }
+
+    // ── 6. 최종 판별 ──
+    // 아무런 비즈니스 카드도 없고, 위 지표들도 없는데 "결과 리스트" 자체가 렌더링되지 않은 상태라면 EMPTY로 간주
+    const feed = scraper._getFeed();
+    if (!feed || feed.innerText.length < 50) {
+        console.log('[CRUISER] ⚠️ Detection: EMPTY (No feed content found)');
+        return 'EMPTY';
+    }
 
     return null;
   }
+
 }
 
 // ═══════════════════════════════════════════════════════════════════════

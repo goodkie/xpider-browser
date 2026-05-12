@@ -1,0 +1,39 @@
+{
+  "name": "xpider-browser",
+  "version": "4.9.0",
+  "description": "Custom Chromium Browser for XPIDER",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "make:win": "electron-forge make --platform=win32 --arch=x64",
+    "make:win-zip": "electron-forge make --platform=win32 --arch=x64 --targets=@electron-forge/maker-zip",
+    "make:mac": "electron-forge make --platform=darwin --arch=x64",
+    "make:mac-arm": "electron-forge make --platform=darwin --arch=arm64",
+    "publish": "electron-forge publish",
+    "sync": "git add -A && git commit -m \"dev-sync: %date% %time%\" && git push origin main",
+    "sync:ext": "cd extensions/google_maps_extension_source && git add -A && git commit -m \"ext-sync\" && git push"
+  },
+  "keywords": [],
+  "author": "Antigravity",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron-forge/cli": "^7.3.0",
+    "@electron-forge/maker-deb": "^7.11.1",
+    "@electron-forge/maker-dmg": "^7.11.1",
+    "@electron-forge/maker-rpm": "^7.11.1",
+    "@electron-forge/maker-squirrel": "^7.11.1",
+    "@electron-forge/maker-zip": "^7.11.1",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.3.0",
+    "electron": "latest",
+    "electron-forge-maker-nsis": "^26.8.1",
+    "electron-icon-maker": "^0.0.5"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.104.0",
+    "adm-zip": "^0.5.17",
+    "electron-log": "^5.0.0",
+    "electron-updater": "^6.1.7"
+  }
+}

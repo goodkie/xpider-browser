@@ -40,7 +40,7 @@ const translations = {
     method_paid: "Paid (Solver API)",
     get_api_link: "Get API Key",
     btn_save_success: "Saved!",
-    btn_stop_emails: "Stop Discovery",
+    btn_stop_emails: "Stop",
     cruiser_title: "AutoCruiser Pro",
     cruiser_range: "Exploration Range",
     cruiser_step: "Map Drag Step Size",
@@ -92,7 +92,7 @@ const translations = {
     method_paid: "유료 (솔버 API)",
     get_api_link: "API 키 획득",
     btn_save_success: "저장 완료",
-    btn_stop_emails: "탐색 중지",
+    btn_stop_emails: "중지",
     cruiser_title: "오토크루저 프로 (AutoCruiser Pro)",
     cruiser_range: "지도 탐사 범위 (Range)",
     cruiser_step: "1회 이동 거리 (Step Size)",
@@ -143,7 +143,7 @@ const translations = {
     method_paid: "有料 (ソルバーAPI)",
     get_api_link: "APIキーを取得",
     btn_save_success: "保存完了",
-    btn_stop_emails: "探索を停止",
+    btn_stop_emails: "停止",
     deep_search_active: "ディープサーチ収集中..."
   },
   es: {
@@ -183,7 +183,7 @@ const translations = {
     method_paid: "Pago (Solver API)",
     get_api_link: "Obtener clave API",
     btn_save_success: "Guardado",
-    btn_stop_emails: "Detener descubrimiento",
+    btn_stop_emails: "Detener",
     deep_search_active: "Búsqueda profunda activa..."
   },
   fr: {
@@ -223,7 +223,7 @@ const translations = {
     method_paid: "Payant (Solver API)",
     get_api_link: "Obtenir la clé API",
     btn_save_success: "Enregistré",
-    btn_stop_emails: "Arrêter la découverte",
+    btn_stop_emails: "Arrêter",
     deep_search_active: "Recherche approfondie active..."
   },
   de: {
@@ -263,7 +263,7 @@ const translations = {
     method_paid: "Kostenpflichtig (Solver API)",
     get_api_link: "API-Schlüssel erhalten",
     btn_save_success: "Gespeichert",
-    btn_stop_emails: "Entdeckung stoppen"
+    btn_stop_emails: "Stopp"
   },
   it: {
     nav_title: "Pronto a trovare aziende?",
@@ -302,7 +302,7 @@ const translations = {
     method_paid: "A pagamento (Solver API)",
     get_api_link: "Ottieni chiave API",
     btn_save_success: "Salvato",
-    btn_stop_emails: "Ferma scoperta"
+    btn_stop_emails: "Ferma"
   },
   zh_cn: {
     nav_title: "准备好寻找商家了吗？",
@@ -341,7 +341,7 @@ const translations = {
     method_paid: "付费 (Solver API)",
     get_api_link: "获取 API 密钥",
     btn_save_success: "保存成功",
-    btn_stop_emails: "停止探索"
+    btn_stop_emails: "停止"
   },
   pt: {
     nav_title: "Pronto para encontrar empresas?",
@@ -380,7 +380,7 @@ const translations = {
     method_paid: "Pago (Solver API)",
     get_api_link: "Obter chave API",
     btn_save_success: "Salvo",
-    btn_stop_emails: "Parar descoberta"
+    btn_stop_emails: "Parar"
   },
   ru: {
     nav_title: "Готовы искать компании?",
@@ -419,7 +419,7 @@ const translations = {
     method_paid: "Платно (Solver API)",
     get_api_link: "Получить ключ API",
     btn_save_success: "Сохранено",
-    btn_stop_emails: "Остановить поиск"
+    btn_stop_emails: "Стоп"
   },
   vi: {
     nav_title: "Sẵn sàng tìm kiếm doanh nghiệp?",
@@ -458,7 +458,7 @@ const translations = {
     method_paid: "Trả phí (Solver API)",
     get_api_link: "Lấy khóa API",
     btn_save_success: "Đã lưu",
-    btn_stop_emails: "Dừng khám phá"
+    btn_stop_emails: "Dừng"
   },
   hi: {
     nav_title: "व्यवसाय खोजने के लिए तैयार हैं?",
@@ -497,7 +497,7 @@ const translations = {
     method_paid: "भुगतान वाला (Solver API)",
     get_api_link: "API प्राप्त करें",
     btn_save_success: "सहेज लिया गया",
-    btn_stop_emails: "खोज बंद करें"
+    btn_stop_emails: "रोकें"
   }
 };
 

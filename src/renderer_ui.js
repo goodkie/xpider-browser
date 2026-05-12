@@ -49,6 +49,7 @@ window.lastActiveTabInfo = null;
 let history   = JSON.parse(localStorage.getItem('xpider-history')   || '[]');
 let bookmarks = JSON.parse(localStorage.getItem('xpider-bookmarks') || '[]');
 let downloads = JSON.parse(localStorage.getItem('xpider-downloads') || '[]');
+let activeDownloads = new Map(); // downloadId → {filename, path, progress, status, receivedBytes, totalBytes, timestamp}
 
 // ─── 테마 초기화 ──────────────────────────────────────────────
 const savedTheme = localStorage.getItem('app-theme') || 'theme-dark';
@@ -59,7 +60,8 @@ const sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
 if (sidebarCollapsed) appContainer.classList.add('sidebar-collapsed');
 
 // ─── 언어 초기화 ──────────────────────────────────────────────
-let currentLang = localStorage.getItem('app-lang') || 'ko';
+let currentLang = localStorage.getItem('app-lang') || 'en';
+
 
 function applyLanguage(lang) {
     const dict = window.translations[lang] || window.translations['en'];
@@ -129,7 +131,8 @@ document.getElementById('close-btn').onclick = () => window.electronAPI.send('wi
 
 // ─── 로그아웃 버튼 ────────────────────────────────────────────
 document.getElementById('logout-btn').onclick = () => {
-    if (confirm('로그아웃 하시겠습니까?')) {
+    const dict = window.translations[currentLang] || window.translations['en'];
+    if (confirm(dict.logout_confirm || 'Are you sure you want to logout?')) {
         window.electronAPI.send('auth-logout');
     }
 };
@@ -147,6 +150,149 @@ window.electronAPI.on('app_language', (lang) => {
         applyLanguage(lang);
     }
 });
+
+// ── [v4.0] Email Extractor 실시간 업데이트 ────────────────────────────────────
+// main.js → renderer_ui.js → extensionWebview (XPIDER_EVENT) + 사이드바 배지
+window.electronAPI.on('xpider-email-collected-event', (payload) => {
+    const eventName = payload.name || 'email-collected';
+    const data      = payload.data || payload;
+
+    // 1. 익스텐션 웹뷰(popup.js)에 실시간 이벤트 전달
+    if (extensionWebview && extensionWebview.src) {
+        extensionWebview.executeJavaScript(
+            `window.postMessage(${JSON.stringify({ type: 'XPIDER_EVENT', name: eventName, data })}, '*')`
+        ).catch(() => {});
+    }
+
+    // 2. 사이드바 이메일 배지 업데이트
+    if (eventName === 'update-badge' || eventName === 'email-collected') {
+        const count = data.count ?? (Array.isArray(data.allEmails) ? data.allEmails.length : 0);
+        
+        // .ext-btn 중 'email' 혹은 '이메일'을 포함하는 버튼 찾기
+        const emailBtn = [...document.querySelectorAll('.ext-item')].find(item => {
+            const btn = item.querySelector('.ext-btn');
+            const title = btn ? btn.title.toLowerCase() : '';
+            const balloonTitle = item.querySelector('.preview-title') ? item.querySelector('.preview-title').textContent.toLowerCase() : '';
+            return title.includes('email') || balloonTitle.includes('email') || balloonTitle.includes('이메일');
+        })?.querySelector('.ext-btn');
+
+        if (emailBtn) {
+            let badge = emailBtn.querySelector('.dl-count-badge');
+            if (count > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'dl-count-badge';
+                    badge.style.background = '#ff2a5f'; // 이메일은 핑크/레드 계열로 강조
+                    emailBtn.style.position = 'relative';
+                    emailBtn.appendChild(badge);
+                }
+                badge.textContent = count > 999 ? '999+' : String(count);
+                badge.style.display = 'flex';
+            } else if (badge) {
+                badge.style.display = 'none';
+            }
+        }
+    }
+
+
+});
+
+// ── [v4.1] Email Extractor 배지 강제 동기화 (10초 주기) ─────────────────────
+setInterval(() => {
+    window.electronAPI.invoke('xpider-email-get-all', {}).then(res => {
+        if (res && typeof res.count === 'number') {
+            window.electronAPI.on('xpider-email-collected-event', { 
+                name: 'update-badge', 
+                data: { count: res.count } 
+            });
+        }
+    }).catch(() => {});
+}, 10000);
+function updateDownloadBadge() {
+    const btn = document.getElementById('downloads-btn');
+    if (!btn) return;
+    let badge = btn.querySelector('.dl-count-badge');
+    const count = activeDownloads.size;
+    if (count > 0) {
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'dl-count-badge';
+            btn.style.position = 'relative';
+            btn.appendChild(badge);
+        }
+        badge.textContent = count;
+        badge.style.display = 'block';
+    } else {
+        if (badge) badge.style.display = 'none';
+    }
+}
+
+function updateActiveDownloadUI(downloadId) {
+    const dl = activeDownloads.get(downloadId);
+    const el = document.getElementById(`dl-active-${downloadId}`);
+    if (!dl || !el) return;
+    const bar   = el.querySelector('.dl-bar-fill');
+    const pct   = el.querySelector('.dl-pct-text');
+    const info  = el.querySelector('.dl-byte-info');
+    const prog  = dl.progress >= 0 ? dl.progress : 0;
+    if (bar) bar.style.width = `${prog}%`;
+    if (pct) pct.textContent = dl.progress >= 0 ? `${prog}%` : '다운로드 중...';
+    if (info && dl.receivedBytes != null) {
+        const fmt = b => b >= 1048576 ? (b/1048576).toFixed(1)+'MB' : b >= 1024 ? (b/1024).toFixed(0)+'KB' : b+'B';
+        info.textContent = dl.totalBytes > 0 ? `${fmt(dl.receivedBytes)} / ${fmt(dl.totalBytes)}` : fmt(dl.receivedBytes);
+    }
+}
+
+window.electronAPI.on('xpider-download-start', (data) => {
+    activeDownloads.set(data.downloadId, { ...data, progress: 0, status: 'downloading' });
+    overlayPanel.classList.remove('hidden');
+    settingsMenu.classList.add('hidden');
+    renderOverlayPanel('downloads');
+    updateDownloadBadge();
+});
+
+window.electronAPI.on('xpider-download-progress', (data) => {
+    if (!activeDownloads.has(data.downloadId)) return;
+    const dl = activeDownloads.get(data.downloadId);
+    dl.progress = data.progress;
+    dl.receivedBytes = data.receivedBytes;
+    dl.totalBytes = data.totalBytes;
+    activeDownloads.set(data.downloadId, dl);
+    if (!overlayPanel.classList.contains('hidden') && currentPanelTab === 'downloads') {
+        updateActiveDownloadUI(data.downloadId);
+    }
+});
+
+window.electronAPI.on('xpider-download-error', (data) => {
+    if (activeDownloads.has(data.downloadId)) {
+        const dl = activeDownloads.get(data.downloadId);
+        dl.status = 'error';
+        dl.error = data.error || '오류가 발생했습니다.';
+        activeDownloads.set(data.downloadId, dl);
+        renderOverlayPanel('downloads');
+        setTimeout(() => { activeDownloads.delete(data.downloadId); updateDownloadBadge(); renderOverlayPanel('downloads'); }, 5000);
+    }
+});
+
+window.electronAPI.on('xpider-record-download', (data) => {
+    console.log('[RENDERER] 다운로드 완료:', data);
+    activeDownloads.delete(data.downloadId);
+    downloads.unshift({
+        id: data.downloadId || Date.now(),
+        filename: data.filename,
+        path: data.path || data.url,
+        time: data.timestamp || new Date().toISOString(),
+        size: data.size || 0,
+        status: 'completed'
+    });
+    if (downloads.length > 50) downloads = downloads.slice(0, 50);
+    localStorage.setItem('xpider-downloads', JSON.stringify(downloads));
+    overlayPanel.classList.remove('hidden');
+    settingsMenu.classList.add('hidden');
+    renderOverlayPanel('downloads');
+    updateDownloadBadge();
+});
+
 
 
 
@@ -191,6 +337,8 @@ function makeLogRow(entry) {
         `<span style="color:${c.fg};">${escHtml(entry.msg)}</span>` +
         `</div>`;
 }
+
+
 
 function renderLogs() {
     if (!diagTerminal) return;
@@ -286,6 +434,7 @@ window.addEventListener('keydown', (e) => {
 
 // ─── AutoCruiser Hardware Engine (Direct Move Version) ─────────────────
 let cruiserActive = false;
+let cruiserInterval = null; // 명시적 선언 (ReferenceError 방지)
 let cruiserDirection = 1;
 let cruiserStepPx = 0;
 let pixelsPerMile = 0;
@@ -315,14 +464,18 @@ async function performHardwareMove(direction = 'HORIZONTAL') {
     const wv = getActiveWebview();
     if (!wv) return;
 
+    // 물리적 이동 거리는 한 화면(약 400~500px)을 넘지 않도록 제한
+    // (너무 크게 점프하면 지도가 튀거나 타일 로딩이 안 됨)
+    const physicalStep = Math.min(cruiserStepPx, 400);
+
     if (direction === 'HORIZONTAL') {
-        const dx = cruiserDirection * cruiserStepPx;
+        const dx = cruiserDirection * physicalStep;
         await simulateHardwareDrag(wv, dx, 0);
     } else if (direction === 'SOUTH') {
-        await simulateHardwareDrag(wv, 0, cruiserStepPx);
+        await simulateHardwareDrag(wv, 0, physicalStep);
     } else if (direction === 'REVERSE') {
         cruiserDirection *= -1;
-        await simulateHardwareDrag(wv, 0, cruiserStepPx);
+        await simulateHardwareDrag(wv, 0, physicalStep);
     }
 }
 
@@ -330,56 +483,231 @@ function stopHardwareCruiser() {
     cruiserActive = false;
     if (cruiserInterval) clearInterval(cruiserInterval);
     cruiserInterval = null;
+    stopBingMapsDragPolling();
     console.log('[CRUISER] Stopped.');
+}
+
+// ── Bing Maps 드래그 큐 폴링 엔진 ─────────────────────────────────────────
+// content.js MapCruiser가 window.__xpiderQueue에 넣은 드래그 명령을
+// renderer가 직접 executeJavaScript로 꺼내어 simulateHardwareDrag 실행.
+// sendMessageSafe → window.postMessage는 webview 내부에만 전파되므로
+// renderer_ui.js는 직접 받을 수 없음 → 폴링이 유일한 해결책.
+let _bingDragPollInterval = null;
+let _bingDragBusy = false; // 드래그 중 재진입 방지
+
+function startBingMapsDragPolling() {
+    if (_bingDragPollInterval) return;
+    console.log('[CRUISER] 🚀 Starting Bing Maps drag queue poller...');
+    _bingDragPollInterval = setInterval(async () => {
+        if (_bingDragBusy) return;
+        const wv = getActiveWebview();
+        if (!wv) return;
+        let url = '';
+        try { url = wv.getURL(); } catch(e) { return; }
+        if (!url.includes('bing.com')) return;
+
+        let rawMsg = null;
+        try {
+            rawMsg = await wv.executeJavaScript(`
+(function() {
+    if (!window.__xpiderQueue || window.__xpiderQueue.length === 0) return null;
+    // performHardwareMove / reverseAndMoveSouth 만 추출 (가장 최신 것)
+    let lastMove = null;
+    window.__xpiderQueue = window.__xpiderQueue.filter(msg => {
+        if (msg.action === 'performHardwareMove' || msg.action === 'reverseAndMoveSouth') {
+            lastMove = msg; // 덮어써서 최신만 유지
+            return false;   // 큐에서 제거
+        }
+        return true;
+    });
+    return lastMove ? JSON.stringify(lastMove) : null;
+})()
+            `);
+        } catch(e) { return; }
+
+        if (!rawMsg) return;
+        let msg;
+        try { msg = JSON.parse(rawMsg); } catch(e) { return; }
+
+        _bingDragBusy = true;
+        try {
+            if (msg.action === 'performHardwareMove') {
+                if (typeof msg.cruiserDir === 'number') {
+                    cruiserDirection = msg.cruiserDir;
+                    console.log(`[CRUISER] 📌 Dir synced: ${cruiserDirection > 0 ? 'EAST' : 'WEST'}`);
+                }
+                if (!cruiserActive) {
+                    console.log('[CRUISER] 🔌 Auto-activating engine for Bing drag...');
+                    startHardwareCruiser({ stepSize: 9.0 });
+                }
+                console.log(`[CRUISER] 🚗 Executing drag: ${msg.direction || 'HORIZONTAL'}`);
+                await performHardwareMove(msg.direction || 'HORIZONTAL');
+
+            } else if (msg.action === 'reverseAndMoveSouth') {
+                if (typeof msg.newDirection === 'number') {
+                    cruiserDirection = msg.newDirection;
+                } else {
+                    cruiserDirection *= -1;
+                }
+                if (!cruiserActive) {
+                    startHardwareCruiser({ stepSize: 9.0 });
+                }
+                console.log(`[CRUISER] 🔄 Reverse+South: dir=${cruiserDirection > 0 ? 'EAST' : 'WEST'}`);
+                await performHardwareMove('SOUTH');
+            }
+
+            // ★ 드래그 후 Bing 스크래퍼 강제 실행 (3초 후)
+            setTimeout(async () => {
+                try {
+                    await wv.executeJavaScript(
+                        'if (window.scraper && window.scraper.active) { window.scraper.scrapeVisibleCards(); window.scraper.scrapeEntityPanel(); }'
+                    );
+                } catch(e) {}
+            }, 2500);
+
+        } catch(e) {
+            console.warn('[CRUISER] Drag exec error:', e.message);
+        } finally {
+            _bingDragBusy = false;
+        }
+    }, 400); // 400ms 폴링 — MapCruiser의 sleep(2500ms)보다 충분히 빠름
+}
+
+function stopBingMapsDragPolling() {
+    if (_bingDragPollInterval) {
+        clearInterval(_bingDragPollInterval);
+        _bingDragPollInterval = null;
+        console.log('[CRUISER] Bing drag poller stopped.');
+    }
+}
+
+// ── 구글맵 검색결과 패널 직접 스크롤 (executeJavaScript 백업 엔진) ──────
+
+// content.js의 스크롤이 격리 환경에서 실패하는 경우를 대비한 2차 방어선
+async function forceScrollGmapsResults(wv) {
+    if (!wv || !wv.getURL().includes('google.com/maps')) return;
+    const scrollScript = `
+(function() {
+  // 1. 구글맵 검색결과 패널의 스크롤 컨테이너를 탐색
+  function findScrollContainer() {
+    // 1. role="feed" (가장 표준적인 결과 목록 영역)
+    const feed = document.querySelector('div[role="feed"]');
+    if (feed && feed.scrollHeight > feed.clientHeight) return feed;
+
+    // 2. 검색결과 카드들의 공통 부모를 역추적
+    const card = document.querySelector('div[role="article"], .Nv2Ybe, .THS69c, .Ua67Yy');
+    if (card) {
+      let el = card.parentElement;
+      for (let i = 0; i < 15 && el && el !== document.body; i++) {
+        const st = window.getComputedStyle(el);
+        if ((st.overflowY === 'auto' || st.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 20) {
+          return el;
+        }
+        el = el.parentElement;
+      }
+    }
+    // 3. 알려진 스크롤 컨테이너 클래스
+    const known = document.querySelector('.m6QErb.DxyBCb.klm67c, .m6QErb[tabindex="-1"]');
+    if (known && known.scrollHeight > known.clientHeight) return known;
+    
+    return null;
+  }
+
+  const container = findScrollContainer();
+  if (!container) { console.warn('[XPIDER-SCROLL] ❌ No scroll container found'); return 'NOT_FOUND'; }
+
+  console.log('[XPIDER-SCROLL] ✅ Container:', container.className.substring(0,50), 'scrollH=', container.scrollHeight);
+  container.focus();
+
+  let round = 0;
+  const tick = setInterval(() => {
+    round++;
+    // 차례대로 부드럽게 스크롤 (화면 단위)
+    const step = Math.max(container.clientHeight * 0.8, 600);
+    container.dispatchEvent(new WheelEvent('wheel', { deltaY: step, bubbles: true, cancelable: true }));
+    container.scrollBy({ top: step, behavior: 'smooth' });
+    container.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', keyCode: 40, bubbles: true }));
+
+    // 종료 마커 체크
+    const txt = (container.innerText || '').toLowerCase();
+    const done = ['마지막 항목', '결과가 더 없', 'end of results', 'reached the end', 'no more results'].some(m => txt.includes(m));
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 20;
+
+    console.log('[XPIDER-SCROLL] Round', round, '| scrollTop=', container.scrollTop, '/', container.scrollHeight, '| done=', done);
+
+    if (done || round >= 80) {
+      clearInterval(tick);
+      console.log('[XPIDER-SCROLL] ✅ Scroll complete at round', round);
+    }
+  }, 800);
+
+  return 'STARTED';
+})();
+`;
+    try {
+        const result = await wv.executeJavaScript(scrollScript);
+        console.log('[CRUISER] forceScrollGmapsResults result:', result);
+    } catch(e) {
+        console.warn('[CRUISER] forceScrollGmapsResults failed:', e.message);
+    }
 }
 
 async function simulateHardwareDrag(wv, dx, dy) {
     if (!wv) return;
     
-    // Ensure webview is focused for input events
-    try { wv.focus(); } catch(e) {}
-
-    const startX = Math.round(wv.offsetWidth / 2);
-    const startY = Math.round(wv.offsetHeight / 2);
-    const endX = Math.round(startX - dx);
-    const endY = Math.round(startY - dy);
-
-    if (isNaN(startX) || isNaN(startY)) {
-        console.warn('[CRUISER] Invalid dimensions for drag:', wv.offsetWidth, wv.offsetHeight);
+    // sendInputEvent는 웹븷 내부 좌표계 사용 (offsetWidth/Height 기준)
+    const w = wv.offsetWidth  || wv.clientWidth  || 900;
+    const h = wv.offsetHeight || wv.clientHeight || 700;
+    if (w <= 0 || h <= 0) {
+        console.warn('[CRUISER] Webview size 0. Drag aborted.');
         return;
     }
 
-    const steps = 15; // Increased for smoother movement
-    
-    // Mouse Down
-    wv.sendInputEvent({ 
-        type: 'mouseDown', 
-        x: startX, y: startY, 
-        button: 'left', clickCount: 1 
-    });
-    
-    // Longer wait for G-Maps to anchor the drag
-    await new Promise(r => setTimeout(r, 150));
+    // 검색결과 패널(좌측)을 완벽히 피하기 위해 시작 좌표를 우측 하단(65%, 60%)으로 설정합니다.
+    const startX = Math.round(w * 0.65);
+    const startY = Math.round(h * 0.60);
 
+    // 드래그 거리를 줄여 창 밖으로 나가거나 패널로 들어가는 것을 방지합니다.
+    const maxMoveX = w * 0.25;
+    const maxMoveY = h * 0.25;
+    const actualDx = Math.max(-maxMoveX, Math.min(maxMoveX, dx));
+    const actualDy = Math.max(-maxMoveY, Math.min(maxMoveY, dy));
+    
+    // 지도 이동 방향: dx > 0 이면 동쪽 이동 → 실제 드래그 방향은 반대
+    const endX = Math.round(startX - actualDx);
+    const endY = Math.round(startY - actualDy);
+
+    console.log(`[CRUISER] Physical Drag: (${startX},${startY}) -> (${endX},${endY}) | TargetDist: (${dx.toFixed(1)},${dy.toFixed(1)}) | WV: ${w}x${h}`);
+
+    // 웹븷 포커스
+    try { wv.focus(); } catch(e) {}
+
+    const steps = 20;
+    
+    // [FIX] Ensure the mouse is logically inside the map before clicking to prevent stuttering
+    // mouseEnter는 일부 환경에서 이벤트를 끊을 수 있으므로 mouseMove만 사용
+    wv.sendInputEvent({ type: 'mouseMove', x: startX, y: startY });
+    await new Promise(r => setTimeout(r, 100));
+
+    // 1. Mouse Down
+    wv.sendInputEvent({ type: 'mouseDown', x: startX, y: startY, button: 'left', clickCount: 1 });
+    await new Promise(r => setTimeout(r, 200));
+
+    // 2. Mouse Move (단계별 이동, modifier = 'leftButton')
     for (let i = 1; i <= steps; i++) {
         const curX = Math.round(startX + (endX - startX) * (i / steps));
         const curY = Math.round(startY + (endY - startY) * (i / steps));
-        wv.sendInputEvent({ 
-            type: 'mouseMove', 
-            x: curX, y: curY,
-            button: 'left'
-        });
-        await new Promise(r => setTimeout(r, 15));
+        wv.sendInputEvent({ type: 'mouseMove', x: curX, y: curY, modifiers: ['leftButtonDown'] });
+        await new Promise(r => setTimeout(r, 12));
     }
 
-    // Mouse Up
-    wv.sendInputEvent({ 
-        type: 'mouseUp', 
-        x: endX, y: endY, 
-        button: 'left', clickCount: 1 
-    });
+    await new Promise(r => setTimeout(r, 80));
+
+    // 3. Mouse Up
+    wv.sendInputEvent({ type: 'mouseUp', x: endX, y: endY, button: 'left', clickCount: 1 });
     
-    console.log(`[CRUISER] Hardware Drag: (${startX},${startY}) -> (${endX},${endY})`);
+    // 지도 타일 로딩 대기
+    await new Promise(r => setTimeout(r, 500));
 }
 
 // ─── 업데이트 체크 결과 처리 ──────────────────────────────────
@@ -434,6 +762,7 @@ function showToast(msg, duration = 3000) {
     updateToast.classList.remove('hidden');
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => updateToast.classList.add('hidden'), duration);
+
 }
 
 // Listener for extension-triggered tab updates
@@ -473,27 +802,105 @@ window.electronAPI.on('xpider-renderer-update-active-tab', (props) => {
 });
 
 // ── XPIDER_CONTENT_RELAY: content.js → renderer (sendMessage 릴레이 & 크루저 신호) ──
-// content.js는 웹뷰(프리로드 없음) 안에서 실행되며, XPIDER_BRIDGE_RELAY postMessage로
-// ext-preload.js → main.js → xpider-ext-runtime-on-message → 모든 WebContents에 브로드캐스트됨.
-// renderer_ui.js는 xpider-ext-runtime-on-message 채널로 수신.
 window.electronAPI.on('xpider-ext-runtime-on-message', async (message) => {
     if (!message || !message.action) return;
     console.log('[XPIDER-RUNTIME-MSG] Received:', message.action);
 
-    if (message.action === 'startHardwareCruiser') {
+    if (message.action === 'startHardwareCruiser' || message.action === 'startCruiser') {
         console.log('[CRUISER] ▶ Starting hardware cruiser via runtime message', message.config);
         startHardwareCruiser(message.config || {});
+        // ★ Bing Maps 드래그 큐 폴링 엔진 시작 (content.js MapCruiser 드래그 명령 수신용)
+        startBingMapsDragPolling();
+        // ★ Bing Maps webview에서 scraper.start() 실행 — 비즈니스 수집 보장
+        setTimeout(async () => {
+            const wv = getActiveWebview();
+            if (!wv) return;
+            try {
+                const url = wv.getURL();
+                if (url.includes('bing.com')) {
+                    await wv.executeJavaScript(
+                        'if (window.scraper && !window.scraper.active) { window.scraper.start(); console.log("[XPIDER] Scraper auto-started by cruiser."); }'
+                    );
+                }
+            } catch(e) { console.warn('[CRUISER] Scraper auto-start failed:', e.message); }
+        }, 1000);
     }
     if (message.action === 'stopHardwareCruiser') {
         console.log('[CRUISER] ⏹ Stopping hardware cruiser via runtime message');
         stopHardwareCruiser();
     }
     if (message.action === 'performHardwareMove') {
+        // ★ [핵심] content.js의 실제 direction값을 메시지에서 직접 동기화
+        if (typeof message.cruiserDir === 'number') {
+            cruiserDirection = message.cruiserDir;  // +1(EAST) 또는 -1(WEST)
+            console.log(`[CRUISER] 📌 cruiserDirection synced from content.js: ${cruiserDirection > 0 ? 'EAST(+1)' : 'WEST(-1)'}`);
+        }
+        // ★ [드래그 수정] content.js MapCruiser가 보낸 요청 — cruiserActive 강제 활성화
+        if (!cruiserActive) {
+            console.log('[CRUISER] 🚀 Auto-activating hardware engine for Bing Maps MapCruiser request...');
+            startHardwareCruiser({ stepSize: 9.0 });
+        }
         await performHardwareMove(message.direction || 'HORIZONTAL');
+        const wv = getActiveWebview();
+        if (!wv) return;
+        const wvUrl = (() => { try { return wv.getURL(); } catch(e) { return ''; } })();
+
+        // ── Bing Maps 후처리: 드래그 후 스크래퍼 강제 실행 ────────────────
+        if (wvUrl.includes('bing.com')) {
+            setTimeout(async () => {
+                try {
+                    await wv.executeJavaScript(
+                        'if (window.scraper && window.scraper.active) { window.scraper.scrapeVisibleCards(); window.scraper.scrapeEntityPanel(); }'
+                    );
+                } catch(e) {}
+            }, 3000);
+        }
+
+        // ── Google Maps 후처리 ─────────────────────────────────────
+        if (wvUrl.includes('google.com/maps')) {
+            // 1) '이 지역 검색' 버튼 자동 클릭 (2.5초 후)
+            setTimeout(async () => {
+                try {
+                    await wv.executeJavaScript(`
+(function() {
+  const SELS = ['button.NlVald','button.X69Czc','button[jsaction*="searchThisArea"]','button[aria-label*="Search this area"]','button[aria-label*="\uc774 \uc9c0\uc5ed \uac80\uc0c9"]'];
+  for (const s of SELS) {
+    const el = document.querySelector(s);
+    if (el && (el.offsetParent !== null || el.offsetWidth > 0)) {
+      ['mousedown','mouseup','click'].forEach(t => el.dispatchEvent(new MouseEvent(t,{bubbles:true})));
+      return 'CLICKED:'+s;
     }
+  }
+  return 'NOT_FOUND';
+})();
+                    `);
+                } catch(e) { console.warn('[CRUISER] search-click failed:', e.message); }
+            }, 2500);
+            // 2) 검색 결과 로딩 후 스크롤 (5초 후)
+            setTimeout(async () => { await forceScrollGmapsResults(wv); }, 5000);
+        }
+    }
+
     if (message.action === 'skipHardwareCruiserLine') {
-        console.log('[CRUISER] ⏭ Skip signal received. Reversing and moving SOUTH...');
-        await performHardwareMove('REVERSE');
+        // \ub808\uac70\uc2dc \ud638\ud658\uc131 \uc720\uc9c0 (\ub2e8\uc21c \ub0a8\ucabd \uc774\ub3d9)
+        console.log('[CRUISER] \u23ed\ufe0f Skip signal received. Moving SOUTH...');
+        await performHardwareMove('SOUTH');
+    }
+    if (message.action === 'reverseAndMoveSouth') {
+        // ★ [핵심] content.js가 이미 this.direction을 반전한 후 전송 → 직접 적용
+        if (typeof message.newDirection === 'number') {
+            cruiserDirection = message.newDirection;  // 반전된 값 직접 적용
+        } else {
+            cruiserDirection *= -1;  // fallback
+        }
+        // cruiserActive 강제 활성화 (content.js MapCruiser 요청 대응)
+        if (!cruiserActive) {
+            console.log('[CRUISER] Activating hardware engine for reverseAndMoveSouth request...');
+            startHardwareCruiser({ stepSize: 9.0 });
+        }
+        const dirLabel = cruiserDirection > 0 ? 'EAST' : 'WEST';
+        console.log(`[CRUISER] 🔄 Direction set to ${dirLabel}(${cruiserDirection}). Moving SOUTH...`);
+        await performHardwareMove('SOUTH');
     }
     // ③ 실시간 cruiserUpdate → extension webview(sidepanel)로 중계
     if (message.action === 'cruiserUpdate') {
@@ -503,8 +910,8 @@ window.electronAPI.on('xpider-ext-runtime-on-message', async (message) => {
             ).catch(() => {});
         }
     }
-    // ⑤ cruiserStopped / scrapingFinished → sidepanel로 Stage2 트리거
-    if (message.action === 'cruiserStopped' || message.action === 'scrapingFinished') {
+    // ⑤ cruiser-stopped → sidepanel로 상태 중지 알림
+    if (message.action === 'cruiserStopped' || message.action === 'cruiser-stopped') {
         if (extensionWebview && extensionWebview.src) {
             extensionWebview.executeJavaScript(
                 `window.postMessage({ type: 'XPIDER_EVENT', name: 'cruiser-stopped', data: {} }, '*')`
@@ -541,76 +948,58 @@ const langSaveBtn      = document.getElementById('lang-save-btn');
 const langDontShow     = document.getElementById('lang-dont-show');
 const langBtns         = document.querySelectorAll('.lang-btn');
 const onboardingOverlay = document.getElementById('onboarding-overlay');
-const onboardingBubble  = document.getElementById('onboarding-bubble');
-const obNextBtn  = document.getElementById('ob-next-btn');
 const obCloseBtn = document.getElementById('ob-close-btn');
 const obDontShow = document.getElementById('ob-dont-show');
 
-let onboardingStep = 0;
-const onboardingSteps = [
-    { extName: "Collect List", titleKey: "ext_collect_title", descKey: "ext_collect_desc" },
-    { extName: "Send Message", titleKey: "ext_send_title",   descKey: "ext_send_desc"  }
-];
-
-function updateOnboarding() {
-    const step = onboardingSteps[onboardingStep];
-    const dict = window.translations[currentLang] || window.translations['en'];
-    const buttons = Array.from(document.querySelectorAll('.ext-btn'));
-    const targetBtn = buttons.find(btn => btn.title.toLowerCase().includes(step.extName.toLowerCase()));
-    if (targetBtn) {
-        const rect = targetBtn.getBoundingClientRect();
-        onboardingBubble.style.top  = `${rect.top + rect.height / 2 - onboardingBubble.offsetHeight / 2}px`;
-        onboardingBubble.style.left = `${rect.right + 25}px`;
-        document.querySelectorAll('.highlight-target').forEach(el => el.classList.remove('highlight-target'));
-        targetBtn.classList.add('highlight-target');
-    }
-    document.getElementById('ob-title').textContent = dict[step.titleKey] || step.titleKey;
-    document.getElementById('ob-desc').textContent  = dict[step.descKey]  || step.descKey;
-    document.querySelector('.step-indicator').textContent = `${onboardingStep + 1} / ${onboardingSteps.length}`;
-    if (onboardingStep === onboardingSteps.length - 1) {
-        obNextBtn.classList.add('hidden');
-        obCloseBtn.classList.remove('hidden');
-    } else {
-        obNextBtn.classList.remove('hidden');
-        obCloseBtn.classList.add('hidden');
-    }
-}
-
 function startLangSetup() {
     if (localStorage.getItem('skip-lang-setup') === 'true') return true;
-    langSetupOverlay.classList.remove('hidden');
-    langBtns.forEach(btn => {
-        btn.onclick = () => {
-            currentLang = btn.getAttribute('data-lang');
-            langBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            applyLanguage(currentLang);
-            localStorage.setItem('app-lang', currentLang);
-        };
-        if (btn.getAttribute('data-lang') === currentLang) btn.classList.add('active');
-    });
-    langSaveBtn.onclick = () => {
-        langSetupOverlay.classList.add('hidden');
-        if (langDontShow.checked) localStorage.setItem('skip-lang-setup', 'true');
-        startOnboarding();
-    };
-    return false;
+    if (langSetupOverlay) {
+        langSetupOverlay.classList.remove('hidden');
+        langSetupOverlay.classList.add('active');
+        return false;
+    }
+    return true;
 }
+
+// 언어 선택 버튼 로직
+langBtns.forEach(btn => {
+    btn.onclick = () => {
+        langBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentLang = btn.getAttribute('data-lang');
+        applyLanguage(currentLang);
+    };
+});
+
+langSaveBtn.onclick = () => {
+    localStorage.setItem('app-lang', currentLang);
+    if (langDontShow && langDontShow.checked) localStorage.setItem('skip-lang-setup', 'true');
+    langSetupOverlay.classList.remove('active');
+    langSetupOverlay.classList.add('hidden');
+    startOnboarding();
+};
 
 function startOnboarding() {
     if (localStorage.getItem('skip-onboarding') === 'true') return;
-    onboardingOverlay.classList.remove('hidden');
-    onboardingOverlay.classList.add('active');
-    updateOnboarding();
+    if (onboardingOverlay) {
+        onboardingOverlay.classList.remove('hidden');
+        onboardingOverlay.classList.add('active');
+    }
 }
 
-obNextBtn.onclick  = () => { onboardingStep++; updateOnboarding(); };
 obCloseBtn.onclick = () => {
     onboardingOverlay.classList.remove('active');
     onboardingOverlay.classList.add('hidden');
-    document.querySelectorAll('.highlight-target').forEach(el => el.classList.remove('highlight-target'));
-    if (obDontShow.checked) localStorage.setItem('skip-onboarding', 'true');
+    if (obDontShow && obDontShow.checked) localStorage.setItem('skip-onboarding', 'true');
 };
+
+onboardingOverlay.addEventListener('click', (e) => {
+    if (e.target === onboardingOverlay) {
+        onboardingOverlay.classList.remove('active');
+        onboardingOverlay.classList.add('hidden');
+        if (obDontShow && obDontShow.checked) localStorage.setItem('skip-onboarding', 'true');
+    }
+});
 
 // ─── 히스토리 / 북마크 ────────────────────────────────────────
 function addHistory(url, title) {
@@ -642,34 +1031,99 @@ function updateBookmarkIcon() {
     bookmarkBtn.textContent = isBookmarked ? '★' : '☆';
 }
 
-function renderOverlayPanel(tab) {
-    currentPanelTab = tab;
-    panelList.innerHTML = '';
-    
-    let items = [];
-    if (tab === 'history') items = history;
-    else if (tab === 'bookmarks') items = bookmarks;
-    else if (tab === 'downloads') items = downloads;
+// ─── [v4.0] 다운로드 패널 렌더링 (진행중 + 완료 구분) ────────────────────────
+function _renderDownloadsPanel() {
+    const fmtSize = b => !b ? '' : b >= 1048576 ? (b/1048576).toFixed(1)+'MB' : b >= 1024 ? (b/1024).toFixed(0)+'KB' : b+'B';
+    const fmtTime = ts => { const d = ts ? new Date(ts) : null; return d ? d.toLocaleDateString('ko-KR')+' '+d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) : ''; };
+    const extIcon = n => { const e=(n||'').split('.').pop().toLowerCase(); return e==='csv'?'📊':e==='json'?'📋':e==='txt'?'📝':e==='xlsx'||e==='xls'?'📈':'📄'; };
 
-    panelTabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === tab));
-    clearHistoryBtn.classList.toggle('hidden', tab !== 'history');
-    
-    if (items.length === 0) {
-        panelList.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:40px;">Empty</div>`;
+    if (activeDownloads.size === 0 && downloads.length === 0) {
+        panelList.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:40px 20px;"><div style="font-size:2.5rem;margin-bottom:12px;">📥</div><div style="font-size:0.95rem;font-weight:500;">다운로드 없음</div><div style="font-size:0.8rem;margin-top:6px;opacity:0.6;">익스텐션에서 CSV/JSON/TXT 내보내기 시 여기에 표시됩니다</div></div>`;
         return;
     }
 
+    // ── 진행 중 ──
+    if (activeDownloads.size > 0) {
+        const hdr = document.createElement('div');
+        hdr.className = 'dl-section-hdr';
+        hdr.textContent = '⏳ 다운로드 중';
+        panelList.appendChild(hdr);
+        activeDownloads.forEach((dl, id) => {
+            const div = document.createElement('div');
+            div.className = 'panel-item dl-active-item';
+            div.id = `dl-active-${id}`;
+            const prog = dl.progress >= 0 ? dl.progress : 0;
+            const isErr = dl.status === 'error';
+            div.innerHTML = `
+                <div style="display:flex;align-items:center;gap:10px;width:100%;">
+                    <span style="font-size:1.4rem;flex-shrink:0;">${isErr ? '❌' : extIcon(dl.filename)}</span>
+                    <div style="flex:1;min-width:0;">
+                        <div class="item-title" style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${dl.filename || 'File'}</div>
+                        ${isErr
+                            ? `<div class="dl-error-msg">${dl.error}</div>`
+                            : `<div class="dl-progress-track"><div class="dl-bar-fill" style="width:${prog}%"></div></div>
+                               <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.72rem;">
+                                 <span class="dl-byte-info" style="opacity:0.55;"></span>
+                                 <span class="dl-pct-text" style="color:var(--accent);font-weight:700;">${dl.progress>=0?prog+'%':'준비 중...'}</span>
+                               </div>`
+                        }
+                    </div>
+                </div>`;
+            panelList.appendChild(div);
+        });
+    }
+
+    // ── 완료된 다운로드 ──
+    if (downloads.length > 0) {
+        if (activeDownloads.size > 0) {
+            const hdr = document.createElement('div');
+            hdr.className = 'dl-section-hdr';
+            hdr.textContent = '✅ 완료된 다운로드';
+            panelList.appendChild(hdr);
+        }
+        downloads.forEach((item, idx) => {
+            const div = document.createElement('div');
+            div.className = 'panel-item';
+            const size = fmtSize(item.size);
+            const icon = extIcon(item.filename);
+            const dt = item.time ? new Date(item.time) : null;
+            const timeStr = dt ? dt.toLocaleDateString('ko-KR')+' '+dt.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}) : '';
+            div.innerHTML = `
+                <div style="display:flex;align-items:center;gap:10px;width:100%;">
+                    <span style="font-size:1.6rem;flex-shrink:0;">${icon}</span>
+                    <div style="flex:1;min-width:0;">
+                        <div class="item-title" style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.filename||'File'}</div>
+                        <div class="item-url" style="font-size:0.75rem;opacity:0.6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.path||''}</div>
+                        <div style="display:flex;gap:8px;margin-top:3px;font-size:0.72rem;opacity:0.55;">${size?`<span>💾 ${size}</span>`:''}<span>🕒 ${timeStr}</span></div>
+                    </div>
+                    <button class="dl-del-btn" data-idx="${idx}" style="flex-shrink:0;background:none;border:none;cursor:pointer;opacity:0.4;font-size:1rem;padding:4px 6px;border-radius:4px;transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.4'">✕</button>
+                </div>`;
+            div.style.cursor = 'pointer';
+            div.onclick = e => { if (e.target.classList.contains('dl-del-btn')) return; if (item.path) window.electronAPI.send('open-path', item.path); };
+            div.querySelector('.dl-del-btn').onclick = e => { e.stopPropagation(); downloads.splice(idx,1); localStorage.setItem('xpider-downloads',JSON.stringify(downloads)); _renderDownloadsPanel(); };
+            panelList.appendChild(div);
+        });
+    }
+}
+
+function renderOverlayPanel(tab) {
+    currentPanelTab = tab;
+    panelList.innerHTML = '';
+    panelTabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === tab));
+    clearHistoryBtn.classList.toggle('hidden', tab !== 'history');
+
+    if (tab === 'downloads') { _renderDownloadsPanel(); return; }
+
+    let items = tab === 'history' ? history : bookmarks;
+    if (items.length === 0) {
+        panelList.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:40px 20px;"><div style="font-size:2.5rem;margin-bottom:12px;">${tab==='history'?'🕒':'★'}</div><div style="font-size:0.95rem;font-weight:500;">${tab==='history'?'방문 기록 없음':'즐겨찾기 없음'}</div></div>`;
+        return;
+    }
     items.forEach(item => {
         const div = document.createElement('div');
         div.className = 'panel-item';
-        
-        if (tab === 'downloads') {
-            div.innerHTML = `<div class="item-title">${item.filename || 'File'}</div><div class="item-url">${item.path || ''}</div>`;
-            div.onclick = () => { if(item.path) window.electronAPI.send('open-path', item.path); };
-        } else {
-            div.innerHTML = `<div class="item-title">${item.title || item.url}</div><div class="item-url">${item.url}</div>`;
-            div.onclick = () => { const wv = getActiveWebview(); if(wv) wv.src = item.url; overlayPanel.classList.add('hidden'); };
-        }
+        div.innerHTML = `<div class="item-title">${item.title || item.url}</div><div class="item-url">${item.url}</div>`;
+        div.onclick = () => { const wv = getActiveWebview(); if(wv) wv.src = item.url; overlayPanel.classList.add('hidden'); };
         panelList.appendChild(div);
     });
 }
@@ -687,7 +1141,8 @@ downloadsBtn.onclick = (e) => {
 };
 panelTabs.forEach(tab => { tab.onclick = () => renderOverlayPanel(tab.getAttribute('data-tab')); });
 clearHistoryBtn.onclick = () => {
-    if (confirm('Clear all history?')) {
+    const dict = window.translations[currentLang] || window.translations['en'];
+    if (confirm(dict.clear_history_confirm || 'Clear all history?')) {
         history = [];
         localStorage.setItem('xpider-history', JSON.stringify(history));
         renderOverlayPanel('history');
@@ -764,10 +1219,56 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
                 
                 extensionWebview.src = `chrome-extension://${ext.id}/${ext.uiPage}`;
                 extensionWebview.addEventListener('did-finish-load', () => {
-                    extensionWebview.executeJavaScript(`window.postMessage({ type: 'XPIDER_EVENT', name: 'language-change', data: { lang: '${currentLang}' } }, '*')`);
+                    // 1. 언어 동기화
+                    extensionWebview.executeJavaScript(
+                        `window.postMessage({ type: 'XPIDER_EVENT', name: 'language-change', data: { lang: '${currentLang}' } }, '*')`
+                    ).catch(() => {});
+
+                    // 2. [v4.1] 현재 활성 탭 URL + 수집된 이메일을 즉시 팝업에 주입
+                    const activeWv = getActiveWebview ? getActiveWebview() : null;
+                    const activeUrl = activeWv ? (activeWv.getURL ? activeWv.getURL() : activeWv.src) : '';
+
+                    if (activeUrl && !activeUrl.startsWith('chrome-extension://') && !activeUrl.startsWith('about:')) {
+                        window.electronAPI.invoke('xpider-email-get-page', { url: activeUrl })
+                            .then(res => {
+                                const emails = (res && Array.isArray(res.emails)) ? res.emails : [];
+                                const pageData = {
+                                    emails,
+                                    url: activeUrl,
+                                    count: emails.length
+                                };
+                                extensionWebview.executeJavaScript(
+                                    `window.postMessage(${JSON.stringify({
+                                        type: 'XPIDER_EVENT',
+                                        name: 'email-collected',
+                                        data: pageData
+                                    })}, '*')`
+                                ).catch(() => {});
+                            }).catch(() => {});
+
+                        // 3. 전체 누적 이메일도 동시 주입
+                        window.electronAPI.invoke('xpider-email-get-all', {})
+                            .then(res => {
+                                if (res && Array.isArray(res.emails) && res.emails.length > 0) {
+                                    extensionWebview.executeJavaScript(
+                                        `window.postMessage(${JSON.stringify({
+                                            type: 'XPIDER_EVENT',
+                                            name: 'email-collected',
+                                            data: {
+                                                emails: [],
+                                                allEmails: res.emails,
+                                                url: activeUrl,
+                                                count: res.count
+                                            }
+                                        })}, '*')`
+                                    ).catch(() => {});
+                                }
+                            }).catch(() => {});
+                    }
                 }, { once: true });
                 sidePanelTitle.textContent = ext.name;
                 sidePanel.classList.remove('hidden');
+
             }
         };
 
@@ -858,7 +1359,70 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
             changeInfo: { status: 'complete', url: currentUrl },
             tab: { id: realId, url: currentUrl, title: currentTitle }
         });
+
+        // ── [CAPTCHA FIX v2] 탭이 Google /sorry/ CAPTCHA 페이지로 이동하면 main.js에 즉시 알림 ──
+        // 이미 열린 탭(실제 브라우저 탭)이 CAPTCHA로 리다이렉트된 경우 새 탭 불필요
+        const isGoogleCaptcha =
+            (currentUrl.includes('google.') && currentUrl.includes('/sorry/')) ||
+            currentUrl.includes('google.com/recaptcha');
+
+        if (isGoogleCaptcha) {
+            console.log(`[CAPTCHA-DETECT] Google CAPTCHA 탭 감지: ${tabId} → ${currentUrl.substring(0, 80)}`);
+            // 해당 탭을 캡챠 탭으로 마킹
+            window._captchaTabId = tabId;
+            // main.js에 알림: 이 탭이 이미 열려있는 CAPTCHA 탭임
+            window.electronAPI.send('xpider-captcha-tab-detected', {
+                tabUIId: tabId,
+                captchaUrl: currentUrl
+            });
+        }
     });
+
+
+    // ── [CAPTCHA FIX v2] 탭 네비게이션 감지 ──────────────────────────────────────
+    // 조건: 이 탭이 캡챠 탭으로 마킹(_captchaTabId)된 경우에만 해결 신호 전송
+    // → 일반 탭이 google.com/search로 이동하는 경우 오탐 방지
+    wv.addEventListener('did-navigate', (e) => {
+        const navUrl = e.url || '';
+        if (navUrl.startsWith('file://') || navUrl.includes('start_page.html')) return;
+
+        // 해결 감지: 이 탭이 캡챠 탭으로 마킹된 경우만 처리
+        const isMyCaptchaTab = (window._captchaTabId === tabId);
+        const isCaptchaResolved =
+            navUrl === 'about:blank' ||
+            navUrl.includes('google.com/search') ||
+            navUrl.includes('bing.com/search');
+
+        if (isMyCaptchaTab && isCaptchaResolved) {
+            console.log(`[CAPTCHA-NAV] ✅ 캡챠 해결 감지 → ${navUrl.substring(0, 80)} (탭: ${tabId})`);
+            window._captchaTabId = null; // 마킹 해제
+            // main.js에 캡챠 해결 완료 신호
+            window.electronAPI.send('xpider-captcha-tab-resolved', {
+                tabUIId: tabId,
+                url: navUrl
+            });
+            // 800ms 후 탭 강제 닫기
+            setTimeout(() => {
+                if (tabs.find(t => t.id === tabId)) {
+                    console.log(`[CAPTCHA-NAV] 탭 강제 닫기: ${tabId}`);
+                    closeTab(tabId);
+                }
+            }, 800);
+        }
+
+        // [v4.0] 활성 탭이 이동하면 main.js Email Engine에 URL 보고
+        if (activeTabId === tabId) {
+            window.electronAPI.send('xpider-ext-report-active-tab', { url: navUrl });
+            // 이동 즉시 페이지 스캔 요청 (기존 데이터가 있다면 즉시 표시)
+            window.electronAPI.invoke('xpider-email-get-page', { url: navUrl }).then(res => {
+                if (res && res.emails && res.emails.length > 0) {
+                    window.electronAPI.on('xpider-email-collected-event', { name: 'email-collected', data: res });
+                }
+            }).catch(() => {});
+        }
+    });
+
+
 
     wv.addEventListener('page-title-updated', (e) => {
         const title = e.title;
@@ -895,6 +1459,28 @@ function switchTab(tabId) {
                 const tabInfo = { id: realId, url: wv.getURL(), title: wv.getTitle() || wv.getURL(), windowId: 1, active: true };
                 window.lastActiveTabInfo = tabInfo;
                 window.electronAPI.send('xpider-ext-report-active-tab', tabInfo);
+
+                // --- 맵 드래그 감지 및 자동 스크랩 트리거 ---
+                if (!wv.hasAttribute('data-drag-attached')) {
+                    wv.setAttribute('data-drag-attached', 'true');
+                    let dragStartPos = null;
+                    
+                    wv.addEventListener('mousedown', (e) => { dragStartPos = { x: e.x, y: e.y }; });
+                    wv.addEventListener('mouseup', (e) => {
+                        if (!dragStartPos) return;
+                        const dist = Math.sqrt(Math.pow(e.x - dragStartPos.x, 2) + Math.pow(e.y - dragStartPos.y, 2));
+                        // 20px 이상 드래그 시 '지도가 이동됨'으로 간주
+                        const isMapUrl = wv.getURL().includes('google.com/maps') || wv.getURL().includes('bing.com/maps');
+                        if (dist > 20 && isMapUrl) {
+                            console.log('[XPIDER-DRAG] Map drag detected, triggering auto-scraping...');
+                            // 사이드바 익스텐션에게 알림 전송
+                            if (extensionWebview && extensionWebview.contentWindow) {
+                                extensionWebview.executeJavaScript(`window.postMessage({ type: 'XPIDER_EVENT', name: 'xpider-ext-map-moved', data: { url: "${wv.getURL()}" } }, '*')`);
+                            }
+                        }
+                        dragStartPos = null;
+                    });
+                }
             }
         }
     });
@@ -916,6 +1502,8 @@ if (newTabBtn) newTabBtn.onclick = () => createNewTab();
 window.addEventListener('DOMContentLoaded', () => createNewTab('start_page.html'));
 
 // Expose to window for Electron bridge access
+window._captchaTabId = null; // 현재 캡챠 탭 UI ID (did-stop-loading에서 마킹)
+window.tabs = tabs;
 window.getActiveWebview = getActiveWebview;
 window.createNewTab = createNewTab;
 window.switchTab = switchTab;

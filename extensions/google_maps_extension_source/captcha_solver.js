@@ -1,79 +1,14 @@
 /**
- * [v1.0.0 Pro] CAPTCHA Solver Module
- * Supports 2Captcha API and Audio Bypass.
+ * [v1.1.3] XPIDER CAPTCHA Solver Module (GMaps Edition)
+ * Optimized for Wit.ai Audio Bypass and Native Browser STT.
+ * Removed legacy 2Captcha/NopeCHA integrations.
  */
 
 const CAPTCHA_SOLVER = {
     /**
-     * Solve using NopeCHA API
+     * [v1.1.3] Legacy Solve methods removed. 
+     * Wit.ai and Native STT are now the primary engines.
      */
-    async solveNopeCHA(siteKey, pageUrl, apiKey) {
-        if (!apiKey) throw new Error("NopeCHA API Key missing");
-        console.log("[Solver] Sending request to NopeCHA...");
-        const res = await fetch(`https://api.nopecha.com/token?key=${apiKey}&type=recaptcha&sitekey=${siteKey}&url=${pageUrl}`);
-        const data = await res.json();
-        if (!data || data.error) {
-            throw new Error(`NopeCHA Error: ${data ? data.message : 'Unknown'}`);
-        }
-        return data.data;
-    },
-
-    /**
-     * Solve Image Grid using NopeCHA
-     */
-    async solveImageGridNopeCHA(imageB64, taskText, apiKey) {
-        if (!apiKey) throw new Error("NopeCHA API Key missing");
-        console.log("[Solver] Analyzing Image Grid with NopeCHA...");
-        const res = await fetch(`https://api.nopecha.com/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                key: apiKey,
-                type: "recaptcha",
-                image_urls: [imageB64],
-                task: taskText
-            })
-        });
-        const data = await res.json();
-        if (!data || data.error) throw new Error(data ? data.message : "NopeCHA Fail");
-        return data.data; // Array of indices [0, 2, 5]
-    },
-
-    /**
-     * Solve using 2Captcha API
-     */
-    async solve2Captcha(siteKey, pageUrl, apiKey) {
-        if (!apiKey) throw new Error("API Key missing");
-        
-        console.log("[Solver] Sending request to 2Captcha...");
-        const res = await fetch(`https://2captcha.com/in.php?key=${apiKey}&method=userrecaptcha&googlekey=${siteKey}&pageurl=${pageUrl}&json=1`);
-        const data = await res.json();
-        
-        if (data.status !== 1) {
-            throw new Error(`2Captcha Error: ${data.request}`);
-        }
-        
-        const taskId = data.request;
-        console.log(`[Solver] Task created: ${taskId}. Waiting for solution...`);
-        
-        // Polling loop
-        for (let i = 0; i < 60; i++) { // Max 2 minutes
-            await new Promise(r => setTimeout(r, 5000));
-            const checkRes = await fetch(`https://2captcha.com/res.php?key=${apiKey}&action=get&id=${taskId}&json=1`);
-            const checkData = await checkRes.json();
-            
-            if (checkData.status === 1) {
-                console.log("[Solver] CAPTCHA Solved!");
-                return checkData.request;
-            }
-            if (checkData.request === "CAPCHA_NOT_READY") {
-                console.log(`[Solver] Still waiting... (${i * 5}s)`);
-                continue;
-            }
-            throw new Error(`2Captcha Polling Error: ${checkData.request}`);
-        }
-        throw new Error("2Captcha Timeout");
-    },
 
     /**
      * Solve using Audio Bypass (Advanced STT Script)
@@ -306,44 +241,11 @@ const CAPTCHA_SOLVER = {
         });
     },
     /**
-     * [v1.1.0] Solve generic Text/Image CAPTCHA (OCR)
+     * [v1.1.3] Normal Image OCR should be handled locally if needed.
+     * Legacy API-based OCR removed to ensure zero-dependency on paid services.
      */
     async solveNormalImage(imageB64, keys) {
-        // Priority 1: 2Captcha (Method: base64) - Highest Accuracy
-        if (keys.twoCaptchaKey) {
-            console.log("[Solver] Sending Image OCR to 2Captcha...");
-            const cleanB64 = imageB64.replace(/^data:image\/(png|jpeg|jpg);base64,/, "");
-            const res = await fetch(`https://2captcha.com/in.php?key=${keys.twoCaptchaKey}&method=base64&body=${encodeURIComponent(cleanB64)}&json=1`);
-            const data = await res.json();
-            if (data.status === 1) {
-                const taskId = data.request;
-                for (let i = 0; i < 30; i++) {
-                    await new Promise(r => setTimeout(r, 3000));
-                    const checkRes = await fetch(`https://2captcha.com/res.php?key=${keys.twoCaptchaKey}&action=get&id=${taskId}&json=1`);
-                    const checkData = await checkRes.json();
-                    if (checkData.status === 1) return checkData.request;
-                    if (checkData.request !== "CAPCHA_NOT_READY") break;
-                }
-            }
-        }
-
-        // Priority 2: NopeCHA (Type: text)
-        if (keys.nopeChaKey) {
-            console.log("[Solver] Sending Image OCR to NopeCHA...");
-            const res = await fetch(`https://api.nopecha.com/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    key: keys.nopeChaKey,
-                    type: "text",
-                    image_urls: [imageB64]
-                })
-            });
-            const data = await res.json();
-            if (data && data.data) return data.data; // Usually returns the text directly
-        }
-
-        return null; // Fallback to local OCR handled in background.js
+        return null; // Fallback to local OCR or manual handled in background.js
     }
 };
 

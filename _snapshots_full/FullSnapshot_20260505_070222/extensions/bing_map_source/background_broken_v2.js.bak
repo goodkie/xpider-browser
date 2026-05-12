@@ -1,0 +1,1002 @@
+importScripts('translations.js');
+importScripts('business_dictionaries.js');
+importScripts('global_blacklist.js');
+importScripts('language_filters.js');
+importScripts('noise_dictionary.js');
+importScripts('business_filters.js');
+importScripts('captcha_solver.js');
+
+const SW_STATE_KEYS = ['isSearching', 'sessionResults', 'sessionLogs', 'currentProgressPercent', 'isPaused', 'isPausedByCaptcha', 'isSecondaryQuizWaiting', 'secondaryCountdown', 'statusDetail', 'isHardBlocked', 'hardBlockCountdown', 'vpnCheckEnabled', 'slowModeEnabled'];
+
+if (typeof chrome.sidePanel !== 'undefined' && chrome.sidePanel.setPanelBehavior) {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+}
+
+// let isSearching = false, isCancelled = false, isPaused = false, isPausedByCaptcha = false; // Duplicate removed
+// let sessionResults = [], sessionLogs = [], currentProgressPercent = 0, statusDetail = 'Ready'; // Duplicate removed
+// let isSolvingCaptcha = false, isSecondaryQuizWaiting = false, secondaryCountdown = 0; // Duplicate removed
+// let isHardBlocked = false, hardBlockCountdown = 0, vpnCheckEnabled = false, slowModeEnabled = false; // Duplicate removed
+// let captchaLogs = []; // Duplicate removed
+
+let initPromise = new Promise((resolve) => {
+    chrome.storage.local.get(SW_STATE_KEYS, (res) => {
+        isSearching = false; isPaused = false; isPausedByCaptcha = false;
+        isHardBlocked = res.isHardBlocked || false;
+        sessionResults = res.sessionResults || [];
+        sessionLogs = res.sessionLogs || [];
+        currentProgressPercent = res.currentProgressPercent || 0;
+        statusDetail = res.statusDetail || 'Ready';
+        resolve();
+    });
+});
+
+async function updateState(updates) {
+    if (updates.isSearching !== undefined) isSearching = updates.isSearching;
+    if (updates.isCancelled !== undefined) isCancelled = updates.isCancelled;
+    if (updates.isPaused !== undefined) isPaused = updates.isPaused;
+    if (updates.sessionResults !== undefined) sessionResults = updates.sessionResults;
+    if (updates.sessionLogs !== undefined) sessionLogs = updates.sessionLogs;
+    if (updates.currentProgressPercent !== undefined) currentProgressPercent = updates.currentProgressPercent;
+    if (updates.isPausedByCaptcha !== undefined) isPausedByCaptcha = updates.isPausedByCaptcha;
+    if (updates.isHardBlocked !== undefined) isHardBlocked = updates.isHardBlocked;
+    if (updates.statusDetail !== undefined) statusDetail = updates.statusDetail;
+    await chrome.storage.local.set(updates).catch(() => {});
+}
+
+async function checkPause() {
+    while ((isPaused || isPausedByCaptcha || isHardBlocked) && !isCancelled) {
+        await new Promise(r => setTimeout(r, 1000));
+    }
+}
+
+async function sendStatusDetail(message) {
+    statusDetail = message;
+    await updateState({ statusDetail });
+    chrome.runtime.sendMessage({ action: 'statusDetail', message }).catch(() => {});
+}
+
+function getDelay(baseMs) {
+    return slowModeEnabled ? Math.round(baseMs * 2) : baseMs;
+}
+
+async function getT() {
+    const s = await chrome.storage.local.get(['language']);
+    const lang = s.language || 'ko';
+    return (key, params) => {
+        let str = (typeof I18N_DATA !== 'undefined' && I18N_DATA[lang] && I18N_DATA[lang][key]) ? I18N_DATA[lang][key] : key;
+        if (params) {
+            for (const [k, v] of Object.entries(params)) {
+                str = str.replace(`{${k}}`, v);
+            }
+        }
+        return str;
+    };
+}
+
+async function sendLog(msg) {
+    const time = new Date().toLocaleTimeString();
+    sessionLogs.push(`[${time}] ${msg}`);
+    if (sessionLogs.length > 200) sessionLogs.shift();
+    await updateState({ sessionLogs });
+    chrome.runtime.sendMessage({ action: 'log', message: `[${time}] ${msg}` }).catch(() => {});
+}
+
+
+async function checkCaptchaOnTab(tabId) {
+    try {
+        const tab = await chrome.tabs.get(tabId);
+        if (tab.url.includes('google.com/sorry') || tab.url.includes('challenge') || tab.url.includes('captcha')) {
+            const results = await chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                func: () => {
+                    const text = document.body ? document.body.innerText : '';
+                    if (text.includes('automated queries') || text.includes('자동화된 쿼리') || text.includes('computer network')) {
+                        return 'hard_block';
+                    }
+                    if (text.includes('type the characters below') || text.includes('문자를 입력해 주세요')) {
+                        return 'text_captcha';
+                    }
+                    return 'captcha';
+                }
+            }).catch(() => [{ result: 'captcha' }]);
+            return results?.[0]?.result || 'captcha';
+        }
+        
+        const results = await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            func: () => {
+                const text = document.body ? document.body.innerText : '';
+                if (text.includes('automated queries') || text.includes('자동화된 쿼리')) return 'hard_block';
+                if (text.includes('type the characters below')) return 'text_captcha';
+
+                const isCaptcha = !!(document.querySelector('div#captcha') || 
+                                     document.querySelector('iframe[src*="captcha"]') ||
+                                     document.title.includes('CAPTCHA') ||
+                                     document.title.includes('로봇이 아닙니다') ||
+                                     text.includes('서비스 이용이 제한되었습니다') ||
+                                     text.includes('비정상적인 접근이 감지되었습니다'));
+                return isCaptcha ? 'captcha' : false;
+            }
+        });
+        return results?.[0]?.result || false;
+    } catch (e) {
+        return false;
+    }
+}
+
+
+async function checkLockdown(tabId = null) {
+    let wasPaused = false;
+    
+    if (tabId) {
+        const blockStatus = await checkCaptchaOnTab(tabId);
+        if (blockStatus === 'hard_block') {
+            sendLog("🚫 [Critical] Google hard block detected. Please choose a recovery option in the popup.");
+            isHardBlocked = true;
+            isPaused = true;
+            await updateState({ isHardBlocked: true, isPaused: true, isPausedByCaptcha: false });
+            return;
+        }
+        
+        if (blockStatus === 'text_captcha') {
+            if (!isSecondaryQuizWaiting) {
+                sendLog("⚠️ [Security] Text-based CAPTCHA detected. Requesting cooldown decision...");
+                await updateState({ isPausedByCaptcha: true, isSecondaryQuizWaiting: false }); // Wait for user choice
+                chrome.runtime.sendMessage({ action: 'SHOW_SECONDARY_COUNTDOWN_MODAL' }).catch(() => {});
+                
+                // [v37.2] 1-Minute Auto-Selection: If no choice in 60s, start 5m wait.
+                setTimeout(async () => {
+                    const st = await chrome.storage.local.get(['isSecondaryQuizWaiting', 'isPausedByCaptcha']);
+                    if (!st.isSecondaryQuizWaiting && st.isPausedByCaptcha && !isCancelled) {
+                        sendLog("⏰ [Auto-Select] No choice made in 60s. Starting 5-minute wait automatically...");
+                        await startSecondaryWaitCountdown(300);
+                    }
+                }, 60000);
+            }
+        } else if (blockStatus === 'captcha') {
+            if (!isPausedByCaptcha) {
+                await updateState({ isPausedByCaptcha: true });
+                sendLog("⚠️ CAPTCHA detected on enrichment tab. Pausing...");
+                chrome.tabs.update(tabId, { active: true });
+                const tabInfo = await chrome.tabs.get(tabId);
+                chrome.windows.update(tabInfo.windowId, { focused: true });
+            }
+        }
+    }
+
+    while ((isPaused || isPausedByCaptcha) && !isCancelled) {
+        if (isPausedByCaptcha && !wasPaused) {
+            wasPaused = true;
+            chrome.runtime.sendMessage({ action: 'CAPTCHA_STATUS', status: 'detected' }).catch(() => {});
+        }
+        
+        const storage = await chrome.storage.local.get(['captchaSolveEnabled', 'captchaMethod', 'captchaApiKey']);
+        if (isPausedByCaptcha && storage.captchaSolveEnabled && !isSolvingCaptcha && tabId && !isSecondaryQuizWaiting) {
+            isSolvingCaptcha = true;
+            try {
+                sendLog(`[Solver] 🤖 Attempting auto-solve... (Method: ${storage.captchaMethod})`);
+                if (storage.captchaMethod === 'nopecha' && storage.captchaApiKey) {
+                    const tabData = await chrome.tabs.get(tabId);
+                    const siteKey = await getReCaptchaSiteKey(tabId);
+                    if (siteKey) {
+                        const token = await CAPTCHA_SOLVER.solveNopeCHA(siteKey, tabData.url, storage.captchaApiKey);
+                        await injectCaptchaToken(tabId, token);
+                        sendLog("✅ [Solver] NopeCHA solved!");
+                        await new Promise(r => setTimeout(r, 2000));
+                    }
+                } else if (storage.captchaMethod === 'api' && storage.captchaApiKey) {
+                    const tabData = await chrome.tabs.get(tabId);
+                    const siteKey = await getReCaptchaSiteKey(tabId);
+                    if (siteKey) {
+                        const token = await CAPTCHA_SOLVER.solve2Captcha(siteKey, tabData.url, storage.captchaApiKey);
+                        await injectCaptchaToken(tabId, token);
+                        sendLog("✅ [Solver] 2Captcha solved!");
+                        await new Promise(r => setTimeout(r, 2000));
+                    }
+                }
+            } catch (err) {
+                sendLog(`❌ [Solver] Error: ${err.message}`);
+            } finally {
+                isSolvingCaptcha = false;
+            }
+        }
+        
+        if (tabId) {
+            const blockStatus = await checkCaptchaOnTab(tabId);
+            if (blockStatus === 'hard_block') {
+                isHardBlocked = true;
+                isPaused = true;
+                await updateState({ isHardBlocked: true, isPaused: true, isPausedByCaptcha: false });
+                break;
+            }
+            if (!blockStatus) {
+                await updateState({ isPausedByCaptcha: false });
+                break;
+            }
+        } else {
+            const allTabs = await chrome.tabs.query({});
+            let anyBlocked = allTabs.some(t => t.url && (t.url.includes('google.com/sorry') || t.url.includes('captcha')));
+            if (!anyBlocked && !isSecondaryQuizWaiting) {
+                await updateState({ isPausedByCaptcha: false });
+                break;
+            }
+        }
+        await new Promise(r => setTimeout(r, 1000));
+    }
+    
+    if (wasPaused) {
+        sendLog("✅ CAPTCHA resolved. Resuming...");
+        chrome.runtime.sendMessage({ action: 'CAPTCHA_STATUS', status: 'resolved' }).catch(() => {});
+    }
+}
+
+async function startSecondaryWaitCountdown(seconds) {
+    if (isSecondaryQuizWaiting) return;
+    isSecondaryQuizWaiting = true;
+    isPausedByCaptcha = true;
+    let remaining = seconds;
+    await updateState({ isPausedByCaptcha: true, isSecondaryQuizWaiting: true, secondaryCountdown: remaining });
+
+    const t = await getT();
+    sendLog(t('log_secondary_quiz_detected', { seconds }));
+
+    const intervalId = setInterval(async () => {
+        remaining--;
+        await updateState({ secondaryCountdown: remaining });
+        await sendStatusDetail(`⏳ Secondary Quiz Pause: ${remaining}s`);
+        
+        if (remaining <= 0 || !isPausedByCaptcha || isCancelled) {
+            clearInterval(intervalId);
+            isSecondaryQuizWaiting = false;
+            await updateState({ isSecondaryQuizWaiting: false, secondaryCountdown: 0 });
+            if (remaining <= 0) {
+                try {
+                    const blockTabs = await chrome.tabs.query({});
+                    const tabsToClose = blockTabs.filter(t => t.url && (t.url.includes('google.com/sorry') || t.url.includes('captcha')));
+                    for (const t of tabsToClose) await chrome.tabs.remove(t.id).catch(() => {});
+                } catch (e) { }
+                await updateState({ isPausedByCaptcha: false });
+                sendLog("🏁 Secondary Quiz wait finished. Resuming tasks...");
+            }
+        }
+    }, 1000);
+}
+
+
+
+function safeRemoveTab(tabId) {
+    if (!tabId) return;
+    return chrome.tabs.remove(tabId).catch(() => { });
+}
+
+const excludeDomains = ['map.naver.com', 'place.naver.com', 'google.com', 'google.co', 'youtube.com', 'facebook.com', 'twitter.com', 'instagram.com', 'tistory.com', 'blog.naver.com'];
+const excludeNamePatterns = [
+    '로그인', '회원가입', '공지사항', '고객센터', '이용약관', '개인정보', '사이트맵',
+    'Login', 'Sign up', 'Terms of Service', 'Privacy Policy', 'Contact Us'
+];
+
+const EN_COMMON_WORDS = ["THE", "AND", "FOR", "WITH", "FROM", "YOUR", "THIS", "THAT", "HAVE", "SOME", "THEY", "WERE", "WHAT", "WHEN", "WHERE", "WHICH", "WHO", "HOW", "ABOUT", "HOME", "MENU", "CONTACT", "ABOUT", "SERVICES", "PRODUCTS", "BLOG", "NEWS"];
+const EN_COMMON_WORDS_SET = new Set(EN_COMMON_WORDS);
+
+const PROACTIVE_CONTACT_CANDIDATES = [
+    "/contact", "/contact-us", "/contactus", "/contacts", "/get-in-touch", "/getintouch",
+    "/support", "/help", "/customer-support", "/customer-service", "/service", "/assistance",
+    "/contact/", "/contact-us/", "/support/", "/help/",
+    "/contact.html", "/contact.php", "/contact.aspx", "/contact/index.html",
+    "/pages/contact", "/pages/contact-us", "/page/contact", "/page/contact-us",
+    "/about/contact", "/about-us/contact", "/company/contact", "/company/contact-us",
+    "/contacto", "/kontakt", "/contatto", "/contactez-nous", "/contacter", "/contato", "/contattaci",
+    "/contact/form", "/contact-form", "/contact/form/", "/contact-us/form",
+    "/support/contact", "/help/contact", "/helpdesk", "/ticket", "/submit-ticket",
+    "/contact#contact", "/#contact", "/#contact-us", "/mail", "/mailz", "/info",
+    "/location", "/directions", "/map", "/store-locator", "/where-to-find-us",
+    "/오시는길", "/찾아오시는길", "/지점안내", "/매장안내", "/문의", "/고객센터"
+];
+
+function rankContactUrl(url) {
+    const s = (url || "").toLowerCase();
+    let b = 0;
+    if (s.includes("contact")) b += 50;
+    if (s.includes("support")) b += 20;
+    if (s.includes("help") || s.includes("고객센터")) b += 15;
+    if (s.includes("customer") || s.includes("문의")) b += 10;
+    if (s.includes("오시는길") || s.includes("location") || s.includes("directions") || s.includes("map") || s.includes("지점안내")) b += 30;
+    if (s.includes("get-in-touch") || s.includes("getintouch")) b += 15;
+    if (s.includes("kontakt") || s.includes("contacto") || s.includes("contatto") || s.includes("contactez")) b += 10;
+    if (s.includes("mail")) b += 10;
+    if (s.includes("form")) b += 5;
+    return b;
+}
+
+const excludeTLDs = ['.png', '.jpg', '.jpeg', '.gif', '.pdf', '.zip', '.exe'];
+
+const LOCALIZED_FILTERS = {
+    ko: {
+        blacklist: ['블로그', '카페', '뉴스', '커뮤니티', '지도', '날씨', '쇼핑', '검색', '이미지', '동영상', '사전', '가이드'],
+        suffixes: ['식당', '카페', '커피', '펜션', '학원', '병원', '의원', '치과', '헤어', '네일', '센터', '관', '교회', '사찰']
+    },
+    en: {
+        blacklist: ['NEWS', 'FORUM', 'WIKI', 'GUIDE', 'MAPS', 'IMAGES', 'VIDEOS', 'DICTIONARY', 'WEATHER', 'SEARCH'],
+        suffixes: ['RESTAURANT', 'CAFE', 'COFFEE', 'SCHOOL', 'HOSPITAL', 'CLINIC', 'DENTAL', 'HAIR', 'SALON', 'CENTER', 'CHURCH', 'TEMPLE']
+    }
+};
+
+const KO_BLACKLIST = [
+    '로그인', '회원가입', '아이디', '비밀번호', '찾기', '마이페이지', '장바구니', '주문배송', '고객센터', '공지사항', '자주묻는질문',
+    '이용약관', '개인정보처리방침', '회사소개', '오시는길', '제휴문의', '광고문의', '전체보기', '닫기', '열기', '이전', '다음', 'TOP',
+    '검색', '통합검색', '인기검색어', '실시간', '뉴스', '연예', '스포츠', '경제', '정치', '사회', '생활', '문화', 'IT', '과학', '세계',
+    '블로그', '카페', '지식iN', '쇼핑', '페이', '메일', '사전', '증권', '부동산', '지도', '영화', '뮤직', '책', '웹툰',
+    '네이버', '다음', '구글', '줌', '유튜브', '인스타그램', '페이스북', '트위터', '카카오톡', '밴드', '티스토리', '워드프레스'
+];
+
+const EN_BLACKLIST = [
+    'Log in', 'Sign up', 'Register', 'My account', 'Cart', 'Orders', 'Contact', 'News', 'Help', 'FAQ',
+    'Terms', 'Privacy', 'About', 'Contact Us', 'Support', 'Feedback', 'Careers', 'Sitemap',
+    'Search', 'Popular', 'Trending', 'Hot', 'Latest', 'Politics', 'Business', 'Tech', 'Science', 'Health', 'Style', 'Travel',
+    'Blog', 'Forum', 'Shop', 'Pay', 'Mail', 'Dictionary', 'Stock', 'Real estate', 'Map', 'Movie', 'Music', 'Book', 'Comic',
+    'Google', 'Yahoo', 'Bing', 'Facebook', 'Instagram', 'Twitter', 'LinkedIn', 'YouTube', 'Reddit', 'Medium'
+];
+
+const COMMON_NOUNS = {
+    ko: ['내용', '정보', '결과', '목록', '날짜', '시간', '조회', '댓글', '추천', '공유', '다운로드', '파일', '이미지', '사진', '영상', '더보기'],
+    en: ['Content', 'Info', 'Result', 'List', 'Date', 'Time', 'View', 'Comment', 'Recommend', 'Share', 'Download', 'File', 'Image', 'Photo', 'Video', 'More'],
+    ja: ['内容', '情報', '結果', '一覧', '日付', '時間', '表示', 'コメント', 'おすすめ', '共有', 'ダウンロード', 'ファイル', '画像', '写真', '動画', '詳細']
+};
+
+function extractBusinessNames(text, hl = 'en') {
+    if (!text) return [];
+    
+    const currentLang = (hl === 'kr') ? 'ko' : hl;
+    const BUSINESS_MARKERS = {
+        ko: ['주식회사', '유한회사', '사단법인', '재단법인', '(주)', '(유)', '(사)', '(재)', '병원', '의원', '식당', '카페', '커피', '학원', '센터', '스튜디오', '공방', '유통', '산업', '건축', '건설', '기획', '상사', '마트', '호텔', '모텔', '펜션', '약국', '연구소', '학교', '대학교', '교회'],
+        en: ['Inc', 'Ltd', 'LLC', 'Corp', 'Co.', 'Group', 'Holdings', 'Corporation', 'Limited', 'Company', 'Solutions', 'Ventures', 'Capital', 'Partners', 'Consulting', 'Logistics', 'Trading', 'Industries', 'School', 'Academy', 'University', 'Institute', 'Clinic', 'Hospital', 'Dental', 'Medical', 'Law', 'Legal', 'Studio', 'Atelier', 'Bakery', 'Hotel', 'Inn', 'Resort', 'Restaurant', 'Cafe', 'Store', 'Shop'],
+        ja: ['株式会社', '有限会社', '合同会社', '一般社団法人', '一般財団法人', '飯店', '料理店', 'ホテル', '旅館', '宿', '温泉', 'リゾート', 'ヴィラ', 'ペンション', 'ゲストハウス', 'レストラン', 'カフェ', '診療所', 'スタジオ', 'ショップ', 'ストア', 'マーケット', '製作所', '工業', '興業', '商事', '物流', 'システム'],
+        zh: ['有限公司', '责任公司', '股份有限公司', '股份', '集团', '工厂', '中心', '公司', '厂', '店', '大厦', '酒楼', '酒店', '科技', '电子', '机械', '工程', '贸易', '进出口', '服饰', '实业', '开发']
+    };
+
+    const suffixes = BUSINESS_MARKERS[currentLang] || BUSINESS_MARKERS['en'];
+    const sortedSuffixes = [...suffixes].sort((a, b) => b.length - a.length);
+    const suffixPattern = sortedSuffixes.map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+    
+    const ranges = {
+        ko: '[가-힣a-zA-Z0-9・－＆\\s\\(\\)]',
+        ja: '[\\u3040-\\u309F\\u30A0-\\u30FF\\u4E00-\\u9FFF\\u3005a-zA-Z0-9・－ー＆々\\s\\(\\)]',
+        en: '[a-zA-Z0-9・－＆\\s\\(\\)\\.,]',
+        zh: '[\\u4E00-\\u9FFF\\u3005a-zA-Z0-9・－＆\\s\\(\\)]'
+    };
+    const range = ranges[currentLang] || '[\\w\\s]';
+
+    let extractorRegex = new RegExp(`${range}{2,40}(?:${suffixPattern})`, 'g');
+    const matches = text.match(extractorRegex) || [];
+    const results = [...new Set(matches.map(m => m.trim()))].filter(n => n.length > 2 && n.length < 200);
+
+    return results;
+}
+
+function isSearchListingTitle(name) {
+    if (!name) return false;
+    const n = name.trim();
+    if (/\d/.test(n)) return true;
+    if (/^(Best|Top|10|20|Index|List|Ranking|Guide|Review)\b/i.test(n)) return true;
+    if (/\b(in|at|by|with|to|from|for|on|of|and|or)\b/i.test(n)) return true;
+    return false;
+}
+
+function getSearchUrl2(bizName, gl, hl, context = '') {
+    let suffix = ' 전화번호 주소 지도';
+    if (gl === 'jp' || hl === 'ja') suffix = ' 住所 電話番号 地図';
+    else if (hl !== 'ko') suffix = ' phone address maps';
+    const q = encodeURIComponent((context ? context + ' ' : '') + bizName + suffix);
+    const tld = (gl === 'kr') ? 'co.kr' : (gl === 'jp' ? 'co.jp' : 'com');
+    return `https://www.google.${tld}/search?q=${q}&hl=${hl || 'en'}&gl=${gl || 'us'}&tbm=lcl`;
+}
+
+async function deepScan3Stage(targets, sourceLabel, hl, gl, t, keyword = '', base = 0, weight = 100, targetOption = 'all') {
+    if (targets.length === 0) return;
+    const scanCount = targets.length;
+    const BATCH_SIZE = 3;
+
+    for (let i = 0; i < scanCount; i += BATCH_SIZE) {
+        if (isCancelled) break;
+        await checkPause();
+        const batch = targets.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async (target, idx) => {
+            const index = i + idx;
+            const bizName = target.name;
+            await runWithTimeout((async () => {
+                if (isCancelled) return;
+                const progress = Math.round(base + (((index + 1) / scanCount) * weight));
+                await updateState({ currentProgressPercent: progress });
+                
+                if (isSearchListingTitle(bizName)) return;
+
+                let url2 = getSearchUrl2(bizName, gl, hl, target.context);
+                await checkLockdown();
+                let scan = await scanPageInBrowser(url2, 4000, bizName);
+                
+                if (scan.homepage && targetOption !== 'none') {
+                    const webScan = await scrapeBusinessWebsite(scan.homepage, targetOption, hl, gl);
+                    if (webScan) {
+                        if (webScan.emails) scan.emails = webScan.emails;
+                        if (webScan.sns) scan.sns = webScan.sns;
+                        if (webScan.phone) scan.phone = webScan.phone;
+                        if (webScan.address) scan.address = webScan.address;
+                    }
+                }
+
+                const res = {
+                    id: Date.now() + Math.random().toString(36).substr(2, 9),
+                    name: bizName,
+                    homepage: scan.homepage || '',
+                    phone: scan.phone || '-',
+                    emails: scan.emails || '-',
+                    address: scan.address || '-',
+                    sns: scan.sns || [],
+                    source: sourceLabel
+                };
+                sessionResults.push(res);
+                await updateState({ sessionResults });
+                chrome.runtime.sendMessage({ action: 'result', data: res }).catch(() => {});
+            })(), 180000);
+        }));
+    }
+}
+
+async function startSearchProcess(text, collectEmails = false, targetOption = 'all', language = 'en', region = 'us') {
+    isCancelled = false; isPaused = false;
+    const t = await getT();
+    const hl = language || 'en', gl = region || 'us';
+    
+    let extractedNames = extractBusinessNames(text, hl);
+    if (extractedNames.length === 0) {
+        await updateState({ isSearching: false });
+        chrome.runtime.sendMessage({ action: 'complete' }).catch(() => {});
+        return;
+    }
+
+    const targets = extractedNames.map(n => ({ name: n, context: "" }));
+    await deepScan3Stage(targets, "Text Data", hl, gl, t, "", 0, 100, targetOption);
+    
+    await updateState({ isSearching: false, currentProgressPercent: 100 });
+    chrome.runtime.sendMessage({ action: 'complete' }).catch(() => {});
+}
+
+
+async function scrapeBusinessWebsite(url, targetOption = 'all', hl = 'en', gl = 'us', waitMs = 4500) {
+    if (!url || !url.startsWith('http')) return null;
+    let tab = null;
+    try {
+        let targetUrl = url;
+        if (targetUrl.includes('google.') || targetUrl.includes('naver.com') || targetUrl.includes('bing.com')) {
+            if (targetUrl.includes('?')) {
+                if (!targetUrl.includes('_enrich=1')) targetUrl += '&_enrich=1';
+            } else {
+                if (!targetUrl.includes('#_enrich')) targetUrl += '#_enrich';
+            }
+        }
+        tab = await chrome.tabs.create({ url: targetUrl, active: false });
+        await new Promise(r => setTimeout(r, waitMs));
+        await checkPause();
+
+        const homepageRaw = await chrome.scripting.executeScript({
+            target: { tabId: tab.id, allFrames: true },
+            func: async (docLang) => {
+                const results = { emails: [], sns: [], phone: '', contactLinks: [], address: '' };
+                try {
+                    for (let i = 1; i <= 3; i++) {
+                        window.scrollTo(0, document.body.scrollHeight / 3 * i);
+                        await new Promise(r => setTimeout(r, 400));
+                    }
+                } catch (e) { }
+
+                const emailSet = new Set();
+                const snsSet = new Set();
+                const linkSet = new Set();
+                const textDecoder = (txt) => txt.replace(/\s*[\[\(\{]at[\]\)\}]\s*/gi, '@').replace(/\s*[\[\(\{]dot[\]\)\}]\s*/gi, '.');
+                const bodyText = textDecoder(document.body ? document.body.innerText : '');
+
+                const emailMatches = bodyText.match(/[a-zA-Z0-9._%+-]+@(?!(pstatic\.net|google\.com|example\.com))[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
+                if (emailMatches) emailMatches.forEach(e => emailSet.add(e.toLowerCase()));
+
+                document.querySelectorAll('script[type="application/ld+json"]').forEach(script => {
+                    try {
+                        const data = JSON.parse(script.innerText);
+                        const extractLDEmail = (obj) => {
+                            if (!obj) return;
+                            if (typeof obj === 'string') {
+                                const m = obj.match(/[a-zA-Z0-9._%+-]+@(?!(pstatic\.net|google\.com|gmail\.com|example\.com))[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                                if (m) emailSet.add(m[0].toLowerCase());
+                            } else if (typeof obj === 'object') {
+                                if (obj.email) {
+                                    if (typeof obj.email === 'string') emailSet.add(obj.email.toLowerCase());
+                                    else if (Array.isArray(obj.email)) obj.email.forEach(e => emailSet.add(String(e).toLowerCase()));
+                                }
+                                if (obj.telephone && !results.phone) results.phone = String(obj.telephone);
+                                Object.values(obj).forEach(extractLDEmail);
+                            }
+                        };
+                        extractLDEmail(data);
+                    } catch (e) { }
+                });
+
+                document.querySelectorAll('a[href], button[onclick], [role="button"]').forEach(el => {
+                    let href = el.getAttribute('href') || '';
+                    if (!href && el.getAttribute('onclick')) {
+                        const m = el.getAttribute('onclick').match(/location\.href=['"]([^'"]+)['"]/);
+                        if (m) href = m[1];
+                    }
+                    if (!href) return;
+                    let absoluteUrl = '';
+                    try { absoluteUrl = new URL(href, window.location.href).href; } catch (e) { return; }
+                    const lowerHref = absoluteUrl.toLowerCase();
+                    const text = (el.innerText || '').toLowerCase();
+                    if (lowerHref.includes('instagram.com/') || lowerHref.includes('facebook.com/') ||
+                        lowerHref.includes('twitter.com/') || lowerHref.includes('x.com/') ||
+                        lowerHref.includes('youtube.com/') || lowerHref.includes('linkedin.com/company/')) {
+                        snsSet.add(absoluteUrl.split('?')[0]);
+                    }
+                    if (lowerHref.startsWith('mailto:')) {
+                        const em = lowerHref.replace(/^mailto:/i, '').split('?')[0].trim();
+                        if (em && em.includes('@')) emailSet.add(em);
+                    }
+                    if (lowerHref.startsWith('tel:') && !results.phone) {
+                        results.phone = lowerHref.replace(/^tel:/i, '').trim();
+                    }
+                    const indicators = ['contact', 'about', 'support', 'inquiry', 'mail', 'info', 'help', 'location', 'map', 'service', '문의', '소개', '주소', '지점', '오시는길', '찾아오시는길', '고객센터', 'directions'];
+                    const isBinary = /\.(pdf|zip|jpg|jpeg|png|gif|exe)$/i.test(lowerHref);
+                    const isAction = /^(mailto:|tel:|javascript:|#)/i.test(href);
+                    if (indicators.some(ind => text.includes(ind) || lowerHref.includes(ind)) && !isBinary && !isAction) {
+                        const linkHostname = new URL(absoluteUrl).hostname;
+                        const currentHostname = window.location.hostname;
+                        if (linkHostname.includes(currentHostname.replace('www.', '')) || linkHostname === currentHostname) {
+                            linkSet.add(absoluteUrl);
+                        }
+                    }
+                });
+
+                let footerAddr = '';
+                document.querySelectorAll('script[type="application/ld+json"]').forEach(script => {
+                    if (footerAddr) return;
+                    try {
+                        const data = JSON.parse(script.innerText);
+                        const findAddr = (obj) => {
+                            if (!obj || footerAddr) return;
+                            if (obj.address) {
+                                if (typeof obj.address === 'string') { footerAddr = obj.address; return; }
+                                if (typeof obj.address === 'object') {
+                                    const a = obj.address;
+                                    const parts = [a.streetAddress, a.addressLocality, a.addressRegion, a.postalCode, a.addressCountry].filter(Boolean);
+                                    if (parts.length >= 2) { footerAddr = parts.join(', '); return; }
+                                }
+                            }
+                            if (typeof obj === 'object' && !Array.isArray(obj)) Object.values(obj).forEach(findAddr);
+                            else if (Array.isArray(obj)) obj.forEach(findAddr);
+                        };
+                        findAddr(data);
+                    } catch (e) { }
+                });
+
+                if (!footerAddr) {
+                    const addrSels = [
+                        'footer [itemprop="address"]', '#footer [itemprop="address"]', '.footer [itemprop="address"]',
+                        '[itemtype*="PostalAddress"]', '[itemprop="streetAddress"]',
+                        'footer .address', '#footer .address', '.site-footer .address',
+                        '.contact-info .address', '.contact-address', '.location-address',
+                        'footer address', '#footer address', '.footer address',
+                        '.footer-contact', '.footer-address', '.footer-info',
+                        '[class*="contact"] [class*="address"]', '[id*="contact"] [class*="address"]',
+                        '.vcard .adr', '.h-card .p-street-address'
+                    ];
+                    for (const sel of addrSels) {
+                        const el = document.querySelector(sel);
+                        if (el) {
+                            const txt = el.innerText.trim().replace(/\n+/g, ', ').replace(/\s{2,}/g, ' ');
+                            if (txt.length >= 5 && txt.length <= 200) { footerAddr = txt; break; }
+                        }
+                    }
+                }
+
+                if (!footerAddr) {
+                    const stage3AddrPatterns = {
+                        ko: /([가-힣]{2,5}(?:특별시|광역시|도|시|군|구|읍|면|동|가|로|길)\s+[가-힣0-9\s,-]+(?:층|호|길|로|동|리|번지|타워|빌딩|센터|빌라|아파트))/g,
+                        en: /\d+[\w\s,]+(Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Boulevard|Blvd\.?|Drive|Dr\.?|Lane|Ln\.?|Way|Court|Ct\.?|Place|Pl\.?|Square|Sq\.?|Circle|Cir|Highway|Hwy|Pkwy|Loop|Trail|Parkway)[\w\s,]*(?:[A-Z]{2}\s*\d{5}(?:-\d{4})?)?/gi
+                    };
+
+                    const footerEl = document.querySelector('footer, #footer, .footer, .site-footer');
+                    const searchTexts = [footerEl ? footerEl.innerText : '', bodyText];
+                    const addrPattern = stage3AddrPatterns[docLang] || stage3AddrPatterns['en'];
+                    const stage3Blacklist = ['privacy', 'policy', 'terms', 'login', 'menu', 'copyright', '개인정보', '이용약관', 'プライバシー', '規約', '菜单'];
+
+                    for (const srcText of searchTexts) {
+                        if (footerAddr) break;
+                        const candidates = srcText.match(addrPattern) || [];
+                        const valid = candidates.filter(a => {
+                            const t = a.trim();
+                            if (t.length < 8 || t.length > 200) return false;
+                            if (!/\d/.test(t)) return false;
+                            if (/https?:\/\//i.test(t)) return false;
+                            const lo = t.toLowerCase();
+                            return !stage3Blacklist.some(w => lo.includes(w));
+                        }).sort((a, b) => b.length - a.length);
+                        if (valid.length > 0) footerAddr = valid[0].trim();
+                    }
+                }
+
+                results.address = footerAddr;
+                results.emails = [...emailSet];
+                results.sns = [...snsSet];
+                results.contactLinks = [...linkSet];
+                return results;
+            },
+            args: [hl]
+        }).catch(() => null);
+
+        if (!homepageRaw || homepageRaw.length === 0) return null;
+
+        const homepageResult = { emails: new Set(), sns: new Set(), phone: '', address: '', contactLinks: [] };
+        for (const frame of homepageRaw) {
+            if (!frame.result) continue;
+            frame.result.emails.forEach(e => homepageResult.emails.add(e));
+            frame.result.sns.forEach(s => homepageResult.sns.add(s));
+            if (frame.result.phone && !homepageResult.phone) homepageResult.phone = frame.result.phone;
+            if (frame.result.address && !homepageResult.address) homepageResult.address = frame.result.address;
+
+            frame.result.contactLinks.forEach(link => {
+                const score = typeof rankContactUrl !== 'undefined' ? rankContactUrl(link) : 10;
+                homepageResult.contactLinks.push({ url: link, priority: score });
+            });
+        }
+
+        let finalEmails = new Set(homepageResult.emails);
+        let finalSns = new Set(homepageResult.sns);
+        let finalPhone = homepageResult.phone;
+
+        const needsMore = (targetOption === 'email' && finalEmails.size === 0) ||
+            (targetOption === 'sns' && finalSns.size === 0) ||
+            (targetOption === 'all');
+
+        if (needsMore) {
+            const currentUrl = new URL(url);
+            const domainBase = `${currentUrl.protocol}//${currentUrl.hostname}${currentUrl.port ? ':' + currentUrl.port : ''}`;
+            let allCandidates = [...homepageResult.contactLinks];
+
+            if (allCandidates.length < 5) {
+                PROACTIVE_CONTACT_CANDIDATES.forEach(path => {
+                    const candidateUrl = domainBase + path;
+                    if (!allCandidates.some(c => c.url === candidateUrl)) {
+                        const score = rankContactUrl(path);
+                        allCandidates.push({ url: candidateUrl, priority: score });
+                    }
+                });
+            }
+
+            const sortedLinks = allCandidates
+                .sort((a, b) => b.priority - a.priority)
+                .map(l => l.url);
+
+            const topLinks = Array.from(new Set(sortedLinks)).slice(0, 5);
+            for (const link of topLinks) {
+                if (isCancelled) break;
+                await checkPause();
+                try {
+                    const score = rankContactUrl(link);
+                    sendLog(`  🕵️ [Stage 3] Probing candidate: ${link} (Priority Score: ${score})`);
+                    await chrome.tabs.update(tab.id, { url: link });
+                    await new Promise(r => setTimeout(r, getDelay(5000)));
+                    await checkPause();
+                    const subRaw = await chrome.scripting.executeScript({
+                        target: { tabId: tab.id, allFrames: true },
+                        func: async (docLang) => {
+                            try {
+                                for (let i = 1; i <= 3; i++) {
+                                    window.scrollTo(0, document.body.scrollHeight / 3 * i);
+                                    await new Promise(r => setTimeout(r, 400));
+                                }
+                            } catch (e) { }
+
+                            const emails = new Set();
+                            const sns = new Set();
+                            let phoneStr = '';
+                            let addressStr = '';
+
+                            const textDecoder = (txt) => txt.replace(/\s*[\[\(\{]at[\]\)\}]\s*/gi, '@').replace(/\s*[\[\(\{]dot[\]\)\}]\s*/gi, '.');
+                            const uiSelectors = ['.login', '.profile', '.user', '.account', '.session', '.auth', '.member', '[class*="login"]', '[class*="profile"]', '[class*="user"]', '[class*="account"]', '[id*="login"]', '[id*="profile"]', '[id*="user"]', '[id*="account"]'];
+                            const bodyClone = document.body.cloneNode(true);
+                            uiSelectors.forEach(sel => bodyClone.querySelectorAll(sel).forEach(el => el.remove()));
+
+                            const excludePrefixes = ['noreply', 'no-reply', 'admin', 'webmaster', 'postmaster', 'hostmaster', 'login', 'signin', 'signup', 'register', 'logout', 'user', 'member', 'account', 'profile', 'session', 'token', 'anonymous', 'test', 'dev', 'developer', 'root', 'null', 'undefined', 'placeholder', 'mailer-daemon', 'support', 'help', 'info@google', 'info@naver', 'goodkie', 'vivpr', 'studioberry', 'feedback', 'contact@', 'marketing', 'sales', 'billing', 'privacy'];
+                            const excludeDomains = ['sentry.io', 'wixpress.com', 'example.com', 'test.com', 'localhost', 'sentry.', 'bugsnag.', 'newrelic.', 'datadog.', 'hotjar.', 'optimizely.', 'pstatic.net', 'google.com'];
+                            const bodyText = textDecoder(bodyClone.textContent || '');
+                            const rawMatches = bodyText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+                            const metaDesc = document.querySelector('meta[name="description"]')?.content || "";
+                            const metaMatches = textDecoder(metaDesc).match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+                            const cmsTexts = [...document.querySelectorAll('.wixui-rich-text, .site-footer, #footer, .contact-info, iframe')].map(el => el.innerText || '').join(' ');
+                            const cmsMatches = textDecoder(cmsTexts).match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [];
+
+                            [...rawMatches, ...metaMatches, ...cmsMatches].forEach(e => {
+                                const el = e.toLowerCase();
+                                if (excludeDomains.some(d => el.includes(d))) return;
+                                if (excludePrefixes.some(p => el.split('@')[0].includes(p))) return;
+                                emails.add(el);
+                            });
+
+                            document.querySelectorAll('script[type="application/ld+json"]').forEach(script => {
+                                try {
+                                    const data = JSON.parse(script.innerText);
+                                    const extractLDEmail = (obj) => {
+                                        if (!obj) return;
+                                        if (typeof obj === 'string') {
+                                            const m = obj.match(/[a-zA-Z0-9._%+-]+@(?!(pstatic\.net|google\.com|example\.com))[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                                            if (m) emails.add(m[0].toLowerCase());
+                                        } else if (typeof obj === 'object') {
+                                            if (obj.email) {
+                                                if (typeof obj.email === 'string') emails.add(obj.email.toLowerCase());
+                                                else if (Array.isArray(obj.email)) obj.email.forEach(e => emails.add(String(e).toLowerCase()));
+                                            }
+                                            if (obj.telephone && !phoneStr) phoneStr = String(obj.telephone);
+                                            Object.values(obj).forEach(extractLDEmail);
+                                        }
+                                    };
+                                    extractLDEmail(data);
+                                } catch (e) { }
+                            });
+
+                            const phoneRegex = (docLang === 'ko') ? /(?:0[2-9]|010|15\d{2}|16\d{2}|18\d{2})[-. ]?\d{3,4}[-. ]?\d{4}/g : /(?:\+?1[-. ]?)?\(?[2-9][0-8][0-9]\)?[-. ]?[2-9][0-9]{2}[-. ]?[0-9]{4}/g;
+                            const phoneMatches = bodyText.match(phoneRegex) || [];
+                            if (phoneMatches.length > 0) phoneStr = phoneMatches[0];
+
+                            document.querySelectorAll('script[type="application/ld+json"]').forEach(script => {
+                                if (addressStr) return;
+                                try {
+                                    const data = JSON.parse(script.innerText);
+                                    const findAddr = (obj) => {
+                                        if (!obj || addressStr) return;
+                                        if (obj.address) {
+                                            if (typeof obj.address === 'string') { addressStr = obj.address; return; }
+                                            if (typeof obj.address === 'object') {
+                                                const a = obj.address;
+                                                const parts = [a.streetAddress, a.addressLocality, a.addressRegion, a.postalCode, a.addressCountry].filter(Boolean);
+                                                if (parts.length >= 2) { addressStr = parts.join(', '); return; }
+                                            }
+                                        }
+                                        if (typeof obj === 'object' && !Array.isArray(obj)) Object.values(obj).forEach(findAddr);
+                                        else if (Array.isArray(obj)) obj.forEach(findAddr);
+                                    };
+                                    findAddr(data);
+                                } catch (e) { }
+                            });
+
+                            if (!addressStr) {
+                                const addrSels = ['footer [itemprop="address"]', '#footer [itemprop="address"]', '.footer [itemprop="address"]', '[itemtype*="PostalAddress"]', '[itemprop="streetAddress"]', 'footer .address', '#footer .address', '.site-footer .address', '.contact-info .address', '.contact-address', '.location-address', 'footer address', '#footer address', '.footer address', '.footer-contact', '.footer-address', '.footer-info', '[class*="contact"] [class*="address"]', '[id*="contact"] [class*="address"]', '.vcard .adr', '.h-card .p-street-address'];
+                                for (const sel of addrSels) {
+                                    const el = document.querySelector(sel);
+                                    if (el) {
+                                        const txt = el.innerText.trim().replace(/\n+/g, ', ').replace(/\s{2,}/g, ' ');
+                                        if (txt.length >= 5 && txt.length <= 200) { addressStr = txt; break; }
+                                    }
+                                }
+                            }
+
+                            document.querySelectorAll('a[href]').forEach(a => {
+                                let h = '';
+                                try { h = a.href; } catch (e) { return; }
+                                if (!h) return;
+                                if (h.includes('instagram.com/') || h.includes('facebook.com/') || h.includes('twitter.com/') || h.includes('x.com/')) {
+                                    sns.add(h.split('?')[0]);
+                                }
+                                const em = h.toLowerCase().replace(/^mailto:/i, '').split('?')[0].trim();
+                                if (em && em.includes('@')) emails.add(em);
+                                if (h.toLowerCase().startsWith('tel:') && !phoneStr) {
+                                    phoneStr = h.toLowerCase().replace(/^tel:/i, '').trim();
+                                }
+                            });
+                            return { emails: [...emails], sns: [...sns], phone: phoneStr, address: addressStr, contactPageText: bodyText.substring(0, 3000) };
+                        },
+                        args: [hl]
+                    }).catch(() => null);
+
+                    if (subRaw && subRaw.length > 0) {
+                        for (const frame of subRaw) {
+                            if (!frame.result) continue;
+                            const subResult = frame.result;
+                            subResult.emails.forEach(e => finalEmails.add(e));
+                            subResult.sns.forEach(s => finalSns.add(s));
+                            if (subResult.phone && !finalPhone) finalPhone = subResult.phone;
+                            if (subResult.address && !homepageResult.address) homepageResult.address = subResult.address;
+                            if (subResult.contactPageText && !homepageResult.contactPageText) homepageResult.contactPageText = subResult.contactPageText;
+                        }
+                    }
+                } catch (e) { }
+            }
+        }
+
+        return {
+            emails: [...finalEmails].join(', '),
+            sns: [...finalSns],
+            phone: finalPhone,
+            address: homepageResult.address || '',
+            contactPageText: homepageResult.contactPageText || ''
+        };
+    } catch (e) {
+        return null;
+    } finally {
+        if (tab) await safeRemoveTab(tab.id);
+    }
+}
+
+async function runEngineSearch(enginesArr, keyword, startPage = 1, maxPages = 1, collectEmails = false, mapAuto = false, targetOption = 'all', isSubTask = false, baseProgress = 0, subTaskWeight = 100, depth = 1) {
+    if (!isSubTask) {
+        isSearching = true;
+        isCancelled = false;
+        isPaused = false;
+        totalCollected = 0;
+        sendLog(`[System] Starting Search for: "${keyword}"`);
+        await chrome.storage.local.set({ isSearching: true, isPaused: false });
+    }
+
+    try {
+        for (const engine of enginesArr) {
+            if (isCancelled) break;
+            for (let page = startPage; page < startPage + maxPages; page++) {
+                if (isCancelled) break;
+                await checkPause();
+                sendLog(`[Engine] ${engine} - Processing page ${page}`);
+                
+                let results = [];
+                try {
+                    results = await performSearch(engine, keyword, page, collectEmails, mapAuto, targetOption);
+                } catch (err) {
+                    sendLog(`[Error] Search failed on ${engine}: ${err.message}`);
+                }
+
+                if (results && results.length > 0) {
+                    totalCollected += results.length;
+                    await saveResults(results, isSubTask);
+                    sendLog(`[System] Collected ${results.length} items from ${engine}`);
+                }
+
+                const progress = baseProgress + (subTaskWeight * (page - startPage + 1) / maxPages);
+                await updateProgress(progress);
+                
+                const delay = getDelay();
+                await new Promise(r => setTimeout(r, delay));
+            }
+        }
+    } catch (e) {
+        sendLog(`[Critical Error] Search Engine Loop: ${e.message}`);
+    } finally {
+        if (!isSubTask) {
+            isSearching = false;
+            await chrome.storage.local.set({ isSearching: false });
+            sendLog("[System] Search Complete.");
+        }
+    }
+}
+
+
+
+/**
+ * [v36.9] 30m Hard Block Mandatory Pause
+ */
+async function startHardBlockCountdown(seconds) {
+    if (isHardBlocked) return;
+    isHardBlocked = true;
+    isPaused = true;
+    let remainingTime = seconds;
+    await updateState({ isHardBlocked: true, isPaused: true, hardBlockCountdown: remainingTime });
+
+    const intervalId = setInterval(async () => {
+        remainingTime--;
+        await updateState({ hardBlockCountdown: remainingTime });
+        await sendStatusDetail(`🛑 Hard Block Cooldown: ${Math.floor(remainingTime/60)}m ${remainingTime%60}s`);
+        
+        if (remainingTime <= 0 || !isHardBlocked || isCancelled) {
+            clearInterval(intervalId);
+            isHardBlocked = false;
+            isPaused = false;
+            await updateState({ isHardBlocked: false, isPaused: false, hardBlockCountdown: 0 });
+            sendLog("🏁 Hard Block cooldown finished. Ready to resume.");
+        }
+    }, 1000);
+}
+
+/**
+ * [v1.0.0 Pro] Unified Message Orchestrator
+ */
+chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
+    const handleMessage = async () => {
+        try {
+            await initPromise;
+            
+            // Normalize action names
+            const action = (m.action || "").toLowerCase();
+
+            if (action === 'startsearch' || action === 'start_search') {
+                if (isSearching) return sendResponse({ status: 'already_searching' });
+                isSearching = true;
+                isCancelled = false;
+                sessionResults = [];
+                sessionLogs = [];
+                currentProgressPercent = 0;
+                await updateState({ isSearching: true, isCancelled: false, sessionResults: [], sessionLogs: [], currentProgressPercent: 0 });
+                
+                // Determine source type from m.tab or m.action
+                if (m.tab === 'text' || m.text) {
+                    startSearchProcess(m.content || m.text, m.collectEmails, m.targetOption, m.language, m.region);
+                } else if (m.tab === 'url' || m.url) {
+                    runWebsiteCrawl(m.content || m.url, m.depth, m.targetOption, m.language, m.region);
+                } else if (m.tab === 'search' || m.keyword) {
+                    runEngineSearch(m.engines, m.keyword || m.content, m.startPage, m.endPage, m.collectEmails, m.targetOption, m.language, m.region);
+                }
+                sendResponse({ status: 'started' });
+            } 
+            else if (action === 'cancelsearch' || action === 'cancel_search' || action === 'cancel') {
+                isCancelled = true;
+                isSearching = false;
+                isPausedByCaptcha = false;
+                isSecondaryQuizWaiting = false;
+                await updateState({ isSearching: false, isCancelled: true, isPausedByCaptcha: false, isSecondaryQuizWaiting: false });
+                sendResponse({ status: 'cancelled' });
+            } 
+            else if (action === 'pause_search' || action === 'pause') {
+                isPaused = true;
+                await updateState({ isPaused: true });
+                sendResponse({ status: 'paused' });
+            } 
+            else if (action === 'resume_search' || action === 'resume') {
+                isPaused = false;
+                await updateState({ isPaused: false });
+                sendResponse({ status: 'resumed' });
+            } 
+            else if (action === 'get_search_state') {
+                sendResponse({
+                    isSearching, isCancelled, isPaused, isPausedByCaptcha,
+                    isSecondaryQuizWaiting, secondaryCountdown,
+                    isHardBlocked, hardBlockCountdown,
+                    results: sessionResults, logs: sessionLogs,
+                    percent: currentProgressPercent, statusDetail
+                });
+            } 
+            else if (action === 'manual_captcha_resolved' || action === 'btn_captcha_solved') {
+                isPausedByCaptcha = false;
+                isSecondaryQuizWaiting = false;
+                await updateState({ isPausedByCaptcha: false, isSecondaryQuizWaiting: false });
+                sendResponse({ status: 'resolved' });
+            } 
+            else if (action === 'start_secondary_cooldown' || action === 'trigger_secondary_wait') {
+                startSecondaryWaitCountdown(m.seconds || 300);
+                sendResponse({ status: 'cooldown_started' });
+            } 
+            else if (action === 'resolve_hard_block') {
+                if (m.choice === 'wait') {
+                    startHardBlockCountdown(1800);
+                } else {
+                    isHardBlocked = false;
+                    isPaused = false;
+                    await updateState({ isHardBlocked: false, isPaused: false });
+                }
+                sendResponse({ status: 'resolved' });
+            } 
+            else if (action === 'apply_proxy_settings') {
+                applyProxySettings();
+                sendResponse({ status: 'applied' });
+            } 
+            else if (action === 'get_captcha_logs') {
+                sendResponse({ logs: captchaLogs || [] });
+            }
+        } catch (e) {
+            console.error("[onMessage] Error:", e);
+        }
+    };
+    handleMessage();
+    return true;
+});
+
+// [v18.1] STRICT Port Tracking
+chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === 'popup-ctrl') {
+        port.onDisconnect.addListener(() => {
+            if (typeof handlePopupDisconnect === 'function') handlePopupDisconnect();
+        });
+    }
+});

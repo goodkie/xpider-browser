@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XPIDER Start Page</title>
+    <link rel="stylesheet" href="start_page.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+<body class="theme-dark">
+    <div id="start-container">
+        <!-- 상단 검색바 영역 -->
+        <header id="search-header">
+            <div class="search-box">
+                <img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_92x30dp.png" alt="Google" class="google-logo">
+                <input type="text" id="search-input" placeholder="Search the web with Google..." autofocus>
+                <button id="search-btn">🔍</button>
+            </div>
+        </header>
+
+        <!-- 경제 뉴스 섹션 -->
+        <main id="news-section">
+            <div class="section-header">
+                <h2 id="news-title">Economic News Feed</h2>
+                <div class="live-indicator">LIVE</div>
+            </div>
+            
+            <div id="news-grid">
+                <!-- 뉴스 카드가 여기에 동적으로 생성됩니다 -->
+                <div class="loader">Loading latest insights...</div>
+            </div>
+        </main>
+    </div>
+    <script src="start_page.js"></script>
+</body>
+</html>

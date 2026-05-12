@@ -21,6 +21,20 @@
       </div>
     </div>
 
+    <!-- Maps Loading Dim Overlay -->
+    <div id="mapsLoadingOverlay" style="
+      display:none; position:fixed; inset:0; z-index:99999;
+      background:rgba(0,0,0,0.82); backdrop-filter:blur(4px);
+      flex-direction:column; align-items:center; justify-content:center;
+      color:#fff; font-family:monospace; gap:18px; text-align:center;
+    ">
+      <div style="font-size:38px; animation:spin 1.2s linear infinite;">🗺️</div>
+      <div style="font-size:16px; font-weight:bold; letter-spacing:1px;" id="mapsLoadingMsg">Opening Google Maps...</div>
+      <div style="font-size:12px; color:#aaa;">Please wait while the map loads</div>
+      <style>@keyframes spin { to { transform:rotate(360deg); } }</style>
+    </div>
+
+
     <!-- Settings Overlay -->
     <div id="settingsScreen" class="overlay hidden">
       <div class="settings-content">

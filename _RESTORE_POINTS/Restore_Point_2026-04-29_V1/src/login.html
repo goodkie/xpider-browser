@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XPIDER — Sign In</title>
+  <link rel="stylesheet" href="login.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- 배경 파티클 -->
+  <div class="bg-orb orb1"></div>
+  <div class="bg-orb orb2"></div>
+  <div class="bg-orb orb3"></div>
+
+  <!-- 로그인 창 -->
+  <div class="login-window">
+    <!-- 드래그 타이틀바 -->
+    <div class="login-titlebar">
+      <div class="wc">
+        <button class="wd red" onclick="window.authAPI.closeApp()" title="Close"></button>
+        <button class="wd yellow" disabled></button>
+        <button class="wd green" disabled></button>
+      </div>
+    </div>
+
+    <!-- 브랜드 -->
+    <div class="brand">
+      <img src="assets/icon.png" class="brand-logo" alt="XPIDER" onerror="this.style.display='none'">
+      <h1 class="brand-name">XPIDER</h1>
+      <p class="brand-sub">Professional Automation Browser</p>
+    </div>
+
+    <!-- 탭 -->
+    <div class="auth-tabs" id="auth-tabs">
+      <button class="auth-tab active" data-tab="login">Sign In</button>
+      <div class="tab-slider" id="tab-slider"></div>
+      <button class="auth-tab" data-tab="signup">Sign Up</button>
+    </div>
+
+    <!-- 로그인 폼 -->
+    <div class="auth-form" id="form-login">
+      <div class="input-group">
+        <span class="ig-icon">✉</span>
+        <input type="email" id="login-email" placeholder="Email address" autocomplete="email">
+      </div>
+      <div class="input-group">
+        <span class="ig-icon">🔒</span>
+        <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+        <button class="toggle-pw" id="tpw-login">👁</button>
+      </div>
+      <label class="remember-row">
+        <input type="checkbox" id="remember-me" checked>
+        <span>자동 로그인</span>
+      </label>
+      <button class="auth-btn" id="btn-login">
+        <span class="btn-label">Sign In</span>
+        <span class="btn-icon">→</span>
+      </button>
+    </div>
+
+    <!-- 사인업 폼 -->
+    <div class="auth-form hidden" id="form-signup">
+      <div class="input-group">
+        <span class="ig-icon">👤</span>
+        <input type="text" id="signup-username" placeholder="Username">
+      </div>
+      <div class="input-group">
+        <span class="ig-icon">✉</span>
+        <input type="email" id="signup-email" placeholder="Email address" autocomplete="email">
+      </div>
+      <div class="input-group">
+        <span class="ig-icon">🔒</span>
+        <input type="password" id="signup-password" placeholder="Password (min. 8 chars)">
+        <button class="toggle-pw" id="tpw-signup">👁</button>
+      </div>
+      <div class="input-group">
+        <span class="ig-icon">🔒</span>
+        <input type="password" id="signup-confirm" placeholder="Confirm password">
+      </div>
+      <button class="auth-btn" id="btn-signup">
+        <span class="btn-label">Create Account</span>
+        <span class="btn-icon">→</span>
+      </button>
+    </div>
+
+    <!-- 메시지 영역 -->
+    <div class="auth-msg hidden" id="auth-msg"></div>
+
+    <!-- 실패 경고 -->
+    <div class="attempts-bar hidden" id="attempts-bar">
+      <span>⚠</span>
+      <span id="attempts-text">남은 시도: 2회</span>
+    </div>
+
+    <!-- 푸터 -->
+    <div class="login-footer">
+      v2.1.6 &nbsp;·&nbsp; Powered by Supabase
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+</body>
+</html>

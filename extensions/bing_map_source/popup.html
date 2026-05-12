@@ -33,24 +33,17 @@
         </div>
 
         <div class="settings-group">
-          <label data-i18n="settings_captcha">CAPTCHA Bypass</label>
-          <div class="captcha-options">
-            <select id="captchaMethod">
-              <option value="audio" data-i18n="method_free">Free (Wit.ai)</option>
-              <option value="api" data-i18n="method_paid">Paid (Solver API)</option>
-            </select>
-          </div>
+          <label>🎙️ CAPTCHA Bypass (Wit.ai)</label>
           <div id="witConfig" class="config-subgroup">
-            <input type="password" id="witKey" placeholder="Wit.ai Server Token" data-i18n-placeholder="label_wit_key">
-            <div class="api-help">
-              <a href="https://wit.ai/apps" target="_blank" data-i18n="get_api_link">Get API Key</a>
-            </div>
-          </div>
-          <div id="apiConfig" class="config-subgroup hidden">
-            <input type="password" id="solverKey" placeholder="2Captcha / NopeCHA Key" data-i18n-placeholder="label_solver_key">
-            <div class="api-help">
-              <a href="https://2captcha.com/setting" target="_blank" style="margin-right:10px;">2Captcha</a>
-              <a href="https://nopecha.com/manage" target="_blank">NopeCHA</a>
+            <input type="password" id="witKey" placeholder="Wit.ai Server Access Token" data-i18n-placeholder="label_wit_key">
+            <div style="margin-top: 10px; padding: 10px; background: linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.08)); border-radius: 8px; border-left: 3px solid #667eea;">
+              <p style="margin: 0 0 8px 0; font-size: 0.78rem; color: #555; line-height: 1.5;">
+                🆓 <strong>무료</strong> Wit.ai API 키를 등록하면 구글 캡차를 자동으로 우회합니다.<br>
+                아래 링크에서 앱을 생성 후 <strong>Server Access Token</strong>을 복사하세요.
+              </p>
+              <a href="https://wit.ai/apps" target="_blank" style="display: inline-block; padding: 7px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 6px rgba(102,126,234,0.4);">
+                🔑 Wit.ai 무료 API 키 발급받기 →
+              </a>
             </div>
           </div>
         </div>

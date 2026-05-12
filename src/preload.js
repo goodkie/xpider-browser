@@ -7,7 +7,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'restart_app', 'window-control', 'auth-logout',
       'check-for-updates', 'open-release-url', 'reload-extensions',
       'xpider-ext-notify-tab-updated', 'log-from-renderer',
-      'xpider-ext-update-badge', 'xpider-ext-report-active-tab'
+      'xpider-ext-update-badge', 'xpider-ext-report-active-tab',
+      'xpider-email-clear-all',
+      'open-path',                     // Downloads 패널 클릭 → 파일 탐색기
+      'xpider-captcha-tab-resolved',   // [v3.1] 캡챠 해결 후 탭 네비게이션 감지 신호
+      'xpider-captcha-tab-detected'    // [v3.2] 탭이 CAPTCHA로 리다이렉트된 감지 신호
     ];
     if (allowed.includes(channel)) ipcRenderer.send(channel, data);
   },
@@ -20,7 +24,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-renderer-update-active-tab', 'open-new-tab',
       'xpider-renderer-update-badge', 'xpider-ext-runtime-on-message',
       'xpider-ext-storage-changed', 'app_language',
-      'xpider-live-log'  // 실시간 로그 스트림
+      'xpider-live-log',              // 실시간 로그 스트림
+      'xpider-email-collected-event', // Email Extractor 실시간 업데이트
+      'xpider-record-download',       // [v4.0] 다운로드 완료 → Downloads 패널
+      'xpider-download-start',        // [v4.0] 다운로드 시작
+      'xpider-download-progress',     // [v4.0] 다운로드 진행률
+      'xpider-download-error'         // [v4.0] 다운로드 오류
     ];
     if (allowed.includes(channel)) {
       ipcRenderer.on(channel, (_, ...args) => func(...args));
@@ -32,7 +41,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const allowed = [
       'get-system-logs', 'xpider-ext-runtime-send-message',
       'admin-get-all-profiles', 'admin-set-active', 'admin-force-logout',
-      'xpider-ext-get-script'
+      'xpider-ext-get-script',
+      'xpider-email-get-all', 'xpider-email-get-page', 'xpider-download-file'
     ];
     if (allowed.includes(channel)) {
       return ipcRenderer.invoke(channel, data);

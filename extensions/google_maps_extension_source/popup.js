@@ -17,26 +17,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const settingsScreen = document.getElementById('settingsScreen');
   const closeSettingsBtn = document.getElementById('closeSettingsBtn');
   const langSelect = document.getElementById('langSelect');
-  const captchaMethod = document.getElementById('captchaMethod');
   const witKeyInput = document.getElementById('witKey');
-  const solverKeyInput = document.getElementById('solverKey');
   const saveConfigBtn = document.getElementById('saveConfigBtn');
 
   let currentLang = 'en';
 
   // Load initial state and language
-  chrome.storage.local.get(['scrapedData', 'scrapingActive', 'language', 'captchaMethod', 'witKey', 'solverKey'], (result) => {
+  chrome.storage.local.get(['scrapedData', 'scrapingActive', 'language', 'witKey'], (result) => {
     currentLang = result.language || 'en';
     if (langSelect) langSelect.value = currentLang;
     applyTranslations(currentLang);
 
     // Load Captcha Settings
-    if (captchaMethod && result.captchaMethod) {
-      captchaMethod.value = result.captchaMethod;
-      toggleCaptchaConfig(result.captchaMethod);
-    }
     if (witKeyInput && result.witKey) witKeyInput.value = result.witKey;
-    if (solverKeyInput && result.solverKey) solverKeyInput.value = result.solverKey;
 
     if (result.scrapedData) updateUI(result.scrapedData, currentLang);
     if (result.scrapingActive) setUIStatus(true, currentLang);
@@ -74,9 +67,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   saveConfigBtn.addEventListener('click', () => {
     const config = {
-      captchaMethod: captchaMethod.value,
-      witKey: witKeyInput.value.trim(),
-      solverKey: solverKeyInput.value.trim()
+      captchaMethod: 'audio', // 항상 Wit.ai 음성 우회
+      witKey: witKeyInput ? witKeyInput.value.trim() : ''
     };
     chrome.storage.local.set(config, () => {
       saveConfigBtn.innerText = i18n('btn_save_success', currentLang);
@@ -111,26 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       });
     });
-  }
-
-  if (captchaMethod) {
-    captchaMethod.addEventListener('change', (e) => {
-      toggleCaptchaConfig(e.target.value);
-    });
-  }
-
-  function toggleCaptchaConfig(method) {
-    const witConfig = document.getElementById('witConfig');
-    const apiConfig = document.getElementById('apiConfig');
-    if (!witConfig || !apiConfig) return;
-    
-    if (method === 'audio') {
-      witConfig.classList.remove('hidden');
-      apiConfig.classList.add('hidden');
-    } else {
-      witConfig.classList.add('hidden');
-      apiConfig.classList.remove('hidden');
-    }
   }
 
   exportCsv.addEventListener('click', () => {
@@ -199,23 +171,26 @@ document.addEventListener('DOMContentLoaded', () => {
       `"${b.email}"`,
       `"${b.url}"`
     ]);
-
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const filename = `gmaps_leads_${new Date().toISOString().split('T')[0]}.csv`;
+    // [Fix] chrome.downloads.download → ext-preload.js DOWNLOADS BRIDGE → xpider-download-file IPC
     const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `gmaps_leads_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      chrome.downloads.download({ url: reader.result, filename, saveAs: true });
+    };
+    reader.readAsDataURL(blob);
   }
 
   function downloadJson(data) {
     const jsonContent = JSON.stringify(data, null, 2);
+    const filename = `gmaps_leads_${new Date().toISOString().split('T')[0]}.json`;
+    // [Fix] chrome.downloads.download → ext-preload.js DOWNLOADS BRIDGE → xpider-download-file IPC
     const blob = new Blob([jsonContent], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `gmaps_leads_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      chrome.downloads.download({ url: reader.result, filename, saveAs: true });
+    };
+    reader.readAsDataURL(blob);
   }
 });

@@ -1,0 +1,17 @@
+XPIDER RESTORE POINT METADATA
+=============================
+Date: 2026-04-29
+Time: 15:13 (Local)
+Version: V1 (Post-Stage 2 & AutoCruiser Fixes)
+
+Included:
+- /src: Browser core logic (main.js, renderer_ui.js, etc.)
+- /extensions: All extension source codes including Google Maps Extension.
+- package.json: Dependency and script configuration.
+- XPIDER_Development_History_April_27-29.md/txt: Full session history.
+
+Summary of current state:
+- Stage 2 (Deep Search) fully operational with Contact-page priority.
+- AutoCruiser Pro navigation logic fixed (Direction sync).
+- All UI labels standardized to English.
+- Native file save dialogs implemented for exports.
