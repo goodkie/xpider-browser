@@ -11,7 +11,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-email-clear-all',
       'open-path',                     // Downloads 패널 클릭 → 파일 탐색기
       'xpider-captcha-tab-resolved',   // [v3.1] 캡챠 해결 후 탭 네비게이션 감지 신호
-      'xpider-captcha-tab-detected'    // [v3.2] 탭이 CAPTCHA로 리다이렉트된 감지 신호
+      'xpider-captcha-tab-detected',   // [v3.2] 탭이 CAPTCHA로 리다이렉트된 감지 신호
+      'xpider-vpn-state-forward',       // [VPN] VPN 상태 포워딩
+      'set-extension-lang'             // [Lang] 브라우저 언어 변경 → 익스텐션 동기화
     ];
     if (allowed.includes(channel)) ipcRenderer.send(channel, data);
   },
@@ -29,7 +31,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-record-download',       // [v4.0] 다운로드 완료 → Downloads 패널
       'xpider-download-start',        // [v4.0] 다운로드 시작
       'xpider-download-progress',     // [v4.0] 다운로드 진행률
-      'xpider-download-error'         // [v4.0] 다운로드 오류
+      'xpider-download-error',        // [v4.0] 다운로드 오류
+      'xpider-vpn-state'              // [VPN] VPN 연결 상태 이벤트
     ];
     if (allowed.includes(channel)) {
       ipcRenderer.on(channel, (_, ...args) => func(...args));
@@ -42,7 +45,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'get-system-logs', 'xpider-ext-runtime-send-message',
       'admin-get-all-profiles', 'admin-set-active', 'admin-force-logout',
       'xpider-ext-get-script',
-      'xpider-email-get-all', 'xpider-email-get-page', 'xpider-download-file'
+      'xpider-email-get-all', 'xpider-email-get-page', 'xpider-download-file',
+      'xpider-vpn-connect', 'xpider-vpn-disconnect', 'xpider-vpn-get-state'
     ];
     if (allowed.includes(channel)) {
       return ipcRenderer.invoke(channel, data);

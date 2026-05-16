@@ -197,7 +197,7 @@ body, html {
     background-color: rgba(255,255,255,0.05);
 }
 
-.ext-btn:hover { transform: scale(1.15); border-color: var(--accent); }
+.ext-btn:hover { transform: scale(3.5); border-color: var(--accent); z-index: 100; }
 .ext-btn { position: relative; } /* Ensure relative for absolute badge */
 
 .ext-badge {
@@ -676,6 +676,24 @@ body, html {
     padding: 8px 0;
 }
 
+.ob-ext-grid::-webkit-scrollbar {
+    width: 8px;
+}
+.ob-ext-grid::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+.ob-ext-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+}
+.ob-ext-grid::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+    background-clip: padding-box;
+}
+
 .ob-ext-card {
     display: flex;
     align-items: flex-start;
@@ -693,7 +711,6 @@ body, html {
 }
 
 .ob-ext-icon {
-    font-size: 2.4rem;
     flex-shrink: 0;
     width: 56px;
     height: 56px;
@@ -703,6 +720,8 @@ body, html {
     background: rgba(255,255,255,0.05);
     border-radius: 16px;
     border: 1px solid rgba(255,255,255,0.08);
+    padding: 10px;
+    overflow: hidden;
 }
 
 .ob-ext-body { flex: 1; }
@@ -794,6 +813,45 @@ body, html {
     box-shadow: 0 8px 30px rgba(245,166,35,0.6);
 }
 
+/* Floating Scroll Indicator */
+.ob-scroll-indicator {
+    position: absolute;
+    bottom: 95px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(245, 166, 35, 0.2);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(245, 166, 35, 0.4);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    cursor: pointer;
+    pointer-events: all;
+    animation: ob-float 2s infinite ease-in-out;
+    z-index: 100;
+    transition: opacity 0.4s, transform 0.4s, background 0.2s;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+.ob-scroll-indicator:hover {
+    background: rgba(245, 166, 35, 0.4);
+    transform: translateX(-50%) scale(1.1);
+}
+
+.arrow-down {
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+@keyframes ob-float {
+    0%, 100% { transform: translateX(-50%) translateY(0); opacity: 0.5; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    50% { transform: translateX(-50%) translateY(12px); opacity: 1; box-shadow: 0 15px 35px rgba(245, 166, 35, 0.3); }
+}
 
 #lang-setup-overlay {
     position: fixed;

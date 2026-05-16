@@ -679,6 +679,15 @@ ipcMain.on('xpider-ext-report-active-tab', (event, data) => {
     if (data && data.url) _lastActiveUrl = data.url;
 });
 
+// [Lang] Browser language -> Extension storage sync
+ipcMain.on('set-extension-lang', (event, lang) => {
+    if (!lang || typeof lang !== 'string') return;
+    extStorage['language']    = lang;
+    extStorage['xpider_lang'] = lang;
+    if (typeof saveExtStorage === 'function') saveExtStorage();
+    log.info(`[LangSync] Language saved to extStorage: ${lang}`);
+});
+
 
 // 다운로드 시작 → 진행률 실시간 전송 → 완료/오류 처리
 // HTTP/HTTPS URL 다운로드 완전 지원
@@ -1716,9 +1725,14 @@ if (fs.existsSync(storagePath)) {
     try { extStorage = JSON.parse(fs.readFileSync(storagePath, 'utf8')); } catch(e) {}
 }
 
+// Default language to English on first run
+if (!extStorage.language)    extStorage.language    = 'en';
+if (!extStorage.xpider_lang) extStorage.xpider_lang = 'en';
+
 function saveExtStorage() {
     try { fs.writeFileSync(storagePath, JSON.stringify(extStorage, null, 2)); } catch(e) {}
 }
+saveExtStorage();
 
 ipcMain.handle('xpider-ext-storage-get', async (event, { keys }) => {
     if (!keys) return extStorage;

@@ -81,15 +81,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ── Load current page emails via XPIDER bridge ───────────────
   async function loadCurrentPageEmails() {
-    pageEmailsArea.value = '⏳ Scanning page...';
+    pageEmailsArea.value = '';
+    pageEmailsArea.placeholder = '⏳ Scanning page...';
     pageCountLabel.textContent = '...';
     try {
-      // Get current active tab URL
-      const tabsInfo = await new Promise(r => chrome.tabs.query({ active: true, currentWindow: true }, r));
-      if (tabsInfo && tabsInfo[0]) currentPageUrl = tabsInfo[0].url;
+      // [v4.2] chrome.tabs.query()는 popup webview의 자체 컨텍스트를 조회하므로
+      // 실제 브라우저 탭 URL을 반환하지 못함.
+      // 대신 xpider-ext-get-active-tab IPC를 사용해 정확한 URL 획득.
+      if (!currentPageUrl) {
+        const activeTab = await xpiderInvoke('xpider-ext-get-active-tab', {});
+        if (activeTab && activeTab.url) {
+          currentPageUrl = activeTab.url;
+        }
+      }
+
+      // 폴백: chrome.tabs.query()를 시도하되 원래 로직 유지
+      if (!currentPageUrl) {
+        const tabsInfo = await new Promise(r => chrome.tabs.query({ active: true, currentWindow: true }, r));
+        if (tabsInfo && tabsInfo[0] && tabsInfo[0].url && !tabsInfo[0].url.startsWith('chrome-extension://')) {
+          currentPageUrl = tabsInfo[0].url;
+        }
+      }
 
       // URL 전달 → main.js가 정확한 URL로 캐시된 이메일 반환
-      const result = await xpiderInvoke('xpider-email-get-page', { url: currentPageUrl });
+      const result = await xpiderInvoke('xpider-email-get-page', { url: currentPageUrl || null });
+      
+      // main.js가 실제 URL을 알려주면 동기화
+      if (result && result.url && !currentPageUrl) {
+          currentPageUrl = result.url;
+      }
+
       const emails = (result && Array.isArray(result.emails)) ? result.emails : [];
       pageCountLabel.textContent = emails.length;
       pageEmailsArea.value = emails.length > 0 ? emails.join('\n') : '';
@@ -126,6 +147,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   }, { once: false, capture: true });
 
   await loadCurrentPageEmails();
+
+  // [v4.2] 이메일이 없으면 2초, 5초 후 재시도 (스캔이 팝업 로드보다 늦을 수 있음)
+  if (!pageEmailsArea.value || pageEmailsArea.value.trim() === '') {
+    setTimeout(async () => {
+      if (!pageEmailsArea.value || pageEmailsArea.value.trim() === '') {
+        await loadCurrentPageEmails();
+      }
+    }, 2000);
+    setTimeout(async () => {
+      if (!pageEmailsArea.value || pageEmailsArea.value.trim() === '') {
+        await loadCurrentPageEmails();
+      }
+    }, 5000);
+  }
 
   // Also try to get from XPIDER extStorage (accumulated via IPC)
   xpiderInvoke('xpider-email-get-all', {}).then(result => {
@@ -301,6 +336,18 @@ document.addEventListener('DOMContentLoaded', async () => {
           pageCountLabel.textContent = '0';
         }
       });
+    }
+  });
+
+  // ── [XPIDER] Listen for browser language-change broadcast ─────
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'language-change') {
+      const lang = event.data.data && event.data.data.lang;
+      if (lang) {
+        updateLanguage(lang);
+        if (languageSelect) languageSelect.value = lang;
+        chrome.storage.local.set({ language: lang });
+      }
     }
   });
 });

@@ -59,8 +59,35 @@ appContainer.className = savedTheme;
 const sidebarCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
 if (sidebarCollapsed) appContainer.classList.add('sidebar-collapsed');
 
-// ─── 언어 초기화 ──────────────────────────────────────────────
+// ─── 언어 초기화 (기본값: 영어) ───────────────────────────────
+// localStorage에 저장된 언어 설정이 없으면 영어로 초기화
+if (!localStorage.getItem('app-lang')) {
+    localStorage.setItem('app-lang', 'en');
+}
 let currentLang = localStorage.getItem('app-lang') || 'en';
+
+function broadcastLangToExtensions(lang) {
+    // 1. 현재 열린 사이드 패널 웹뷰에 언어 변경 전송
+    if (extensionWebview && extensionWebview.src) {
+        try {
+            extensionWebview.executeJavaScript(
+                `window.postMessage({ type: 'XPIDER_EVENT', name: 'language-change', data: { lang: '${lang}' } }, '*')`
+            );
+        } catch(e) {}
+    }
+    // 2. 모든 익스텐션 팝업 웹뷰에 전송
+    document.querySelectorAll('webview').forEach(wv => {
+        if (wv.src && wv.src.includes('extensions')) {
+            try {
+                wv.executeJavaScript(
+                    `window.postMessage({ type: 'XPIDER_EVENT', name: 'language-change', data: { lang: '${lang}' } }, '*')`
+                );
+            } catch(e) {}
+        }
+    });
+    // 3. 메인 프로세스를 통해 chrome.storage.local에 저장 → 익스텐션 재로드 시 반영
+    try { window.electronAPI.send('set-extension-lang', lang); } catch(e) {}
+}
 
 
 function applyLanguage(lang) {
@@ -78,10 +105,8 @@ function applyLanguage(lang) {
         if (dict[key]) el.placeholder = dict[key];
     });
 
-    // Notify extension webview about language change
-    if (extensionWebview && extensionWebview.src) {
-        extensionWebview.executeJavaScript(`window.postMessage({ type: 'XPIDER_EVENT', name: 'language-change', data: { lang: '${lang}' } }, '*')`);
-    }
+    // 모든 익스텐션에 언어 변경 브로드캐스트
+    broadcastLangToExtensions(lang);
 }
 
 applyLanguage(currentLang);
@@ -96,7 +121,7 @@ document.querySelectorAll('.theme-opt').forEach(opt => {
     };
 });
 
-// ─── 언어 버튼 ────────────────────────────────────────────────
+// ─── 언어 버튼 (설정 변경 → 모든 익스텐션 즉시 동기화) ──────
 document.querySelectorAll('.lang-opt').forEach(opt => {
     opt.onclick = () => {
         const lang = opt.getAttribute('data-lang');
@@ -104,6 +129,8 @@ document.querySelectorAll('.lang-opt').forEach(opt => {
         applyLanguage(lang);
         localStorage.setItem('app-lang', lang);
         settingsMenu.classList.add('hidden');
+        // 언어 변경 직후 현재 열린 사이드패널도 즉시 갱신
+        broadcastLangToExtensions(lang);
     };
 });
 
@@ -153,9 +180,19 @@ window.electronAPI.on('app_language', (lang) => {
 
 // ── [v4.0] Email Extractor 실시간 업데이트 ────────────────────────────────────
 // main.js → renderer_ui.js → extensionWebview (XPIDER_EVENT) + 사이드바 배지
+
+// [v4.2] 팝업이 닫혀있는 동안 수신된 마지막 이메일 이벤트를 캐싱
+// → 팝업을 열면 즉시 이 캐시를 주입하여 Current 탭에 즉시 표시
+window._lastEmailCollectedPayload = null;
+
 window.electronAPI.on('xpider-email-collected-event', (payload) => {
     const eventName = payload.name || 'email-collected';
     const data      = payload.data || payload;
+
+    // 수집 이벤트는 항상 캐싱 (팝업 열릴 때 사용)
+    if (eventName === 'email-collected') {
+        window._lastEmailCollectedPayload = { name: eventName, data };
+    }
 
     // 1. 익스텐션 웹뷰(popup.js)에 실시간 이벤트 전달
     if (extensionWebview && extensionWebview.src) {
@@ -193,8 +230,37 @@ window.electronAPI.on('xpider-email-collected-event', (payload) => {
             }
         }
     }
+});
 
-
+// ── [VPN] VPN 상태 변경 이벤트 → extensionWebview 전달 ──────────────────────
+window.electronAPI.on('xpider-vpn-state', (state) => {
+    if (extensionWebview && extensionWebview.src) {
+        extensionWebview.executeJavaScript(
+            `window.postMessage(${JSON.stringify({ type: 'XPIDER_EVENT', name: 'vpn-state', data: state })}, '*')`
+        ).catch(() => {});
+    }
+    // VPN 연결 상태를 사이드바 배지로 표시
+    const vpnItem = [...document.querySelectorAll('.ext-item')].find(item => {
+        const t = item.querySelector('.preview-title');
+        return t && (t.textContent.toLowerCase().includes('vpn') || t.textContent.toLowerCase().includes('proxy'));
+    });
+    const vpnBtn = vpnItem ? vpnItem.querySelector('.ext-btn') : null;
+    if (vpnBtn) {
+        let badge = vpnBtn.querySelector('.dl-count-badge');
+        if (state && state.connected) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'dl-count-badge';
+                vpnBtn.style.position = 'relative';
+                vpnBtn.appendChild(badge);
+            }
+            badge.textContent = '●';
+            badge.style.background = '#00e676';
+            badge.style.display = 'flex';
+        } else if (badge) {
+            badge.style.display = 'none';
+        }
+    }
 });
 
 // ── [v4.1] Email Extractor 배지 강제 동기화 (10초 주기) ─────────────────────
@@ -710,38 +776,38 @@ async function simulateHardwareDrag(wv, dx, dy) {
     await new Promise(r => setTimeout(r, 500));
 }
 
-// ─── 업데이트 체크 결과 처리 ──────────────────────────────────
+// ─── Update Check Result Handler ──────────────────────────────────
 window.electronAPI.on('app-update-result', (result) => {
     if (!result) return;
 
     if (result.hasUpdate) {
-        // 사용자가 이미 이 버전을 스킵했는지 확인
+        // Check if user already skipped this version
         const skippedVersion = localStorage.getItem('xpider-skip-version');
         if (skippedVersion === result.latestVersion) {
-            console.log('[Update] 스킵된 버전:', result.latestVersion);
+            console.log('[Update] Skipped version:', result.latestVersion);
             return;
         }
-        // 모달 표시
+        // Show modal
         if (modalCurrentVer) modalCurrentVer.textContent = result.currentVersion || '';
         if (modalLatestVer)  modalLatestVer.textContent  = result.latestVersion  || '';
         if (modalNotes) {
             const notes = (result.releaseNotes || '').trim().substring(0, 300);
-            modalNotes.textContent = notes || '새 버전이 출시되었습니다.';
+            modalNotes.textContent = notes || 'A new version has been released.';
         }
         _releaseUrl = result.downloadUrl || result.releaseUrl || '';
         updateModal.classList.remove('hidden');
     } else {
-        // 이미 최신 버전 토스트 표시
-        showToast(`✅ 최신 버전입니다. (v${result.currentVersion})`);
+        // Already on latest version - show toast
+        showToast(`✅ You are on the latest version. (v${result.currentVersion})`);
     }
 });
 
-// ─── 업데이트 모달 버튼 ───────────────────────────────────────
+// ─── Update Modal Buttons ───────────────────────────────────────────
 modalUpdateBtn.onclick = () => {
     window.electronAPI.send('open-release-url', _releaseUrl);
     updateModal.classList.add('hidden');
 };
-// '나중에' 누르면 현재 최신 버전을 스킵 버전으로 저장 (다음 실행 시 안 뜨움)
+// 'Later' saves the latest version as skipped (won't show on next launch)
 modalSkipBtn.onclick = () => {
     const latestVer = modalLatestVer ? modalLatestVer.textContent : '';
     if (latestVer) localStorage.setItem('xpider-skip-version', latestVer);
@@ -984,6 +1050,32 @@ function startOnboarding() {
     if (onboardingOverlay) {
         onboardingOverlay.classList.remove('hidden');
         onboardingOverlay.classList.add('active');
+
+        // [v4.1] Floating Scroll Indicator Logic
+        const grid = document.querySelector('.ob-ext-grid');
+        const indicator = document.getElementById('ob-scroll-indicator');
+        if (grid && indicator) {
+            // Initial state
+            indicator.style.opacity = '1';
+            
+            grid.onscroll = () => {
+                if (grid.scrollTop > 50) {
+                    indicator.style.opacity = '0';
+                    indicator.style.pointerEvents = 'none';
+                } else {
+                    indicator.style.opacity = '1';
+                    indicator.style.pointerEvents = 'all';
+                }
+            };
+
+            // [v4.2] Click to scroll to bottom
+            indicator.onclick = () => {
+                grid.scrollTo({
+                    top: grid.scrollHeight,
+                    behavior: 'smooth'
+                });
+            };
+        }
     }
 }
 
@@ -1176,18 +1268,33 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
         let title = ext.name;
         let desc = "";
         
-        if (ext.name.toLowerCase().includes('collect')) {
+        if (ext.name.toLowerCase().includes('google maps') || ext.name.toLowerCase().includes('gmaps')) {
+            title = "GMaps Business Finder";
+            desc = currentLang === 'ko' ? "구글 맵스에서 고품질 비즈니스 DB를 수집하고 이메일 및 연락처를 실시간으로 발굴하는 전문가용 엔진입니다." : "Professional engine for collecting high-quality business DBs from Google Maps and discovering emails and contacts in real-time.";
+        } else if (ext.name.toLowerCase().includes('collect')) {
             title = dict.ext_collect_title || ext.name;
             desc = dict.ext_collect_desc || "";
+        } else if (ext.name.toLowerCase().includes('autoform') || ext.name.toLowerCase().includes('message')) {
+            title = "XPIDER AutoForm Sender Pro";
+            desc = currentLang === 'ko' ? "전 세계 웹사이트의 문의 폼을 자동으로 분석하여 홍보 메시지를 정확하게 전달하는 AI 기반 폼 발송 엔진입니다." : "AI-powered form sending engine that automatically analyzes contact forms on websites worldwide and delivers messages accurately.";
+        } else if (ext.name.toLowerCase().includes('sendforce') || ext.name.toLowerCase().includes('mailer')) {
+            title = "XPIDER SendForce Mailer Pro";
+            desc = currentLang === 'ko' ? "수천 건의 이메일을 순식간에 발송하고 캠페인을 관리하는 강력한 다이렉트 메일 마케팅 엔진입니다." : "Powerful direct mail marketing engine for sending thousands of emails instantly and managing campaigns.";
         } else if (ext.name.toLowerCase().includes('send')) {
             title = dict.ext_send_title || ext.name;
             desc = dict.ext_send_desc || "";
         } else if (ext.name.toLowerCase().includes('email')) {
-            title = dict.ext_email_title || ext.name;
-            desc = dict.ext_email_desc || "";
+            title = "Email Extractor";
+            desc = currentLang === 'ko' ? "현재 활성화된 탭과 방문하는 모든 페이지에서 실시간으로 이메일 주소를 자동 추출하여 리스트를 만듭니다." : "Automatically extracts email addresses in real-time from the active tab and all visited pages to build lists.";
+        } else if (ext.name.toLowerCase().includes('vpn') || ext.name.toLowerCase().includes('proxy')) {
+            title = "XPIDER VPN";
+            desc = currentLang === 'ko' ? "사용자의 IP를 숨기고 전 세계 고속 프록시 서버를 통해 익명으로 안전하게 웹을 탐색할 수 있게 도와줍니다." : "Helps you browse the web anonymously and safely by hiding your IP and using high-speed proxy servers worldwide.";
         } else if (ext.name.toLowerCase().includes('bing')) {
             title = "Bing Maps Business Finder";
-            desc = currentLang === 'ko' ? "빙 맵스에서 비즈니스 정보를 수집하고 이메일을 찾는 도구입니다." : "Tools for collecting business info and finding emails on Bing Maps.";
+            desc = currentLang === 'ko' ? "빙 맵스에서 고품질 비즈니스 DB를 수집하고 이메일 및 연락처를 실시간으로 발굴하는 전문가용 엔진입니다." : "Professional engine for collecting high-quality business DBs from Bing Maps and discovering emails and contacts in real-time.";
+        } else if (ext.name.toLowerCase().includes('local business')) {
+            title = "Local Business Data Crawler";
+            desc = currentLang === 'ko' ? "웹상의 모든 비즈니스 정보를 탐색하고 연락처(이메일, 전화, SNS)를 수집하는 강력한 전문가용 크롤러입니다." : "Powerful professional crawler that explores all business info on the web and collects contacts (email, phone, SNS).";
         }
         
         balloon.innerHTML = `
@@ -1219,34 +1326,38 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
                 
                 extensionWebview.src = `chrome-extension://${ext.id}/${ext.uiPage}`;
                 extensionWebview.addEventListener('did-finish-load', () => {
-                    // 1. 언어 동기화
+                    // ① chrome.storage.local에 직접 언어 저장 (xpider_lang + language 둘 다)
+                    //    → 익스텐션이 어떤 키로 읽든 영어로 초기화
+                    extensionWebview.executeJavaScript(
+                        `chrome.storage.local.set({ xpider_lang: '${currentLang}', language: '${currentLang}' });`
+                    ).catch(() => {});
+
+                    // ② language-change 이벤트 브로드캐스트 (실시간 UI 반영)
                     extensionWebview.executeJavaScript(
                         `window.postMessage({ type: 'XPIDER_EVENT', name: 'language-change', data: { lang: '${currentLang}' } }, '*')`
                     ).catch(() => {});
 
-                    // 2. [v4.1] 현재 활성 탭 URL + 수집된 이메일을 즉시 팝업에 주입
+                    // 2. [v4.2] 현재 활성 탭 URL + 수집된 이메일을 즉시 팝업에 주입
                     const activeWv = getActiveWebview ? getActiveWebview() : null;
                     const activeUrl = activeWv ? (activeWv.getURL ? activeWv.getURL() : activeWv.src) : '';
 
-                    if (activeUrl && !activeUrl.startsWith('chrome-extension://') && !activeUrl.startsWith('about:')) {
-                        window.electronAPI.invoke('xpider-email-get-page', { url: activeUrl })
+                    const injectEmailData = (url) => {
+                        if (!url || url.startsWith('chrome-extension://') || url.startsWith('about:') || url.includes('start_page.html')) return;
+
+                        window.electronAPI.invoke('xpider-email-get-page', { url })
                             .then(res => {
                                 const emails = (res && Array.isArray(res.emails)) ? res.emails : [];
-                                const pageData = {
-                                    emails,
-                                    url: activeUrl,
-                                    count: emails.length
-                                };
+                                // Current 탭 데이터 주입
                                 extensionWebview.executeJavaScript(
                                     `window.postMessage(${JSON.stringify({
                                         type: 'XPIDER_EVENT',
                                         name: 'email-collected',
-                                        data: pageData
+                                        data: { emails, url, count: emails.length }
                                     })}, '*')`
                                 ).catch(() => {});
                             }).catch(() => {});
 
-                        // 3. 전체 누적 이메일도 동시 주입
+                        // 전체 누적 이메일 주입
                         window.electronAPI.invoke('xpider-email-get-all', {})
                             .then(res => {
                                 if (res && Array.isArray(res.emails) && res.emails.length > 0) {
@@ -1254,16 +1365,22 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
                                         `window.postMessage(${JSON.stringify({
                                             type: 'XPIDER_EVENT',
                                             name: 'email-collected',
-                                            data: {
-                                                emails: [],
-                                                allEmails: res.emails,
-                                                url: activeUrl,
-                                                count: res.count
-                                            }
+                                            data: { emails: [], allEmails: res.emails, url, count: res.count }
                                         })}, '*')`
                                     ).catch(() => {});
                                 }
                             }).catch(() => {});
+                    };
+
+                    // activeUrl이 유효하면 즉시 주입, 아니면 캐시된 마지막 이벤트 사용
+                    if (activeUrl && !activeUrl.startsWith('chrome-extension://') && !activeUrl.startsWith('about:')) {
+                        injectEmailData(activeUrl);
+                    } else if (window._lastEmailCollectedPayload) {
+                        // 팝업이 닫힌 동안 누적된 이벤트를 즉시 재전달
+                        const cached = window._lastEmailCollectedPayload;
+                        extensionWebview.executeJavaScript(
+                            `window.postMessage(${JSON.stringify({ type: 'XPIDER_EVENT', name: cached.name, data: cached.data })}, '*')`
+                        ).catch(() => {});
                     }
                 }, { once: true });
                 sidePanelTitle.textContent = ext.name;
@@ -1410,13 +1527,29 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
             }, 800);
         }
 
-        // [v4.0] 활성 탭이 이동하면 main.js Email Engine에 URL 보고
+        // [v4.2] 활성 탭이 이동하면 main.js Email Engine에 URL 보고 + 팝업 즉시 업데이트
         if (activeTabId === tabId) {
             window.electronAPI.send('xpider-ext-report-active-tab', { url: navUrl });
-            // 이동 즉시 페이지 스캔 요청 (기존 데이터가 있다면 즉시 표시)
+            // Current 탭: 내비게이션 직후 페이지 초기화 신호를 팝업에 전달
+            if (extensionWebview && extensionWebview.src) {
+                extensionWebview.executeJavaScript(
+                    `window.postMessage(${JSON.stringify({
+                        type: 'XPIDER_EVENT',
+                        name: 'email-clear-current',
+                        data: { url: navUrl }
+                    })}, '*')`
+                ).catch(() => {});
+            }
+            // 이동 즉시 페이지 스캔 요청 (기존 캐시 데이터가 있다면 즉시 팝업에 주입)
             window.electronAPI.invoke('xpider-email-get-page', { url: navUrl }).then(res => {
-                if (res && res.emails && res.emails.length > 0) {
-                    window.electronAPI.on('xpider-email-collected-event', { name: 'email-collected', data: res });
+                if (res && Array.isArray(res.emails) && res.emails.length > 0) {
+                    const evtPayload = { name: 'email-collected', data: { emails: res.emails, url: navUrl, count: res.emails.length } };
+                    window._lastEmailCollectedPayload = evtPayload;
+                    if (extensionWebview && extensionWebview.src) {
+                        extensionWebview.executeJavaScript(
+                            `window.postMessage(${JSON.stringify({ type: 'XPIDER_EVENT', name: evtPayload.name, data: evtPayload.data })}, '*')`
+                        ).catch(() => {});
+                    }
                 }
             }).catch(() => {});
         }

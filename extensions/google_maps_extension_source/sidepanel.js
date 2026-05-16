@@ -600,5 +600,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (cruiserState) cruiserState.innerText = currentLang === 'ko' ? '완료' : 'Done';
         setUIStatus(false);
     }
+    // [XPIDER] 브라우저 언어 변경 신호 수신
+    if (name === 'language-change') {
+        const lang = data && data.lang;
+        if (lang) {
+            currentLang = lang;
+            if (langSelect) langSelect.value = lang;
+            if (typeof applyTranslations === 'function') applyTranslations(lang);
+            chrome.storage.local.set({ language: lang });
+        }
+    }
   });
 });

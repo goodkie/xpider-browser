@@ -1380,3 +1380,21 @@ window.addEventListener('message', (event) => {
         observer.observe(overlay, { attributes: true, attributeFilter: ['class'] });
     }, 500);
 })();
+
+// --- [XPIDER] Browser Language-Change Broadcast Listener ---
+// When the XPIDER browser language setting changes, this extension updates instantly.
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'language-change') {
+        const lang = event.data.data && event.data.data.lang;
+        if (lang) {
+            const langSel = document.getElementById('language-select');
+            if (langSel) langSel.value = lang;
+            const regSel = document.getElementById('region-select');
+            const reg = regSel ? regSel.value : 'us';
+            chrome.storage.local.set({ language: lang });
+            if (typeof applyTranslations === 'function') {
+                applyTranslations(lang, reg);
+            }
+        }
+    }
+});

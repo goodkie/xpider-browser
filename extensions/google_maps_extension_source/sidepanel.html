@@ -89,13 +89,21 @@
       </div>
     </div>
 
-    <header>
-      <button id="settingsBtn" class="settings-icon-btn" title="Settings">⚙️</button>
-      <div class="logo">
-        <img src="icon.png" alt="Logo" class="logo-img">
-        <h1>GMaps <span data-i18n="app_subtitle">Business Finder</span></h1>
+    <header class="premium-header">
+      <div class="header-main">
+        <div class="title-container">
+          <img src="icons/icon128.png" id="logoImg" alt="Icon" class="app-icon-large" />
+          <div class="text-group">
+            <h1 class="main-title">GMaps</h1>
+            <h2 class="sub-title">Business Finder <span class="version-tag">v1.1.0</span></h2>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="settingsBtn" class="settings-icon-btn glass-panel" title="Settings">⚙️</button>
+          <div class="status-badge" id="botStatus" data-i18n="status_idle">준비</div>
+        </div>
       </div>
-      <div class="status-badge" id="botStatus" data-i18n="status_idle">Idle</div>
+      <p class="subtitle">Next-Gen Google Maps Extraction Engine</p>
     </header>
 
     <div class="stats-grid">

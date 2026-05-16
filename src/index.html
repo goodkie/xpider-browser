@@ -149,27 +149,27 @@
             </div>
         </div>
 
-        <!-- ── 업데이트 모달 ─────────────────────────────────── -->
+        <!-- Update Modal -->
         <div id="update-modal" class="modal-overlay hidden">
             <div class="modal-card update-card">
                 <div class="modal-icon">🚀</div>
-                <h2 class="modal-title">새 버전이 있습니다!</h2>
+                <h2 class="modal-title">New Version Available!</h2>
                 <div class="modal-version-row">
-                    <span class="ver-badge current">현재 <span id="modal-current-ver">2.1.6</span></span>
+                    <span class="ver-badge current">Current <span id="modal-current-ver">2.1.6</span></span>
                     <span class="ver-arrow">→</span>
-                    <span class="ver-badge new">최신 <span id="modal-latest-ver">-</span></span>
+                    <span class="ver-badge new">Latest <span id="modal-latest-ver">-</span></span>
                 </div>
-                <p class="modal-desc" id="modal-release-notes">업데이트 내용을 불러오는 중...</p>
+                <p class="modal-desc" id="modal-release-notes">Loading release notes...</p>
                 <div class="modal-actions">
-                    <button id="modal-update-btn" class="modal-btn primary">지금 다운로드</button>
-                    <button id="modal-skip-btn" class="modal-btn secondary">나중에</button>
+                    <button id="modal-update-btn" class="modal-btn primary">Download Now</button>
+                    <button id="modal-skip-btn" class="modal-btn secondary">Later</button>
                 </div>
             </div>
         </div>
 
-        <!-- ── 업데이트 없음 토스트 ─────────────────────────── -->
+        <!-- Update Toast -->
         <div id="update-toast" class="toast hidden">
-            <span id="toast-msg">✅ 최신 버전입니다.</span>
+            <span id="toast-msg">✅ You are on the latest version.</span>
         </div>
 
         <!-- 초기 언어 설정 -->
@@ -193,11 +193,6 @@
                     <div class="lang-btn" data-lang="vi"><span class="lang-code">VN</span> Tiếng Việt</div>
                     <div class="lang-btn" data-lang="th"><span class="lang-code">TH</span> ไทย</div>
                 </div>
-                <div class="lang-setup-footer">
-                    <label class="skip-today">
-                        <input type="checkbox" id="lang-dont-show">
-                        <span data-i18n="ob_dont_show">다시 보지 않기</span>
-                    </label>
                     <button id="lang-save-btn" class="ob-btn" data-i18n="ob_close" style="background: #f5a623; color: #000; border-radius: 12px; padding: 12px 40px; font-weight: 800; cursor: pointer;">시작하기</button>
                 </div>
             </div>
@@ -210,43 +205,101 @@
                     <div class="ob-logo-row">
                         <img src="assets/icon.png" class="ob-logo" alt="XPIDER">
                         <div>
-                            <h1 class="ob-headline">Welcome to <span class="ob-accent">XPIDER</span></h1>
-                            <p class="ob-subline">세계 최강의 비즈니스 데이터 수집 브라우저</p>
+                            <h1 class="ob-headline" data-i18n="ob_headline">Welcome to XPIDER</h1>
+                            <p class="ob-subline" data-i18n="ob_subline">세계 최강의 비즈니스 데이터 수집 브라우저</p>
                         </div>
                     </div>
                 </div>
                 <div class="ob-ext-grid">
-                    <!-- Card 1: Local Business Data Crawler -->
+                    <!-- Card 1: Local Business Crawler Pro -->
                     <div class="ob-ext-card" data-color="#f5a623">
-                        <div class="ob-ext-icon">🕷️</div>
+                        <div class="ob-ext-icon">
+                            <img src="../extensions/LocalBusinessDataCrawlerPro/icons/icon128.png" alt="Icon" style="width:100%;height:100%;object-fit:contain;">
+                        </div>
                         <div class="ob-ext-body">
-                            <div class="ob-ext-badge" style="background:rgba(245,166,35,0.15);color:#f5a623;">Multi-Engine · AI 추출</div>
-                            <h3 class="ob-ext-name">Local Business Crawler <span class="ob-ext-ver">Pro</span></h3>
-                            <p class="ob-ext-sub">검색엔진을 가로질러 — 업체명 하나가 완전한 리드로</p>
-                            <p class="ob-ext-desc">구글·네이버·빙 등 10개 검색엔진에서 키워드 검색 후, 업체명·홈페이지·컨택 페이지를 자동 추적하여 이메일·전화·주소·SNS까지 한 번에 수집합니다.</p>
+                            <div class="ob-ext-badge" style="background:rgba(245,166,35,0.15);color:#f5a623;">MULTI-ENGINE · AI 추출</div>
+                            <h3 class="ob-ext-name" data-i18n="ob_ext1_name">Local Business Crawler Pro</h3>
+                            <p class="ob-ext-sub" data-i18n="ob_ext1_sub">검색엔진을 가로질러 — 업체명 하나가 완전한 리드로</p>
+                            <p class="ob-ext-desc" data-i18n="ob_ext1_desc">구글·네이버·빙 등 10개 검색엔진에서 키워드 검색 후, 업체명·홈페이지·컨택 페이지를 자동 추적하여 이메일·전화·주소·SNS까지 한 번에 수집합니다.</p>
                             <div class="ob-tags"><span>🔍 4단계 딥스캔</span><span>📧 이메일 자동추출</span><span>🤖 캡차 자동우회</span></div>
                         </div>
                     </div>
-                    <!-- Card 2: Google Maps -->
-                    <div class="ob-ext-card" data-color="#34d399">
-                        <div class="ob-ext-icon">🗺️</div>
+                    <!-- Card 2: GMaps Business Finder -->
+                    <div class="ob-ext-card" data-color="#4285f4">
+                        <div class="ob-ext-icon">
+                            <img src="../extensions/google_maps_extension_source/icons/icon128.png" alt="Icon" style="width:100%;height:100%;object-fit:contain;">
+                        </div>
                         <div class="ob-ext-body">
-                            <div class="ob-ext-badge" style="background:rgba(52,211,153,0.15);color:#34d399;">Google Maps · 위치기반</div>
-                            <h3 class="ob-ext-name">Google Maps <span class="ob-ext-ver">Scraper</span></h3>
-                            <p class="ob-ext-sub">지도 위 모든 업체를 — 리드 리스트로 변환</p>
-                            <p class="ob-ext-desc">구글 맵에서 검색어로 주변 업체를 탐색하고, 업체명·별점·전화·홈페이지·이메일을 자동 수집합니다. CSV/JSON 즉시 내보내기 지원.</p>
+                            <div class="ob-ext-badge" style="background:rgba(66,133,244,0.15);color:#4285f4;">GOOGLE MAPS · 위치기반</div>
+                            <h3 class="ob-ext-name" data-i18n="ob_ext2_name">GMaps Business Finder</h3>
+                            <p class="ob-ext-sub" data-i18n="ob_ext2_sub">지도 위 모든 업체를 — 고품질 리드 리스트로 변환</p>
+                            <p class="ob-ext-desc" data-i18n="ob_ext2_desc">구글 맵에서 검색어로 주변 업체를 탐색하고, 업체명·별점·전화·홈페이지·이메일을 실시간으로 발굴합니다. CSV/JSON 즉시 내보내기 지원.</p>
                             <div class="ob-tags"><span>📍 위치기반 수집</span><span>⭐ 별점 필터</span><span>📊 CSV 내보내기</span></div>
                         </div>
                     </div>
-                    <!-- Card 3: Bing Maps -->
-                    <div class="ob-ext-card" data-color="#60a5fa">
-                        <div class="ob-ext-icon">🔵</div>
+                    <!-- Card 3: Bing Maps Business Finder -->
+                    <div class="ob-ext-card" data-color="#22c55e">
+                        <div class="ob-ext-icon">
+                            <img src="../extensions/bing_map_source/icons/icon128.png" alt="Icon" style="width:100%;height:100%;object-fit:contain;">
+                        </div>
                         <div class="ob-ext-body">
-                            <div class="ob-ext-badge" style="background:rgba(96,165,250,0.15);color:#60a5fa;">Bing Maps · MS 생태계</div>
-                            <h3 class="ob-ext-name">Bing Maps <span class="ob-ext-ver">Scraper</span></h3>
-                            <p class="ob-ext-sub">MS의 지도 데이터를 — 당신의 영업 데이터베이스로</p>
-                            <p class="ob-ext-desc">Bing Maps에서 업체를 검색하고 상세 비즈니스 정보를 자동으로 수집합니다. Google Maps와 교차 검증으로 더 완전한 데이터를 확보하세요.</p>
-                            <div class="ob-tags"><span>🌐 크로스 검증</span><span>📞 전화 자동추출</span><span>💾 JSON 내보내기</span></div>
+                            <div class="ob-ext-badge" style="background:rgba(34,197,94,0.15);color:#22c55e;">BING MAPS · MS 생태계</div>
+                            <h3 class="ob-ext-name" data-i18n="ob_ext3_name">Bing Maps Business Finder</h3>
+                            <p class="ob-ext-sub" data-i18n="ob_ext3_sub">MS의 지도 데이터를 — 당신의 정교한 영업 DB로</p>
+                            <p class="ob-ext-desc" data-i18n="ob_ext3_desc">Bing Maps에서 업체를 검색하고 상세 비즈니스 정보를 자동으로 수집합니다. Google Maps와 교차 검증으로 더 정확한 데이터를 확보하세요.</p>
+                            <div class="ob-tags"><span>🌐 크로스 검증</span><span>📞 연락처 자동발굴</span><span>💾 JSON 내보내기</span></div>
+                        </div>
+                    </div>
+                    <!-- Card 4: XPIDER VPN -->
+                    <div class="ob-ext-card" data-color="#3b82f6">
+                        <div class="ob-ext-icon">
+                            <img src="../extensions/proxy/icons/icon128.png" alt="Icon" style="width:100%;height:100%;object-fit:contain;">
+                        </div>
+                        <div class="ob-ext-body">
+                            <div class="ob-ext-badge" style="background:rgba(59,130,246,0.15);color:#3b82f6;">SECURE · ANONYMOUS</div>
+                            <h3 class="ob-ext-name" data-i18n="ob_ext4_name">XPIDER VPN</h3>
+                            <p class="ob-ext-sub" data-i18n="ob_ext4_sub">강력한 보안과 익명성 — 전 세계 어디서든 안전한 탐색</p>
+                            <p class="ob-ext-desc" data-i18n="ob_ext4_desc">사용자의 IP를 숨기고 고속 프록시 서버를 통해 익명으로 웹을 탐색합니다. 차단된 사이트 우회 및 데이터 수집 시 보안을 강화합니다.</p>
+                            <div class="ob-tags"><span>🔒 IP 암호화</span><span>🚀 고속 프록시</span><span>🌍 글로벌 서버</span></div>
+                        </div>
+                    </div>
+                    <!-- Card 5: Email Extractor -->
+                    <div class="ob-ext-card" data-color="#a855f7">
+                        <div class="ob-ext-icon">
+                            <img src="../extensions/Email_Extractor_Source/icons/icon128.png" alt="Icon" style="width:100%;height:100%;object-fit:contain;">
+                        </div>
+                        <div class="ob-ext-body">
+                            <div class="ob-ext-badge" style="background:rgba(168,85,247,0.15);color:#a855f7;">REAL-TIME · LEAD CAPTURE</div>
+                            <h3 class="ob-ext-name" data-i18n="ob_ext5_name">Email Extractor</h3>
+                            <p class="ob-ext-sub" data-i18n="ob_ext5_sub">현재 탭에서 즉시 — 실시간 이메일 발굴 엔진</p>
+                            <p class="ob-ext-desc" data-i18n="ob_ext5_desc">브라우징 중인 현재 페이지에서 이메일 주소를 실시간으로 감지하고 수집합니다. 탭 이동만으로 방대한 리드 리스트를 구축하세요.</p>
+                            <div class="ob-tags"><span>⚡ 실시간 감지</span><span>📑 리드 리스트</span><span>🔀 교차 탭 수집</span></div>
+                        </div>
+                    </div>
+                    <!-- Card 6: XPIDER AutoForm Sender Pro -->
+                    <div class="ob-ext-card" data-color="#eab308">
+                        <div class="ob-ext-icon">
+                            <img src="../extensions/send_message_backup/icons/icon128.png" alt="Icon" style="width:100%;height:100%;object-fit:contain;">
+                        </div>
+                        <div class="ob-ext-body">
+                            <div class="ob-ext-badge" style="background:rgba(234,179,8,0.15);color:#eab308;">AI AUTOMATION · CAMPAIGN</div>
+                            <h3 class="ob-ext-name" data-i18n="ob_ext6_name">XPIDER AutoForm Sender Pro</h3>
+                            <p class="ob-ext-sub" data-i18n="ob_ext6_sub">AI 기반 폼 발송 — 수천 개의 연락처에 자동 도달</p>
+                            <p class="ob-ext-desc" data-i18n="ob_ext6_desc">비즈니스 문의 폼을 자동으로 감지하고 메시지를 발송하는 고성능 자동화 엔진입니다. 개인화된 캠페인으로 전환율을 극대화하세요.</p>
+                            <div class="ob-tags"><span>🤖 AI 필드 감지</span><span>📤 대량 발송</span><span>🔄 캠페인 관리</span></div>
+                        </div>
+                    </div>
+                    <!-- Card 7: XPIDER SendForce Mailer Pro -->
+                    <div class="ob-ext-card" data-color="#ef4444">
+                        <div class="ob-ext-icon">
+                            <img src="../extensions/send_email_backup/icons/icon128.png" alt="Icon" style="width:100%;height:100%;object-fit:contain;">
+                        </div>
+                        <div class="ob-ext-body">
+                            <div class="ob-ext-badge" style="background:rgba(239,68,68,0.15);color:#ef4444;">BULK EMAIL · HIGH-SPEED</div>
+                            <h3 class="ob-ext-name" data-i18n="ob_ext7_name">XPIDER SendForce Mailer Pro</h3>
+                            <p class="ob-ext-sub" data-i18n="ob_ext7_sub">고속 이메일 마케팅 — 강력한 아웃리치 도구</p>
+                            <p class="ob-ext-desc" data-i18n="ob_ext7_desc">대량의 이메일을 고속으로 안전하게 발송하는 전문가용 마케팅 엔진입니다. 최적화된 전달 알고리즘으로 성공적인 캠페인을 지원합니다.</p>
+                            <div class="ob-tags"><span>🔥 초고속 엔진</span><span>📈 도달률 최적화</span><span>🛠️ 전문가용 설정</span></div>
                         </div>
                     </div>
                 </div>
@@ -255,7 +308,11 @@
                         <input type="checkbox" id="ob-dont-show">
                         <span data-i18n="ob_dont_show">다시 보지 않기</span>
                     </label>
-                    <button id="ob-close-btn" class="ob-start-btn">🚀 지금 시작하기</button>
+                    <button id="ob-close-btn" class="ob-start-btn" data-i18n="ob_start_now">🚀 지금 시작하기</button>
+                </div>
+                <!-- Floating Scroll Indicator -->
+                <div id="ob-scroll-indicator" class="ob-scroll-indicator">
+                    <span class="arrow-down">↓</span>
                 </div>
             </div>
         </div>

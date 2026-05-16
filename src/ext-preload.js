@@ -87,6 +87,13 @@ ipcRenderer.on('xpider-email-collected-event', (event, payload) => {
     window.postMessage({ type: 'XPIDER_EVENT', name, data }, '*');
 });
 
+// ─── [VPN] VPN 상태 이벤트 → 팝업으로 포워딩 ─────────────────────────────────
+// main.js xpider-vpn-connect/disconnect → mainWindow.send('xpider-vpn-state')
+// → renderer_ui.js → extensionWebview.executeJavaScript → ext-preload → popup.js
+ipcRenderer.on('xpider-vpn-state', (event, state) => {
+    window.postMessage({ type: 'XPIDER_EVENT', name: 'vpn-state', data: state }, '*');
+});
+
 // ─── CHROME STORAGE BRIDGE ──────────────────────────────────
 if (!window.chrome) window.chrome = {};
 if (!window.chrome.storage) window.chrome.storage = {};

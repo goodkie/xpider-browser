@@ -1170,3 +1170,16 @@ async function loadSettings() {
     // [v1.7.0] Populate template library
     await updateTemplateDropdown();
 }
+
+// ─── [XPIDER] Browser Language-Change Broadcast Listener ──────────────
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'language-change') {
+        const lang = event.data.data && event.data.data.lang;
+        if (lang && typeof applyTranslations === 'function') {
+            applyTranslations(lang);
+            const langSelect = document.getElementById('language-select');
+            if (langSelect) langSelect.value = lang;
+            chrome.storage.local.set({ xpider_lang: lang });
+        }
+    }
+});
