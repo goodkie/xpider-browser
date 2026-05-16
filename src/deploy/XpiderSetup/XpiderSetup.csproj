@@ -11,13 +11,30 @@
     <Optimize>true</Optimize>
     <DebugType>None</DebugType>
     <DebugSymbols>false</DebugSymbols>
+    <!-- 바인딩 리다이렉트 자동 생성 활성화 -->
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
   </PropertyGroup>
 
   <ItemGroup>
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Drawing" />
+    <!-- System.IO.Compression: GAC 참조 대신 NuGet 고정 버전 사용 (버전 4.2.0.0 로드 실패 수정) -->
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+  <!-- NuGet 고정 버전으로 런타임 충돌 해소 -->
+  <ItemGroup>
+    <PackageReference Include="System.IO.Compression" Version="4.3.0" />
+    <PackageReference Include="System.IO.Compression.ZipFile" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- app.config를 ApplicationDefinition으로 포함해 바인딩 리다이렉트 적용 -->
+    <None Update="app.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -25,9 +42,6 @@
     <EmbeddedResource Include="Resources\logo.png" Condition="Exists('Resources\logo.png')" />
     <EmbeddedResource Include="Resources\Fonts\Poppins-Regular.ttf" Condition="Exists('Resources\Fonts\Poppins-Regular.ttf')" />
     <EmbeddedResource Include="Resources\Fonts\Poppins-Bold.ttf" Condition="Exists('Resources\Fonts\Poppins-Bold.ttf')" />
-  </ItemGroup>
-
-  <ItemGroup>
   </ItemGroup>
 
 </Project>
