@@ -426,6 +426,20 @@ namespace XpiderSetup
             string dir = txtPath.Text.Trim();
             if (string.IsNullOrEmpty(dir)) { MessageBox.Show(GetStr("pathEmpty"), "XPIDER Setup", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
 
+            if (Directory.Exists(dir) && Directory.GetFileSystemEntries(dir).Length > 0)
+            {
+                int counter = 2;
+                string baseDir = dir;
+                string newDir = baseDir + "-" + counter;
+                while (Directory.Exists(newDir) && Directory.GetFileSystemEntries(newDir).Length > 0)
+                {
+                    counter++;
+                    newDir = baseDir + "-" + counter;
+                }
+                dir = newDir;
+                this.Invoke((Action)(() => txtPath.Text = dir));
+            }
+
             bool shortcut = chkShortcut.Checked;
             btnExtract.Enabled = false; btnExtract.BackColor = Color.FromArgb(40,40,40); btnExtract.ForeColor = Color.FromArgb(80,80,80);
             txtPath.Enabled = false; btnBrowse.Enabled = false; chkShortcut.Enabled = false; chkToS.Enabled = false;
@@ -505,14 +519,15 @@ namespace XpiderSetup
                 var exes = Directory.GetFiles(dir, "XPIDERBrowser.exe", SearchOption.AllDirectories);
                 if (exes.Length == 0) return;
                 string exePath = exes[0];
-                string lnkPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "XPIDER Browser.lnk");
+                string folderName = new DirectoryInfo(dir).Name;
+                string lnkPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), folderName + ".lnk");
                 Type   t   = Type.GetTypeFromProgID("WScript.Shell");
                 object wsh = Activator.CreateInstance(t);
                 object lnk = t.InvokeMember("CreateShortcut", BindingFlags.InvokeMethod, null, wsh, new object[]{ lnkPath });
                 Type   lt  = lnk.GetType();
                 lt.InvokeMember("TargetPath",       BindingFlags.SetProperty, null, lnk, new object[]{ exePath });
                 lt.InvokeMember("WorkingDirectory",  BindingFlags.SetProperty, null, lnk, new object[]{ Path.GetDirectoryName(exePath) });
-                lt.InvokeMember("Description",       BindingFlags.SetProperty, null, lnk, new object[]{ "XPIDER Browser" });
+                lt.InvokeMember("Description",       BindingFlags.SetProperty, null, lnk, new object[]{ folderName });
                 lt.InvokeMember("Save",               BindingFlags.InvokeMethod, null, lnk, null);
             }
             catch { }
