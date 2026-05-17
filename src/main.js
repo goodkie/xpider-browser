@@ -399,6 +399,31 @@ ipcMain.on('reload-extensions', async () => {
 // popup.js → ext-preload.js(XPIDER_INVOKE) → ipcMain.handle('xpider-vpn-*')
 // 결과: session.setProxy() → mainWindow.send('xpider-vpn-state')
 let _vpnState = { connected: false, server: null };
+let _vpnLoginHandler = null; // app.on('login') 핸들러 레퍼런스 (해제용)
+
+// ── 프록시 자격증명: session.on('login')은 Electron에서 작동 안 함 ──
+// app.on('login')을 사용해야 프록시 407 인증 챌린지에 응답 가능
+function _registerVpnLoginHandler(username, password) {
+  _removeVpnLoginHandler();
+  _vpnLoginHandler = (event, webContents, authenticationResponseDetails, authInfo, callback) => {
+    if (authInfo && authInfo.isProxy) {
+      log.info(`[VPN] 407 Proxy Auth challenge → responding for ${authInfo.host}`);
+      callback(username, password);
+    } else {
+      callback('', '');
+    }
+  };
+  app.on('login', _vpnLoginHandler);
+  log.info('[VPN] Proxy auth handler registered (app-level)');
+}
+
+function _removeVpnLoginHandler() {
+  if (_vpnLoginHandler) {
+    app.removeListener('login', _vpnLoginHandler);
+    _vpnLoginHandler = null;
+    log.info('[VPN] Proxy auth handler removed');
+  }
+}
 
 ipcMain.handle('xpider-vpn-connect', async (event, { host, port, username, password, country, city }) => {
   try {
@@ -406,38 +431,26 @@ ipcMain.handle('xpider-vpn-connect', async (event, { host, port, username, passw
       return { ok: false, error: 'Invalid proxy: host/port missing' };
     }
 
-    // Electron session.setProxy() 호출
-    const proxyRules = `http=${host}:${port};https=${host}:${port}`;
-    const proxyAuth  = username && password ? `${username}:${password}` : null;
+    // ── 올바른 proxyRules 형식 ──
+    // "PROXY host:port" 형식이 HTTP CONNECT 터널링(HTTPS)에 올바르게 동작함
+    // "http=host:port;https=host:port" 는 HTTPS CONNECT 실패(-111) 원인
+    const proxyRules = `PROXY ${host}:${port}`;
 
-    // 모든 활성 세션에 프록시 적용
+    // defaultSession에만 설정 (webview는 partition 없이 defaultSession 사용)
     const { session: electronSession } = require('electron');
-    const sessions = [
-      electronSession.defaultSession,
-      electronSession.fromPartition('persist:browser'),
-    ];
+    await electronSession.defaultSession.setProxy({
+      proxyRules,
+      proxyBypassRules: '<local>',
+    });
 
-    for (const sess of sessions) {
-      try {
-        await sess.setProxy({ proxyRules, proxyBypassRules: '<local>' });
-        // 자격증명 핸들러 등록
-        if (proxyAuth) {
-          sess.removeAllListeners('login');
-          sess.on('login', (req, authInfo, callback) => {
-            if (authInfo.isProxy) {
-              callback(username, password);
-            } else {
-              callback();
-            }
-          });
-        }
-      } catch (e) {
-        log.warn('[VPN] setProxy on session failed:', e.message);
-      }
+    // 자격증명 등록 (app 레벨 - session 레벨은 동작 안 함)
+    if (username && password) {
+      _registerVpnLoginHandler(username, password);
     }
 
     _vpnState = { connected: true, server: { host, port, username, password, country, city } };
     log.info(`[VPN] Connected → ${host}:${port} (${country}${city ? '/' + city : ''})`);
+    log.info(`[VPN] ProxyRules: ${proxyRules}`);
 
     // 상태 브로드캐스트 (renderer_ui → extensionWebview → ext-preload → popup.js)
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -454,21 +467,12 @@ ipcMain.handle('xpider-vpn-connect', async (event, { host, port, username, passw
 ipcMain.handle('xpider-vpn-disconnect', async () => {
   try {
     const { session: electronSession } = require('electron');
-    const sessions = [
-      electronSession.defaultSession,
-      electronSession.fromPartition('persist:browser'),
-    ];
-    for (const sess of sessions) {
-      try {
-        await sess.setProxy({ proxyRules: 'direct://' });
-        sess.removeAllListeners('login');
-      } catch (e) {
-        log.warn('[VPN] clearProxy on session failed:', e.message);
-      }
-    }
+    // mode: 'direct'가 올바른 프록시 해제 방법
+    await electronSession.defaultSession.setProxy({ mode: 'direct' });
+    _removeVpnLoginHandler();
 
     _vpnState = { connected: false, server: null };
-    log.info('[VPN] Disconnected');
+    log.info('[VPN] Disconnected — proxy cleared');
 
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('xpider-vpn-state', _vpnState);
@@ -484,6 +488,7 @@ ipcMain.handle('xpider-vpn-get-state', async () => {
   return _vpnState;
 });
 // ─────────────────────────────────────────────────────────────────────────────
+
 
 // --- 익스텐션 호환성 레이어 IPC (Extension Compatibility Layer) ---
 ipcMain.handle('xpider-ext-get-active-tab', async (event) => {
