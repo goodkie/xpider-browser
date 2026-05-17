@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XPIDER Browser | 마케팅 자동화의 혁신적 진화</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="작업은 단순하게, 결과는 극대화로. 구글맵 수집, 자동 폼 발송, 대량 메일러, 로컬 릴레이 VPN까지 올인원 마케팅 브라우저 XPIDER를 만나보세요.">
+  <meta name="keywords" content="XPIDER, 마케팅 자동화, 구글맵 수집기, 자동 폼 발송기, 대량 메일 발송, 마케팅 브라우저, 익스텐션, VPN">
+  <meta property="og:title" content="XPIDER Browser | 마케팅 자동화의 혁신적 진화">
+  <meta property="og:description" content="비즈니스 데이터 수집부터 폼 발송, 자동 이메일 캠페인까지. 마케터들의 작업을 단순화하는 프리미엄 올인원 브라우저.">
+  <meta property="og:type" content="website">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ─── 디자인 시스템 & 변수 ─── */
+    :root {
+      --bg-dark: #03001e;
+      --bg-mid: #0b0728;
+      --bg-light: #0f0c24;
+      --color-primary: #2563eb;
+      --color-primary-glow: rgba(37, 99, 235, 0.45);
+      --color-cyan: #06b6d4;
+      --color-cyan-glow: rgba(6, 182, 212, 0.4);
+      --color-purple: #7c3aed;
+      --color-purple-glow: rgba(124, 58, 237, 0.4);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --glass-surface: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.06);
+      --glass-border-hover: rgba(255, 255, 255, 0.15);
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 10px;
+      --transition-base: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* ─── 초기화 ─── */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ─── 배경 조명 효과 ─── */
+    .bg-glow-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    .orb-1 {
+      top: -10%;
+      left: 15%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, var(--color-primary-glow) 0%, transparent 70%);
+    }
+
+    .orb-2 {
+      top: 40%;
+      right: -10%;
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, var(--color-purple-glow) 0%, transparent 70%);
+    }
+
+    .orb-3 {
+      bottom: 10%;
+      left: -5%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, var(--color-cyan-glow) 0%, transparent 70%);
+    }
+
+    /* ─── 레이아웃 컨테이너 ─── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── 헤더 & 내비게이션 ─── */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--glass-border);
+      z-index: 100;
+      background: rgba(3, 0, 30, 0.7);
+      transition: var(--transition-base);
+    }
+
+    header.scrolled {
+      padding: 6px 0;
+      background: rgba(3, 0, 30, 0.85);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .nav-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 72px;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--color-primary), var(--color-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 20px;
+      color: #fff;
+      box-shadow: 0 0 20px var(--color-primary-glow);
+    }
+
+    .logo-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, #fff, var(--color-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-menu {
+      display: flex;
+      list-style: none;
+      gap: 32px;
+    }
+
+    .nav-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: var(--transition-base);
+      position: relative;
+      padding: 8px 0;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      color: var(--text-main);
+    }
+
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--color-primary), var(--color-cyan));
+      transition: var(--transition-base);
+    }
+
+    .nav-link:hover::after {
+      width: 100%;
+    }
+
+    .btn-header {
+      padding: 10px 24px;
+      border-radius: 50px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 15px var(--color-primary-glow);
+      transition: var(--transition-base);
+    }
+
+    .btn-header:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--color-primary-glow);
+    }
+
+    /* ─── 히어로 섹션 ─── */
+    .hero-section {
+      padding-top: 180px;
+      padding-bottom: 100px;
+      text-align: center;
+      position: relative;
+    }
+
+    .badge-promo {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 50px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--glass-border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-cyan);
+      margin-bottom: 28px;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .badge-promo span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-cyan);
+      box-shadow: 0 0 8px var(--color-cyan);
+      display: inline-block;
+    }
+
+    .hero-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 64px;
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -2px;
+      margin-bottom: 24px;
+    }
+
+    .hero-title span {
+      background: linear-gradient(135deg, #fff 30%, var(--color-cyan) 70%, var(--color-purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 18px;
+      color: var(--text-muted);
+      max-width: 760px;
+      margin: 0 auto 40px auto;
+      line-height: 1.6;
+    }
+
+    .hero-ctas {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 64px;
+    }
+
+    .btn-primary {
+      padding: 16px 36px;
+      border-radius: 50px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 8px 30px var(--color-primary-glow);
+      transition: var(--transition-base);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px var(--color-primary-glow);
+    }
+
+    .btn-secondary {
+      padding: 16px 36px;
+      border-radius: 50px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-main);
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--glass-border);
+      transition: var(--transition-base);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: var(--glass-border-hover);
+      transform: translateY(-2px);
+    }
+
+    /* ─── 프리미엄 브라우저 목업 ─── */
+    .mockup-wrapper {
+      max-width: 1000px;
+      margin: 0 auto;
+      position: relative;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(185deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 80%);
+      padding: 12px;
+      box-shadow: 0 30px 100px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255,255,255,0.1);
+      border: 1px solid var(--glass-border);
+    }
+
+    .mockup-glow {
+      position: absolute;
+      top: -20px;
+      left: 10%;
+      right: 10%;
+      height: 40px;
+      background: var(--color-cyan);
+      filter: blur(60px);
+      opacity: 0.3;
+      z-index: -1;
+    }
+
+    .browser-frame {
+      background: var(--bg-light);
+      border-radius: calc(var(--radius-lg) - 12px);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      aspect-ratio: 16 / 10;
+    }
+
+    .browser-header {
+      background: rgba(255, 255, 255, 0.02);
+      padding: 12px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .browser-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .browser-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot-r { background-color: #ef4444; }
+    .dot-y { background-color: #f59e0b; }
+    .dot-g { background-color: #10b981; }
+
+    .browser-address-bar {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      padding: 6px 16px;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .browser-content {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      background: #09061c;
+      overflow: hidden;
+    }
+
+    .mockup-sidebar {
+      background: rgba(255, 255, 255, 0.01);
+      border-right: 1px solid rgba(255, 255, 255, 0.03);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: left;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--color-cyan);
+    }
+
+    .sidebar-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sidebar-item {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .sidebar-item.active {
+      background: rgba(37, 99, 235, 0.15);
+      border: 1px solid rgba(37, 99, 235, 0.25);
+      color: #fff;
+    }
+
+    .mockup-main {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: left;
+      overflow-y: auto;
+    }
+
+    .mockup-dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      padding-bottom: 12px;
+    }
+
+    .mockup-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .mockup-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+    }
+
+    .mockup-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .mockup-card-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .mockup-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .mockup-chart {
+      height: 120px;
+      background: linear-gradient(180deg, rgba(6,182,212,0.1) 0%, transparent 100%);
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      border: 1px dashed rgba(255, 255, 255, 0.05);
+    }
+
+    .chart-line {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-cyan) 60%, var(--color-purple) 100%);
+      box-shadow: 0 0 10px var(--color-cyan);
+    }
+
+    .mockup-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .mockup-list-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.01);
+      border-radius: 6px;
+      border-left: 3px solid var(--color-cyan);
+    }
+
+    /* ─── 브랜드 로고 배너 ─── */
+    .brand-banner {
+      padding: 50px 0;
+      border-top: 1px solid var(--glass-border);
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.01);
+      margin-top: 60px;
+      overflow: hidden;
+    }
+
+    .brand-flex {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 32px;
+      opacity: 0.55;
+    }
+
+    .brand-logo {
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ─── 상세 특장점 (Alternating Features) ─── */
+    .features-container {
+      padding: 120px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 120px;
+    }
+
+    .feature-row {
+      display: flex;
+      align-items: center;
+      gap: 64px;
+    }
+
+    .feature-row:nth-child(even) {
+      flex-direction: row-reverse;
+    }
+
+    .feature-info {
+      flex: 1;
+      text-align: left;
+    }
+
+    .feature-visual {
+      flex: 1;
+      position: relative;
+    }
+
+    .feature-tag {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-cyan);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+
+    .feature-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 20px;
+      letter-spacing: -1px;
+    }
+
+    .feature-desc {
+      color: var(--text-muted);
+      font-size: 16px;
+      margin-bottom: 28px;
+      line-height: 1.7;
+    }
+
+    .feature-bullets {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .feature-bullet {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--text-main);
+    }
+
+    .bullet-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-cyan);
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .feature-card-glow {
+      background: var(--glass-surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      aspect-ratio: 1.4 / 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    /* ─── 통계/지표 리본 배너 ─── */
+    .stats-ribbon {
+      background: linear-gradient(90deg, var(--color-primary), #0284c7, var(--color-cyan));
+      padding: 60px 0;
+      position: relative;
+      box-shadow: 0 0 50px var(--color-primary-glow);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 32px;
+      text-align: center;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stat-number {
+      font-family: 'Outfit', sans-serif;
+      font-size: 48px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -1.5px;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    /* ─── 익스텐션 탐색 (Innovative Products) ─── */
+    .products-section {
+      padding: 120px 0;
+      text-align: center;
+    }
+
+    .section-title-area {
+      max-width: 600px;
+      margin: 0 auto 64px auto;
+    }
+
+    .section-tag {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-cyan);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .product-card {
+      background: var(--glass-surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 32px;
+      text-align: left;
+      transition: var(--transition-base);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 280px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .product-card:hover {
+      transform: translateY(-8px);
+      border-color: rgba(6, 182, 212, 0.45);
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(6, 182, 212, 0.15);
+    }
+
+    .product-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--color-cyan), transparent);
+      opacity: 0;
+      transition: var(--transition-base);
+    }
+
+    .product-card:hover::before {
+      opacity: 1;
+    }
+
+    .product-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      border: 1px solid var(--glass-border);
+      color: var(--color-cyan);
+      font-size: 20px;
+      transition: var(--transition-base);
+    }
+
+    .product-card:hover .product-icon {
+      background: var(--color-cyan);
+      color: #fff;
+      box-shadow: 0 0 15px var(--color-cyan-glow);
+    }
+
+    .product-name {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .product-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .product-link {
+      color: var(--color-cyan);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition-base);
+    }
+
+    .product-link:hover {
+      gap: 10px;
+    }
+
+    /* ─── FAQ 아코디언 섹션 ─── */
+    .faq-section {
+      padding: 100px 0;
+    }
+
+    .faq-wrapper {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      text-align: left;
+    }
+
+    .faq-item {
+      background: var(--glass-surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      transition: var(--transition-base);
+    }
+
+    .faq-item:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .faq-question {
+      padding: 24px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease-out;
+      padding: 0 24px;
+      color: var(--text-muted);
+      font-size: 14.5px;
+      line-height: 1.7;
+    }
+
+    .faq-item.active .faq-answer {
+      padding-bottom: 24px;
+      max-height: 300px; /* 대략적인 최대 크기 */
+    }
+
+    .faq-icon-arrow {
+      font-size: 18px;
+      transition: var(--transition-base);
+      color: var(--text-muted);
+    }
+
+    .faq-item.active .faq-icon-arrow {
+      transform: rotate(180deg);
+      color: var(--color-cyan);
+    }
+
+    /* ─── 최하단 CTA 카드 ─── */
+    .cta-section {
+      padding: 100px 0;
+    }
+
+    .cta-card {
+      border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(6, 182, 212, 0.05) 100%);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      padding: 80px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    .cta-card::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .cta-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 48px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      letter-spacing: -1.5px;
+    }
+
+    .cta-desc {
+      color: var(--text-muted);
+      font-size: 17px;
+      max-width: 600px;
+      margin: 0 auto 36px auto;
+      line-height: 1.6;
+    }
+
+    /* ─── 푸터 ─── */
+    footer {
+      background: #020015;
+      padding: 80px 0 40px 0;
+      border-top: 1px solid var(--glass-border);
+      color: var(--text-muted);
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr repeat(3, 1fr);
+      gap: 48px;
+      margin-bottom: 60px;
+      text-align: left;
+    }
+
+    .footer-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .footer-brand-desc {
+      font-size: 13.5px;
+      line-height: 1.6;
+      max-width: 320px;
+    }
+
+    .footer-col h4 {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .footer-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .footer-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13.5px;
+      transition: var(--transition-base);
+    }
+
+    .footer-link:hover {
+      color: #fff;
+      padding-left: 4px;
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      padding-top: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .footer-copy {
+      color: var(--text-dim);
+    }
+
+    .footer-bottom-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-bottom-link {
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: var(--transition-base);
+    }
+
+    .footer-bottom-link:hover {
+      color: #fff;
+    }
+
+    /* ─── 반응형 웹 디자인 ─── */
+    @media (max-width: 1024px) {
+      .hero-title { font-size: 52px; }
+      .feature-row { flex-direction: column !important; gap: 40px; }
+      .products-grid { grid-template-columns: repeat(2, 1fr); }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    }
+
+    @media (max-width: 768px) {
+      .nav-menu { display: none; }
+      .hero-title { font-size: 40px; }
+      .hero-subtitle { font-size: 15px; }
+      .products-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; gap: 32px; }
+      .footer-brand { margin-bottom: 16px; }
+      .btn-header { display: none; }
+      .cta-title { font-size: 32px; }
+      .mockup-grid { grid-template-columns: 1fr; }
+      .mockup-sidebar { display: none; }
+      .browser-content { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 배경 광원 효과 오브 -->
+  <div class="bg-glow-orb orb-1"></div>
+  <div class="bg-glow-orb orb-2"></div>
+  <div class="bg-glow-orb orb-3"></div>
+
+  <!-- 헤더 내비게이션 -->
+  <header id="mainHeader">
+    <div class="container nav-container">
+      <a href="#" class="logo-area">
+        <div class="logo-icon">X</div>
+        <span class="logo-text">XPIDER</span>
+      </a>
+      
+      <ul class="nav-menu">
+        <li><a href="#features" class="nav-link">주요기능</a></li>
+        <li><a href="#extensions" class="nav-link">익스텐션</a></li>
+        <li><a href="#stats" class="nav-link">통계</a></li>
+        <li><a href="#faq" class="nav-link">자주 묻는 질문</a></li>
+      </ul>
+
+      <a href="#download" class="btn-header">다운로드 v4.9.16</a>
+    </div>
+  </header>
+
+  <!-- 히어로 섹션 -->
+  <section class="hero-section">
+    <div class="container">
+      <div class="badge-promo">
+        <span></span> v4.9.16 정식 릴리즈 완료 (Windows 8.1+ 완벽 지원)
+      </div>
+      
+      <h1 class="hero-title">
+        작업은 <span>단순하게</span><br>결과는 <span>극대화로</span>
+      </h1>
+      
+      <p class="hero-subtitle">
+        구글맵 비즈니스 자동 수집기부터, Wix/React 스마트 폼 우회 발송기, 로컬 릴레이 방식 고밀도 VPN까지. 전 세계 마케터들이 극찬하는 올인원 마케팅 최적화 전용 브라우저, XPIDER를 만나보세요.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="#download" class="btn-primary">무료로 시작하기 <span>→</span></a>
+        <a href="#extensions" class="btn-secondary">익스텐션 살펴보기</a>
+      </div>
+
+      <!-- 브라우저 목업 -->
+      <div class="mockup-wrapper">
+        <div class="mockup-glow"></div>
+        <div class="browser-frame">
+          <div class="browser-header">
+            <div class="browser-dots">
+              <span class="browser-dot dot-r"></span>
+              <span class="browser-dot dot-y"></span>
+              <span class="browser-dot dot-g"></span>
+            </div>
+            <div class="browser-address-bar">
+              🔒 https://xpider.app/dashboard
+            </div>
+          </div>
+          <div class="browser-content">
+            <div class="mockup-sidebar">
+              <div class="sidebar-logo">🕷️ XPIDER CORE v4.9.16</div>
+              <div class="sidebar-menu">
+                <div class="sidebar-item active">📊 대시보드</div>
+                <div class="sidebar-item">📍 GMaps 수집 엔진</div>
+                <div class="sidebar-item">✉️ AutoForm 발송기</div>
+                <div class="sidebar-item">🛡️ 프라이빗 VPN (연결됨)</div>
+                <div class="sidebar-item">📨 SendForce 대량메일</div>
+              </div>
+            </div>
+            <div class="mockup-main">
+              <div class="mockup-dashboard-header">
+                <span class="mockup-title">실시간 마케팅 데이터 파이프라인</span>
+                <span style="font-size:11px;color:var(--color-cyan);font-weight:700;">● Active</span>
+              </div>
+              <div class="mockup-grid">
+                <div class="mockup-card">
+                  <span class="mockup-card-title">일간 수집된 가망 고객 데이터 (Leads)</span>
+                  <span class="mockup-value">78,475 건</span>
+                  <div class="mockup-chart">
+                    <div class="chart-line"></div>
+                  </div>
+                </div>
+                <div class="mockup-card" style="justify-content: space-between;">
+                  <div>
+                    <span class="mockup-card-title">자동 폼 전송 성공률</span>
+                    <span class="mockup-value" style="color:var(--color-cyan);">99.9%</span>
+                  </div>
+                  <div class="mockup-list">
+                    <div class="mockup-list-item">
+                      <span>Wix Framework 우회</span>
+                      <span style="color:var(--color-cyan);">Success</span>
+                    </div>
+                    <div class="mockup-list-item">
+                      <span>React Fiber 동기화</span>
+                      <span style="color:var(--color-cyan);">Success</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 브랜드 로고 배너 -->
+  <section class="brand-banner">
+    <div class="container">
+      <div class="brand-flex">
+        <div class="brand-logo">🚀 GMaps Finder</div>
+        <div class="brand-logo">🛡️ Secure Relay VPN</div>
+        <div class="brand-logo">📨 SendForce</div>
+        <div class="brand-logo">⚡ AutoForm Pro</div>
+        <div class="brand-logo">🧬 React Fiber Sync</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 주요 기능 (Alternating Features) -->
+  <section class="container" id="features">
+    <div class="features-container">
+      
+      <!-- Feature 1 -->
+      <div class="feature-row">
+        <div class="feature-info">
+          <div class="feature-tag">Software Excellence</div>
+          <h2 class="feature-title">비즈니스 정보 고속 추출<br>자동 스크래핑 엔진</h2>
+          <p class="feature-desc">
+            구글맵(GMaps)과 포털 사이트에 등록된 사업체 정보를 단 몇 초 만에 고속으로 수집합니다. 타겟 업종과 키워드만 입력하면 주소, 전화번호, 이메일, 홈페이지 정보까지 한 번에 정리하여 고품질 가망 고객(Lead) 데이터베이스를 실시간으로 구축합니다.
+          </p>
+          <ul class="feature-bullets">
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> 구글맵 기반 가망 고객 연락처 고속 탐색
+            </li>
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> 소셜 미디어 및 홈페이지 자동 추적 연동
+            </li>
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> 실시간 이메일 패턴 추출 최적화 알고리즘
+            </li>
+          </ul>
+        </div>
+        <div class="feature-visual">
+          <div class="feature-card-glow" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, transparent 100%);">
+            <div style="font-size: 11px; color: var(--color-cyan); font-weight:700;">📍 실시간 수집 스트리밍</div>
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;">
+              <div class="mockup-list-item" style="border-left-color: var(--color-purple);">
+                <span>(주)네오테크 - IT 솔루션 개발</span>
+                <span>02-1234-**** | info@neo***.com</span>
+              </div>
+              <div class="mockup-list-item" style="border-left-color: var(--color-primary);">
+                <span>선샤인 카페 - 프랜차이즈</span>
+                <span>010-9876-**** | contact@sun***.com</span>
+              </div>
+              <div class="mockup-list-item">
+                <span>글로벌 로지스틱스 - 물류운송</span>
+                <span>031-456-**** | support@glo***.com</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="feature-row">
+        <div class="feature-info">
+          <div class="feature-tag">Next-Gen Ultimate Solutions</div>
+          <h2 class="feature-title">Wix & React 최신 프레임워크<br>인간형 문의폼 우회 발송기</h2>
+          <p class="feature-desc">
+            가상 마우스 움직임 시뮬레이션, React Fiber State 동기화, `execCommand('insertText')` 타이핑 기술을 결합하여 현대적인 웹사이트의 보안 방화벽과 자동화 감지(Bot Detection)를 완벽하게 우회합니다. Wix와 같은 최신 JS 프레임워크에서도 실패 없는 100% 폼 작성을 보장합니다.
+          </p>
+          <ul class="feature-bullets">
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> 자연스러운 타이핑 속도 및 마우스 궤적 시뮬레이션
+            </li>
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> dynamic iframe 및 중첩된 TPA 폼 필드 자동 감지
+            </li>
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> 스마트 캡차(CAPTCHA) 자동 감지 및 실시간 해결 프로세스
+            </li>
+          </ul>
+        </div>
+        <div class="feature-visual">
+          <div class="feature-card-glow" style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, transparent 100%);">
+            <div style="font-size: 11px; color: var(--color-purple); font-weight:700;">🤖 우회 인공지능 시뮬레이션</div>
+            <div style="display:flex; justify-content:center; align-items:center; flex:1; font-size:13px; color: var(--text-muted);">
+              <div style="text-align:center;">
+                <div style="margin-bottom:12px; font-size:24px;">🖱️</div>
+                <div style="font-family:'Outfit', monospace; color:#fff; font-size:15px; margin-bottom:4px;">Natural Human Path</div>
+                <div>X: 421.2 → Y: 188.7 (Bezier Curves)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 통계 및 지표 리본 배너 -->
+  <section class="stats-ribbon" id="stats">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-number">50,000+</span>
+          <span class="stat-label">일평균 데이터 추출</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">99.9%</span>
+          <span class="stat-label">스마트 폼 전송 성공률</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">100%</span>
+          <span class="stat-label">안전한 로컬 릴레이 VPN</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">5,000+</span>
+          <span class="stat-label">액티브 디지털 마케터</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 익스텐션 카드 그리드 (Innovative Products) -->
+  <section class="container products-section" id="extensions">
+    <div class="section-title-area">
+      <div class="section-tag">Explore Our Innovative Products</div>
+      <h2 class="section-title">비즈니스를 가속화할 6대 강력한 익스텐션</h2>
+    </div>
+
+    <div class="products-grid">
+      
+      <!-- Card 1 -->
+      <div class="product-card">
+        <div>
+          <div class="product-icon">📍</div>
+          <h3 class="product-name">GMaps Finder</h3>
+          <p class="product-desc">구글맵에서 정확한 비즈니스 소유주 정보, 홈페이지 링크, 전화번호를 단 몇 초만에 전수 추출합니다.</p>
+        </div>
+        <a href="#" class="product-link">자세히 보기 →</a>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="product-card">
+        <div>
+          <div class="product-icon">⚡</div>
+          <h3 class="product-name">AutoForm Sender</h3>
+          <p class="product-desc">최신 웹 방어막을 우회하고 인간처럼 입력하여 문의폼 접수를 자동 완료하는 폼 마케터 전용 솔루션.</p>
+        </div>
+        <a href="#" class="product-link">자세히 보기 →</a>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="product-card">
+        <div>
+          <div class="product-icon">📨</div>
+          <h3 class="product-name">SendForce Mailer</h3>
+          <p class="product-desc">추출된 잠재 고객 이메일 리스트를 향해 고밀도 맞춤형 자동화 메일을 즉각 대량 발송합니다.</p>
+        </div>
+        <a href="#" class="product-link">자세히 보기 →</a>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="product-card">
+        <div>
+          <div class="product-icon">🛡️</div>
+          <h3 class="product-name">XPIDER Secure VPN</h3>
+          <p class="product-desc">ERR_TUNNEL 문제를 완벽 우회하는 127.0.0.1 로컬 릴레이 가상 터널 방식의 안전 프록시 통신.</p>
+        </div>
+        <a href="#" class="product-link">자세히 보기 →</a>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="product-card">
+        <div>
+          <div class="product-icon">🔎</div>
+          <h3 class="product-name">Email Extractor</h3>
+          <p class="product-desc">브라우저 내 활성화된 탭에서 이메일 주소를 실시간으로 가로채어 유실 없는 고객 리스트를 추출합니다.</p>
+        </div>
+        <a href="#" class="product-link">자세히 보기 →</a>
+      </div>
+
+      <!-- Card 6 -->
+      <div class="product-card">
+        <div>
+          <div class="product-icon">⚙️</div>
+          <h3 class="product-name">Extension Layer</h3>
+          <p class="product-desc">크롬 웹스토어의 어떤 메이저 익스텐션과도 충돌 없이 통합 구동되는 초경량 호환 레이어 엔진.</p>
+        </div>
+        <a href="#" class="product-link">자세히 보기 →</a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FAQ 아코디언 섹션 -->
+  <section class="container faq-section" id="faq">
+    <div class="section-title-area">
+      <div class="section-tag">Frequently Asked Questions</div>
+      <h2 class="section-title">가장 궁금해하시는 질문들</h2>
+    </div>
+
+    <div class="faq-wrapper">
+      
+      <!-- FAQ 1 -->
+      <div class="faq-item">
+        <div class="faq-question">
+          <span>Q1. 타사 솔루션과 비교했을 때 XPIDER 브라우저만의 강점은 무엇인가요?</span>
+          <span class="faq-icon-arrow">▼</span>
+        </div>
+        <div class="faq-answer">
+          XPIDER는 일반적인 크로미움 브라우저 위에 독자적인 마케팅 특화 프로세스를 올렸습니다. 특히 Wix나 React와 같은 신형 프레임워크 폼 전송 시, 기계가 아닌 실제 마우스 드래그와 인간형 키보드 타이핑 모션(insertText)을 완벽하게 동기화하기 때문에 사이트의 봇 탐지 솔루션에 걸리지 않는 압도적인 성공률을 보여줍니다.
+        </div>
+      </div>
+
+      <!-- FAQ 2 -->
+      <div class="faq-item">
+        <div class="faq-question">
+          <span>Q2. 캡차(CAPTCHA)나 차단 오류가 발생할 때는 어떻게 처리되나요?</span>
+          <span class="faq-icon-arrow">▼</span>
+        </div>
+        <div class="faq-answer">
+          XPIDER에는 전용 캡차 감지 리액터가 탑재되어 있어, Google reCAPTCHA나 Cloudflare Challenge 페이지가 나타날 경우 자동으로 스캔 프로세스를 일시정지하고 유저에게 즉시 수동 개입을 요구하거나, 자동 풀이 모듈을 실행합니다. 문제가 해결되면 나머지 스캔 탭들이 자동으로 일제히 재개(Resume)되므로 데이터 유실이 발생하지 않습니다.
+        </div>
+      </div>
+
+      <!-- FAQ 3 -->
+      <div class="faq-item">
+        <div class="faq-question">
+          <span>Q3. VPN 연결 시 에러(`ERR_TUNNEL_CONNECTION_FAILED`)가 생기지 않나요?</span>
+          <span class="faq-icon-arrow">▼</span>
+        </div>
+        <div class="faq-answer">
+          기존 Electron 프록시의 구조적 결함(407 인증 오류)을 완벽 우회하기 위해, v4.9.16 버전부터는 업계 최초로 **Node.js 로컬 릴레이 프록시 서버** 방식을 내장했습니다. 브라우저가 직접 프록시에 연결하지 않고 내부 로컬 서버(127.0.0.1)를 거쳐 안전하고 검증된 통신 터널을 생성하므로 에러가 전혀 발생하지 않습니다.
+        </div>
+      </div>
+
+      <!-- FAQ 4 -->
+      <div class="faq-item">
+        <div class="faq-question">
+          <span>Q4. 개인 정보 유출이나 보안상의 위험은 없나요?</span>
+          <span class="faq-icon-arrow">▼</span>
+        </div>
+        <div class="faq-answer">
+          XPIDER는 강력한 샌드박스 모델과 로컬 전용 데이터베이스 구조를 따릅니다. 사용자가 추출하는 모든 가망 고객 리스트 및 캠페인 발송 정보는 오직 본인의 컴퓨터 및 사설 스토리지 내에만 암호화되어 저장되며 외부 서버로 무단 전송되지 않으므로 절대적으로 신뢰할 수 있습니다.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 최하단 CTA 카드 -->
+  <section class="container cta-section" id="download">
+    <div class="cta-card">
+      <h2 class="cta-title">마케팅의 내일을<br>지금 XPIDER로 자동화하세요</h2>
+      <p class="cta-desc">
+        초기 세팅비 무료. 정식 버전 빌드 v4.9.16을 다운로드하여 비즈니스 데이터의 폭발적인 성장을 직접 경험해 보세요. Windows 8.1 / 10 / 11 모두 즉시 구동 가능합니다.
+      </p>
+      <a href="https://github.com/goodkie/xpider-browser/releases" target="_blank" class="btn-primary">XPIDER 브라우저 설치하기 (v4.9.16)</a>
+    </div>
+  </section>
+
+  <!-- 푸터 -->
+  <footer>
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a href="#" class="logo-area">
+          <div class="logo-icon">X</div>
+          <span class="logo-text">XPIDER</span>
+        </a>
+        <p class="footer-brand-desc">
+          비즈니스 데이터 스크래핑과 캠페인 발송의 최고 존엄 솔루션. 마케팅 자동화의 정점을 경험하세요.
+        </p>
+      </div>
+
+      <div class="footer-col">
+        <h4>Product</h4>
+        <ul class="footer-links">
+          <li><a href="#features" class="footer-link">핵심 기능</a></li>
+          <li><a href="#extensions" class="footer-link">6대 익스텐션</a></li>
+          <li><a href="https://github.com/goodkie/xpider-browser/releases" class="footer-link" target="_blank">릴리즈 노트</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Support</h4>
+        <ul class="footer-links">
+          <li><a href="#faq" class="footer-link">자주 묻는 질문</a></li>
+          <li><a href="#" class="footer-link">사용 설명서</a></li>
+          <li><a href="#" class="footer-link">1:1 기술 지원</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul class="footer-links">
+          <li><a href="#" class="footer-link">회사 소개</a></li>
+          <li><a href="https://github.com/goodkie/xpider-browser" class="footer-link" target="_blank">GitHub 소스</a></li>
+          <li><a href="#" class="footer-link">제휴 문의</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <span class="footer-copy">© 2026 XPIDER Technologies, Inc. All rights reserved.</span>
+      <div class="footer-bottom-links">
+        <a href="TOS.md" class="footer-bottom-link" target="_blank">이용약관</a>
+        <a href="#" class="footer-bottom-link">개인정보처리방침</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ─── 헤더 스크롤링 효과 ───
+    window.addEventListener('scroll', function() {
+      const header = document.getElementById('mainHeader');
+      if (window.scrollY > 50) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+    });
+
+    // ─── FAQ 아코디언 상호작용 ───
+    const faqQuestions = document.querySelectorAll('.faq-question');
+    faqQuestions.forEach(q => {
+      q.addEventListener('click', () => {
+        const item = q.parentElement;
+        const isActive = item.classList.contains('active');
+        
+        // 기존 열린 것 닫기
+        document.querySelectorAll('.faq-item').forEach(el => el.classList.remove('active'));
+        
+        if (!isActive) {
+          item.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>
