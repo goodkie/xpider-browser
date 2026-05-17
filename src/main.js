@@ -396,10 +396,154 @@ ipcMain.on('reload-extensions', async () => {
 });
 
 // ─── [VPN] XPIDER VPN IPC 핸들러 ─────────────────────────────────────────────
-// popup.js → ext-preload.js(XPIDER_INVOKE) → ipcMain.handle('xpider-vpn-*')
-// 결과: session.setProxy() → mainWindow.send('xpider-vpn-state')
-let _vpnState = { connected: false, server: null };
-let _vpnLoginHandler = null; // app.on('login') 핸들러 레퍼런스 (해제용)
+// 구조: popup.js → XPIDER_INVOKE → ext-preload → ipcMain.handle('xpider-vpn-*')
+// 해결책: Electron app.on('login') 이벤트가 webview CONNECT 터널에서
+//         event.preventDefault() 없이 동작하지 않는 문제를 우회하기 위해
+//         로컬 HTTP 프록시 릴레이 서버를 Node.js로 직접 구동합니다.
+//         브라우저 → localhost:localPort → 자격증명 주입 → WebShare 프록시
+const net  = require('net');
+const http = require('http');
+
+let _vpnState       = { connected: false, server: null };
+let _vpnLocalServer = null;   // http.Server 인스턴스
+let _vpnLocalPort   = 0;      // 실제 바인딩된 포트
+
+function _stopLocalProxy() {
+  return new Promise((resolve) => {
+    if (_vpnLocalServer) {
+      _vpnLocalServer.closeAllConnections?.();
+      _vpnLocalServer.close(() => { _vpnLocalServer = null; resolve(); });
+    } else {
+      resolve();
+    }
+  });
+}
+
+// 로컬 HTTP 프록시 서버 시작
+// HTTP CONNECT 터널 요청을 받으면 upstream(WebShare)에 자격증명 포함 CONNECT 전달
+function _startLocalProxy(upHost, upPort, upUser, upPass) {
+  return new Promise((resolve, reject) => {
+    const proxyAuthB64 = Buffer.from(`${upUser}:${upPass}`).toString('base64');
+    const authHeader   = `Basic ${proxyAuthB64}`;
+
+    const server = http.createServer((req, res) => {
+      // 일반 HTTP 요청 → upstream으로 포워드
+      const upReq = http.request({
+        host: upHost,
+        port: upPort,
+        method: req.method,
+        path: req.url,
+        headers: { ...req.headers, 'Proxy-Authorization': authHeader },
+      }, (upRes) => {
+        res.writeHead(upRes.statusCode, upRes.headers);
+        upRes.pipe(res);
+      });
+      req.pipe(upReq);
+      upReq.on('error', () => res.end());
+    });
+
+    // HTTP CONNECT (HTTPS 터널링)
+    server.on('connect', (req, clientSocket, head) => {
+      const [targetHost, targetPort] = req.url.split(':');
+      const upSocket = net.connect(upPort, upHost, () => {
+        // upstream에 자격증명 포함 CONNECT 요청 전송
+        upSocket.write(
+          `CONNECT ${req.url} HTTP/1.1\r\n` +
+          `Host: ${req.url}\r\n` +
+          `Proxy-Authorization: ${authHeader}\r\n` +
+          `\r\n`
+        );
+      });
+
+      upSocket.once('data', (chunk) => {
+        const response = chunk.toString();
+        if (response.includes('200')) {
+          // upstream이 터널 수락 → 클라이언트에 연결 수립 응답
+          clientSocket.write('HTTP/1.1 200 Connection established\r\n\r\n');
+          if (head && head.length) upSocket.write(head);
+          upSocket.pipe(clientSocket);
+          clientSocket.pipe(upSocket);
+        } else {
+          log.error('[VPN-RELAY] Upstream CONNECT rejected:', response.substring(0, 100));
+          clientSocket.write('HTTP/1.1 502 Bad Gateway\r\n\r\n');
+          clientSocket.end();
+          upSocket.end();
+        }
+      });
+
+      upSocket.on('error', (err) => {
+        log.error('[VPN-RELAY] upstream socket error:', err.message);
+        clientSocket.write('HTTP/1.1 502 Bad Gateway\r\n\r\n');
+        clientSocket.end();
+      });
+      clientSocket.on('error', () => upSocket.end());
+    });
+
+    server.listen(0, '127.0.0.1', () => {
+      _vpnLocalServer = server;
+      _vpnLocalPort   = server.address().port;
+      log.info(`[VPN-RELAY] Local proxy started on 127.0.0.1:${_vpnLocalPort} → ${upHost}:${upPort}`);
+      resolve(_vpnLocalPort);
+    });
+
+    server.on('error', reject);
+  });
+}
+
+ipcMain.handle('xpider-vpn-connect', async (event, { host, port, username, password, country, city }) => {
+  try {
+    if (!host || !port) return { ok: false, error: 'Invalid proxy: host/port missing' };
+
+    // 기존 로컬 프록시 중지
+    await _stopLocalProxy();
+
+    // 로컬 릴레이 서버 기동 (자격증명 자동 주입)
+    const localPort = await _startLocalProxy(host, port, username, password);
+
+    // Electron 세션을 로컬 릴레이로 연결 (인증 불필요 — 릴레이가 대신 처리)
+    const { session: electronSession } = require('electron');
+    await electronSession.defaultSession.setProxy({
+      proxyRules: `http://127.0.0.1:${localPort}`,
+      proxyBypassRules: '<local>',
+    });
+
+    _vpnState = { connected: true, server: { host, port, username, password, country, city } };
+    log.info(`[VPN] Connected via relay 127.0.0.1:${localPort} → ${host}:${port} (${country}${city ? '/' + city : ''})`);
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+    }
+    return { ok: true };
+  } catch (e) {
+    log.error('[VPN] Connect error:', e.message);
+    await _stopLocalProxy();
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('xpider-vpn-disconnect', async () => {
+  try {
+    const { session: electronSession } = require('electron');
+    await electronSession.defaultSession.setProxy({ mode: 'direct' });
+    await _stopLocalProxy();
+
+    _vpnState = { connected: false, server: null };
+    log.info('[VPN] Disconnected — proxy cleared, relay stopped');
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+    }
+    return { ok: true };
+  } catch (e) {
+    log.error('[VPN] Disconnect error:', e.message);
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('xpider-vpn-get-state', async () => _vpnState);
+// ─────────────────────────────────────────────────────────────────────────────
+
+
 
 // ── 프록시 자격증명: session.on('login')은 Electron에서 작동 안 함 ──
 // app.on('login')을 사용해야 프록시 407 인증 챌린지에 응답 가능
