@@ -395,6 +395,96 @@ ipcMain.on('reload-extensions', async () => {
   }
 });
 
+// ─── [VPN] XPIDER VPN IPC 핸들러 ─────────────────────────────────────────────
+// popup.js → ext-preload.js(XPIDER_INVOKE) → ipcMain.handle('xpider-vpn-*')
+// 결과: session.setProxy() → mainWindow.send('xpider-vpn-state')
+let _vpnState = { connected: false, server: null };
+
+ipcMain.handle('xpider-vpn-connect', async (event, { host, port, username, password, country, city }) => {
+  try {
+    if (!host || !port) {
+      return { ok: false, error: 'Invalid proxy: host/port missing' };
+    }
+
+    // Electron session.setProxy() 호출
+    const proxyRules = `http=${host}:${port};https=${host}:${port}`;
+    const proxyAuth  = username && password ? `${username}:${password}` : null;
+
+    // 모든 활성 세션에 프록시 적용
+    const { session: electronSession } = require('electron');
+    const sessions = [
+      electronSession.defaultSession,
+      electronSession.fromPartition('persist:browser'),
+    ];
+
+    for (const sess of sessions) {
+      try {
+        await sess.setProxy({ proxyRules, proxyBypassRules: '<local>' });
+        // 자격증명 핸들러 등록
+        if (proxyAuth) {
+          sess.removeAllListeners('login');
+          sess.on('login', (req, authInfo, callback) => {
+            if (authInfo.isProxy) {
+              callback(username, password);
+            } else {
+              callback();
+            }
+          });
+        }
+      } catch (e) {
+        log.warn('[VPN] setProxy on session failed:', e.message);
+      }
+    }
+
+    _vpnState = { connected: true, server: { host, port, username, password, country, city } };
+    log.info(`[VPN] Connected → ${host}:${port} (${country}${city ? '/' + city : ''})`);
+
+    // 상태 브로드캐스트 (renderer_ui → extensionWebview → ext-preload → popup.js)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+    }
+
+    return { ok: true };
+  } catch (e) {
+    log.error('[VPN] Connect error:', e.message);
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('xpider-vpn-disconnect', async () => {
+  try {
+    const { session: electronSession } = require('electron');
+    const sessions = [
+      electronSession.defaultSession,
+      electronSession.fromPartition('persist:browser'),
+    ];
+    for (const sess of sessions) {
+      try {
+        await sess.setProxy({ proxyRules: 'direct://' });
+        sess.removeAllListeners('login');
+      } catch (e) {
+        log.warn('[VPN] clearProxy on session failed:', e.message);
+      }
+    }
+
+    _vpnState = { connected: false, server: null };
+    log.info('[VPN] Disconnected');
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+    }
+    return { ok: true };
+  } catch (e) {
+    log.error('[VPN] Disconnect error:', e.message);
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('xpider-vpn-get-state', async () => {
+  return _vpnState;
+});
+// ─────────────────────────────────────────────────────────────────────────────
+
 // --- 익스텐션 호환성 레이어 IPC (Extension Compatibility Layer) ---
 ipcMain.handle('xpider-ext-get-active-tab', async (event) => {
     // Return cached info immediately if available
