@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   # ──────────────────────────────────────────────────────────
-  # Windows 포터블 ZIP
+  # Windows 포터블 ZIP + SFX Setup
   # ──────────────────────────────────────────────────────────
   build-windows:
     name: Build Windows (Portable ZIP)
@@ -22,6 +22,11 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+      # SFX C# 프로젝트 빌드를 위한 .NET SDK 설치
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - run: npm ci
       - name: Build Windows ZIP
         run: npm run make:win-zip
@@ -32,13 +37,14 @@ jobs:
         run: mv out/make/zip/win32/x64/*.zip "out/make/zip/win32/x64/XPIDER-Browser-Windows-${{ github.ref_name }}.zip"
       - name: Build Windows SFX (Auto-Extractor)
         shell: powershell
-        run: powershell src\deploy\build-sfx.ps1
+        run: powershell src\\deploy\\build-sfx.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts
           path: |
             out/make/**/*.zip
             out/make/**/*.exe
+            out/make/**/*.config
           retention-days: 1
 
 
@@ -100,7 +106,7 @@ jobs:
 
 
   # ──────────────────────────────────────────────────────────
-  # GitHub Releases에 포터블 ZIP 업로드
+  # GitHub Releases에 파일 업로드
   # ──────────────────────────────────────────────────────────
   release:
     name: Publish Release
@@ -120,7 +126,7 @@ jobs:
         with:
           name: "XPIDER Browser ${{ github.ref_name }}"
           body: |
-            ## XPIDER Browser ${{ github.ref_name }} 
+            ## XPIDER Browser ${{ github.ref_name }}
 
             ### 📦 Download Links
 
@@ -137,11 +143,12 @@ jobs:
             - **macOS**: Open `.dmg` and drag XPIDER to the Applications folder.
 
             ### 📂 Portable Isolation
-            Login sessions and settings are now stored in the `data/` folder inside your browser directory. You can copy the browser folder to multiple locations to use different accounts simultaneously.
+            Login sessions and settings are stored in the `data/` folder inside your browser directory.
           files: |
             dist/**/*.zip
             dist/**/*.dmg
             dist/**/*.exe
+            dist/**/*.config
           draft: false
           prerelease: false
         env:

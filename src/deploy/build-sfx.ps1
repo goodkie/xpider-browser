@@ -1,99 +1,86 @@
 $ErrorActionPreference = "Stop"
 
-Write-Host "Starting SFX Build process using standard C# project..."
+Write-Host "=== XPIDER SFX Build ===" -ForegroundColor Cyan
 
 # 1. 포터블 ZIP 파일 찾기
-$zipFile = Get-ChildItem "out\make\zip\win32\x64\*.zip" | Select-Object -First 1
-
+$zipFile = Get-ChildItem "out\make\zip\win32\x64\*.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $zipFile) {
-    $zipFile = Get-ChildItem "out\make\*.zip" -Recurse | Select-Object -First 1
+    $zipFile = Get-ChildItem "out\make\*.zip" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 }
-
 if (-not $zipFile) {
     Write-Error "ZIP file not found."
     exit 1
 }
 
 $zipPath = $zipFile.FullName
-Write-Host "Found ZIP file: $zipPath"
+Write-Host "Found ZIP: $zipPath" -ForegroundColor Green
 
-$exeName = $zipFile.Name.Replace(".zip", "-Setup.exe")
+$exeName   = $zipFile.Name.Replace(".zip", "-Setup.exe")
 $exeDestPath = Join-Path $zipFile.DirectoryName $exeName
 
-# 2. XpiderSetup 리소스 폴더에 복사
+# 2. 리소스 폴더에 ZIP 복사
 $setupProjDir = "src\deploy\XpiderSetup"
 $resourcesDir = Join-Path $setupProjDir "Resources"
-
-if (-not (Test-Path $resourcesDir)) {
-    New-Item -ItemType Directory -Path $resourcesDir | Out-Null
-}
+if (-not (Test-Path $resourcesDir)) { New-Item -ItemType Directory -Path $resourcesDir | Out-Null }
 
 $targetZip = Join-Path $resourcesDir "app.zip"
-Write-Host "Copying ZIP to Resources folder: $targetZip"
+Write-Host "Copying ZIP to resources: $targetZip"
 Copy-Item -Path $zipPath -Destination $targetZip -Force
 
-# 3. NuGet 복원 후 dotnet build 실행 (Release 모드)
+# 3. NuGet 복원 + Release 빌드
 $csprojPath = Join-Path $setupProjDir "XpiderSetup.csproj"
-Write-Host "Restoring NuGet packages for $csprojPath..."
-& dotnet restore $csprojPath
+Write-Host "Restoring packages..." -ForegroundColor Yellow
+& dotnet restore $csprojPath --verbosity quiet
 
-Write-Host "Building $csprojPath..."
-& dotnet build $csprojPath -c Release
+Write-Host "Building (Release)..." -ForegroundColor Yellow
+& dotnet build $csprojPath -c Release --no-restore
 
 if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to build the SFX project."
+    Write-Error "Build FAILED."
     exit 1
 }
 
-# 4. 빌드된 EXE 파일 복사
-# .NET 4.8 타겟이므로 bin\Release\net48\ 에 위치합니다.
-$compiledExe = Join-Path $setupProjDir "bin\Release\net48\XPIDER-Setup.exe"
-$compiledConfig = Join-Path $setupProjDir "bin\Release\net48\XPIDER-Setup.exe.config"
+# 4. 빌드 결과물 찾기
+$buildDir   = Join-Path $setupProjDir "bin\Release\net48"
+$compiledExe    = Join-Path $buildDir "XPIDER-Setup.exe"
+$compiledConfig = Join-Path $buildDir "XPIDER-Setup.exe.config"
 
 if (-not (Test-Path $compiledExe)) {
-    # 대체 경로 탐색
-    $compiledExe    = Join-Path $setupProjDir "bin\Release\XPIDER-Setup.exe"
-    $compiledConfig = Join-Path $setupProjDir "bin\Release\XPIDER-Setup.exe.config"
+    $buildDir   = Join-Path $setupProjDir "bin\Release"
+    $compiledExe    = Join-Path $buildDir "XPIDER-Setup.exe"
+    $compiledConfig = Join-Path $buildDir "XPIDER-Setup.exe.config"
 }
-
 if (-not (Test-Path $compiledExe)) {
-    Write-Error "Compiled executable not found at $compiledExe"
+    Write-Error "Compiled EXE not found at $compiledExe"
     exit 1
 }
 
-Write-Host "Moving compiled EXE to $exeDestPath"
+# 5. EXE 복사
+Write-Host "Copying EXE -> $exeDestPath" -ForegroundColor Green
 Copy-Item -Path $compiledExe -Destination $exeDestPath -Force
 
-# 바인딩 리다이렉트 설정 파일도 함께 복사 (System.IO.Compression 버전 충돌 방지 핵심)
+# 6. .exe.config 파일 복사 (바인딩 리다이렉트 - 핵심!)
+#    없으면 app.config 직접 사용
 $configDestPath = $exeDestPath + ".config"
+
 if (Test-Path $compiledConfig) {
-    Write-Host "Copying binding redirect config to $configDestPath"
+    Write-Host "Copying .exe.config -> $configDestPath" -ForegroundColor Green
     Copy-Item -Path $compiledConfig -Destination $configDestPath -Force
 } else {
-    Write-Warning "No .config file found. Generating minimal binding redirect config..."
-    $minimalConfig = @"
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <startup>
-    <supportedRuntime version="v4.0" sku=".NETFramework,Version=v4.8"/>
-  </startup>
-  <runtime>
-    <assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
-      <dependentAssembly>
-        <assemblyIdentity name="System.IO.Compression" publicKeyToken="b77a5c561934e089" culture="neutral"/>
-        <bindingRedirect oldVersion="0.0.0.0-4.2.0.0" newVersion="4.2.0.0"/>
-      </dependentAssembly>
-      <dependentAssembly>
-        <assemblyIdentity name="System.IO.Compression.ZipFile" publicKeyToken="b77a5c561934e089" culture="neutral"/>
-        <bindingRedirect oldVersion="0.0.0.0-4.0.1.0" newVersion="4.0.1.0"/>
-      </dependentAssembly>
-    </assemblyBinding>
-  </runtime>
-</configuration>
-"@
-    $minimalConfig | Out-File -FilePath $configDestPath -Encoding UTF8
-    Write-Host "Minimal binding redirect config created at $configDestPath"
+    Write-Warning ".exe.config not found. Writing fallback binding redirect config..."
+    $src_appConfig = Join-Path $setupProjDir "app.config"
+    if (Test-Path $src_appConfig) {
+        Copy-Item -Path $src_appConfig -Destination $configDestPath -Force
+        Write-Host "Copied app.config -> $configDestPath" -ForegroundColor Green
+    }
 }
 
-Write-Host "Successfully created setup executable: $exeDestPath"
-
+# 7. 검증
+Write-Host ""
+Write-Host "=== Build Complete ===" -ForegroundColor Cyan
+Write-Host "  EXE    : $exeDestPath ($([math]::Round((Get-Item $exeDestPath).Length/1MB,1)) MB)"
+if (Test-Path $configDestPath) {
+    Write-Host "  CONFIG : $configDestPath (OK)" -ForegroundColor Green
+} else {
+    Write-Warning "  CONFIG : NOT FOUND - users may hit System.IO.Compression error!"
+}
