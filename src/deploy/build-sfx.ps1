@@ -59,28 +59,7 @@ if (-not (Test-Path $compiledExe)) {
 Write-Host "Copying EXE -> $exeDestPath" -ForegroundColor Green
 Copy-Item -Path $compiledExe -Destination $exeDestPath -Force
 
-# 6. .exe.config 파일 복사 (바인딩 리다이렉트 - 핵심!)
-#    없으면 app.config 직접 사용
-$configDestPath = $exeDestPath + ".config"
-
-if (Test-Path $compiledConfig) {
-    Write-Host "Copying .exe.config -> $configDestPath" -ForegroundColor Green
-    Copy-Item -Path $compiledConfig -Destination $configDestPath -Force
-} else {
-    Write-Warning ".exe.config not found. Writing fallback binding redirect config..."
-    $src_appConfig = Join-Path $setupProjDir "app.config"
-    if (Test-Path $src_appConfig) {
-        Copy-Item -Path $src_appConfig -Destination $configDestPath -Force
-        Write-Host "Copied app.config -> $configDestPath" -ForegroundColor Green
-    }
-}
-
-# 7. 검증
+# 6. 검증
 Write-Host ""
 Write-Host "=== Build Complete ===" -ForegroundColor Cyan
 Write-Host "  EXE    : $exeDestPath ($([math]::Round((Get-Item $exeDestPath).Length/1MB,1)) MB)"
-if (Test-Path $configDestPath) {
-    Write-Host "  CONFIG : $configDestPath (OK)" -ForegroundColor Green
-} else {
-    Write-Warning "  CONFIG : NOT FOUND - users may hit System.IO.Compression error!"
-}

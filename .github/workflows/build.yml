@@ -44,7 +44,6 @@ jobs:
           path: |
             out/make/**/*.zip
             out/make/**/*.exe
-            out/make/**/*.config
           retention-days: 1
 
 
@@ -148,7 +147,6 @@ jobs:
             dist/**/*.zip
             dist/**/*.dmg
             dist/**/*.exe
-            dist/**/*.config
           draft: false
           prerelease: false
         env:
