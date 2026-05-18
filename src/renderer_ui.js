@@ -681,12 +681,23 @@ window.electronAPI.on('hot-update-progress', ({ phase, pct, msg }) => {
 // ─── Update Check Result Handler ──────────────────────────────────
 window.electronAPI.on('app-update-result', (result) => {
     if (!result) return;
+
     if (result.hasUpdate) {
-        const skippedVersion = localStorage.getItem('xpider-skip-version');
-        if (skippedVersion === result.latestVersion) {
-            console.log('[Update] Skipped version:', result.latestVersion);
-            return;
+        // 수동 확인(isManual)이면 skip 기록 무시 → 항상 모달 표시
+        // 자동 확인이면 이전에 "나중에" 누른 버전은 건너뜀
+        if (!result.isManual) {
+            const skippedVersion = localStorage.getItem('xpider-skip-version');
+            if (skippedVersion === result.latestVersion) {
+                console.log('[Update] Auto-check: Skipping previously dismissed version:', result.latestVersion);
+                return; // 자동 확인 시에만 스킵
+            }
         }
+
+        // 수동 확인 시 이전 skip 기록 초기화 (다음 자동 확인에서도 다시 표시)
+        if (result.isManual) {
+            localStorage.removeItem('xpider-skip-version');
+        }
+
         if (modalCurrentVer) modalCurrentVer.textContent = result.currentVersion || '';
         if (modalLatestVer)  modalLatestVer.textContent  = result.latestVersion  || '';
         if (modalNotes) {
@@ -696,7 +707,17 @@ window.electronAPI.on('app-update-result', (result) => {
         _releaseUrl = result.downloadUrl || result.releaseUrl || '';
         updateModal.classList.remove('hidden');
     } else {
-        showToast(`✅ 최신 버전입니다. (v${result.currentVersion})`);
+        // 에러가 있으면 에러 토스트
+        if (result.error) {
+            if (result.isManual) showToast(`❌ 업데이트 확인 실패: ${result.error}`);
+            return;
+        }
+        // 수동 확인일 때만 "최신 버전" 토스트 표시 (자동 확인 시에는 조용히 종료)
+        if (result.isManual) {
+            const cur = result.currentVersion || '';
+            const lat = result.latestVersion  || cur;
+            showToast(`✅ 최신 버전입니다. (현재: v${cur} / GitHub: v${lat})`, 5000);
+        }
     }
 });
 

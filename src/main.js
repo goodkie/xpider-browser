@@ -228,16 +228,17 @@ ipcMain.handle('auth-check-session', async () => {
 // ─── 업데이트 IPC (auth-success 전에 선언해야 함) ─────────────────────────────
 const { checkAppUpdate, performHotUpdate } = require('./updater');
 
-async function checkAndNotifyAppUpdate() {
+async function checkAndNotifyAppUpdate(isManual = false) {
   try {
     const result = await checkAppUpdate();
+    result.isManual = isManual; // 수동/자동 구분 플래그
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('app-update-result', result);
     }
   } catch (e) {
     log.error('[AppUpdate]', e.message);
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('app-update-result', { hasUpdate: false, error: e.message });
+      mainWindow.webContents.send('app-update-result', { hasUpdate: false, error: e.message, isManual });
     }
   }
 }
@@ -245,7 +246,7 @@ async function checkAndNotifyAppUpdate() {
 // ① 수동 업데이트 확인 (설정 메뉴 "업데이트 확인" 버튼)
 ipcMain.on('check-for-updates', () => {
   log.info('[AppUpdate] Manual check triggered by user');
-  checkAndNotifyAppUpdate();
+  checkAndNotifyAppUpdate(true); // isManual = true → skippedVersion 필터 무시
 });
 
 // ② 핫 업데이트 시작 (새 버전 다운로드 → 재시작)
