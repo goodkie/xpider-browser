@@ -19,42 +19,62 @@ const REPO_NAME    = 'xpider-browser';
 // ─── HTTP 헬퍼 ────────────────────────────────────────────────
 function githubGet(apiPath) {
   return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.github.com',
-      path: apiPath,
-      headers: {
-        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+    const makeRequest = (useAuth) => {
+      const headers = {
         'Accept': 'application/vnd.github+json',
         'User-Agent': 'XPIDER-Browser-Updater',
         'X-GitHub-Api-Version': '2022-11-28'
+      };
+      if (useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
+        headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
       }
-    };
-    const req = https.get(options, res => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
-        catch { resolve({ status: res.statusCode, body: data }); }
+      
+      const options = {
+        hostname: 'api.github.com',
+        path: apiPath,
+        headers: headers
+      };
+      
+      const req = https.get(options, res => {
+        if (res.statusCode === 401 && useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
+          console.warn(`[Updater] 401 Unauthorized for ${apiPath}. Retrying without authentication...`);
+          makeRequest(false);
+          return;
+        }
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => {
+          try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+          catch { resolve({ status: res.statusCode, body: data }); }
+        });
       });
-    });
-    req.on('error', reject);
-    req.end();
+      req.on('error', reject);
+      req.end();
+    };
+    
+    makeRequest(true);
   });
 }
 
 function downloadFile(url, destPath) {
   return new Promise((resolve, reject) => {
-    const follow = (u) => {
+    const follow = (u, useAuth = true) => {
       const mod = u.startsWith('https') ? require('https') : require('http');
-      mod.get(u, {
-        headers: {
-          'Authorization': `Bearer ${GITHUB_TOKEN}`,
-          'User-Agent': 'XPIDER-Browser-Updater',
-          'Accept': 'application/octet-stream'
+      const headers = {
+        'User-Agent': 'XPIDER-Browser-Updater',
+        'Accept': 'application/octet-stream'
+      };
+      if (useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
+        headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
+      }
+      mod.get(u, { headers }, res => {
+        if (res.statusCode === 401 && useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
+          console.warn('[Updater] downloadFile 401 Unauthorized. Retrying without authentication...');
+          follow(u, false);
+          return;
         }
-      }, res => {
         if (res.statusCode === 302 || res.statusCode === 301) {
-          follow(res.headers.location); return;
+          follow(res.headers.location, false); return;
         }
         const file = fs.createWriteStream(destPath);
         res.pipe(file);
@@ -62,7 +82,7 @@ function downloadFile(url, destPath) {
         file.on('error', reject);
       }).on('error', reject);
     };
-    follow(url);
+    follow(url, true);
   });
 }
 
@@ -431,15 +451,21 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
 // ─── 진행률 포함 파일 다운로드 ───────────────────────────────
 function downloadFileWithProgress(url, destPath, onProgress) {
   return new Promise((resolve, reject) => {
-    const follow = (u) => {
+    const follow = (u, useAuth = true) => {
       const mod = u.startsWith('https') ? require('https') : require('http');
-      mod.get(u, {
-        headers: {
-          'Authorization': `Bearer ${GITHUB_TOKEN}`,
-          'User-Agent': 'XPIDER-Browser-Updater',
-          'Accept': 'application/octet-stream'
+      const headers = {
+        'User-Agent': 'XPIDER-Browser-Updater',
+        'Accept': 'application/octet-stream'
+      };
+      if (useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
+        headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
+      }
+      mod.get(u, { headers }, res => {
+        if (res.statusCode === 401 && useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
+          console.warn('[Updater] downloadFileWithProgress 401 Unauthorized. Retrying without authentication...');
+          follow(u, false);
+          return;
         }
-      }, res => {
         if (res.statusCode === 302 || res.statusCode === 301) {
           // 리다이렉트 시 Authorization 헤더 제거 (S3 presigned URL 등)
           const redirectUrl = res.headers.location;
@@ -451,7 +477,7 @@ function downloadFileWithProgress(url, destPath, onProgress) {
             }
           }, redirectRes => {
             if (redirectRes.statusCode === 302 || redirectRes.statusCode === 301) {
-              follow(redirectRes.headers.location); return;
+              follow(redirectRes.headers.location, false); return;
             }
             pipeToFile(redirectRes, destPath, onProgress, resolve, reject);
           }).on('error', reject);
@@ -460,7 +486,7 @@ function downloadFileWithProgress(url, destPath, onProgress) {
         pipeToFile(res, destPath, onProgress, resolve, reject);
       }).on('error', reject);
     };
-    follow(url);
+    follow(url, true);
   });
 }
 
