@@ -26,7 +26,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-renderer-update-active-tab', 'open-new-tab',
       'xpider-renderer-update-badge', 'xpider-ext-runtime-on-message',
       'xpider-ext-storage-changed', 'app_language',
-      'xpider-live-log',              // 실시간 로그 스트림
       'xpider-email-collected-event', // Email Extractor 실시간 업데이트
       'xpider-record-download',       // [v4.0] 다운로드 완료 → Downloads 패널
       'xpider-download-start',        // [v4.0] 다운로드 시작
@@ -43,7 +42,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ── 양방향 호출 ──────────────────────────────────────────────
   invoke: (channel, data) => {
     const allowed = [
-      'get-system-logs', 'xpider-ext-runtime-send-message',
+      'xpider-ext-runtime-send-message',
       'admin-get-all-profiles', 'admin-set-active', 'admin-force-logout',
       'xpider-ext-get-script',
       'xpider-email-get-all', 'xpider-email-get-page', 'xpider-download-file',

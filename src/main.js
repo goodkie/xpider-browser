@@ -49,37 +49,10 @@ let loadedExtensionsInfo = [];
 let lastActiveTabByWindow = {}; // Cache active tab per windowId
 
 // ─── 전역 실시간 로그 링버퍼 ──────────────────────────────────
-const LOG_RING_SIZE = 500;
-const logRingBuffer = [];
-
-// ─── 원본 console 함수 먼저 저장 (xLog보다 앞에 위치해야 순환 참조 방지) ────
-const _origLog = console.log;
-const _origErr = console.error;
-
+// xLog 함수를 빈 함수로 두거나, 단순 native console로 대체하여 레거시 오류 방지
 function xLog(level, source, ...args) {
-    const entry = {
-        t: new Date().toISOString().slice(11, 23), // HH:MM:SS.mmm
-        level,
-        source,
-        msg: args.map(a => {
-            if (typeof a === 'object') { try { return JSON.stringify(a); } catch(e) { return String(a); } }
-            return String(a);
-        }).join(' ')
-    };
-    if (logRingBuffer.length >= LOG_RING_SIZE) logRingBuffer.shift();
-    logRingBuffer.push(entry);
-    // 원본 console 함수 사용 → 오버라이드된 console.error/log 호출 금지 (순환 재귀 방지)
-    if (level === 'ERROR') _origErr(`[${entry.source}] ${entry.msg}`);
-    else _origLog(`[${entry.source}] ${entry.msg}`);
-    // Forward to all renderer windows in real-time
-    webContents.getAllWebContents().forEach(wc => {
-        try { wc.send('xpider-live-log', entry); } catch(e) {}
-    });
+    // 실시간 로그 스트림과 링버퍼는 완전히 제거되었습니다.
 }
-
-// Intercept console.log/error to also capture them (xLog 정의 이후에 배치)
-console.log = (...args) => { _origLog(...args); xLog('INFO', 'MAIN', ...args); };
-console.error = (...args) => { _origErr(...args); xLog('ERROR', 'MAIN', ...args); };
 
 
 // ─── 스플래시 창 ───────────────────────────────────────────────
@@ -250,77 +223,6 @@ ipcMain.handle('auth-signup', async (_, { email, password, username }) =>
 ipcMain.handle('auth-check-session', async () => {
   const s = await authService.getSession();
   return s || null;
-});
-
-ipcMain.handle('get-system-logs', async () => {
-    try {
-        // Gather all webContents info
-        const wcs = webContents.getAllWebContents().map(wc => ({
-            id: wc.id,
-            type: wc.getType(),
-            url: (() => { try { return wc.getURL(); } catch(e) { return 'N/A'; } })()
-        }));
-        
-        const info = {
-            timestamp: new Date().toISOString(),
-            appVersion: app.getVersion(),
-            platform: process.platform,
-            arch: process.arch,
-            uptime: Math.floor(process.uptime()),
-            memMB: Math.round(process.memoryUsage().rss / 1024 / 1024),
-            activeExtensions: (loadedExtensionsInfo || []).map(e => ({ 
-                name: e.name, id: e.id, version: e.version,
-                uiPage: e.uiPage || 'popup.html'
-            })),
-            storageLeads: (extStorage && extStorage.scrapedData) ? extStorage.scrapedData.length : 0,
-            cruiserState: {
-                isRunning: false, // updated by IPC from renderer
-                leadsBeforeCruise: 0
-            },
-            webContents: wcs,
-            windows: BrowserWindow.getAllWindows().length,
-            recentLogs: [...logRingBuffer].slice(-200) // last 200 entries
-        };
-        return info;
-    } catch (e) {
-        return { error: e.message, stack: e.stack };
-    }
-});
-
-// ─── 모든 WebContents 콘솔 캡처 리스너 ─────────────────────────
-app.on('web-contents-created', (_, wc) => {
-    const getType = () => { try { return wc.getType(); } catch(e) { return '?'; } };
-    const getUrl = () => { try { return wc.getURL().substring(0, 80); } catch(e) { return '?'; } };
-
-    wc.on('console-message', (e, level, message, line, sourceId) => {
-        const lvl = ['LOG','WARN','ERROR','DEBUG'][level] || 'LOG';
-        xLog(lvl, `WV:${getType()}`, `${message} (${sourceId?.split('/').pop() || ''}:${line})`);
-    });
-
-    wc.on('did-fail-load', (e, code, desc, url) => {
-        xLog('ERROR', `WV:${getType()}`, `LOAD FAIL [${code}] ${desc} → ${url}`);
-    });
-
-    wc.on('did-navigate', (e, url) => {
-        xLog('NAV', `WV:${getType()}`, `→ ${url.substring(0, 100)}`);
-    });
-
-    wc.on('did-navigate-in-page', (e, url) => {
-        xLog('NAV-SPA', `WV:${getType()}`, `→ ${url.substring(0, 100)}`);
-    });
-
-    wc.on('crashed', () => {
-        xLog('ERROR', `WV:${getType()}`, `CRASHED at ${getUrl()}`);
-    });
-
-    wc.on('unresponsive', () => {
-        xLog('WARN', `WV:${getType()}`, `UNRESPONSIVE at ${getUrl()}`);
-    });
-});
-
-// ─── IPC 메시지 로깅 ─────────────────────────────────────────
-ipcMain.on('log-from-renderer', (event, msg) => {
-    xLog('UI', 'RENDERER', msg);
 });
 
 // ─── 업데이트 IPC (auth-success 전에 선언해야 함) ─────────────────────────────
