@@ -322,6 +322,23 @@ ipcMain.on('log-from-renderer', (event, msg) => {
     xLog('UI', 'RENDERER', msg);
 });
 
+// ─── 업데이트 IPC (auth-success 전에 선언해야 함) ─────────────────────────────
+const { checkAppUpdate, performHotUpdate } = require('./updater');
+
+async function checkAndNotifyAppUpdate() {
+  try {
+    const result = await checkAppUpdate();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('app-update-result', result);
+    }
+  } catch (e) {
+    log.error('[AppUpdate]', e.message);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('app-update-result', { hasUpdate: false, error: e.message });
+    }
+  }
+}
+
 // auth-success 중복 실행 방지 플래그
 let _authSuccessFired = false;
 
@@ -363,47 +380,6 @@ ipcMain.handle('admin-force-logout', async (_, { userId }) =>
   authService.forceLogout(userId)
 );
 
-// ─── 업데이트 IPC ─────────────────────────────────────────────
-const { checkAppUpdate, performHotUpdate } = require('./updater');
-
-async function checkAndNotifyAppUpdate() {
-  try {
-    const result = await checkAppUpdate();
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('app-update-result', result);
-    }
-  } catch (e) {
-    log.error('[AppUpdate]', e.message);
-  }
-}
-
-ipcMain.on('check-for-updates', async () => {
-  await checkAndNotifyAppUpdate();
-});
-
-// 외부 브라우저로 릴리즈 페이지 열기 (기존 동작)
-ipcMain.on('open-release-url', (_, url) => {
-  if (url) shell.openExternal(url);
-});
-
-// ── 핫 업데이트: 브라우저를 닫지 않고 백그라운드 업데이트 ────
-ipcMain.handle('hot-update-start', async (_, { downloadUrl, dryRun }) => {
-  log.info(`[HotUpdate] Starting... dryRun=${dryRun}, url=${downloadUrl}`);
-
-  const result = await performHotUpdate(
-    downloadUrl || '',
-    (progressData) => {
-      // 실시간 진행률을 renderer로 전송
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('hot-update-progress', progressData);
-      }
-      log.info(`[HotUpdate] ${progressData.phase} ${progressData.pct}% — ${progressData.msg}`);
-    },
-    !!dryRun
-  );
-
-  return result;
-});
 
 // 익스텐션 재로드 IPC
 ipcMain.on('reload-extensions', async () => {
