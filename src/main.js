@@ -219,10 +219,11 @@ function createWindow() {
     mainWindow.webContents.send('app_version', app.getVersion());
     mainWindow.webContents.send('app_language', app.getLocale().split('-')[0]);
 
-    // 브라우저 렌더링이 완료된 후 백그라운드 동기화 시작 (약간의 지연시간 추가)
+    // 렌더러가 완전히 준비된 후 앱 최신버전 확인 (2초 딜레이)
+    // 익스텐션 버전 검사는 시작 시 실행하지 않음 (trigger-background-sync IPC로만 수동 실행 가능)
     setTimeout(() => {
-      checkAndSyncExtensionsInBackground();
-    }, 1500);
+      checkAndNotifyAppUpdate();
+    }, 2000);
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });
@@ -382,8 +383,7 @@ ipcMain.on('auth-success', () => {
   _authSuccessFired = true;
   if (loginWindow) { loginWindow.removeAllListeners('closed'); loginWindow.close(); loginWindow = null; }
   createWindow();
-  // 메인 창 로드 후 앱 업데이트 확인
-  setTimeout(() => checkAndNotifyAppUpdate(), 3000);
+  // 앱 업데이트 확인은 did-finish-load 이벤트에서 처리 (renderer 준비 보장)
 });
 
 ipcMain.on('auth-close-app', () => app.quit());

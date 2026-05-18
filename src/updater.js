@@ -71,25 +71,40 @@ async function checkAppUpdate() {
   try {
     const current = app.getVersion();
     const res = await githubGet(`/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`);
-    if (res.status !== 200) return { hasUpdate: false, latestVersion: current, currentVersion: current };
+    if (res.status !== 200) {
+      return { hasUpdate: false, latestVersion: current, currentVersion: current,
+               error: `GitHub API ${res.status}` };
+    }
 
     const latest = res.body.tag_name?.replace(/^v/, '') || current;
     const hasUpdate = compareVersions(latest, current) > 0;
 
-    // ZIP 다운로드 링크 (포터블 버전)
-    const asset = (res.body.assets || []).find(a =>
-      a.name.includes('zip') || a.name.endsWith('.zip')
-    ) || (res.body.assets || []).find(a =>
-      a.name.endsWith('.exe') || a.name.includes('Setup')
-    );
+    const assets = res.body.assets || [];
+    let asset;
+
+    // ── 플랫폼별 최적 에셋 선택 ──
+    if (process.platform === 'win32') {
+      // Windows: SFX Setup.exe 우선, 없으면 ZIP
+      asset = assets.find(a => /setup|sfx/i.test(a.name) && a.name.endsWith('.exe'))
+           || assets.find(a => a.name.endsWith('.exe'))
+           || assets.find(a => /windows/i.test(a.name) && a.name.endsWith('.zip'))
+           || assets.find(a => a.name.endsWith('.zip'));
+    } else if (process.platform === 'darwin') {
+      // macOS: DMG 우선, 없으면 ZIP
+      asset = assets.find(a => a.name.endsWith('.dmg'))
+           || assets.find(a => a.name.endsWith('.zip'));
+    } else {
+      // Linux / 기타: ZIP
+      asset = assets.find(a => a.name.endsWith('.zip'));
+    }
 
     return {
       hasUpdate,
       latestVersion: latest,
       currentVersion: current,
-      releaseUrl: res.body.html_url || '',
-      downloadUrl: asset?.browser_download_url || res.body.html_url || '',
-      releaseNotes: res.body.body || ''
+      releaseUrl:    res.body.html_url || '',
+      downloadUrl:   asset?.browser_download_url || res.body.html_url || '',
+      releaseNotes:  res.body.body || ''
     };
   } catch (e) {
     console.error('[Updater] App check error:', e.message);
@@ -288,36 +303,39 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
   // ── 실제 업데이트 ─────────────────────────────────────────
   const os      = require('os');
   const { spawn } = require('child_process');
+  const isWin   = process.platform === 'win32';
+  const isMac   = process.platform === 'darwin';
 
-  const isExe = downloadUrl.toLowerCase().includes('.exe') ||
-                downloadUrl.toLowerCase().includes('setup') ||
-                downloadUrl.toLowerCase().includes('install');
-  const ext     = isExe ? '.exe' : '.zip';
-  const tmpDir  = path.join(os.tmpdir(), `xpider-update-${Date.now()}`);
+  const urlLower = downloadUrl.toLowerCase();
+  const isExe = urlLower.endsWith('.exe') || /setup|sfx/i.test(urlLower.split('/').pop());
+  const isDmg = urlLower.endsWith('.dmg');
+  const ext   = isExe ? '.exe' : (isDmg ? '.dmg' : '.zip');
+
+  const tmpDir   = path.join(os.tmpdir(), `xpider-update-${Date.now()}`);
   const filePath = path.join(tmpDir, `update${ext}`);
 
   try {
     fs.mkdirSync(tmpDir, { recursive: true });
 
     // ── 1단계: 다운로드 ────────────────────────────────────
-    progress('download', 0, `⬇️ 새 버전 다운로드 중... (${isExe ? '설치 파일' : 'ZIP'})`);
+    progress('download', 0, `⬇️ 새 버전 다운로드 중... (${isExe ? 'Windows Setup' : isDmg ? 'macOS DMG' : 'ZIP'})`);
     await downloadFileWithProgress(downloadUrl, filePath, (pct) => {
       progress('download', pct, `⬇️ 다운로드 중... ${pct}%`);
     });
     progress('download', 100, '✅ 다운로드 완료!');
 
-    // ── 2a단계: EXE 설치 파일 실행 ────────────────────────
+    // ── 2a단계: EXE 설치 파일 실행 (Windows) ──────────────
     if (isExe) {
       progress('extract', 10, '🚀 설치 파일 실행 중...');
       await _sleep(500);
       progress('extract', 50, '🔄 설치 프로그램이 실행됩니다. 브라우저가 잠시 후 종료됩니다...');
 
       if (app.isPackaged) {
-        // 설치 파일 실행 후 현재 앱 종료 (설치 완료 후 새 버전이 자동 시작됨)
+        // Windows: shell:true로 UAC 권한 상승 지원
         spawn(filePath, [], {
           detached: true,
-          stdio: 'ignore',
-          shell: false
+          stdio:    'ignore',
+          shell:    isWin   // Windows는 shell=true로 UAC 처리
         }).unref();
 
         await _sleep(2000);
@@ -325,43 +343,86 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
         await _sleep(1000);
         app.quit();
       } else {
-        // 개발 모드: 실제 종료 없이 완료 메시지
         progress('done', 100, '✅ [개발 모드] EXE 실행 생략. 실제 배포 환경에서는 설치 파일이 자동 실행됩니다.');
       }
       return { ok: true };
     }
 
-    // ── 2b단계: ZIP 압축 해제 ─────────────────────────────
+    // ── 2b단계: DMG 열기 (macOS) ──────────────────────────
+    if (isDmg) {
+      progress('extract', 10, '🍎 DMG 파일 마운트 중...');
+      await _sleep(500);
+
+      if (app.isPackaged) {
+        const { shell: electronShell } = require('electron');
+        electronShell.openItem(filePath);
+        await _sleep(2000);
+        progress('done', 100, '✅ DMG 파일이 열렸습니다. 설치 후 재시작해주세요.');
+      } else {
+        progress('done', 100, '✅ [개발 모드] DMG 열기 생략.');
+      }
+      return { ok: true };
+    }
+
+    // ── 2c단계: ZIP → 런처 스크립트로 파일 교체 후 재시작 ──
     const AdmZip = (() => { try { return require('adm-zip'); } catch(e) { return null; } })();
 
     if (!AdmZip) {
-      // adm-zip 없으면 시스템 기본 브라우저로 릴리즈 페이지 열기 안내
-      progress('error', 0, '❌ adm-zip 모듈 없음. 아래 릴리즈 페이지에서 직접 설치해주세요.');
+      progress('error', 0, '❌ adm-zip 모듈 없음. 릴리즈 페이지에서 직접 다운로드해주세요.');
       return { ok: false, error: 'adm-zip not found' };
     }
 
-    progress('extract', 0, '📦 압축 해제 중...');
+    progress('extract', 0, '📦 ZIP 압축 해제 중...');
     const zip = new AdmZip(filePath);
     const extractDir = path.join(tmpDir, 'extracted');
     zip.extractAllTo(extractDir, true);
-    progress('extract', 50, '📂 파일 교체 준비 중...');
-
-    // 재시작 (Electron relaunch)
-    progress('extract', 100, '🔄 업데이트 준비 완료! 브라우저를 재시작합니다...');
-    await _sleep(1500);
+    progress('extract', 40, '📂 파일 교체 런처 준비 중...');
 
     if (app.isPackaged) {
-      app.relaunch();
+      const appDir  = path.dirname(process.execPath);
+      const exePath = process.execPath;
+
+      if (isWin) {
+        // Windows: PowerShell 런처 스크립트로 파일 교체
+        const psScript = [
+          `$ErrorActionPreference = 'SilentlyContinue'`,
+          `Start-Sleep -Seconds 3`,
+          `Copy-Item -Path '${extractDir}\\*' -Destination '${appDir}' -Recurse -Force`,
+          `Start-Process '${exePath}'`
+        ].join('\n');
+        const psPath = path.join(tmpDir, 'launcher.ps1');
+        fs.writeFileSync(psPath, psScript, 'utf8');
+
+        progress('extract', 80, '🔄 런처 실행 중...');
+        spawn('powershell.exe', ['-NonInteractive', '-WindowStyle', 'Hidden', '-File', psPath], {
+          detached: true, stdio: 'ignore', shell: false
+        }).unref();
+      } else {
+        // macOS / Linux: bash 런처
+        const shScript = [
+          `#!/bin/bash`,
+          `sleep 3`,
+          `cp -rf '${extractDir}/'* '${appDir}/'`,
+          `open '${exePath}' 2>/dev/null || '${exePath}' &`
+        ].join('\n');
+        const shPath = path.join(tmpDir, 'launcher.sh');
+        fs.writeFileSync(shPath, shScript, { mode: 0o755 });
+
+        progress('extract', 80, '🔄 런처 실행 중...');
+        spawn('bash', [shPath], { detached: true, stdio: 'ignore' }).unref();
+      }
+
+      progress('extract', 100, '🔄 업데이트 런처 시작 완료! 브라우저를 종료하고 재시작합니다...');
+      await _sleep(1500);
       app.quit();
     } else {
-      progress('done', 100, '✅ [개발 모드] 재시작 생략. 실제 배포 환경에서는 자동으로 재시작됩니다.');
+      progress('done', 100, '✅ [개발 모드] 파일 교체 생략. 실제 배포 환경에서는 자동으로 교체됩니다.');
     }
 
     return { ok: true };
   } catch (e) {
     console.error('[HotUpdate] Error:', e.message);
     progress('error', 0, `❌ 업데이트 실패: ${e.message}`);
-    // 임시 파일 정리
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
     return { ok: false, error: e.message };
   }

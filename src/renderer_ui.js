@@ -888,7 +888,7 @@ if (modalTestUpdateBtn) {
 // ─── Check for Updates 버튼 ───────────────────────────────────
 document.getElementById('check-update-btn').onclick = () => {
     settingsMenu.classList.add('hidden');
-    showToast('🔍 업데이트 확인 중...');
+    showToast('🔍 최신 버전을 확인 중입니다...', 4000);
     window.electronAPI.send('check-for-updates');
 };
 
