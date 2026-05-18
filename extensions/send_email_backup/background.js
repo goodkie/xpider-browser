@@ -49,6 +49,17 @@ function logBg(tabId, msg, type = 'info') {
     }
 }
 
+function broadcastStats() {
+    chrome.runtime.sendMessage({
+        action: 'UPDATE_STATS',
+        data: {
+            successCount: campaignState.successCount,
+            remainingCount: campaignState.queue.length,
+            totalTargets: campaignState.totalTargets
+        }
+    }).catch(() => {});
+}
+
 // [v1.2.0] Campaign State Registry (Moved to Top-Level for global scope access)
 let campaignState = {
     isActive: false,
@@ -296,6 +307,7 @@ async function startCampaignOrchestrator(queue, template, delayMs, directApiKey)
         campaignState.sessionId++; 
         campaignState.successCount = 0;
         campaignState.totalTargets = queue.length;
+        broadcastStats();
         
         logBg(null, "🚀 Engine booting...", "start");
         
@@ -383,6 +395,7 @@ function stopCampaignOrchestrator() {
     campaignState.queue = []; // Clear queue to ensure no more processing
     
     logBg(null, "Campaign FORCE STOPPED. All processes terminated.", "stop");
+    broadcastStats();
 }
 
 /**
@@ -449,6 +462,7 @@ async function processNextCampaignTarget(loopSessionId) {
         
         if (result && result.success) {
             campaignState.successCount++;
+            broadcastStats();
         }
         
     } catch (e) {
@@ -456,6 +470,7 @@ async function processNextCampaignTarget(loopSessionId) {
     } finally {
         if (campaignState.isActive) {
             saveCampaignState(); // Sync after each target
+            broadcastStats(); // Update stats in UI after each target processed
             
             await checkPause(); // [v18.7] Pre-delay checkpoint
             

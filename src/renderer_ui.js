@@ -938,7 +938,16 @@ window.electronAPI.on('xpider-renderer-update-active-tab', (props) => {
 
 // ── XPIDER_CONTENT_RELAY: content.js → renderer (sendMessage 릴레이 & 크루저 신호) ──
 window.electronAPI.on('xpider-ext-runtime-on-message', async (message) => {
-    if (!message || !message.action) return;
+    if (!message) return;
+
+    // ── 모든 수신된 런타임 메시지를 extensionWebview(sidepanel 팝업)로 무조건 실시간 중계 ──
+    if (extensionWebview && extensionWebview.src) {
+        extensionWebview.executeJavaScript(
+            `window.postMessage({ type: 'XPIDER_EVENT', name: 'runtime-on-message', data: ${JSON.stringify(message)} }, '*')`
+        ).catch(() => {});
+    }
+
+    if (!message.action) return;
     console.log('[XPIDER-RUNTIME-MSG] Received:', message.action);
 
     if (message.action === 'startHardwareCruiser' || message.action === 'startCruiser') {
