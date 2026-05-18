@@ -3,6 +3,9 @@ const path = require('path');
 const fs   = require('fs');
 const log  = require('electron-log');
 
+// ─── Campaign Engine (AutoForm Sender Pro) ────────────────────
+const campaignEngine = require('./campaign-engine');
+
 // ─── 아이콘 경로 ──────────────────────────────────────────────
 const ICON_PATH = path.join(__dirname, '..', 'assets', 'icons', 'win', 'icon.ico');
 const ICON_PNG  = path.join(__dirname, 'assets', 'icon.png');
@@ -836,6 +839,17 @@ ipcMain.on('xpider-email-clear-all', () => {
     _emailByUrl.clear();
     _broadcastEmailEvent('update-badge', { text: '', extId: 'email-extractor' });
     log.info('[EmailEngine] 전체 이메일 초기화');
+});
+
+// 현재 페이지 이메일 초기화
+ipcMain.on('xpider-email-clear-current', (event, data) => {
+    const rawUrl = (data && data.url) ? data.url : _lastActiveUrl;
+    const url = (rawUrl || '').split(/[#\?]/)[0].replace(/\/$/, '');
+    if (url && _emailByUrl.has(url)) {
+        _emailByUrl.delete(url);
+        log.info(`[EmailEngine] 현재 페이지(${url}) 이메일 초기화`);
+        _broadcastEmailEvent('email-clear-current', { url: rawUrl });
+    }
 });
 
 // 활성 탭 URL 추적 (renderer_ui.js → xpider-ext-report-active-tab)
@@ -2487,6 +2501,59 @@ async function checkAndSyncExtensionsInBackground() {
 // (참고: 상단의 createWindow 함수 내부 이벤트 로직에서 checkAndSyncExtensionsInBackground() 호출을 위해 추가 처리)
 ipcMain.on('trigger-background-sync', () => {
   checkAndSyncExtensionsInBackground();
+});
+
+// ─── Campaign Engine IPC Handlers (AutoForm Sender Pro) ──────────────────────
+// campaign-engine 초기화: webContents 목록, 로그, mainWindow getter 전달
+campaignEngine.init(
+    () => webContents.getAllWebContents(),
+    (msg) => log.info('[Campaign]', msg),
+    () => mainWindow
+);
+
+ipcMain.handle('xpider-campaign-start', async (event, { queue, template, delayMs }) => {
+    try {
+        const result = campaignEngine.start(queue, template, delayMs);
+        return result;
+    } catch (e) {
+        log.error('[Campaign] start error:', e.message);
+        return { success: false, error: e.message };
+    }
+});
+
+ipcMain.handle('xpider-campaign-stop', async () => {
+    try { campaignEngine.stop(); return { success: true }; }
+    catch (e) { return { success: false, error: e.message }; }
+});
+
+ipcMain.handle('xpider-campaign-pause', async () => {
+    try { campaignEngine.pause(); return { success: true }; }
+    catch (e) { return { success: false, error: e.message }; }
+});
+
+ipcMain.handle('xpider-campaign-resume', async () => {
+    try { campaignEngine.resume(); return { success: true }; }
+    catch (e) { return { success: false, error: e.message }; }
+});
+
+// ─── Save As Dialog (Template 저장용) ──────────────────────────
+ipcMain.handle('xpider-show-save-dialog', async (event, { defaultName, content }) => {
+    try {
+        const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+            title: 'Save Template',
+            defaultPath: defaultName || 'template.txt',
+            filters: [
+                { name: 'Text Files', extensions: ['txt'] },
+                { name: 'All Files', extensions: ['*'] }
+            ]
+        });
+        if (canceled || !filePath) return { success: false, reason: 'cancelled' };
+        fs.writeFileSync(filePath, content || '', 'utf8');
+        return { success: true, filePath, fileName: path.basename(filePath) };
+    } catch (e) {
+        log.error('[SaveDialog] Error:', e.message);
+        return { success: false, reason: e.message };
+    }
 });
 
 // ─── 앱 시작 ──────────────────────────────────────────────────

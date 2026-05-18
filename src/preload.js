@@ -8,7 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'check-for-updates', 'open-release-url', 'reload-extensions',
       'xpider-ext-notify-tab-updated', 'log-from-renderer',
       'xpider-ext-update-badge', 'xpider-ext-report-active-tab',
-      'xpider-email-clear-all',
+      'xpider-email-clear-all', 'xpider-email-clear-current',
       'open-path',                     // Downloads 패널 클릭 → 파일 탐색기
       'xpider-captcha-tab-resolved',   // [v3.1] 캡챠 해결 후 탭 네비게이션 감지 신호
       'xpider-captcha-tab-detected',   // [v3.2] 탭이 CAPTCHA로 리다이렉트된 감지 신호

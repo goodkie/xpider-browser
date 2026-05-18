@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnPageCopy    = document.getElementById('btnPageCopy');
   const btnPageSaveCSV = document.getElementById('btnPageSaveCSV');
   const btnPageSaveTXT = document.getElementById('btnPageSaveTXT');
+  const btnPageClear   = document.getElementById('btnPageClear');
   const btnAllCopy     = document.getElementById('btnAllCopy');
   const btnAllSaveCSV  = document.getElementById('btnAllSaveCSV');
   const btnAllSaveTXT  = document.getElementById('btnAllSaveTXT');
@@ -251,6 +252,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   btnPageSaveTXT.addEventListener('click', async () => {
     const emails = pageEmailsArea.value.split('\n').filter(e => e.trim());
     await saveFile(emails, 'txt', 'page_emails');
+  });
+  btnPageClear.addEventListener('click', () => {
+    const lang = languageSelect.value || 'en';
+    const dict = typeof i18n !== 'undefined' ? (i18n[lang] || i18n['en']) : {};
+    if (!confirm(dict.clearConfirm || 'Are you sure you want to delete all collected emails?')) return;
+    if (currentPageUrl) {
+      xpiderSend('xpider-email-clear-current', { url: currentPageUrl });
+    }
+    pageEmailsArea.value = '';
+    pageCountLabel.textContent = '0';
   });
 
   // ── All Emails Buttons ────────────────────────────────────────
