@@ -32,7 +32,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-download-start',        // [v4.0] 다운로드 시작
       'xpider-download-progress',     // [v4.0] 다운로드 진행률
       'xpider-download-error',        // [v4.0] 다운로드 오류
-      'xpider-vpn-state'              // [VPN] VPN 연결 상태 이벤트
+      'xpider-vpn-state',              // [VPN] VPN 연결 상태 이벤트
+      'hot-update-progress'             // [HotUpdate] 업데이트 진행률 실시간 스트림
     ];
     if (allowed.includes(channel)) {
       ipcRenderer.on(channel, (_, ...args) => func(...args));
@@ -46,7 +47,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'admin-get-all-profiles', 'admin-set-active', 'admin-force-logout',
       'xpider-ext-get-script',
       'xpider-email-get-all', 'xpider-email-get-page', 'xpider-download-file',
-      'xpider-vpn-connect', 'xpider-vpn-disconnect', 'xpider-vpn-get-state'
+      'xpider-vpn-connect', 'xpider-vpn-disconnect', 'xpider-vpn-get-state',
+      'hot-update-start'                // [HotUpdate] 핫 업데이트 시작
     ];
     if (allowed.includes(channel)) {
       return ipcRenderer.invoke(channel, data);

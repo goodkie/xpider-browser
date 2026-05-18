@@ -776,18 +776,53 @@ async function simulateHardwareDrag(wv, dx, dy) {
     await new Promise(r => setTimeout(r, 500));
 }
 
+// ─── 핫 업데이트 진행률 패널 요소 ───────────────────────────
+const hotUpdatePanel = document.getElementById('hot-update-panel');
+const huMsg          = document.getElementById('hu-msg');
+const huBar          = document.getElementById('hu-bar');
+const huPct          = document.getElementById('hu-pct');
+const huCloseBtn     = document.getElementById('hu-close-btn');
+
+function showHotUpdatePanel(phase, pct, msg) {
+    if (!hotUpdatePanel) return;
+    hotUpdatePanel.classList.remove('hidden', 'hu-done', 'hu-error');
+    const titleEl = hotUpdatePanel.querySelector('.hu-title');
+    if (phase === 'done' || (phase === 'extract' && pct >= 100)) {
+        hotUpdatePanel.classList.add('hu-done');
+        if (titleEl) titleEl.textContent = '✅ 업데이트 완료';
+    } else if (phase === 'error') {
+        hotUpdatePanel.classList.add('hu-error');
+        if (titleEl) titleEl.textContent = '❌ 업데이트 실패';
+    } else {
+        if (titleEl) titleEl.textContent = '⚡ 업데이트 다운로드 중';
+    }
+    if (huMsg) huMsg.textContent = msg || '';
+    if (huBar) huBar.style.width = `${Math.max(0, Math.min(100, pct || 0))}%`;
+    if (huPct) huPct.textContent = `${Math.round(pct || 0)}%`;
+}
+
+if (huCloseBtn) {
+    huCloseBtn.onclick = () => { if (hotUpdatePanel) hotUpdatePanel.classList.add('hidden'); };
+}
+
+// 핫 업데이트 실시간 진행률 수신
+window.electronAPI.on('hot-update-progress', ({ phase, pct, msg }) => {
+    showHotUpdatePanel(phase, pct, msg);
+    if (phase === 'done' || phase === 'error') {
+        const btn = document.getElementById('modal-hot-update-btn');
+        if (btn) { btn.disabled = false; btn.textContent = '⚡ 지금 업데이트 (재시작 필요)'; }
+    }
+});
+
 // ─── Update Check Result Handler ──────────────────────────────────
 window.electronAPI.on('app-update-result', (result) => {
     if (!result) return;
-
     if (result.hasUpdate) {
-        // Check if user already skipped this version
         const skippedVersion = localStorage.getItem('xpider-skip-version');
         if (skippedVersion === result.latestVersion) {
             console.log('[Update] Skipped version:', result.latestVersion);
             return;
         }
-        // Show modal
         if (modalCurrentVer) modalCurrentVer.textContent = result.currentVersion || '';
         if (modalLatestVer)  modalLatestVer.textContent  = result.latestVersion  || '';
         if (modalNotes) {
@@ -797,23 +832,58 @@ window.electronAPI.on('app-update-result', (result) => {
         _releaseUrl = result.downloadUrl || result.releaseUrl || '';
         updateModal.classList.remove('hidden');
     } else {
-        // Already on latest version - show toast
-        showToast(`✅ You are on the latest version. (v${result.currentVersion})`);
+        showToast(`✅ 최신 버전입니다. (v${result.currentVersion})`);
     }
 });
 
 // ─── Update Modal Buttons ───────────────────────────────────────────
+
+// ① 릴리즈 페이지 열기
 modalUpdateBtn.onclick = () => {
     window.electronAPI.send('open-release-url', _releaseUrl);
     updateModal.classList.add('hidden');
 };
-// 'Later' saves the latest version as skipped (won't show on next launch)
+
+// ② 나중에 (스킵)
 modalSkipBtn.onclick = () => {
     const latestVer = modalLatestVer ? modalLatestVer.textContent : '';
     if (latestVer) localStorage.setItem('xpider-skip-version', latestVer);
     updateModal.classList.add('hidden');
 };
+
 updateModal.onclick = (e) => { if (e.target === updateModal) updateModal.classList.add('hidden'); };
+
+// ③ 핫 업데이트 — 백그라운드에서 다운로드 후 재시작
+const modalHotUpdateBtn = document.getElementById('modal-hot-update-btn');
+if (modalHotUpdateBtn) {
+    modalHotUpdateBtn.onclick = async () => {
+        if (!_releaseUrl) { showToast('❌ 다운로드 URL을 찾을 수 없습니다.'); return; }
+        updateModal.classList.add('hidden');
+        modalHotUpdateBtn.disabled = true;
+        modalHotUpdateBtn.textContent = '⏳ 업데이트 중...';
+        showHotUpdatePanel('download', 0, '⬇️ 다운로드 준비 중...');
+        const result = await window.electronAPI.invoke('hot-update-start', { downloadUrl: _releaseUrl, dryRun: false });
+        if (result && !result.ok) {
+            showToast(`❌ 업데이트 실패: ${result.error || '알 수 없는 오류'}`);
+            modalHotUpdateBtn.disabled = false;
+            modalHotUpdateBtn.textContent = '⚡ 지금 업데이트 (재시작 필요)';
+        }
+    };
+}
+
+// ④ 더미 테스트 — 실제 다운로드 없이 UI만 테스트
+const modalTestUpdateBtn = document.getElementById('modal-test-update-btn');
+if (modalTestUpdateBtn) {
+    modalTestUpdateBtn.onclick = async () => {
+        updateModal.classList.add('hidden');
+        showHotUpdatePanel('download', 0, '🧪 더미 테스트 시작...');
+        showToast('🧪 더미 업데이트 테스트 시작!', 2000);
+        const result = await window.electronAPI.invoke('hot-update-start', { downloadUrl: '', dryRun: true });
+        if (result && result.dryRun) {
+            showToast('✅ 더미 테스트 완료! 실제 업데이트 UI가 이렇게 동작합니다.', 4000);
+        }
+    };
+}
 
 // ─── Check for Updates 버튼 ───────────────────────────────────
 document.getElementById('check-update-btn').onclick = () => {
@@ -828,7 +898,6 @@ function showToast(msg, duration = 3000) {
     updateToast.classList.remove('hidden');
     clearTimeout(showToast._timer);
     showToast._timer = setTimeout(() => updateToast.classList.add('hidden'), duration);
-
 }
 
 // Listener for extension-triggered tab updates

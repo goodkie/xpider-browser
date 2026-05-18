@@ -361,16 +361,12 @@ ipcMain.handle('admin-force-logout', async (_, { userId }) =>
 );
 
 // ─── 업데이트 IPC ─────────────────────────────────────────────
-const { checkAppUpdate } = require('./updater');
+const { checkAppUpdate, performHotUpdate } = require('./updater');
 
 async function checkAndNotifyAppUpdate() {
   try {
     const result = await checkAppUpdate();
     if (mainWindow && !mainWindow.isDestroyed()) {
-      // 사용자가 이미 이 버전을 스킵했다면 팝업 안 띄움
-      if (result.hasUpdate) {
-        // renderer_ui.js에서 skipVersion 처리를 하므로 그냥 전송
-      }
       mainWindow.webContents.send('app-update-result', result);
     }
   } catch (e) {
@@ -382,9 +378,28 @@ ipcMain.on('check-for-updates', async () => {
   await checkAndNotifyAppUpdate();
 });
 
-// 업데이트 다운로드 링크를 브라우저로 열기
+// 외부 브라우저로 릴리즈 페이지 열기 (기존 동작)
 ipcMain.on('open-release-url', (_, url) => {
   if (url) shell.openExternal(url);
+});
+
+// ── 핫 업데이트: 브라우저를 닫지 않고 백그라운드 업데이트 ────
+ipcMain.handle('hot-update-start', async (_, { downloadUrl, dryRun }) => {
+  log.info(`[HotUpdate] Starting... dryRun=${dryRun}, url=${downloadUrl}`);
+
+  const result = await performHotUpdate(
+    downloadUrl || '',
+    (progressData) => {
+      // 실시간 진행률을 renderer로 전송
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('hot-update-progress', progressData);
+      }
+      log.info(`[HotUpdate] ${progressData.phase} ${progressData.pct}% — ${progressData.msg}`);
+    },
+    !!dryRun
+  );
+
+  return result;
 });
 
 // 익스텐션 재로드 IPC
