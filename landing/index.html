@@ -41,6 +41,127 @@
       --transition-base: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
+    /* ─── XPIDER 정밀 Preloader 스타일 (splash.html 완벽 동기화) ─── */
+    #xpider-preloader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      background: #03001e;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.8s;
+      overflow: hidden;
+    }
+
+    #xpider-preloader.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .preloader-wrap {
+      position: relative;
+      width: 260px;
+      height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preloader-ring {
+      position: absolute;
+      border-radius: 50%;
+      border-style: solid;
+      border-color: transparent;
+    }
+
+    .pr1 {
+      width: 250px; height: 250px;
+      border-width: 2.5px;
+      border-top-color: rgba(0,229,255,0.95);
+      border-right-color: rgba(0,229,255,0.15);
+      animation: preloader-cw 1.1s linear infinite;
+      filter: drop-shadow(0 0 7px rgba(0,229,255,0.7));
+    }
+
+    .pr2 {
+      width: 218px; height: 218px;
+      border-width: 2px;
+      border-bottom-color: rgba(123,97,255,0.9);
+      border-left-color: rgba(123,97,255,0.12);
+      animation: preloader-ccw 1.7s linear infinite;
+      filter: drop-shadow(0 0 5px rgba(123,97,255,0.6));
+    }
+
+    .pr3 {
+      width: 186px; height: 186px;
+      border-width: 1.5px;
+      border-top-color: rgba(0,229,255,0.4);
+      border-style: dashed;
+      animation: preloader-cw 3s linear infinite;
+    }
+
+    .pr4 {
+      width: 154px; height: 154px;
+      border-width: 1px;
+      border-bottom-color: rgba(123,97,255,0.3);
+      border-style: dashed;
+      animation: preloader-ccw 4s linear infinite;
+    }
+
+    .preloader-center {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .preloader-logo {
+      width: 78px;
+      height: 78px;
+      border-radius: 20px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 14px rgba(0,229,255,0.55));
+      animation: preloader-pulse 2.4s ease-in-out infinite;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px;
+    }
+
+    .preloader-name {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      color: #fff;
+      text-transform: uppercase;
+      text-shadow: 0 0 12px rgba(0,229,255,0.75);
+    }
+
+    .preloader-sub {
+      font-size: 8.5px;
+      letter-spacing: 2.5px;
+      color: rgba(255,255,255,0.38);
+      text-transform: uppercase;
+      animation: preloader-fade 2.4s ease-in-out infinite;
+    }
+
+    @keyframes preloader-cw   { to { transform: rotate(360deg);  } }
+    @keyframes preloader-ccw  { to { transform: rotate(-360deg); } }
+    @keyframes preloader-pulse {
+      0%,100% { transform:scale(1);    filter:drop-shadow(0 0 14px rgba(0,229,255,0.55)); }
+      50%      { transform:scale(1.05);filter:drop-shadow(0 0 22px rgba(0,229,255,0.85)); }
+    }
+    @keyframes preloader-fade {
+      0%,100% { opacity:0.38; }
+      50%      { opacity:0.75; }
+    }
+
     /* ─── 초기화 ─── */
     * {
       margin: 0;
@@ -234,7 +355,7 @@
       box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
     }
 
-    .badge-promo span {
+    .badge-promo > span:first-child {
       width: 6px;
       height: 6px;
       border-radius: 50%;
@@ -876,6 +997,199 @@
       padding: 100px 0;
     }
 
+    .download-btn-group {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 32px;
+      border-radius: 50px;
+      font-size: 14.5px;
+      font-weight: 700;
+      text-decoration: none;
+      color: #fff;
+      transition: var(--transition-base);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    }
+
+    .btn-download:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.45);
+    }
+
+    .btn-windows {
+      background: linear-gradient(135deg, #0078d4, #00bcf2);
+      box-shadow: 0 10px 25px rgba(0, 120, 212, 0.3);
+    }
+
+    .btn-windows:hover {
+      box-shadow: 0 15px 35px rgba(0, 120, 212, 0.45);
+      border-color: rgba(0, 188, 242, 0.4);
+    }
+
+    .btn-macos {
+      background: linear-gradient(135deg, #2b2b2b, #111111);
+      box-shadow: 0 10px 25px rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-macos:hover {
+      box-shadow: 0 15px 35px rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    /* ─── 실시간 카운터 및 스크롤 피드 애니메이션 스타일 ─── */
+    #live-scraped-counter {
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), text-shadow 0.2s, color 0.2s;
+    }
+    #live-scraped-counter.tick {
+      transform: scale(1.06);
+      color: #00f5ff;
+      text-shadow: 0 0 20px rgba(6, 182, 212, 0.95), 0 0 32px rgba(6, 182, 212, 0.65);
+    }
+
+    /* 실시간 스크롤 리스트 뷰포트 */
+    .mockup-list-container {
+      height: 200px;
+      overflow: hidden;
+      position: relative;
+      margin-top: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      /* 상하단 페이드 마스크 효과 */
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
+      mask-image: linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
+    }
+
+    .mockup-list-item {
+      transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      transform: translateY(0);
+      opacity: 1;
+      overflow: hidden;
+    }
+
+    .mockup-list-item.slide-in {
+      animation: feed-slide-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .mockup-list-item.slide-out {
+      animation: feed-slide-out 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes feed-slide-in {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-top: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+        max-height: 80px;
+      }
+    }
+
+    @keyframes feed-slide-out {
+      to {
+        transform: translateY(-20px);
+        opacity: 0;
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-top: 0;
+      }
+    }
+
+    /* ─── 문의폼 우회 시뮬레이터 애니메이션 스타일 ─── */
+    .success-checkmark-circle {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      display: block;
+      stroke-width: 3;
+      stroke: #00f5ff;
+      stroke-miterlimit: 10;
+      box-shadow: inset 0px 0px 0px #00f5ff, 0 0 20px rgba(6, 182, 212, 0.4);
+      animation: fill-checkmark .4s ease-in-out .4s forwards, scale-checkmark .3s ease-in-out .9s forwards;
+    }
+    
+    .success-checkmark-svg {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      display: block;
+      stroke-width: 3;
+      stroke: #00f5ff;
+      stroke-miterlimit: 10;
+    }
+
+    .success-checkmark-circle-path {
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      stroke-width: 3;
+      stroke-miterlimit: 10;
+      stroke: #00f5ff;
+      fill: none;
+      animation: stroke-checkmark .6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+
+    .success-checkmark-check {
+      transform-origin: 50% 50%;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      stroke: #0d0b18;
+      animation: stroke-checkmark .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards;
+    }
+
+    @keyframes stroke-checkmark {
+      100% {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    @keyframes fill-checkmark {
+      100% {
+        box-shadow: inset 0px 0px 0px 40px #00f5ff, 0 0 30px rgba(6, 182, 212, 0.8);
+      }
+    }
+
+    @keyframes scale-checkmark {
+      0%, 100% {
+        transform: none;
+      }
+      50% {
+        transform: scale3d(1.1, 1.1, 1);
+      }
+    }
+
+    .sim-log-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(10px);
+      animation: log-fade-in 0.35s ease forwards;
+    }
+
+    @keyframes log-fade-in {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
     .cta-card {
       border-radius: var(--radius-lg);
       background: linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(6, 182, 212, 0.05) 100%);
@@ -998,31 +1312,373 @@
       color: #fff;
     }
 
-    /* ─── 반응형 웹 디자인 ─── */
-    @media (max-width: 1024px) {
-      .hero-title { font-size: 52px; }
-      .feature-row { flex-direction: column !important; gap: 40px; }
-      .products-grid { grid-template-columns: repeat(2, 1fr); }
-      .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 24px; }
+    /* ─── 반응형 웹 디자인 ──    /* ─── GMaps Finder 팝업 모달 (좌우 분할 프리미엄 레이아웃) ─── */
+    .gmaps-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(3, 0, 30, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.4s;
     }
 
-    @media (max-width: 768px) {
-      .nav-menu { display: none; }
-      .hero-title { font-size: 40px; }
-      .hero-subtitle { font-size: 15px; }
-      .products-grid { grid-template-columns: 1fr; }
-      .stats-grid { grid-template-columns: 1fr; }
-      .footer-grid { grid-template-columns: 1fr; gap: 32px; }
-      .footer-brand { margin-bottom: 16px; }
-      .btn-header { display: none; }
-      .cta-title { font-size: 32px; }
-      .mockup-grid { grid-template-columns: 1fr; }
-      .mockup-sidebar { display: none; }
-      .browser-content { grid-template-columns: 1fr; }
+    .gmaps-modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .gmaps-modal-content {
+      background: linear-gradient(135deg, rgba(15, 12, 36, 0.95) 0%, rgba(11, 7, 40, 0.98) 100%);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: var(--radius-lg);
+      width: 92%;
+      max-width: 1000px;
+      height: 80vh;
+      max-height: 650px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(6, 182, 212, 0.2);
+      transform: translateY(40px) scale(0.95);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: row;
+    }
+
+    .gmaps-modal-overlay.active .gmaps-modal-content {
+      transform: translateY(0) scale(1);
+    }
+
+    /* 좌측 이미지 패널 */
+    .gmaps-modal-left {
+      flex: 1.1;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      background: #050212;
+      border-right: 1px solid rgba(6, 182, 212, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 초프리미엄 앰비언트 블러 배경 효과 */
+    .gmaps-modal-left::before {
+      content: '';
+      position: absolute;
+      top: -10%;
+      left: -10%;
+      width: 120%;
+      height: 120%;
+      background-size: cover;
+      background-position: center;
+      filter: blur(24px) brightness(0.35);
+      z-index: 1;
+    }
+    #gmapsModalLeft::before {
+      background-image: url('./GMaps.png');
+    }
+    #autoformModalLeft::before {
+      background-image: url('./AutoForm.JPG');
+    }
+    #sendforceModalLeft::before {
+      background-image: url('./SendForce.JPG');
+    }
+    #vpnModalLeft::before {
+      background-image: url('./VPN.JPG');
+    }
+    #emailModalLeft::before {
+      background-image: url('./EMAIL.png');
+    }
+    #bingmapsModalLeft::before {
+      background-image: url('./BingMaps.png');
+    }
+
+    .gmaps-modal-img {
+      position: relative;
+      z-index: 2;
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain; /* 이미지가 잘리지 않고 전체가 완벽하게 보이도록 설정 */
+      display: block;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(6, 182, 212, 0.1);
+      transition: transform 0.6s ease;
+    }
+
+    .gmaps-modal-img:hover {
+      transform: scale(1.03);
+    }
+
+    /* 우측 정보 패널 */
+    .gmaps-modal-right {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .gmaps-modal-header {
+      padding: 24px 32px 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .gmaps-modal-title-area {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .gmaps-modal-tag {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--color-cyan);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .gmaps-modal-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      margin: 0;
+    }
+
+    .gmaps-modal-close {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      cursor: pointer;
+      transition: var(--transition-base);
+    }
+
+    .gmaps-modal-close:hover {
+      background: rgba(225, 29, 72, 0.1);
+      border-color: rgba(225, 29, 72, 0.4);
+      color: #f43f5e;
+      transform: rotate(90deg);
+    }
+
+    .gmaps-modal-body {
+      padding: 24px 32px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .gmaps-modal-desc-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .gmaps-modal-desc-title {
+      font-size: 16.5px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gmaps-modal-desc-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 16px;
+      background: var(--color-cyan);
+      border-radius: 2px;
+    }
+
+    .gmaps-modal-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    .gmaps-modal-features {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .gmaps-modal-feature-item {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      transition: var(--transition-base);
+    }
+
+    .gmaps-modal-feature-item:hover {
+      background: rgba(6, 182, 212, 0.02);
+      border-color: rgba(6, 182, 212, 0.15);
+    }
+
+    .gmaps-modal-feature-icon {
+      font-size: 16px;
+      color: var(--color-cyan);
+    }
+
+    .gmaps-modal-feature-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .gmaps-modal-feature-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .gmaps-modal-feature-desc {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      line-height: 1.45;
+    }
+
+    .gmaps-modal-footer {
+      padding: 16px 32px 24px 32px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-modal-close {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition-base);
+    }
+
+    .btn-modal-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .btn-modal-download {
+      background: linear-gradient(135deg, var(--color-cyan) 0%, #0891b2 100%);
+      border: none;
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition-base);
+      box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-modal-download:hover {
+      background: linear-gradient(135deg, #22d3ee 0%, var(--color-cyan) 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+    }
+
+    /* ─── 모달 우측 패널 스크롤바 ─── */
+    .gmaps-modal-body::-webkit-scrollbar {
+      width: 6px;
+    }
+    .gmaps-modal-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .gmaps-modal-body::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    .gmaps-modal-body::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* 반응형 및 모바일 최적화 */
+    @media (max-width: 850px) {
+      .gmaps-modal-content {
+        flex-direction: column;
+        height: auto;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+      .gmaps-modal-left {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid rgba(6, 182, 212, 0.15);
+      }
+      .gmaps-modal-right {
+        width: 100%;
+        height: auto;
+        overflow: visible;
+      }
+      .gmaps-modal-body {
+        overflow-y: visible;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .gmaps-modal-header, .gmaps-modal-body, .gmaps-modal-footer {
+        padding: 20px;
+      }
+      .gmaps-modal-title {
+        font-size: 22px;
+      }
     }
   </style>
 </head>
 <body>
+
+  <!-- XPIDER 브라우저 정밀 동기화 Preloader -->
+  <div id="xpider-preloader">
+    <div class="preloader-wrap">
+      <div class="preloader-ring pr1"></div>
+      <div class="preloader-ring pr2"></div>
+      <div class="preloader-ring pr3"></div>
+      <div class="preloader-ring pr4"></div>
+      <div class="preloader-center">
+        <img class="preloader-logo" src="./logo.png" alt="X">
+        <span class="preloader-name">XPIDER</span>
+        <span class="preloader-sub">v4.9.16 정식 버전</span>
+      </div>
+    </div>
+  </div>
 
   <!-- 배경 광원 효과 오브 -->
   <div class="bg-glow-orb orb-1"></div>
@@ -1033,7 +1689,7 @@
   <header id="mainHeader">
     <div class="container nav-container">
       <a href="#" class="logo-area">
-        <div class="logo-icon">X</div>
+        <img class="logo-icon" src="./logo.png" alt="XPIDER" style="object-fit: contain; padding: 4px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);">
         <span class="logo-text">XPIDER</span>
       </a>
       
@@ -1053,14 +1709,24 @@
     <div class="container">
       <div class="badge-promo">
         <span></span> v4.9.16 정식 릴리즈 완료 (Windows 8.1+ 완벽 지원)
+        <span class="os-icons-wrapper" style="display: inline-flex; align-items: center; gap: 8px; margin-left: 10px; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 10px; vertical-align: middle;">
+          <!-- Windows Icon -->
+          <svg class="os-icon" viewBox="0 0 88 88" width="14" height="14" fill="var(--color-cyan)" style="transition: var(--transition-base); opacity: 0.95; filter: drop-shadow(0 0 4px var(--color-cyan-glow));">
+            <path d="M0 12.402l35.687-4.86.016 34.423-35.703.072zm35.687 33.72l.016 34.251-35.703-4.887V46.223zm4.269-39.117L88 1.25v40.758l-48.044.208zm48.044 43.684V86.75L39.956 80.203l-.016-33.911z"/>
+          </svg>
+          <!-- macOS (Apple) Icon -->
+          <svg class="os-icon" viewBox="0 0 170 170" width="14" height="14" fill="#ffffff" style="transition: var(--transition-base); opacity: 0.95; filter: drop-shadow(0 0 4px rgba(255,255,255,0.25));">
+            <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.37.13-9.13-1.9-14.28-6.08-3.35-2.62-7.22-7.31-11.62-14.07-8.49-13.14-14.35-28.21-17.58-45.2-3.23-16.99-2.27-31.57 2.9-43.74 5.17-12.18 12.6-18.42 22.28-18.73 4.25-.03 9.47 1.45 15.65 4.45 6.18 3 10.3 4.49 12.35 4.49 1.8 0 5.86-1.46 12.21-4.38 6.35-2.92 11.29-4.28 14.8-4.08 10.28.58 18.17 4.3 23.68 11.16-11.83 7.23-17.5 16.96-16.99 29.21.51 9.87 4.13 17.75 10.87 23.64 6.74 5.89 14.54 9.17 23.4 9.84-2.88 8.35-6.52 16.64-10.92 24.87zM119.5 30.65c0-6.75-2.45-12.92-7.35-18.52-5.32-6.08-11.88-9.48-19.68-10.2-1-.08-2.02-.13-3.07-.13-6.85 0-13.43 2.97-19.74 8.9-6.31 5.93-9.84 12.91-10.59 20.93-.15 1.5-.2 2.87-.13 4.1 0 1 .1 1.95.3 2.85 7.15.58 13.62-2.38 19.4-8.85 5.79-6.48 9.07-13.67 9.87-21.58.53-.1.97-.15 1.3-.15 4.58 0 8.7 1.7 12.35 5.1 3.65 3.4 5.73 7.7 6.25 12.9.15.6.23 1.25.25 1.95.23 0 .46.03.68.03 5.42 0 10.1-2.22 14.07-6.67 3.97-4.45 5.95-9.67 5.95-15.65z"/>
+          </svg>
+        </span>
       </div>
       
       <h1 class="hero-title">
-        작업은 <span>단순하게</span><br>결과는 <span>극대화로</span>
+        Large-Scale Business Leads<br><span>+ Instant Campaign Delivery</span>
       </h1>
       
       <p class="hero-subtitle">
-        구글맵 비즈니스 자동 수집기부터, Wix/React 스마트 폼 우회 발송기, 로컬 릴레이 방식 고밀도 VPN까지. 전 세계 마케터들이 극찬하는 올인원 마케팅 최적화 전용 브라우저, XPIDER를 만나보세요.
+        구글맵 비즈니스 자동 수집기부터,  스마트 콘텍트 폼 우회 발송기, 로컬 릴레이 방식 고밀도 VPN까지. 전 세계 마케터들이 극찬하는 6 in 1 세계 유일 마케팅 최적화 전용 브라우저, XPIDER를 만나보세요.
       </p>
 
       <div class="hero-ctas">
@@ -1082,48 +1748,19 @@
               🔒 https://xpider.app/dashboard
             </div>
           </div>
-          <div class="browser-content">
-            <div class="mockup-sidebar">
-              <div class="sidebar-logo">🕷️ XPIDER CORE v4.9.16</div>
-              <div class="sidebar-menu">
-                <div class="sidebar-item active">📊 대시보드</div>
-                <div class="sidebar-item">📍 GMaps 수집 엔진</div>
-                <div class="sidebar-item">✉️ AutoForm 발송기</div>
-                <div class="sidebar-item">🛡️ 프라이빗 VPN (연결됨)</div>
-                <div class="sidebar-item">📨 SendForce 대량메일</div>
-              </div>
-            </div>
-            <div class="mockup-main">
-              <div class="mockup-dashboard-header">
-                <span class="mockup-title">실시간 마케팅 데이터 파이프라인</span>
-                <span style="font-size:11px;color:var(--color-cyan);font-weight:700;">● Active</span>
-              </div>
-              <div class="mockup-grid">
-                <div class="mockup-card">
-                  <span class="mockup-card-title">일간 수집된 가망 고객 데이터 (Leads)</span>
-                  <span class="mockup-value">78,475 건</span>
-                  <div class="mockup-chart">
-                    <div class="chart-line"></div>
-                  </div>
-                </div>
-                <div class="mockup-card" style="justify-content: space-between;">
-                  <div>
-                    <span class="mockup-card-title">자동 폼 전송 성공률</span>
-                    <span class="mockup-value" style="color:var(--color-cyan);">99.9%</span>
-                  </div>
-                  <div class="mockup-list">
-                    <div class="mockup-list-item">
-                      <span>Wix Framework 우회</span>
-                      <span style="color:var(--color-cyan);">Success</span>
-                    </div>
-                    <div class="mockup-list-item">
-                      <span>React Fiber 동기화</span>
-                      <span style="color:var(--color-cyan);">Success</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div class="browser-content" style="display: block; background: #000; position: relative;">
+            <video id="heroVideo" autoplay loop muted playsinline preload="auto" style="width: 100%; height: 100%; object-fit: cover; display: block; border: 0;">
+              <source src="./Sequence6.webm" type="video/webm">
+              브라우저가 비디오 태그를 지원하지 않습니다.
+            </video>
+            <script>
+              (function() {
+                var v = document.getElementById('heroVideo');
+                if (v) {
+                  v.play().catch(function(e) { console.log('즉시 구동 시도:', e); });
+                }
+              })();
+            </script>
           </div>
         </div>
       </div>
@@ -1171,7 +1808,15 @@
         <div class="feature-visual">
           <div class="feature-card-glow" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, transparent 100%);">
             <div style="font-size: 11px; color: var(--color-cyan); font-weight:700;">📍 실시간 수집 스트리밍</div>
-            <div style="display:flex; flex-direction:column; gap:10px; margin-top:20px;">
+            
+            <!-- 실시간 총 수집 카운터 영역 (48px 거대 네온 스케일) -->
+            <div style="margin-top: 15px; margin-bottom: 5px;">
+              <div style="font-size: 10.5px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; font-weight: 700;">총 수집</div>
+              <div id="live-scraped-counter" style="font-size: 48px; font-weight: 900; font-family: 'Outfit', sans-serif; color: #fff; text-shadow: 0 0 12px rgba(6, 182, 212, 0.6); margin-top: 4px; line-height: 1.1;">693</div>
+            </div>
+            
+            <!-- 실시간 스크롤 리스트 피드 뷰포트 -->
+            <div class="mockup-list-container" id="live-feed-viewport">
               <div class="mockup-list-item" style="border-left-color: var(--color-purple);">
                 <span>(주)네오테크 - IT 솔루션 개발</span>
                 <span>02-1234-**** | info@neo***.com</span>
@@ -1180,7 +1825,7 @@
                 <span>선샤인 카페 - 프랜차이즈</span>
                 <span>010-9876-**** | contact@sun***.com</span>
               </div>
-              <div class="mockup-list-item">
+              <div class="mockup-list-item" style="border-left-color: var(--color-cyan);">
                 <span>글로벌 로지스틱스 - 물류운송</span>
                 <span>031-456-**** | support@glo***.com</span>
               </div>
@@ -1193,7 +1838,7 @@
       <div class="feature-row">
         <div class="feature-info">
           <div class="feature-tag">Next-Gen Ultimate Solutions</div>
-          <h2 class="feature-title">Wix & React 최신 프레임워크<br>인간형 문의폼 우회 발송기</h2>
+          <h2 class="feature-title">최신 프레임워크<br>인간형 문의폼 우회 발송기</h2>
           <p class="feature-desc">
             가상 마우스 움직임 시뮬레이션, React Fiber State 동기화, `execCommand('insertText')` 타이핑 기술을 결합하여 현대적인 웹사이트의 보안 방화벽과 자동화 감지(Bot Detection)를 완벽하게 우회합니다. Wix와 같은 최신 JS 프레임워크에서도 실패 없는 100% 폼 작성을 보장합니다.
           </p>
@@ -1210,13 +1855,43 @@
           </ul>
         </div>
         <div class="feature-visual">
-          <div class="feature-card-glow" style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, transparent 100%);">
-            <div style="font-size: 11px; color: var(--color-purple); font-weight:700;">🤖 우회 인공지능 시뮬레이션</div>
-            <div style="display:flex; justify-content:center; align-items:center; flex:1; font-size:13px; color: var(--text-muted);">
-              <div style="text-align:center;">
-                <div style="margin-bottom:12px; font-size:24px;">🖱️</div>
-                <div style="font-family:'Outfit', monospace; color:#fff; font-size:15px; margin-bottom:4px;">Natural Human Path</div>
-                <div>X: 421.2 → Y: 188.7 (Bezier Curves)</div>
+          <div class="feature-card-glow" style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, transparent 100%); display: flex; flex-direction: column; height: 350px; justify-content: flex-start; align-items: stretch; padding: 20px;">
+            <div style="font-size: 11px; color: var(--color-purple); font-weight:700; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+              <span>🤖 우회 인공지능 시뮬레이션</span>
+              <span id="bypass-sim-status" style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Idle</span>
+            </div>
+            
+            <div id="bypass-simulation-box" style="position: relative; flex: 1; overflow: hidden; border-radius: 8px; background: rgba(13, 11, 24, 0.65); border: 1px solid rgba(124, 58, 237, 0.2); padding: 15px; font-family: 'Outfit', sans-serif;">
+              <!-- 1. 콘솔 로그 화면 -->
+              <div id="sim-terminal" style="display: flex; flex-direction: column; gap: 8px; height: 100%; justify-content: flex-start; font-size: 12px; line-height: 1.5; color: var(--text-muted);"></div>
+
+              <!-- 2. 일반 입력 폼 화면 -->
+              <div id="sim-form-wrapper" style="display: none; flex-direction: column; gap: 10px; height: 100%; justify-content: center; opacity: 0; transition: opacity 0.4s ease;">
+                <div style="font-size: 13px; font-weight: 700; color: #fff; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 4px; margin-bottom: 2px;">📩 문의 제안 폼</div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <label style="font-size: 9px; color: var(--color-purple); font-weight: 700;">성명</label>
+                  <input type="text" id="sim-input-name" readonly style="background: rgba(255,255,255,0.03); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 4px; padding: 5px 8px; color: #fff; font-size: 11px; outline: none;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <label style="font-size: 9px; color: var(--color-purple); font-weight: 700;">이메일</label>
+                  <input type="text" id="sim-input-email" readonly style="background: rgba(255,255,255,0.03); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 4px; padding: 5px 8px; color: #fff; font-size: 11px; outline: none;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <label style="font-size: 9px; color: var(--color-purple); font-weight: 700;">메시지</label>
+                  <input type="text" id="sim-input-msg" readonly style="background: rgba(255,255,255,0.03); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 4px; padding: 5px 8px; color: #fff; font-size: 11px; outline: none;">
+                </div>
+              </div>
+
+              <!-- 3. 등록 성공 화면 -->
+              <div id="sim-success-wrapper" style="display: none; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; opacity: 0; transition: opacity 0.4s ease;">
+                <div class="success-checkmark-circle">
+                  <svg class="success-checkmark-svg" viewBox="0 0 52 52">
+                    <circle class="success-checkmark-circle-path" cx="26" cy="26" r="25" fill="none"/>
+                    <path class="success-checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                  </svg>
+                </div>
+                <div style="font-size: 24px; font-weight: 900; color: #00f5ff; text-shadow: 0 0 12px rgba(6, 182, 212, 0.7); margin-top: 12px; letter-spacing: 1px;">등록 성공</div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">현대적 자동화 감지(Bot Detection) 우회 통과</div>
               </div>
             </div>
           </div>
@@ -1231,20 +1906,20 @@
     <div class="container">
       <div class="stats-grid">
         <div class="stat-item">
-          <span class="stat-number">50,000+</span>
+          <span class="stat-number">1,500,000+</span>
           <span class="stat-label">일평균 데이터 추출</span>
         </div>
         <div class="stat-item">
-          <span class="stat-number">99.9%</span>
-          <span class="stat-label">스마트 폼 전송 성공률</span>
+          <span class="stat-number">800,000+</span>
+          <span class="stat-label">일평균 폼 전송 성공수</span>
         </div>
         <div class="stat-item">
-          <span class="stat-number">100%</span>
+          <span class="stat-number">3,000+</span>
           <span class="stat-label">안전한 로컬 릴레이 VPN</span>
         </div>
         <div class="stat-item">
-          <span class="stat-number">5,000+</span>
-          <span class="stat-label">액티브 디지털 마케터</span>
+          <span class="stat-number">12 개국</span>
+          <span class="stat-label">글로벌 해외 수집 가능 국가</span>
         </div>
       </div>
     </div>
@@ -1260,63 +1935,63 @@
     <div class="products-grid">
       
       <!-- Card 1 -->
-      <div class="product-card">
+      <div class="product-card" id="gmaps-finder-card" style="cursor: pointer;">
         <div>
           <div class="product-icon">📍</div>
           <h3 class="product-name">GMaps Finder</h3>
           <p class="product-desc">구글맵에서 정확한 비즈니스 소유주 정보, 홈페이지 링크, 전화번호를 단 몇 초만에 전수 추출합니다.</p>
         </div>
-        <a href="#" class="product-link">자세히 보기 →</a>
+        <a href="#" class="product-link" id="gmaps-finder-link">자세히 보기 →</a>
       </div>
 
       <!-- Card 2 -->
-      <div class="product-card">
+      <div class="product-card" id="autoform-sender-card" style="cursor: pointer;">
         <div>
           <div class="product-icon">⚡</div>
           <h3 class="product-name">AutoForm Sender</h3>
           <p class="product-desc">최신 웹 방어막을 우회하고 인간처럼 입력하여 문의폼 접수를 자동 완료하는 폼 마케터 전용 솔루션.</p>
         </div>
-        <a href="#" class="product-link">자세히 보기 →</a>
+        <a href="#" class="product-link" id="autoform-sender-link">자세히 보기 →</a>
       </div>
 
       <!-- Card 3 -->
-      <div class="product-card">
+      <div class="product-card" id="sendforce-mailer-card" style="cursor: pointer;">
         <div>
           <div class="product-icon">📨</div>
           <h3 class="product-name">SendForce Mailer</h3>
           <p class="product-desc">추출된 잠재 고객 이메일 리스트를 향해 고밀도 맞춤형 자동화 메일을 즉각 대량 발송합니다.</p>
         </div>
-        <a href="#" class="product-link">자세히 보기 →</a>
+        <a href="#" class="product-link" id="sendforce-mailer-link">자세히 보기 →</a>
       </div>
 
       <!-- Card 4 -->
-      <div class="product-card">
+      <div class="product-card" id="vpn-card" style="cursor: pointer;">
         <div>
           <div class="product-icon">🛡️</div>
           <h3 class="product-name">XPIDER Secure VPN</h3>
           <p class="product-desc">ERR_TUNNEL 문제를 완벽 우회하는 127.0.0.1 로컬 릴레이 가상 터널 방식의 안전 프록시 통신.</p>
         </div>
-        <a href="#" class="product-link">자세히 보기 →</a>
+        <a href="#" class="product-link" id="vpn-link">자세히 보기 →</a>
       </div>
 
       <!-- Card 5 -->
-      <div class="product-card">
+      <div class="product-card" id="email-extractor-card" style="cursor: pointer;">
         <div>
           <div class="product-icon">🔎</div>
           <h3 class="product-name">Email Extractor</h3>
           <p class="product-desc">브라우저 내 활성화된 탭에서 이메일 주소를 실시간으로 가로채어 유실 없는 고객 리스트를 추출합니다.</p>
         </div>
-        <a href="#" class="product-link">자세히 보기 →</a>
+        <a href="#" class="product-link" id="email-extractor-link">자세히 보기 →</a>
       </div>
 
       <!-- Card 6 -->
-      <div class="product-card">
+      <div class="product-card" id="bingmaps-card" style="cursor: pointer;">
         <div>
-          <div class="product-icon">⚙️</div>
-          <h3 class="product-name">Extension Layer</h3>
-          <p class="product-desc">크롬 웹스토어의 어떤 메이저 익스텐션과도 충돌 없이 통합 구동되는 초경량 호환 레이어 엔진.</p>
+          <div class="product-icon">📍</div>
+          <h3 class="product-name">Bing Maps Business Finder</h3>
+          <p class="product-desc">전 세계 빙맵(Bing Maps)에 등록된 최신 비즈니스 데이터를 정밀 타겟팅하여 대규모로 고속 추출합니다.</p>
         </div>
-        <a href="#" class="product-link">자세히 보기 →</a>
+        <a href="#" class="product-link" id="bingmaps-link">자세히 보기 →</a>
       </div>
 
     </div>
@@ -1334,11 +2009,11 @@
       <!-- FAQ 1 -->
       <div class="faq-item">
         <div class="faq-question">
-          <span>Q1. 타사 솔루션과 비교했을 때 XPIDER 브라우저만의 강점은 무엇인가요?</span>
+          <span>Q1. 유일한 마케팅 솔루션으로써 XPIDER 브라우저만의 강점은 무엇인가요?</span>
           <span class="faq-icon-arrow">▼</span>
         </div>
         <div class="faq-answer">
-          XPIDER는 일반적인 크로미움 브라우저 위에 독자적인 마케팅 특화 프로세스를 올렸습니다. 특히 Wix나 React와 같은 신형 프레임워크 폼 전송 시, 기계가 아닌 실제 마우스 드래그와 인간형 키보드 타이핑 모션(insertText)을 완벽하게 동기화하기 때문에 사이트의 봇 탐지 솔루션에 걸리지 않는 압도적인 성공률을 보여줍니다.
+          XPIDER는 단순한 익스텐션 모음이 아니라, 마케팅 특화 프로세스를 크로미움(Chromium) 엔진 자체에 통합한 전 세계 유일의 독립 브라우저 솔루션입니다. 특히 Wix나 React와 같은 신형 프레임워크 폼 전송 시, 기계가 아닌 실제 마우스 드래그와 인간형 키보드 타이핑 모션(insertText)을 완벽하게 동기화하기 때문에 사이트의 봇 탐지 솔루션에 걸리지 않는 압도적인 성공률을 보여줍니다.
         </div>
       </div>
 
@@ -1356,11 +2031,11 @@
       <!-- FAQ 3 -->
       <div class="faq-item">
         <div class="faq-question">
-          <span>Q3. VPN 연결 시 에러(`ERR_TUNNEL_CONNECTION_FAILED`)가 생기지 않나요?</span>
+          <span>Q3. 타사의 이메일 마케팅 자동화 플랫폼과 무엇이 다른가요?</span>
           <span class="faq-icon-arrow">▼</span>
         </div>
         <div class="faq-answer">
-          기존 Electron 프록시의 구조적 결함(407 인증 오류)을 완벽 우회하기 위해, v4.9.16 버전부터는 업계 최초로 **Node.js 로컬 릴레이 프록시 서버** 방식을 내장했습니다. 브라우저가 직접 프록시에 연결하지 않고 내부 로컬 서버(127.0.0.1)를 거쳐 안전하고 검증된 통신 터널을 생성하므로 에러가 전혀 발생하지 않습니다.
+          타사의 메일 자동화 플랫폼은 고정된 이메일 서버를 사용하여 쉽게 스팸으로 분류되거나, 타겟 리스트를 수동으로 업로드해야 하는 번거로움이 있습니다. 반면 XPIDER의 SendForce Mailer는 <b>추출기(GMaps Finder, Email Extractor)와 직접 연동</b>되어 실시간으로 수집된 리스트에 즉각 발송을 시작합니다. 또한 <b>지능형 SMTP 로테이션 시스템</b>과 개인화 매개변수 삽입 기능을 통해 스팸 필터링을 극강으로 억제하며 오픈율을 극대화합니다.
         </div>
       </div>
 
@@ -1381,11 +2056,26 @@
   <!-- 최하단 CTA 카드 -->
   <section class="container cta-section" id="download">
     <div class="cta-card">
-      <h2 class="cta-title">마케팅의 내일을<br>지금 XPIDER로 자동화하세요</h2>
+      <h2 class="cta-title">B2B 자동화의 새로운 패러다임,<br>지금 XPIDER로 더 큰 수익을 만드세요!</h2>
       <p class="cta-desc">
-        초기 세팅비 무료. 정식 버전 빌드 v4.9.16을 다운로드하여 비즈니스 데이터의 폭발적인 성장을 직접 경험해 보세요. Windows 8.1 / 10 / 11 모두 즉시 구동 가능합니다.
+        무료 XPIDER v4.9.16을 다운로드하여 AI 기반 자동화와 정교한 비즈니스 데이터 리드 수집, 기업의 성장과 수익화를 위한 차세대 B2B 비즈니스 엔진. 이제 Windows 10 / 11 , mac 모두 즉시 구동 가능합니다.
       </p>
-      <a href="https://github.com/goodkie/xpider-browser/releases" target="_blank" class="btn-primary">XPIDER 브라우저 설치하기 (v4.9.16)</a>
+      <div class="download-btn-group">
+        <!-- Windows Download Button -->
+        <a href="https://github.com/goodkie/xpider-browser/releases" target="_blank" class="btn-download btn-windows">
+          <svg class="btn-icon" viewBox="0 0 88 88" width="18" height="18" fill="currentColor" style="margin-right: 8px; vertical-align: middle;">
+            <path d="M0 12.402l35.687-4.86.016 34.423-35.703.072zm35.687 33.72l.016 34.251-35.703-4.887V46.223zm4.269-39.117L88 1.25v40.758l-48.044.208zm48.044 43.684V86.75L39.956 80.203l-.016-33.911z"/>
+          </svg>
+          Windows용 다운로드 (v4.9.16)
+        </a>
+        <!-- macOS Download Button -->
+        <a href="https://github.com/goodkie/xpider-browser/releases" target="_blank" class="btn-download btn-macos">
+          <svg class="btn-icon" viewBox="0 0 170 170" width="18" height="18" fill="currentColor" style="margin-right: 8px; vertical-align: middle;">
+            <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.37.13-9.13-1.9-14.28-6.08-3.35-2.62-7.22-7.31-11.62-14.07-8.49-13.14-14.35-28.21-17.58-45.2-3.23-16.99-2.27-31.57 2.9-43.74 5.17-12.18 12.6-18.42 22.28-18.73 4.25-.03 9.47 1.45 15.65 4.45 6.18 3 10.3 4.49 12.35 4.49 1.8 0 5.86-1.46 12.21-4.38 6.35-2.92 11.29-4.28 14.8-4.08 10.28.58 18.17 4.3 23.68 11.16-11.83 7.23-17.5 16.96-16.99 29.21.51 9.87 4.13 17.75 10.87 23.64 6.74 5.89 14.54 9.17 23.4 9.84-2.88 8.35-6.52 16.64-10.92 24.87zM119.5 30.65c0-6.75-2.45-12.92-7.35-18.52-5.32-6.08-11.88-9.48-19.68-10.2-1-.08-2.02-.13-3.07-.13-6.85 0-13.43 2.97-19.74 8.9-6.31 5.93-9.84 12.91-10.59 20.93-.15 1.5-.2 2.87-.13 4.1 0 1 .1 1.95.3 2.85 7.15.58 13.62-2.38 19.4-8.85 5.79-6.48 9.07-13.67 9.87-21.58.53-.1.97-.15 1.3-.15 4.58 0 8.7 1.7 12.35 5.1 3.65 3.4 5.73 7.7 6.25 12.9.15.6.23 1.25.25 1.95.23 0 .46.03.68.03 5.42 0 10.1-2.22 14.07-6.67 3.97-4.45 5.95-9.67 5.95-15.65z"/>
+          </svg>
+          macOS용 다운로드 (v4.9.16)
+        </a>
+      </div>
     </div>
   </section>
 
@@ -1394,11 +2084,11 @@
     <div class="container footer-grid">
       <div class="footer-brand">
         <a href="#" class="logo-area">
-          <div class="logo-icon">X</div>
+          <img class="logo-icon" src="./logo.png" alt="XPIDER" style="object-fit: contain; padding: 4px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);">
           <span class="logo-text">XPIDER</span>
         </a>
         <p class="footer-brand-desc">
-          비즈니스 데이터 스크래핑과 캠페인 발송의 최고 존엄 솔루션. 마케팅 자동화의 정점을 경험하세요.
+          B2B 데이터 스크래핑과 캠페인 발송의 최고 존엄 솔루션. 마케팅 자동화의 정점을 경험하세요.
         </p>
       </div>
 
@@ -1407,7 +2097,6 @@
         <ul class="footer-links">
           <li><a href="#features" class="footer-link">핵심 기능</a></li>
           <li><a href="#extensions" class="footer-link">6대 익스텐션</a></li>
-          <li><a href="https://github.com/goodkie/xpider-browser/releases" class="footer-link" target="_blank">릴리즈 노트</a></li>
         </ul>
       </div>
 
@@ -1424,7 +2113,6 @@
         <h4>Company</h4>
         <ul class="footer-links">
           <li><a href="#" class="footer-link">회사 소개</a></li>
-          <li><a href="https://github.com/goodkie/xpider-browser" class="footer-link" target="_blank">GitHub 소스</a></li>
           <li><a href="#" class="footer-link">제휴 문의</a></li>
         </ul>
       </div>
@@ -1465,6 +2153,960 @@
         }
       });
     });
+
+    // ─── Preloader 및 히어로 비디오 라이브 최종 구동 (DOMContentLoaded 고속 우회 설계) ───
+    document.addEventListener('DOMContentLoaded', () => {
+      const preloader = document.getElementById('xpider-preloader');
+      if (preloader) {
+        preloader.classList.add('fade-out');
+        setTimeout(() => {
+          preloader.style.display = 'none';
+        }, 800);
+      }
+      
+      const video = document.getElementById('heroVideo');
+      if (video) {
+        // 즉각 재생 개시
+        video.play().catch(err => {
+          console.log("자동재생 실패, 소거 후 재시도...", err);
+          video.muted = true;
+          video.play();
+        });
+      }
+
+      // ─── 실시간 693+ 무작위 증가 및 무한 스크롤 피드 동기화 스크립트 ───
+      (function() {
+        let count = 693;
+        const counterEl = document.getElementById('live-scraped-counter');
+        const viewportEl = document.getElementById('live-feed-viewport');
+        if (!counterEl || !viewportEl) return;
+
+        // 고품질 무한 가상 기업 데이터 풀
+        const companyPool = [
+          { name: "헤라 뷰티 클리닉 - 미용/에스테틱", info: "02-554-**** | beauty@hera***.com", color: "var(--color-purple)" },
+          { name: "미래 부동산 컨설팅 - 공인중개", info: "010-3321-**** | help@mirae***.com", color: "var(--color-primary)" },
+          { name: "한샘 푸드 시스템 - 식자재/유통", info: "042-822-**** | sales@hanssem***.com", color: "var(--color-cyan)" },
+          { name: "더 파크 펜션 - 관광/숙박", info: "033-644-**** | reserve@thepark***.com", color: "var(--color-primary)" },
+          { name: "에이펙스 마케팅 - 광고 대행", info: "02-998-**** | biz@apex***.com", color: "var(--color-purple)" },
+          { name: "오션 드라이브 - 렌터카/운송", info: "064-711-**** | car@oceandrive***.com", color: "var(--color-cyan)" },
+          { name: "바른 덴탈 클리닉 - 병의원", info: "02-2231-**** | dental@barun***.com", color: "var(--color-purple)" },
+          { name: "빛나는 영어 학원 - 초중고 교육", info: "010-4498-**** | class@shinyedu***.com", color: "var(--color-primary)" },
+          { name: "제이앤씨 디자인 - 인테리어/건축", info: "02-712-**** | design@jnc***.com", color: "var(--color-cyan)" },
+          { name: "유니온 법률사무소 - 전문서비스", info: "02-887-**** | contact@unionlaw***.com", color: "var(--color-purple)" },
+          { name: "스마트 피트니스 - 헬스/PT", info: "010-2342-**** | gym@smartfit***.com", color: "var(--color-primary)" },
+          { name: "그린 에코 하우스 - 친환경 자재", info: "031-778-**** | green@ecohouse***.com", color: "var(--color-cyan)" }
+        ];
+
+        let poolIndex = 0;
+
+        function updateCounterAndFeed() {
+          const increment = Math.floor(Math.random() * 5) + 1; // 1~5 무작위 증가
+          count += increment;
+          counterEl.innerText = count.toLocaleString();
+          
+          // 카운터 네온 틱 펄스 효과
+          counterEl.classList.add('tick');
+          setTimeout(() => {
+            counterEl.classList.remove('tick');
+          }, 200);
+
+          // 실시간 스크롤 리스트 피드 연동 (슬라이딩 오르내림)
+          const firstItem = viewportEl.querySelector('.mockup-list-item');
+          if (firstItem) {
+            firstItem.classList.add('slide-out');
+            setTimeout(() => {
+              firstItem.remove(); // 애니메이션 종료 후 DOM에서 영구 제거
+            }, 600);
+          }
+
+          const nextCompany = companyPool[poolIndex];
+          poolIndex = (poolIndex + 1) % companyPool.length;
+
+          const newItem = document.createElement('div');
+          newItem.className = 'mockup-list-item slide-in';
+          newItem.style.borderLeftColor = nextCompany.color || 'var(--color-cyan)';
+          
+          const nameSpan = document.createElement('span');
+          nameSpan.innerText = nextCompany.name;
+          const infoSpan = document.createElement('span');
+          infoSpan.innerText = nextCompany.info;
+          
+          newItem.appendChild(nameSpan);
+          newItem.appendChild(infoSpan);
+          viewportEl.appendChild(newItem);
+
+          // 1.2초 ~ 2.8초 사이 무작위 간격으로 증가
+          const nextTick = Math.floor(Math.random() * 1600) + 1200;
+          setTimeout(updateCounterAndFeed, nextTick);
+        }
+        
+        setTimeout(updateCounterAndFeed, 1200);
+      })();
+
+      // ─── 봇 우회 인공지능 시뮬레이터 구동 엔진 ───
+      (function() {
+        const terminal = document.getElementById('sim-terminal');
+        const formWrapper = document.getElementById('sim-form-wrapper');
+        const successWrapper = document.getElementById('sim-success-wrapper');
+        const statusEl = document.getElementById('bypass-sim-status');
+        
+        const inputName = document.getElementById('sim-input-name');
+        const inputEmail = document.getElementById('sim-input-email');
+        const inputMsg = document.getElementById('sim-input-msg');
+
+        if (!terminal || !formWrapper || !successWrapper) return;
+
+        const logs = [
+          { text: "비즈니스 웹사이트 추출 완료", color: "var(--text-muted)" },
+          { text: "콘택트 메시지 폼 발견", color: "var(--color-primary)" },
+          { text: "캡차 시큐리티(CAPTCHA) 발견", color: "#e11d48" },
+          { text: "캡차 자동 우회 완료", color: "#00f5ff" },
+          { text: "폼 자동 입력 시작...", color: "var(--color-purple)" }
+        ];
+
+        function delay(ms) {
+          return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function typeText(element, text, speed = 80) {
+          element.value = "";
+          for (let i = 0; i < text.length; i++) {
+            element.value += text[i];
+            await delay(speed);
+          }
+        }
+
+        async function startSimulation() {
+          // 1. 초기화
+          statusEl.innerText = "Analyzing";
+          statusEl.style.color = "var(--color-primary)";
+          terminal.innerHTML = "";
+          terminal.style.display = "flex";
+          formWrapper.style.display = "none";
+          formWrapper.style.opacity = "0";
+          successWrapper.style.display = "none";
+          successWrapper.style.opacity = "0";
+
+          inputName.value = "";
+          inputEmail.value = "";
+          inputMsg.value = "";
+
+          await delay(800);
+
+          // 2. 로그 출력
+          for (let i = 0; i < logs.length; i++) {
+            const log = logs[i];
+            const logEl = document.createElement('div');
+            logEl.className = 'sim-log-row';
+            
+            const dot = document.createElement('span');
+            dot.innerHTML = i === 2 ? "⚠️" : "✓";
+            dot.style.color = i === 2 ? "#e11d48" : (i === 3 ? "#00f5ff" : "var(--color-purple)");
+            
+            const txt = document.createElement('span');
+            txt.innerText = log.text;
+            txt.style.color = log.color;
+
+            logEl.appendChild(dot);
+            logEl.appendChild(txt);
+            terminal.appendChild(logEl);
+            await delay(900);
+          }
+
+          await delay(1000);
+
+          // 3. 폼 페이드인
+          statusEl.innerText = "Filling Form";
+          statusEl.style.color = "var(--color-purple)";
+          terminal.style.display = "none";
+          formWrapper.style.display = "flex";
+          await delay(50);
+          formWrapper.style.opacity = "1";
+
+          await delay(500);
+
+          // 4. 타이핑
+          await typeText(inputName, "홍길동", 100);
+          await delay(400);
+          await typeText(inputEmail, "honggildong@gmail.com", 60);
+          await delay(400);
+          await typeText(inputMsg, "XPIDER를 통한 자동 제안 메시지입니다.", 50);
+
+          await delay(1000);
+
+          // 5. 제출 및 성공 splash
+          statusEl.innerText = "Success";
+          statusEl.style.color = "#00f5ff";
+          formWrapper.style.opacity = "0";
+          await delay(400);
+          formWrapper.style.display = "none";
+
+          successWrapper.style.display = "flex";
+          await delay(50);
+          successWrapper.style.opacity = "1";
+
+          // 6. 4.5초 대기 후 무한 루프 재시작
+          await delay(4500);
+          startSimulation();
+        }
+
+        // 최초 기동
+        setTimeout(startSimulation, 2000);
+      })();
+
+      // ─── GMaps Finder 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('gmaps-finder-card');
+        const link = document.getElementById('gmaps-finder-link');
+        const overlay = document.getElementById('gmapsModalOverlay');
+        const closeBtn = document.getElementById('gmapsModalCloseBtn');
+        const closeFooterBtn = document.getElementById('gmapsModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('gmapsModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden'; // 스크롤 방지
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = ''; // 스크롤 복원
+        }
+
+        // 카드 및 링크 클릭 이벤트 바인딩
+        card.addEventListener('click', openModal);
+        if (link) {
+          link.addEventListener('click', openModal);
+        }
+
+        // 닫기 버튼들 이벤트 바인딩
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        // 오버레이 외곽 클릭 시 닫기
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) {
+            closeModal();
+          }
+        });
+
+        // 다운로드 버튼 클릭 시 이동
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) {
+                downloadSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }, 300); // 모달이 닫히는 애니메이션 시간 동안 대기
+          });
+        }
+      })();
+
+      // ─── AutoForm Sender 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('autoform-sender-card');
+        const link = document.getElementById('autoform-sender-link');
+        const overlay = document.getElementById('autoformModalOverlay');
+        const closeBtn = document.getElementById('autoformModalCloseBtn');
+        const closeFooterBtn = document.getElementById('autoformModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('autoformModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+
+        card.addEventListener('click', openModal);
+        if (link) link.addEventListener('click', openModal);
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeModal();
+        });
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) downloadSection.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          });
+        }
+      })();
+
+      // ─── SendForce Mailer 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('sendforce-mailer-card');
+        const link = document.getElementById('sendforce-mailer-link');
+        const overlay = document.getElementById('sendforceModalOverlay');
+        const closeBtn = document.getElementById('sendforceModalCloseBtn');
+        const closeFooterBtn = document.getElementById('sendforceModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('sendforceModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+
+        card.addEventListener('click', openModal);
+        if (link) link.addEventListener('click', openModal);
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeModal();
+        });
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) downloadSection.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          });
+        }
+      })();
+
+      // ─── XPIDER Secure VPN 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('vpn-card');
+        const link = document.getElementById('vpn-link');
+        const overlay = document.getElementById('vpnModalOverlay');
+        const closeBtn = document.getElementById('vpnModalCloseBtn');
+        const closeFooterBtn = document.getElementById('vpnModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('vpnModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+
+        card.addEventListener('click', openModal);
+        if (link) link.addEventListener('click', openModal);
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeModal();
+        });
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) downloadSection.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          });
+        }
+      })();
+
+      // ─── Email Extractor 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('email-extractor-card');
+        const link = document.getElementById('email-extractor-link');
+        const overlay = document.getElementById('emailModalOverlay');
+        const closeBtn = document.getElementById('emailModalCloseBtn');
+        const closeFooterBtn = document.getElementById('emailModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('emailModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+
+        card.addEventListener('click', openModal);
+        if (link) link.addEventListener('click', openModal);
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeModal();
+        });
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) downloadSection.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          });
+        }
+      })();
+
+      // ─── Bing Maps Business Finder 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('bingmaps-card');
+        const link = document.getElementById('bingmaps-link');
+        const overlay = document.getElementById('bingmapsModalOverlay');
+        const closeBtn = document.getElementById('bingmapsModalCloseBtn');
+        const closeFooterBtn = document.getElementById('bingmapsModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('bingmapsModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+
+        card.addEventListener('click', openModal);
+        if (link) link.addEventListener('click', openModal);
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeModal();
+        });
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) downloadSection.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          });
+        }
+      })();
+    });
   </script>
+
+  <!-- GMaps Finder 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="gmapsModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="gmapsModalLeft">
+        <img class="gmaps-modal-img" src="./GMaps.png" alt="GMaps Finder 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">📍 Premium Extension</span>
+            <h3 class="gmaps-modal-title">GMaps Finder</h3>
+          </div>
+          <button class="gmaps-modal-close" id="gmapsModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">구글맵 기반 초고속 가망고객 정보 전수 추출기</h4>
+            <p class="gmaps-modal-desc">
+              GMaps Finder는 전 세계 구글맵(Google Maps) 및 포털 플랫폼에 등록된 비즈니스 정보를 단 몇 초 만에 전수 추출하는 혁신적인 자동 스크래핑 익스텐션입니다. 타겟 업종과 검색 영역(마일 단위 정밀 설정)을 입력하는 즉시, 사업체의 실시간 전화번호, 정확한 비즈니스 소유주 정보, 홈페이지 링크, 활성화된 이메일 주소까지 누수 없이 수집하여 고품질 마케팅 DB를 즉각 구축합니다.
+            </p>
+          </div>
+          
+          <!-- 핵심 기능 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">⚡</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">초고속 병렬 추출 기술</span>
+                <span class="gmaps-modal-feature-desc">여러 탭을 동시에 다중 스캔하여 몇 분 만에 수천 개의 고가치 리드를 수집합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🔍</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">숨겨진 홈페이지 정보 발굴</span>
+                <span class="gmaps-modal-feature-desc">사이트 도메인 내부를 실시간으로 탐색해 SNS 프로필 및 유효 메일 주소를 가로챕니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🛡️</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">스마트 우회 & CAPTCHA 대응</span>
+                <span class="gmaps-modal-feature-desc">차단 감지 시 즉각 스캔을 임시 중단하고 유저의 검증 처리가 끝나면 일제히 동시 재개합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">📊</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">원클릭 정제 및 엑셀 다운로드</span>
+                <span class="gmaps-modal-feature-desc">중복된 연락처나 무효 도메인을 필터링하여 완벽한 CSV/Excel 파일로 내보냅니다.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="gmapsModalCloseFooterBtn">닫기</button>
+          <button class="btn-modal-download" id="gmapsModalDownloadBtn">
+            <span>무료 다운로드 받기</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- AutoForm Sender 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="autoformModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="autoformModalLeft">
+        <img class="gmaps-modal-img" src="./AutoForm.JPG" alt="AutoForm Sender 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">🚀 Premium Extension</span>
+            <h3 class="gmaps-modal-title">AutoForm Sender</h3>
+          </div>
+          <button class="gmaps-modal-close" id="autoformModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">최신 프레임워크 인간형 문의폼 우회 발송기</h4>
+            <p class="gmaps-modal-desc">
+              가상 마우스 움직임 시뮬레이션, React Fiber State 동기화, `execCommand('insertText')` 타이핑 기술을 결합하여 현대적인 웹사이트의 보안 방화벽과 자동화 감지(Bot Detection)를 완벽하게 우회합니다. Wix와 같은 최신 JS 프레임워크에서도 실패 없는 100% 폼 작성을 보장합니다.
+            </p>
+          </div>
+          
+          <!-- 핵심 기능 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">⌨️</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">인간형 타이핑 및 마우스 시뮬레이션</span>
+                <span class="gmaps-modal-feature-desc">기계적인 입력을 배제하고 자연스러운 타이핑 속도 및 마우스 궤적을 완벽 모사합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🎯</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">스마트 동적 iframe 폼 필드 감지</span>
+                <span class="gmaps-modal-feature-desc">숨겨진 dynamic iframe 및 중첩된 TPA 폼 필드까지 지능적으로 자동 감지합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🛡️</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">스마트 CAPTCHA 우회 프로세스</span>
+                <span class="gmaps-modal-feature-desc">구글 리캡차(CAPTCHA) 등 각종 방어막을 자동 감지하고 유저 검증 시 실시간으로 대응합니다.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="autoformModalCloseFooterBtn">닫기</button>
+          <button class="btn-modal-download" id="autoformModalDownloadBtn">
+            <span>무료 다운로드 받기</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- SendForce Mailer 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="sendforceModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="sendforceModalLeft">
+        <img class="gmaps-modal-img" src="./SendForce.JPG" alt="SendForce Mailer 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">📧 Premium Extension</span>
+            <h3 class="gmaps-modal-title">SendForce Mailer</h3>
+          </div>
+          <button class="gmaps-modal-close" id="sendforceModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">추출된 잠재 고객을 위한 고밀도 맞춤형 이메일 자동 발송기</h4>
+            <p class="gmaps-modal-desc">
+              SendForce Mailer는 추출된 대규모 잠재 고객 이메일 리스트를 향해 고밀도 맞춤형(Personalized) 자동화 메일을 즉각적으로 대량 발송합니다. 강력한 SMTP 로테이션 시스템을 적용해 스팸 필터링을 최소화하고, 수신율과 오픈율을 극대화하여 마케팅 ROI의 비약적 향상을 보장합니다.
+            </p>
+          </div>
+          
+          <!-- 핵심 기능 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🚀</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">초고속 대량 메일 발송</span>
+                <span class="gmaps-modal-feature-desc">클라우드 기반 병렬 스레드를 통해 수만 건의 이메일을 지연 없이 즉각적으로 전송합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">✨</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">개인화 매개변수 적용</span>
+                <span class="gmaps-modal-feature-desc">수신자의 이름, 상호명 등 커스텀 변수를 자동으로 삽입하여 1:1 맞춤 메일인 것처럼 구성합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🔀</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">지능형 SMTP 로테이션</span>
+                <span class="gmaps-modal-feature-desc">여러 SMTP 서버를 동적으로 교체하며 발송하여 서버의 스팸 패널티를 사전에 회피합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">📈</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">실시간 성과 트래킹</span>
+                <span class="gmaps-modal-feature-desc">이메일 오픈율, 클릭률, 반송률 등 캠페인의 성과 지표를 실시간 대시보드로 제공합니다.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="sendforceModalCloseFooterBtn">닫기</button>
+          <button class="btn-modal-download" id="sendforceModalDownloadBtn">
+            <span>무료 다운로드 받기</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- XPIDER Secure VPN 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="vpnModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="vpnModalLeft">
+        <img class="gmaps-modal-img" src="./VPN.JPG" alt="XPIDER Secure VPN 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">🛡️ Premium Extension</span>
+            <h3 class="gmaps-modal-title">XPIDER Secure VPN</h3>
+          </div>
+          <button class="gmaps-modal-close" id="vpnModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">ERR_TUNNEL 문제를 완벽 우회하는 안전 프록시 통신</h4>
+            <p class="gmaps-modal-desc">
+              XPIDER Secure VPN은 기존 크로미움 브라우저에서 빈번하게 발생하는 프록시 인증 충돌(ERR_TUNNEL_CONNECTION_FAILED) 문제를 근본적으로 해결하기 위해 개발된 127.0.0.1 로컬 릴레이 가상 터널 방식의 차세대 VPN 익스텐션입니다. 
+            </p>
+          </div>
+          
+          <!-- 핵심 기능 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🌐</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">로컬 릴레이 통신 기술</span>
+                <span class="gmaps-modal-feature-desc">외부 프록시로 직접 연결하지 않고 로컬호스트(127.0.0.1)를 경유하여 브라우저 엔진의 인증 충돌을 방지합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🌍</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">글로벌 다국적 서버 지원</span>
+                <span class="gmaps-modal-feature-desc">12개국 이상의 초고속 글로벌 프록시 서버망을 지원하여 타겟 국가의 로컬 비즈니스 정보를 안전하게 수집할 수 있습니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">⚡</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">초저지연 데이터 터널링</span>
+                <span class="gmaps-modal-feature-desc">마케팅 데이터 수집과 폼 발송에 최적화된 저지연 통신망을 제공하여 추출 속도 저하를 막습니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🔒</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">IP 핑거프린트 추적 방어</span>
+                <span class="gmaps-modal-feature-desc">발송자의 실제 IP와 식별값을 완벽하게 마스킹하여 보안 시스템의 계정 차단을 회피합니다.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="vpnModalCloseFooterBtn">닫기</button>
+          <button class="btn-modal-download" id="vpnModalDownloadBtn">
+            <span>무료 다운로드 받기</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Extractor 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="emailModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="emailModalLeft">
+        <img class="gmaps-modal-img" src="./EMAIL.png" alt="Email Extractor 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">🔎 Premium Extension</span>
+            <h3 class="gmaps-modal-title">Email Extractor</h3>
+          </div>
+          <button class="gmaps-modal-close" id="emailModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">실시간 이메일 하베스팅 및 유실 없는 고객 리스트 추출기</h4>
+            <p class="gmaps-modal-desc">
+              Email Extractor는 브라우저 내에 활성화된 모든 탭의 DOM과 네트워크 통신을 실시간으로 감시하여, 화면에 노출되거나 소스 코드 내에 은닉된 이메일 주소를 1초 만에 가로채는 지능형 리드 수집 솔루션입니다.
+            </p>
+          </div>
+          
+          <!-- 핵심 기능 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">⚡</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">실시간 라이브 추출</span>
+                <span class="gmaps-modal-feature-desc">웹 페이지를 탐색하는 즉시, 렌더링된 화면과 소스 코드에서 이메일 패턴을 감지하여 실시간으로 수집합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🛡️</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">강력한 난독화 해제 기능</span>
+                <span class="gmaps-modal-feature-desc">JS나 CSS로 교묘하게 숨겨진 이메일 주소(난독화 처리)를 자체 엔진으로 해독하여 온전한 형태로 가로챕니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">📂</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">다중 탭 동시 모니터링</span>
+                <span class="gmaps-modal-feature-desc">브라우저에 열려 있는 수십 개의 탭을 병렬로 스캔하여 백그라운드에서도 유실 없이 고객 리스트를 적재합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">📊</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">원클릭 엑셀 정제</span>
+                <span class="gmaps-modal-feature-desc">수집된 방대한 이메일 리스트에서 중복값을 자동으로 필터링하고 CSV/Excel 포맷으로 원클릭 내보내기를 지원합니다.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="emailModalCloseFooterBtn">닫기</button>
+          <button class="btn-modal-download" id="emailModalDownloadBtn">
+            <span>무료 다운로드 받기</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- Bing Maps Business Finder 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="bingmapsModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="bingmapsModalLeft">
+        <img class="gmaps-modal-img" src="./BingMaps.png" alt="Bing Maps Business Finder 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">📍 Premium Extension</span>
+            <h3 class="gmaps-modal-title">Bing Maps Business Finder</h3>
+          </div>
+          <button class="gmaps-modal-close" id="bingmapsModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">마이크로소프트 빙맵 기반의 고가치 비즈니스 데이터 추출기</h4>
+            <p class="gmaps-modal-desc">
+              Bing Maps Business Finder는 구글맵에 등록되지 않은 최신 로컬 비즈니스 데이터를 마이크로소프트 빙맵(Bing Maps)에서 정밀하게 타겟팅하여 수집하는 강력한 솔루션입니다. 틈새시장(Niche Market)과 특정 지역의 숨겨진 유효 리드를 대규모로 고속 추출합니다.
+            </p>
+          </div>
+          
+          <!-- 핵심 기능 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🎯</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">마이크로소프트 생태계 데이터 수집</span>
+                <span class="gmaps-modal-feature-desc">구글맵에서 누락된 로컬 사업체의 주소, 웹사이트, 전화번호 등을 MS 생태계 데이터베이스에서 발굴합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">⚡</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">다중 병렬 스크래핑 엔진</span>
+                <span class="gmaps-modal-feature-desc">독자적인 병렬 처리 아키텍처로 방대한 지역의 비즈니스 정보를 끊김 없이 실시간으로 추출합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🛡️</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">네트워크 요청 지능형 분산</span>
+                <span class="gmaps-modal-feature-desc">단일 IP에 쏠리는 부하를 분산하고 인간의 탐색 패턴을 시뮬레이션하여 맵 플랫폼의 밴(Ban)을 회피합니다.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">📊</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">비즈니스 리드 즉시 활용</span>
+                <span class="gmaps-modal-feature-desc">추출 완료 즉시 이메일 자동 발송기(SendForce)와 연동 가능한 고품질 스프레드시트 포맷으로 반환합니다.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="bingmapsModalCloseFooterBtn">닫기</button>
+          <button class="btn-modal-download" id="bingmapsModalDownloadBtn">
+            <span>무료 다운로드 받기</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
 </body>
 </html>

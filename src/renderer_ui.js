@@ -1453,6 +1453,7 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     });
     wv.addEventListener('did-stop-loading', () => {
         document.getElementById(`tab-ui-${tabId}`).classList.remove('loading');
+        if (activeTabId === tabId) reloadBtn.textContent = '↻';
         const currentUrl = wv.getURL();
         const currentTitle = wv.getTitle() || currentUrl;
         const realId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999;
@@ -1588,6 +1589,13 @@ function switchTab(tabId) {
                 document.title = (t.title || 'XPIDER Browser') + (t.title ? ' - XPIDER Browser' : '');
                 wv.focus();
                 
+                // 해당 웹뷰의 현재 로딩 상태에 따라 새로고침 버튼 텍스트 복구
+                if (typeof wv.isLoading === 'function' && wv.isLoading()) {
+                    reloadBtn.textContent = '✕';
+                } else {
+                    reloadBtn.textContent = '↻';
+                }
+                
                 const realId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999;
                 const tabInfo = { id: realId, url: wv.getURL(), title: wv.getTitle() || wv.getURL(), windowId: 1, active: true };
                 window.lastActiveTabInfo = tabInfo;
@@ -1677,7 +1685,16 @@ function navigate() {
 addressBar.addEventListener('keypress', (e) => { if (e.key === 'Enter') navigate(); });
 backBtn.addEventListener('click',    () => { const wv = getActiveWebview(); if (wv && wv.canGoBack())    wv.goBack();    });
 forwardBtn.addEventListener('click', () => { const wv = getActiveWebview(); if (wv && wv.canGoForward()) wv.goForward(); });
-reloadBtn.addEventListener('click',  () => { const wv = getActiveWebview(); if (wv) wv.reload(); });
+reloadBtn.addEventListener('click', () => {
+    const wv = getActiveWebview();
+    if (!wv) return;
+    if (typeof wv.isLoading === 'function' && wv.isLoading()) {
+        wv.stop();
+        reloadBtn.textContent = '↻';
+    } else {
+        wv.reload();
+    }
+});
 
 // ─── Background Webviews for Extension Compatibility ───────────
 const backgroundWebviews = new Map();
