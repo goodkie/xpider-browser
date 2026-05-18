@@ -24,7 +24,7 @@ html {
 
 body {
   width: 360px;
-  height: 500px;
+  height: 560px;
   font-family: 'Inter', -apple-system, sans-serif;
   color: var(--text-main);
   background: var(--bg-color);
@@ -289,7 +289,7 @@ body {
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   padding: 2px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   position: relative;
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
@@ -323,9 +323,15 @@ textarea::-webkit-scrollbar-thumb {
 
 /* Actions */
 .action-buttons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 8px;
+}
+
+/* Clear 버튼은 마지막 행 전체 폭 차지 */
+.action-buttons .btn-danger {
+  grid-column: 1 / -1;
 }
 
 .btn {
