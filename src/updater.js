@@ -247,17 +247,17 @@ function compareVersions(a, b) {
   return 0;
 }
 
-// ─── 핫 업데이트: ZIP 다운로드 → 압축 해제 → 재시작 ─────────
+// ─── 핫 업데이트: 다운로드 → 설치 or 압축해제 → 재시작 ────────
 /**
- * 브라우저를 닫지 않고 새 버전을 백그라운드에서 다운로드 및 교체합니다.
+ * 브라우저를 닫지 않고 새 버전을 백그라운드에서 다운로드 및 설치합니다.
  *
  * 동작 순서:
- *  1. GitHub Releases에서 최신 ZIP 다운로드 (onProgress 콜백으로 진행률 전달)
- *  2. 임시 폴더에 압축 해제
- *  3. app.relaunch() + app.quit() 으로 최신 버전으로 재시작
+ *  1. GitHub Releases에서 최신 파일 다운로드 (EXE or ZIP)
+ *  2a. EXE 파일: spawn으로 직접 실행 → 설치 완료 후 앱 종료
+ *  2b. ZIP 파일: 임시 폴더 압축 해제 → app.relaunch() + app.quit()
  *
- * @param {string}   downloadUrl  ZIP 다운로드 URL
- * @param {Function} onProgress   (phase, pct, msg) => void
+ * @param {string}   downloadUrl  다운로드 URL
+ * @param {Function} onProgress   (progress) => void
  * @param {boolean}  dryRun       true면 실제 다운로드 없이 더미 테스트만 진행
  */
 async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
@@ -273,53 +273,87 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
       await _sleep(300);
       progress('download', i, `🧪 [테스트] 다운로드 중... ${i}%`);
     }
-    progress('extract', 0,  '📦 [테스트] 압축 해제 중...');
+    progress('extract', 0,  '📦 [테스트] 설치 준비 중...');
     await _sleep(800);
     progress('extract', 100, '✅ [테스트 완료] 실제 업데이트가 아닙니다. 재시작 없이 종료합니다.');
     return { ok: true, dryRun: true };
   }
 
-  // ── 실제 업데이트 ─────────────────────────────────────────
-  const os   = require('os');
-  const AdmZip = (() => { try { return require('adm-zip'); } catch(e) { return null; } })();
-
-  if (!AdmZip) {
-    progress('error', 0, '❌ adm-zip 모듈을 찾을 수 없습니다. npm install 후 재시도하세요.');
-    return { ok: false, error: 'adm-zip not found' };
+  // URL 유효성 검사
+  if (!downloadUrl || (!downloadUrl.startsWith('http://') && !downloadUrl.startsWith('https://'))) {
+    progress('error', 0, '❌ 유효한 다운로드 URL이 없습니다. 릴리즈 페이지에서 수동으로 설치해주세요.');
+    return { ok: false, error: 'invalid_url' };
   }
 
+  // ── 실제 업데이트 ─────────────────────────────────────────
+  const os      = require('os');
+  const { spawn } = require('child_process');
+
+  const isExe = downloadUrl.toLowerCase().includes('.exe') ||
+                downloadUrl.toLowerCase().includes('setup') ||
+                downloadUrl.toLowerCase().includes('install');
+  const ext     = isExe ? '.exe' : '.zip';
   const tmpDir  = path.join(os.tmpdir(), `xpider-update-${Date.now()}`);
-  const zipPath = path.join(tmpDir, 'update.zip');
+  const filePath = path.join(tmpDir, `update${ext}`);
 
   try {
     fs.mkdirSync(tmpDir, { recursive: true });
 
     // ── 1단계: 다운로드 ────────────────────────────────────
-    progress('download', 0, '⬇️ 새 버전 다운로드 중...');
-    await downloadFileWithProgress(downloadUrl, zipPath, (pct) => {
+    progress('download', 0, `⬇️ 새 버전 다운로드 중... (${isExe ? '설치 파일' : 'ZIP'})`);
+    await downloadFileWithProgress(downloadUrl, filePath, (pct) => {
       progress('download', pct, `⬇️ 다운로드 중... ${pct}%`);
     });
     progress('download', 100, '✅ 다운로드 완료!');
 
-    // ── 2단계: 압축 해제 ───────────────────────────────────
+    // ── 2a단계: EXE 설치 파일 실행 ────────────────────────
+    if (isExe) {
+      progress('extract', 10, '🚀 설치 파일 실행 중...');
+      await _sleep(500);
+      progress('extract', 50, '🔄 설치 프로그램이 실행됩니다. 브라우저가 잠시 후 종료됩니다...');
+
+      if (app.isPackaged) {
+        // 설치 파일 실행 후 현재 앱 종료 (설치 완료 후 새 버전이 자동 시작됨)
+        spawn(filePath, [], {
+          detached: true,
+          stdio: 'ignore',
+          shell: false
+        }).unref();
+
+        await _sleep(2000);
+        progress('done', 100, '✅ 설치 파일 실행 완료! 브라우저를 종료합니다...');
+        await _sleep(1000);
+        app.quit();
+      } else {
+        // 개발 모드: 실제 종료 없이 완료 메시지
+        progress('done', 100, '✅ [개발 모드] EXE 실행 생략. 실제 배포 환경에서는 설치 파일이 자동 실행됩니다.');
+      }
+      return { ok: true };
+    }
+
+    // ── 2b단계: ZIP 압축 해제 ─────────────────────────────
+    const AdmZip = (() => { try { return require('adm-zip'); } catch(e) { return null; } })();
+
+    if (!AdmZip) {
+      // adm-zip 없으면 시스템 기본 브라우저로 릴리즈 페이지 열기 안내
+      progress('error', 0, '❌ adm-zip 모듈 없음. 아래 릴리즈 페이지에서 직접 설치해주세요.');
+      return { ok: false, error: 'adm-zip not found' };
+    }
+
     progress('extract', 0, '📦 압축 해제 중...');
-    const zip = new AdmZip(zipPath);
+    const zip = new AdmZip(filePath);
     const extractDir = path.join(tmpDir, 'extracted');
     zip.extractAllTo(extractDir, true);
     progress('extract', 50, '📂 파일 교체 준비 중...');
 
-    // ── 3단계: 재시작 (Electron relaunch) ──────────────────
-    // 패키징된 앱의 경우 relaunch로 새 프로세스를 실행하고 종료
-    // 개발 모드에서는 재시작 없이 완료 메시지만 반환
+    // 재시작 (Electron relaunch)
     progress('extract', 100, '🔄 업데이트 준비 완료! 브라우저를 재시작합니다...');
     await _sleep(1500);
 
     if (app.isPackaged) {
-      // 새 버전 실행 파일을 현재 위치로 교체 후 재시작
       app.relaunch();
       app.quit();
     } else {
-      // 개발 모드: 실제 파일 교체 없이 완료 메시지만 반환
       progress('done', 100, '✅ [개발 모드] 재시작 생략. 실제 배포 환경에서는 자동으로 재시작됩니다.');
     }
 
@@ -346,24 +380,47 @@ function downloadFileWithProgress(url, destPath, onProgress) {
         }
       }, res => {
         if (res.statusCode === 302 || res.statusCode === 301) {
-          follow(res.headers.location); return;
+          // 리다이렉트 시 Authorization 헤더 제거 (S3 presigned URL 등)
+          const redirectUrl = res.headers.location;
+          const cleanMod = redirectUrl.startsWith('https') ? require('https') : require('http');
+          cleanMod.get(redirectUrl, {
+            headers: {
+              'User-Agent': 'XPIDER-Browser-Updater',
+              'Accept': 'application/octet-stream'
+            }
+          }, redirectRes => {
+            if (redirectRes.statusCode === 302 || redirectRes.statusCode === 301) {
+              follow(redirectRes.headers.location); return;
+            }
+            pipeToFile(redirectRes, destPath, onProgress, resolve, reject);
+          }).on('error', reject);
+          return;
         }
-        const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
-        let receivedBytes = 0;
-        const file = fs.createWriteStream(destPath);
-        res.on('data', chunk => {
-          receivedBytes += chunk.length;
-          if (totalBytes > 0 && typeof onProgress === 'function') {
-            onProgress(Math.round((receivedBytes / totalBytes) * 100));
-          }
-        });
-        res.pipe(file);
-        file.on('finish', () => { file.close(); resolve(); });
-        file.on('error', reject);
+        pipeToFile(res, destPath, onProgress, resolve, reject);
       }).on('error', reject);
     };
     follow(url);
   });
+}
+
+function pipeToFile(res, destPath, onProgress, resolve, reject) {
+  const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+  let receivedBytes = 0;
+  let lastPct = 0;
+  const file = fs.createWriteStream(destPath);
+  res.on('data', chunk => {
+    receivedBytes += chunk.length;
+    if (totalBytes > 0 && typeof onProgress === 'function') {
+      const pct = Math.round((receivedBytes / totalBytes) * 100);
+      if (pct !== lastPct) { lastPct = pct; onProgress(pct); }
+    } else if (typeof onProgress === 'function' && receivedBytes % (1024 * 1024) < 65536) {
+      // content-length 없을 때 MB 단위 진행 표시
+      onProgress(Math.min(90, Math.round(receivedBytes / (1024 * 1024))));
+    }
+  });
+  res.pipe(file);
+  file.on('finish', () => { file.close(); resolve(); });
+  file.on('error', reject);
 }
 
 function _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }

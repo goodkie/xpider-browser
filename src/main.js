@@ -339,6 +339,41 @@ async function checkAndNotifyAppUpdate() {
   }
 }
 
+// ① 수동 업데이트 확인 (설정 메뉴 "업데이트 확인" 버튼)
+ipcMain.on('check-for-updates', () => {
+  log.info('[AppUpdate] Manual check triggered by user');
+  checkAndNotifyAppUpdate();
+});
+
+// ② 핫 업데이트 시작 (새 버전 다운로드 → 재시작)
+// renderer가 invoke('hot-update-start', { downloadUrl, dryRun }) 로 호출
+ipcMain.handle('hot-update-start', async (event, { downloadUrl, dryRun = false } = {}) => {
+  log.info(`[HotUpdate] Starting — dryRun=${dryRun}, url=${downloadUrl || 'N/A'}`);
+  try {
+    const result = await performHotUpdate(downloadUrl, (progress) => {
+      // 진행률을 렌더러로 실시간 스트리밍
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('hot-update-progress', progress);
+      }
+    }, dryRun);
+    return result;
+  } catch (e) {
+    log.error('[HotUpdate] Error:', e.message);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('hot-update-progress', { phase: 'error', pct: 0, msg: `❌ 업데이트 오류: ${e.message}` });
+    }
+    return { ok: false, error: e.message };
+  }
+});
+
+// ③ 릴리즈 페이지 열기 (깃허브 릴리즈 페이지 → 시스템 브라우저)
+ipcMain.on('open-release-url', (event, url) => {
+  if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+    shell.openExternal(url);
+    log.info('[AppUpdate] Opening release URL:', url);
+  }
+});
+
 // auth-success 중복 실행 방지 플래그
 let _authSuccessFired = false;
 
