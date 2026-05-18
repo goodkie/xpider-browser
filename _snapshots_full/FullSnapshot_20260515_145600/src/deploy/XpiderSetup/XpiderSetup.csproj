@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <AssemblyName>XPIDER-Setup</AssemblyName>
+    <RootNamespace>XpiderSetup</RootNamespace>
+    <ApplicationIcon>..\..\..\assets\icons\win\icon.ico</ApplicationIcon>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Optimize>true</Optimize>
+    <DebugType>None</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\app.zip" Condition="Exists('Resources\app.zip')" />
+    <EmbeddedResource Include="Resources\logo.png" Condition="Exists('Resources\logo.png')" />
+    <EmbeddedResource Include="Resources\Fonts\Poppins-Regular.ttf" Condition="Exists('Resources\Fonts\Poppins-Regular.ttf')" />
+    <EmbeddedResource Include="Resources\Fonts\Poppins-Bold.ttf" Condition="Exists('Resources\Fonts\Poppins-Bold.ttf')" />
+  </ItemGroup>
+
+  <ItemGroup>
+  </ItemGroup>
+
+</Project>

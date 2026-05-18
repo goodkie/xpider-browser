@@ -38,6 +38,13 @@ module.exports = {
       platforms: ['win32', 'darwin'],
       config: {},
     },
+    {
+      name: '@electron-forge/maker-dmg',
+      config: {
+        format: 'ULFO',
+        icon: './assets/icons/mac/icon.icns'
+      },
+    },
   ],
 
   plugins: [

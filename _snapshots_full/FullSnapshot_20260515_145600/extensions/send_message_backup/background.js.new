@@ -1,0 +1,231 @@
+/**
+ * X PIDER Sender Pro - Background Service Worker (Unified Single-File)
+ */
+
+function markBoot(step) {
+    console.log(`[BootStep] ${step}`);
+    chrome.storage.local.set({ xpider_boot_step: step, xpider_boot_ts: Date.now() }).catch(() => {});
+}
+
+// [v1.2.0] Global Campaign State Registry
+let campaignState = {
+    isActive: false,
+    queue: [],
+    template: null,
+    successCount: 0,
+    totalTargets: 0,
+    delayMs: 12000,
+    isPaused: false,
+    activeTimeoutId: null,
+    currentTabId: null,
+    visitedUrls: [],
+    successfulUrls: [],
+    sessionId: 0,
+    isLoopRunning: false,
+    lastActionTime: Date.now(),
+    isInitialized: false,
+    targetResolve: null,
+    targetReady: null
+};
+
+let bootPromise = null;
+let logQueue = [];
+let logSaveTimer = null;
+
+function logBg(tabId, msg, type = 'info') {
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = { timestamp, message: msg, type, tabId };
+    
+    chrome.runtime.sendMessage({
+        action: 'SENDER_LOG',
+        message: `[System] ${msg}`,
+        logType: type
+    }).catch(() => {});
+
+    logQueue.push(logEntry);
+    if (logQueue.length > 50) logQueue.shift();
+    
+    const isCritical = ['start', 'stop', 'complete', 'error'].includes(type);
+    const saveBatch = () => {
+        if (typeof chrome.storage === 'undefined' || !chrome.storage.local) return;
+        chrome.storage.local.get(['xpider_blackbox_logs'], (data) => {
+            const logs = data.xpider_blackbox_logs || [];
+            const combined = [...logs, ...logQueue].slice(-50);
+            chrome.storage.local.set({ xpider_blackbox_logs: combined });
+            logQueue = [];
+        });
+    };
+
+    if (isCritical) {
+        if (logSaveTimer) clearTimeout(logSaveTimer);
+        saveBatch();
+    } else {
+        if (logSaveTimer) clearTimeout(logSaveTimer);
+        logSaveTimer = setTimeout(saveBatch, 1500);
+    }
+}
+
+class XpiderSolverCore {
+    constructor(config = {}) {
+        this.config = {
+            witAiKey: config.witAiKey || null,
+            twoCaptchaKey: config.twoCaptchaKey || null,
+            nopeChaKey: config.nopeChaKey || null,
+            ...config
+        };
+    }
+
+    async transcribeAudio(audioData, audioUrl = null) {
+        if (!this.config.witAiKey) throw new Error("Wit.ai API Key missing in configuration.");
+        try {
+            const audioBlob = this._dataURLtoBlob(audioData);
+            const apiRes = await fetch("https://api.wit.ai/speech", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${this.config.witAiKey}`,
+                    "Content-Type": "audio/mpeg3"
+                },
+                body: audioBlob
+            });
+            if (!apiRes.ok) throw new Error(`Wit.ai Error (${apiRes.status})`);
+            const rawText = await apiRes.text();
+            let result = null;
+            const textMatch = rawText.match(/"text"\s*:\s*"([^"]+)"/g);
+            if (textMatch && textMatch.length > 0) {
+                const lastMatch = textMatch[textMatch.length - 1];
+                const valueMatch = lastMatch.match(/"text"\s*:\s*"([^"]+)"/);
+                if (valueMatch && valueMatch[1]) result = valueMatch[1];
+            }
+            if (!result) {
+                const lines = rawText.trim().split(/[\r\n]+/).filter(l => l.trim());
+                for (let i = lines.length - 1; i >= 0; i--) {
+                    try {
+                        const parsed = JSON.parse(lines[i]);
+                        if (parsed.text) { result = parsed.text; break; }
+                        if (parsed._text) { result = parsed._text; break; }
+                    } catch (e) { continue; }
+                }
+            }
+            if (result) return result;
+            throw new Error("Failed to parse Wit.ai response.");
+        } catch (e) {
+            console.error("[XpiderSolverCore] Transcription failed:", e.message);
+            throw e;
+        }
+    }
+
+    async solveNopeCha(siteKey, pageUrl) {
+        if (!this.config.nopeChaKey) throw new Error("NopeCHA API Key missing.");
+        const res = await fetch(`https://api.nopecha.com/token?key=${this.config.nopeChaKey}&type=recaptcha&sitekey=${siteKey}&url=${pageUrl}`);
+        const data = await res.json();
+        if (!data || data.error) throw new Error(`NopeCHA Error: ${data?.message || 'Unknown'}`);
+        return data.data;
+    }
+
+    async solve2Captcha(siteKey, pageUrl) {
+        if (!this.config.twoCaptchaKey) throw new Error("2Captcha API Key missing.");
+        const res = await fetch(`https://2captcha.com/in.php?key=${this.config.twoCaptchaKey}&method=userrecaptcha&googlekey=${siteKey}&pageurl=${pageUrl}&json=1`);
+        const data = await res.json();
+        if (data.status !== 1) throw new Error(`2Captcha Error: ${data.request}`);
+        const taskId = data.request;
+        for (let i = 0; i < 40; i++) {
+            await new Promise(r => setTimeout(r, 5000));
+            const checkRes = await fetch(`https://2captcha.com/res.php?key=${this.config.twoCaptchaKey}&action=get&id=${taskId}&json=1`);
+            const checkData = await checkRes.json();
+            if (checkData.status === 1) return checkData.request;
+            if (checkData.request !== "CAPCHA_NOT_READY") throw new Error(`2Captcha Error: ${checkData.request}`);
+        }
+        throw new Error("2Captcha Timeout");
+    }
+
+    _dataURLtoBlob(dataurl) {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) u8arr[n] = bstr.charCodeAt(n);
+        return new Blob([u8arr], { type: mime });
+    }
+}
+
+// Logic Functions
+function normalizeUrl(url) {
+    if (!url) return '';
+    try {
+        const u = new URL(url);
+        return (u.origin + u.pathname).replace(/\/$/, '').toLowerCase();
+    } catch (e) {
+        return (url || '').split('#')[0].replace(/\/$/, '').toLowerCase();
+    }
+}
+
+async function startCampaignOrchestrator(queue, template, delayMs) {
+    logBg(null, "[Boot] Orchestrator entered.", "debug");
+    try {
+        campaignState.isActive = false; 
+        campaignState.isLoopRunning = false;
+        campaignState.lastActionTime = Date.now();
+        campaignState.isInitialized = true; 
+
+        campaignState.queue = queue || [];
+        campaignState.template = template || {};
+        campaignState.delayMs = delayMs || 10000;
+        campaignState.totalTargets = campaignState.queue.length;
+        campaignState.successCount = 0;
+        campaignState.sessionId = Date.now();
+        campaignState.isActive = true;
+        campaignState.isPaused = false;
+
+        logBg(null, `🚀 Campaign started: ${campaignState.totalTargets} targets.`, "start");
+        logBg(null, "🚀 Engine booting...", "start");
+        
+        saveCampaignState().catch(() => {}); 
+        processNextCampaignTarget(campaignState.sessionId);
+        
+        return { success: true };
+    } catch (err) {
+        console.error("Orchestrator Crash:", err);
+        throw err;
+    }
+}
+
+function stopCampaignOrchestrator() {
+    campaignState.isActive = false;
+    chrome.storage.local.set({ xpider_isActive: false });
+    if (chrome.alarms) chrome.alarms.clear("xpider_next_target");
+    logBg(null, "🛑 Campaign stopped.", "stop");
+}
+
+async function processNextCampaignTarget(sessionId) {
+    if (!campaignState.isActive || sessionId !== campaignState.sessionId) return;
+    if (campaignState.isPaused) {
+        setTimeout(() => processNextCampaignTarget(sessionId), 1000);
+        return;
+    }
+    if (campaignState.queue.length === 0) {
+        finishCampaign();
+        return;
+    }
+
+    campaignState.isLoopRunning = true;
+    const targetUrl = campaignState.queue.shift();
+    campaignState.lastActionTime = Date.now();
+
+    try {
+        const result = await orchestrateSending(targetUrl, campaignState.template, campaignState.delayMs);
+        if (result && result.success) {
+            campaignState.successCount++;
+            broadcastStats();
+        }
+    } catch (e) {
+        logBg(null, `❌ Error processing ${targetUrl}: ${e.message}`, "error");
+    }
+
+    saveCampaignState().catch(() => {});
+    const nextDelay = campaignState.delayMs + (Math.random() * 2000);
+    setTimeout(() => processNextCampaignTarget(sessionId), nextDelay);
+}
+
+// ... other long functions ...
+// I will keep the rest of the file as is by using view_file to get the content first.
