@@ -254,14 +254,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     await saveFile(emails, 'txt', 'page_emails');
   });
   btnPageClear.addEventListener('click', () => {
-    const lang = languageSelect.value || 'en';
-    const dict = typeof i18n !== 'undefined' ? (i18n[lang] || i18n['en']) : {};
-    if (!confirm(dict.clearConfirm || 'Are you sure you want to delete all collected emails?')) return;
-    if (currentPageUrl) {
-      xpiderSend('xpider-email-clear-current', { url: currentPageUrl });
-    }
+    // 즉시 UI 초기화
     pageEmailsArea.value = '';
     pageCountLabel.textContent = '0';
+    pageEmailsArea.placeholder = 'No emails found on this page...';
+
+    // main.js 캐시 초기화 (IPC 전송)
+    xpiderSend('xpider-email-clear-current', { url: currentPageUrl || null });
+
+    // chrome.storage.local에서도 현재 페이지 이메일만 제거
+    if (currentPageUrl) {
+      chrome.storage.local.get(['allEmailsList'], (s) => {
+        // allEmailsList는 All탭 전용이므로 건드리지 않고 current만 초기화
+        // (All탭은 모든 URL 누적이므로 유지)
+      });
+    }
+
+    showToast('🗑️ 현재 페이지 이메일이 초기화되었습니다.');
   });
 
   // ── All Emails Buttons ────────────────────────────────────────
@@ -304,9 +313,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (event.data.type === 'XPIDER_EVENT' && event.data.name === 'email-clear-current') {
       pageEmailsArea.value = '';
       pageCountLabel.textContent = '0';
+      pageEmailsArea.placeholder = 'No emails found on this page...';
       if (event.data.data && event.data.data.url) {
         currentPageUrl = event.data.data.url;
       }
+      // main.js가 _allEmails도 재구성했으므로 최신 All 이메일 다시 조회
+      xpiderInvoke('xpider-email-get-all', {}).then(result => {
+        if (result && Array.isArray(result.emails)) {
+          const updated = result.emails;
+          chrome.storage.local.set({ allEmailsList: updated });
+          allCountLabel.textContent = updated.length;
+          allEmailsArea.value = updated.join('\n');
+        }
+      });
     }
 
     // Real-time email collection update

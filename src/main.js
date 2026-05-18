@@ -856,11 +856,45 @@ ipcMain.on('xpider-email-clear-all', () => {
 ipcMain.on('xpider-email-clear-current', (event, data) => {
     const rawUrl = (data && data.url) ? data.url : _lastActiveUrl;
     const url = (rawUrl || '').split(/[#\?]/)[0].replace(/\/$/, '');
+
+    let clearedEmails = new Set();
+
+    // 1. 정확 매칭 삭제
     if (url && _emailByUrl.has(url)) {
+        clearedEmails = new Set([..._emailByUrl.get(url)]);
         _emailByUrl.delete(url);
-        log.info(`[EmailEngine] 현재 페이지(${url}) 이메일 초기화`);
-        _broadcastEmailEvent('email-clear-current', { url: rawUrl });
+    } else if (url) {
+        // 2. 부분 매칭 폴백 (URL이 저장된 키와 일부 일치하는 경우)
+        for (const [storedUrl, set] of _emailByUrl.entries()) {
+            if (storedUrl.includes(url) || url.includes(storedUrl)) {
+                set.forEach(e => clearedEmails.add(e));
+                _emailByUrl.delete(storedUrl);
+                break;
+            }
+        }
     }
+
+    // 3. _allEmails에서도 해당 URL 이메일 제거
+    //    단, 다른 URL에도 동일 이메일이 있는 경우는 유지
+    if (clearedEmails.size > 0) {
+        const remainingEmails = new Set();
+        for (const [, set] of _emailByUrl.entries()) {
+            set.forEach(e => remainingEmails.add(e));
+        }
+        // _allEmails를 남아있는 이메일로만 재구성
+        _allEmails.clear();
+        remainingEmails.forEach(e => _allEmails.add(e));
+    }
+
+    log.info(`[EmailEngine] 현재 페이지(${url}) 이메일 초기화 — 삭제됨: ${clearedEmails.size}개, 남은 전체: ${_allEmails.size}개`);
+
+    // 4. 팝업 UI에 초기화 이벤트 전파 + 배지 카운트 갱신
+    _broadcastEmailEvent('email-clear-current', { url: rawUrl, cleared: clearedEmails.size });
+    _broadcastEmailEvent('update-badge', {
+        count: _allEmails.size,
+        text: _allEmails.size > 0 ? String(_allEmails.size) : '',
+        extId: 'email-extractor'
+    });
 });
 
 // 활성 탭 URL 추적 (renderer_ui.js → xpider-ext-report-active-tab)
