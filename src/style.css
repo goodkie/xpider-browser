@@ -346,15 +346,17 @@ body, html {
     padding: 6px 10px 0 10px;
     height: 36px;
     border-bottom: 1px solid var(--border);
+    -webkit-app-region: drag; /* Makes the empty tab bar space draggable like Chrome */
 }
 
 #tabs-list {
     display: flex;
-    flex: 1;
+    flex: 0 1 auto; /* Grow dynamically with tabs, shrink when overflowing */
     overflow-x: auto;
     overflow-y: hidden;
     gap: 4px;
     height: 100%;
+    -webkit-app-region: no-drag; /* Prevents tabs from being draggable */
 }
 #tabs-list::-webkit-scrollbar { display: none; }
 
@@ -433,21 +435,33 @@ body, html {
 }
 
 #new-tab-btn {
-    background: transparent;
-    border: none;
-    color: var(--text-main);
-    font-size: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-size: 14px;
     cursor: pointer;
     width: 28px;
     height: 28px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    transition: background 0.2s;
-    margin-left: 5px;
+    border-radius: 8px; /* Sleek, premium modern rounded square button */
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-left: 6px;
+    margin-top: 6px; /* Align perfectly with tabs */
+    flex-shrink: 0;
+    -webkit-app-region: no-drag; /* Prevents new tab button from blocking clicks due to parent dragging */
 }
-#new-tab-btn:hover { background: var(--bg-hover); }
+#new-tab-btn:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+#new-tab-btn:active {
+    transform: translateY(0) scale(0.95);
+}
 
 /* Hide inactive webviews */
 .webview-hidden { display: none !important; }
