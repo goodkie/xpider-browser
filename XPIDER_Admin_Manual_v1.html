@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XPIDER Extension & App Management Manual v1.1</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #1e293b;
+            --accent: #f5a623;
+            --text: #334155;
+            --bg: #ffffff;
+            --border: #e2e8f0;
+            --success: #10b981;
+        }
+        @media print {
+            .no-print { display: none; }
+            body { font-size: 11pt; line-height: 1.4; color: #000; background: #fff; }
+            .container { width: 100%; max-width: none; margin: 0; padding: 20px; box-shadow: none; }
+            h1, h2, h3 { page-break-after: avoid; }
+            .page-break { page-break-before: always; }
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text);
+            background: #f1f5f9;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            background: var(--bg);
+            padding: 50px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border-radius: 12px;
+        }
+        header {
+            border-bottom: 3px solid var(--primary);
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo-title h1 {
+            margin: 0;
+            color: var(--secondary);
+            font-size: 28px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .version-info {
+            text-align: right;
+            font-size: 13px;
+            color: #64748b;
+        }
+        h2 {
+            color: var(--secondary);
+            background: #f8fafc;
+            border-left: 6px solid var(--primary);
+            padding: 10px 15px;
+            margin-top: 45px;
+            font-size: 22px;
+        }
+        h3 {
+            color: var(--primary);
+            margin-top: 30px;
+            font-size: 18px;
+            border-bottom: 2px solid #eff6ff;
+            padding-bottom: 5px;
+        }
+        .ext-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background: #fff;
+        }
+        .ext-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .ext-name { font-weight: 800; font-size: 17px; color: var(--secondary); }
+        .ext-path { font-family: monospace; font-size: 12px; color: var(--primary); background: #f0f7ff; padding: 2px 6px; border-radius: 4px; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        th { background: #f8fafc; color: var(--secondary); }
+        
+        .code-block {
+            background: #0f172a;
+            color: #94a3b8;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+        .roadmap-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        .roadmap-list li {
+            margin-bottom: 8px;
+            padding-left: 25px;
+            position: relative;
+        }
+        .roadmap-list li::before {
+            content: '🚀';
+            position: absolute;
+            left: 0;
+            top: 2px;
+        }
+        .admin-note {
+            background: #fff7ed;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid var(--accent);
+            font-size: 14px;
+            margin: 15px 0;
+        }
+        .footer {
+            margin-top: 50px;
+            border-top: 1px solid var(--border);
+            padding-top: 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-title">
+                <h1>XPIDER ADMIN MASTER GUIDE</h1>
+                <p>Detailed Extension & Development Operations</p>
+            </div>
+            <div class="version-info">
+                Manual Version: 1.1<br>
+                Updated: 2026-05-16
+            </div>
+        </header>
+
+        <section id="general-admin">
+            <h2>1. 공통 관리 인프라 (Core Infrastructure)</h2>
+            <p>모든 익스텐션의 권한 제어와 데이터 저장은 메인 브라우저 엔진을 통해 통합 관리됩니다.</p>
+            
+            <h3>1.1 필수 계정 및 자격 증명 (Account Directory)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>플랫폼</th>
+                        <th>관리 용도</th>
+                        <th>로그인 경로</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Supabase</strong></td>
+                        <td>사용자 인증, RLS 정책, DB 쿼리</td>
+                        <td><a href="https://supabase.com/dashboard">Dashboard</a></td>
+                    </tr>
+                    <tr>
+                        <td><strong>GitHub Actions</strong></td>
+                        <td>앱 설치 파일 자동 빌드 및 릴리즈</td>
+                        <td><a href="https://github.com/goodkie/xpider-browser/actions">Actions UI</a></td>
+                    </tr>
+                    <tr>
+                        <td><strong>SMTP / SES</strong></td>
+                        <td>SendForce Mailer 발송 엔진 서버</td>
+                        <td>AWS SES / SendGrid 콘솔</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="admin-note">
+                <strong>Admin Tip:</strong> <code>src/main.js</code> 내의 IPC 핸들러는 익스텐션의 모든 요청을 검증합니다. 새로운 익스텐션 기능을 추가할 때는 <code>xpider-ext-*</code> 네이밍 규칙을 따르세요.
+            </div>
+        </section>
+
+        <div class="page-break"></div>
+
+        <section id="extension-details">
+            <h2>2. 익스텐션별 상세 가이드 (Extension Deep-Dive)</h2>
+
+            <!-- 1. Local Business Crawler Pro -->
+            <div class="ext-card">
+                <div class="ext-header">
+                    <span class="ext-name">1. Local Business Crawler Pro</span>
+                    <span class="ext-path">/extensions/LocalBusinessDataCrawlerPro</span>
+                </div>
+                <p><strong>주요 기능:</strong> 10개 검색엔진 통합 검색 및 다단계 데이터 발굴 엔진.</p>
+                
+                <h3>📍 관리자 로드맵</h3>
+                <ul class="roadmap-list">
+                    <li>AI 기반 웹사이트 자동 분류 (업종 자동 판별)</li>
+                    <li>외부 CRM(Salesforce, HubSpot) 직접 연동 API 개발</li>
+                    <li>웹사이트 내 PDF/문서 파일 자동 분석 및 연락처 추출</li>
+                </ul>
+
+                <h3>🔑 관리 계정 및 로그인 정보</h3>
+                <ul>
+                    <li><strong>수집 데이터 보관소:</strong> 사용자 로컬 디바이스 (<code>/data/profile-N/</code> 내 <code>IndexedDB</code>)</li>
+                    <li><strong>캡차 우회 서비스(옵션):</strong> 2Captcha / Anti-Captcha API (사용자가 설정 메뉴에 직접 키 입력)</li>
+                </ul>
+
+                <h3>🚀 원본 업로드 경로</h3>
+                <div class="code-block">
+                    Source: e:/vivpr/ai/collect-list_v2/extension
+                    Dest:   /extensions/LocalBusinessDataCrawlerPro
+                </div>
+
+                <h3>🛠 상세 관리 및 업데이트 가이드</h3>
+                <ul>
+                    <li><strong>핵심 파일:</strong> <code>content.js</code> (DOM 스캔 로직), <code>crawler-engine.js</code> (탐색 알고리즘).</li>
+                    <li><strong>관리 가이드:</strong> 검색엔진(구글, 빙, 네이버 등)의 DOM 구조나 클래스명이 변경되면, <code>selectors.json</code> 및 <code>content.js</code>의 파싱 로직을 즉각 수정하여 배포해야 수집 누락을 방지할 수 있습니다.</li>
+                    <li><strong>업데이트 요령:</strong> 수정 완료 후 <code>deploy-cli.js</code>를 통해 'collect-list' 타겟으로 핫패치 배포를 진행하세요.</li>
+                </ul>
+            </div>
+
+            <!-- 2. GMaps Business Finder -->
+            <div class="ext-card">
+                <div class="ext-header">
+                    <span class="ext-name">2. GMaps Business Finder</span>
+                    <span class="ext-path">/extensions/google_maps_extension_source</span>
+                </div>
+                <p><strong>주요 기능:</strong> 구글 맵 기반 위치 기반 업체 정보 실시간 수집.</p>
+                
+                <h3>📍 관리자 로드맵</h3>
+                <ul class="roadmap-list">
+                    <li>AI 리뷰 요약 및 긍부정 분석 (Sentiment Analysis)</li>
+                    <li>지도 드래그 시 자동 스캔 범위 확장 (Infinite Scroll Automation)</li>
+                    <li>업체 소셜 미디어(Instagram, Facebook) 자동 매칭 로직 강화</li>
+                </ul>
+
+                <h3>🔑 관리 계정 및 로그인 정보</h3>
+                <ul>
+                    <li><strong>Google Cloud Console:</strong> 필요 시 Google Maps API 연동 관리. (현재는 DOM 스크래핑 위주이나 추후 API 연동 시)</li>
+                    <li><strong>이메일 찾기 연동:</strong> Email Extractor 엔진과 내부 IPC(<code>xpider-ext-send-message</code>)로 통신하여 자동 로그인 없이 동작.</li>
+                </ul>
+
+                <h3>🚀 원본 업로드 경로</h3>
+                <div class="code-block">
+                    Source: e:/vivpr/ai/google_maps_extension_source
+                    Dest:   /extensions/google_maps_extension_source
+                </div>
+
+                <h3>🛠 상세 관리 및 업데이트 가이드</h3>
+                <ul>
+                    <li><strong>핵심 파일:</strong> <code>inject.js</code> (구글 맵 XHR 데이터 및 DOM 가로채기), <code>background.js</code> (페이징 관리).</li>
+                    <li><strong>관리 가이드:</strong> 구글 맵스의 동적 렌더링 방식(React/Angular 기반)이 업데이트될 때마다 <code>inject.js</code> 내의 데이터 추출 셀렉터를 재검증해야 합니다. 지도 드래그 및 로딩 딜레이(Throttling) 수치를 주기적으로 최적화하세요.</li>
+                </ul>
+            </div>
+
+            <div class="page-break"></div>
+
+            <!-- 3. Email Extractor -->
+            <div class="ext-card">
+                <div class="ext-header">
+                    <span class="ext-name">3. Email Extractor</span>
+                    <span class="ext-path">/extensions/Email_Extractor_Source</span>
+                </div>
+                <p><strong>주요 기능:</strong> 브라우징 중 현재 페이지 및 연관 페이지 이메일 실시간 추출.</p>
+                
+                <h3>📍 관리자 로드맵</h3>
+                <ul class="roadmap-list">
+                    <li>도메인 전체 딥 스캔 (About, Contact Us 페이지 자동 추적)</li>
+                    <li>이메일 유효성 실시간 검증 (Bounce Check)</li>
+                    <li>수집된 이메일 기반 LinkedIn 프로필 자동 검색 링크 생성</li>
+                </ul>
+
+                <h3>🔑 관리 계정 및 로그인 정보</h3>
+                <ul>
+                    <li><strong>외부 서비스 의존성 없음:</strong> 클라이언트 브라우저 캐시와 <code>main.js</code> 내 전역 Set을 통해 100% 로컬에서 동작하므로 별도 로그인 정보 불필요.</li>
+                </ul>
+
+                <h3>🚀 원본 업로드 경로</h3>
+                <div class="code-block">
+                    Source: e:/vivpr/ai/Email_Extractor_Source
+                    Dest:   /extensions/Email_Extractor_Source
+                </div>
+
+                <h3>🛠 상세 관리 및 업데이트 가이드</h3>
+                <ul>
+                    <li><strong>핵심 파일:</strong> 브라우저 메인의 <code>src/main.js</code> (이메일 수집 엔진), 익스텐션의 <code>popup.js</code> (UI 렌더링).</li>
+                    <li><strong>관리 가이드:</strong> 정규식(Regex)을 통한 이메일 추출 로직이 <code>main.js</code>에 집중되어 있습니다. 가짜 이메일이나 이미지 파일명(예: test@2x.png)이 수집되지 않도록 필터링 규칙(Regex)을 주기적으로 강화해야 합니다.</li>
+                    <li><strong>동기화 주의:</strong> 익스텐션과 메인 브라우저 엔진이 IPC를 통해 실시간 통신하므로, 메인 앱 업데이트 시 채널명(<code>xpider-email-collected</code>)이 변경되지 않도록 주의하세요.</li>
+                </ul>
+            </div>
+
+            <!-- 4. XPIDER AutoForm Sender Pro -->
+            <div class="ext-card">
+                <div class="ext-header">
+                    <span class="ext-name">4. XPIDER AutoForm Sender Pro</span>
+                    <span class="ext-path">/extensions/send_message_backup</span>
+                </div>
+                <p><strong>주요 기능:</strong> 웹사이트 문의 폼(Contact Form) 자동 감지 및 메시지 발송 자동화.</p>
+                
+                <h3>📍 관리자 로드맵</h3>
+                <ul class="roadmap-list">
+                    <li>AI 기반 필드 추론 엔진 (정교한 폼 필링)</li>
+                    <li>동적 첨부파일 업로드 지원 및 캡차 자동 해결 연동</li>
+                    <li>발송 결과 성공/실패 정밀 판별 및 로그 분석 대시보드</li>
+                </ul>
+
+                <h3>🔑 관리 계정 및 로그인 정보</h3>
+                <ul>
+                    <li><strong>대상 사이트:</strong> 로그인 불필요 (Public Contact Form 대상).</li>
+                    <li><strong>캡차 우회 (선택):</strong> 2Captcha API Key (사용자별 자체 키 입력 유도 필요).</li>
+                </ul>
+
+                <h3>🚀 원본 업로드 경로</h3>
+                <div class="code-block">
+                    Source: e:/vivpr/ai/send message
+                    Dest:   /extensions/send_message_backup (또는 send-message)
+                </div>
+
+                <h3>🛠 상세 관리 및 업데이트 가이드</h3>
+                <ul>
+                    <li><strong>핵심 파일:</strong> <code>form-detector.js</code> (입력 필드 감지), <code>sender-logic.js</code> (자동 입력 및 전송 시뮬레이션).</li>
+                    <li><strong>관리 가이드:</strong> 최신 React, Vue 등으로 제작된 폼은 <code>value</code> 속성을 직접 변경해도 상태가 업데이트되지 않습니다. 반드시 <code>execCommand('insertText')</code> 또는 <code>dispatchEvent(new Event('input'))</code>를 활용한 인간 모사 입력 로직을 유지보수해야 합니다.</li>
+                    <li><strong>Wix/Shopify 대응:</strong> iframe 내부로 숨겨진 폼을 찾기 위한 Cross-Origin 회피 스크립트 모니터링이 필수입니다.</li>
+                </ul>
+            </div>
+
+            <div class="page-break"></div>
+
+            <!-- 5. XPIDER SendForce Mailer Pro -->
+            <div class="ext-card">
+                <div class="ext-header">
+                    <span class="ext-name">5. XPIDER SendForce Mailer Pro</span>
+                    <span class="ext-path">/extensions/send_email_backup</span>
+                </div>
+                <p><strong>주요 기능:</strong> 대량 이메일 캠페인 관리 및 고속 발송 엔진.</p>
+                
+                <h3>📍 관리자 로드맵</h3>
+                <ul class="roadmap-list">
+                    <li>A/B 테스팅 기능 (제목/본문 변형 발송)</li>
+                    <li>추적 픽셀을 통한 오픈율 및 클릭률 분석 통계 통합</li>
+                    <li>개인화 변수(Merge Tags) 고도화 및 예약 발송 기능</li>
+                </ul>
+
+                <h3>🔑 관리 계정 및 로그인 정보</h3>
+                <ul>
+                    <li><strong>SMTP 발송 서버:</strong> AWS SES, SendGrid, Mailgun 등의 SMTP 계정 정보 (호스트, 포트, ID, PW). 관리자는 발신용 도메인의 SPF, DKIM, DMARC 레코드 설정 권한(DNS)을 보유해야 합니다.</li>
+                    <li><strong>수신 거부(Unsubscribe) 추적:</strong> Webhook 처리를 위한 자체 백엔드 또는 Supabase Edge Function 로그인.</li>
+                </ul>
+
+                <h3>🚀 원본 업로드 경로</h3>
+                <div class="code-block">
+                    Source: e:/vivpr/ai/send_email_backup
+                    Dest:   /extensions/send_email_backup
+                </div>
+
+                <h3>🛠 상세 관리 및 업데이트 가이드</h3>
+                <ul>
+                    <li><strong>핵심 파일:</strong> <code>background.js</code> (대량 발송 큐 및 스로틀링 관리), <code>popup.js</code> (캠페인 설정 및 템플릿 관리).</li>
+                    <li><strong>관리 가이드:</strong> 대량 발송 시 IP/도메인 블랙리스트 등재를 막기 위해 일일 발송 한도 제어 및 스로틀링(Throttling) 알고리즘이 중요합니다. <code>background.js</code>의 발송 딜레이 설정값을 최적화된 상태로 유지하세요.</li>
+                    <li><strong>보안:</strong> 확장 프로그램 내부에 하드코딩된 SMTP 키가 없도록 설계되었는지 정기적인 보안 감사가 필요합니다 (항상 사용자 암호화 저장소 이용).</li>
+                </ul>
+            </div>
+            <div class="page-break"></div>
+
+            <!-- 6. XPIDER VPN Pro -->
+            <div class="ext-card">
+                <div class="ext-header">
+                    <span class="ext-name">6. XPIDER VPN Pro</span>
+                    <span class="ext-path">/extensions/proxy</span>
+                </div>
+                <p><strong>주요 기능:</strong> 브라우징 및 데이터 스크래핑 시 IP 차단을 우회하기 위한 프록시/VPN 네트워크 터널링.</p>
+                
+                <h3>📍 관리자 로드맵</h3>
+                <ul class="roadmap-list">
+                    <li>로테이팅 프록시(Rotating Proxy) 자동화 및 주기적 IP 갱신 풀(Pool) 연동</li>
+                    <li>크롤러 엔진(Local Business/GMaps 등)과 통신하여 CAPTCHA 발생 시 자동 지역(Region) 변경 기능 연동</li>
+                    <li>대역폭 트래픽 모니터링 및 속도 최적화 대시보드 구축</li>
+                </ul>
+
+                <h3>🔑 관리 계정 및 로그인 정보</h3>
+                <ul>
+                    <li><strong>Proxy Network Providers:</strong> Oxylabs, Bright Data, Smartproxy, 그리고 <a href="https://www.webshare.io" target="_blank">Webshare (https://www.webshare.io)</a> 등의 프록시 네트워크 제공자 계정.</li>
+                    <li><strong>인증(Auth):</strong> 각 제공자의 대시보드에서 발급받은 프록시 IP, Port, Username, Password. 익스텐션 설정에서 사용자가 자신의 정보로 로그인할 수 있도록 지원.</li>
+                </ul>
+
+                <h3>🚀 원본 업로드 경로</h3>
+                <div class="code-block">
+                    Source: e:/vivpr/ai/proxy
+                    Dest:   /extensions/proxy
+                </div>
+
+                <h3>🛠 상세 관리 및 업데이트 가이드</h3>
+                <ul>
+                    <li><strong>핵심 파일:</strong> <code>background.js</code> (chrome.proxy API 제어 로직), <code>popup.js</code> (서버 위치 선택 및 상태 표시 UI).</li>
+                    <li><strong>관리 가이드:</strong> 크롬 <code>chrome.proxy.settings</code> API의 동작 방식 변경에 대비해야 합니다. WebRTC 누수 방지 로직(WebRTC Leak Protection)이 <code>background.js</code>에 올바르게 적용되어 실제 IP가 외부로 노출되지 않도록 주기적인 점검이 필요합니다.</li>
+                    <li><strong>디버깅 팁:</strong> VPN 활성화 시 웹소켓(WebSocket) 및 실시간 이메일 추출 엔진(Email Extractor)과의 충돌이 없는지 네트워크 패킷 분석 도구로 정기 테스트하세요.</li>
+                </ul>
+            </div>
+
+            <!-- 7. Bing Maps Business Finder -->
+            <div class="ext-card">
+                <div class="ext-header">
+                    <span class="ext-name">7. Bing Maps Business Finder</span>
+                    <span class="ext-path">/extensions/bing_map_source</span>
+                </div>
+                <p><strong>주요 기능:</strong> 마이크로소프트 빙 맵(Bing Maps) 기반의 B2B 리드(이름, 주소, 연락처) 고속 수집기.</p>
+                
+                <h3>📍 관리자 로드맵</h3>
+                <ul class="roadmap-list">
+                    <li>구글 맵스 파인더 수집 데이터와 교차 검증을 통한 데이터 정확도 향상 엔진</li>
+                    <li>마이크로소프트 생태계(LinkedIn 등) 연계를 통한 B2B 회사 핵심 의사결정권자 탐색 기능</li>
+                    <li>멀티 스레드 가상 탭 렌더링을 통한 대량의 위치 데이터 병렬 수집 속도 개선</li>
+                </ul>
+
+                <h3>🔑 관리 계정 및 로그인 정보</h3>
+                <ul>
+                    <li><strong>Bing Search / Maps API (옵션):</strong> 현재 DOM 스크래핑 방식으로 동작하지만 대규모 파싱 시 Microsoft Azure Maps API Key가 필요해질 수 있습니다.</li>
+                    <li><strong>통합 DB 연동:</strong> 메인 브라우저 내 IndexedDB와 통합되어 구동되므로 별도의 익스텐션 전용 로그인 계정은 필요하지 않습니다.</li>
+                </ul>
+
+                <h3>🚀 원본 업로드 경로</h3>
+                <div class="code-block">
+                    Source: e:/vivpr/ai/bing_map_source
+                    Dest:   /extensions/bing_map_source
+                </div>
+
+                <h3>🛠 상세 관리 및 업데이트 가이드</h3>
+                <ul>
+                    <li><strong>핵심 파일:</strong> <code>bing_inject.js</code> (DOM 파싱 및 스크롤 이벤트 후킹), <code>background.js</code> (데이터 릴레이).</li>
+                    <li><strong>관리 가이드:</strong> Bing Maps의 지도 캔버스 및 리스트 컨테이너 클래스명이 업데이트되면 <code>bing_inject.js</code> 내부의 셀렉터를 즉시 동기화해야 합니다. 특히 무한 스크롤(Infinite Scroll) 인터페이스의 동작이 바뀌면 데이터를 놓칠 수 있습니다.</li>
+                    <li><strong>크롤링 속도:</strong> 구글 맵스와 달리 빙 맵스는 페이지네이션이나 비동기 로딩 딜레이가 다를 수 있으므로 데이터 추출 속도(Timeout/Interval) 최적화에 신경 써야 합니다.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="deployment-guide">
+            <h2>3. 배포 및 동기화 프로세스 (Sync Operations)</h2>
+            <p>익스텐션의 업데이트는 브라우저 앱 배포와 별개로 수행될 수 있습니다.</p>
+            <div class="code-block">
+                // 1. 소스 수정 후 버전 업 (manifest.json)
+                // 2. 동기화 스크립트 실행
+                node deploy-cli.js
+                // 3. 익스텐션 선택 및 GitHub Push
+            </div>
+            <p><strong>업로드 경로:</strong> <code>extensions/</code> 내의 각 폴더는 GitHub의 <code>main</code> 브랜치에 푸시되어야 합니다. 브라우저의 백그라운드 싱크 엔진은 <code>https://api.github.com/repos/goodkie/xpider-browser/contents/extensions</code> 경로를 참조합니다.</p>
+        </section>
+
+        <div class="footer">
+            &copy; 2026 XPIDER Project Master Admin Guide. Confidential.
+        </div>
+    </div>
+</body>
+</html>
