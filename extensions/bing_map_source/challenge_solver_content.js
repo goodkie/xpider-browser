@@ -357,6 +357,104 @@
         });
     }
 
+    function injectWitKeyMissingModal() {
+        if (document.getElementById('xpider-wit-modal')) return true;
+
+        logToSystem("⚠️ Wit.ai API Key missing", "WAIT");
+
+        const overlay = document.createElement('div');
+        overlay.id = 'xpider-wit-modal';
+        Object.assign(overlay.style, {
+            position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: '9999999',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontFamily: 'sans-serif'
+        });
+
+        const modal = document.createElement('div');
+        Object.assign(modal.style, {
+            backgroundColor: '#fff', borderTop: '5px solid #3b82f6',
+            borderRadius: '12px', padding: '25px', width: '95%', maxWidth: '480px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)', textAlign: 'center'
+        });
+
+        const title = document.createElement('h2');
+        title.innerHTML = '🤖 Auto CAPTCHA Solver';
+        title.style.color = '#333';
+        title.style.fontSize = '18px';
+        title.style.margin = '0 0 8px 0';
+        
+        const subtitle = document.createElement('div');
+        subtitle.innerHTML = '🎙️ Wit.ai API Key (Free CAPTCHA Audio Bypass)';
+        subtitle.style.color = '#3b82f6';
+        subtitle.style.fontSize = '14px';
+        subtitle.style.fontWeight = 'bold';
+        subtitle.style.marginBottom = '20px';
+
+        const desc = document.createElement('p');
+        desc.innerHTML = '🆓 Register a free key to automatically recognize CAPTCHA audio.<br>Create an app at the link below and copy the Server Access Token.';
+        desc.style.color = '#666';
+        desc.style.fontSize = '12px';
+        desc.style.lineHeight = '1.6';
+        desc.style.marginBottom = '20px';
+
+        const inputContainer = document.createElement('div');
+        inputContainer.style.marginBottom = '20px';
+        
+        const input = document.createElement('input');
+        input.type = 'password';
+        input.placeholder = 'Enter Wit.ai Server Access Token';
+        Object.assign(input.style, {
+            width: '100%', padding: '12px', border: '1px solid #cbd5e1', 
+            borderRadius: '8px', boxSizing: 'border-box', fontSize: '13px',
+            textAlign: 'center'
+        });
+        
+        const btnSave = document.createElement('button');
+        btnSave.innerHTML = 'Save & Continue';
+        Object.assign(btnSave.style, {
+            display: 'block', width: '100%', padding: '12px', marginTop: '10px',
+            backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px',
+            fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'
+        });
+
+        const btnLink = document.createElement('button');
+        btnLink.innerHTML = '🔑 Get Free Wit.ai API Key →';
+        Object.assign(btnLink.style, {
+            display: 'block', width: '100%', padding: '12px', marginTop: '8px',
+            backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px',
+            fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'
+        });
+
+        btnLink.addEventListener('click', () => {
+            window.open('https://wit.ai/apps', '_blank');
+        });
+
+        btnSave.addEventListener('click', () => {
+            const val = input.value.trim();
+            if (!val) return alert("Please enter the Server Access Token.");
+            btnSave.innerText = 'Saving...';
+            chrome.storage.local.set({ witKey: val }, () => {
+                overlay.remove();
+                logToSystem("✅ API Key Saved. Retrying...", "DONE");
+            });
+        });
+
+        inputContainer.appendChild(input);
+        inputContainer.appendChild(btnSave);
+        
+        modal.appendChild(title);
+        modal.appendChild(subtitle);
+        modal.appendChild(desc);
+        modal.appendChild(inputContainer);
+        modal.appendChild(btnLink);
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        
+        return true;
+    }
+
     async function attemptSolve() {
         try {
             if (checkAndInjectHardBlockModal()) return;
@@ -416,6 +514,11 @@
 
             if (audioInput) {
                 if (!solving) {
+                    const keys = await chrome.storage.local.get(['witKey']);
+                    if (!keys.witKey) {
+                        injectWitKeyMissingModal();
+                        return;
+                    }
                     executeResilientSolve(audioInput, attempts);
                 }
             }
