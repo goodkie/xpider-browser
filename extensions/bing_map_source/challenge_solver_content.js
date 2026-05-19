@@ -93,48 +93,48 @@
             const overlay = document.createElement('div');
             overlay.id = 'xpider-hard-block-modal';
             Object.assign(overlay.style, {
-                position: 'fixed', top: '30px', left: '0', width: '100%', height: 'calc(100% - 30px)',
+                position: 'fixed', top: '22px', left: '0', width: '100%', height: 'calc(100% - 22px)',
                 backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: '9999999',
                 display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-                paddingTop: '12px', boxSizing: 'border-box',
+                paddingTop: '2px', boxSizing: 'border-box',
                 fontFamily: 'sans-serif'
             });
 
             const modal = document.createElement('div');
             Object.assign(modal.style, {
-                backgroundColor: '#fff', borderTop: '5px solid #ff3333',
-                borderRadius: '12px', padding: '16px 20px', width: '95%', maxWidth: '520px',
-                maxHeight: 'calc(100vh - 60px)', overflowY: 'auto', boxSizing: 'border-box',
-                boxShadow: '0 10px 30px rgba(0,0,0,0.5)', textAlign: 'center'
+                backgroundColor: '#fff', borderTop: '3px solid #ff3333',
+                borderRadius: '10px', padding: '8px 15px', width: '95%', maxWidth: '480px',
+                maxHeight: 'calc(100vh - 30px)', overflowY: 'auto', boxSizing: 'border-box',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.5)', textAlign: 'center'
             });
 
             const title = document.createElement('h2');
             title.innerHTML = '🚨 Automated Query Blocked (Hard Block)';
             title.style.color = '#333';
-            title.style.fontSize = '14px';
-            title.style.margin = '0 0 8px 0';
+            title.style.fontSize = '13px';
+            title.style.margin = '0 0 4px 0';
             
             const desc = document.createElement('p');
             desc.innerHTML = 'Your computer or network may be sending automated queries. Access from your current IP has been temporarily denied.<br>Please select an option below to continue.';
             desc.style.color = '#666';
-            desc.style.fontSize = '11px';
-            desc.style.lineHeight = '1.5';
-            desc.style.marginBottom = '12px';
+            desc.style.fontSize = '10px';
+            desc.style.lineHeight = '1.4';
+            desc.style.marginBottom = '8px';
 
             const btnXpiderVpn = document.createElement('button');
             btnXpiderVpn.innerHTML = '🛡️ Use XPIDER VPN to Bypass (Recommended)';
             Object.assign(btnXpiderVpn.style, {
-                display: 'block', width: '100%', padding: '11px', marginBottom: '7px',
-                backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px',
-                fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s',
-                boxShadow: '0 4px 12px rgba(59,130,246,0.3)'
+                display: 'block', width: '100%', padding: '9px', marginBottom: '6px',
+                backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px',
+                fontSize: '11.5px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s',
+                boxShadow: '0 4px 10px rgba(59,130,246,0.3)'
             });
 
             const btnWait = document.createElement('button');
             btnWait.innerHTML = '⏳ Pause Scraping for 25 Minutes & Auto-Resume';
             Object.assign(btnWait.style, {
-                display: 'block', width: '100%', padding: '9px', marginBottom: '7px',
-                backgroundColor: '#ff3366', color: '#fff', border: 'none', borderRadius: '8px',
+                display: 'block', width: '100%', padding: '8px', marginBottom: '6px',
+                backgroundColor: '#ff3366', color: '#fff', border: 'none', borderRadius: '6px',
                 fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'
             });
 
@@ -142,7 +142,7 @@
             btnVpn.innerHTML = '🔌 Use Custom Proxy (Apply Settings)';
             Object.assign(btnVpn.style, {
                 display: 'block', width: '100%', padding: '8px', marginBottom: '6px',
-                backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px',
+                backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '6px',
                 fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'
             });
             
@@ -150,7 +150,7 @@
             btnForceQuit.innerHTML = '⏹️ Force Quit (Stop Current Search)';
             Object.assign(btnForceQuit.style, {
                 display: 'block', width: '100%', padding: '8px',
-                backgroundColor: '#333', color: '#fff', border: 'none', borderRadius: '8px',
+                backgroundColor: '#333', color: '#fff', border: 'none', borderRadius: '6px',
                 fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'
             });
 
@@ -226,6 +226,7 @@
             
             btnXpiderVpn.addEventListener('click', () => {
                 chrome.runtime.sendMessage({ action: 'OPEN_XPIDER_VPN' });
+                window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'OPEN_XPIDER_VPN' } }, '*');
             });
 
             btnForceQuit.addEventListener('click', () => {
