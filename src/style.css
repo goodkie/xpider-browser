@@ -808,6 +808,11 @@ body, html {
     background: rgba(0,0,0,0.2);
 }
 
+.skip-today {
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
 .ob-start-btn {
     background: linear-gradient(135deg, #f5a623 0%, #e8920f 100%);
     color: #000;
