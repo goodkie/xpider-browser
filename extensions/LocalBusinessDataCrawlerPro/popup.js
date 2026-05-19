@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (captchaWitLinkBtn) {
         captchaWitLinkBtn.addEventListener('click', () => {
-            window.open('https://wit.ai/apps', '_blank');
+            chrome.tabs.create({ url: 'https://wit.ai/apps' });
         });
     }
 
