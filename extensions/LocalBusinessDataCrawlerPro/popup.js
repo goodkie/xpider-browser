@@ -947,16 +947,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (msg.status === 'detected') {
                 // Check if Wit.ai key is configured before showing the CAPTCHA modal
                 chrome.storage.local.get(['audioSttKey', 'witKey', 'captchaSolveEnabled'], (keys) => {
-                    const hasKey = keys.audioSttKey || keys.witKey;
+                    const hasKey = (keys.audioSttKey && keys.audioSttKey.trim() !== '') || (keys.witKey && keys.witKey.trim() !== '');
                     if (!hasKey) {
-                        // No Wit.ai key – open Settings panel and scroll to Wit.ai section
+                        // Force bring browser window to absolute front
+                        chrome.runtime.sendMessage({ action: 'FOCUS_MAIN_WINDOW' });
+                        window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'FOCUS_MAIN_WINDOW' } }, '*');
+
+                        // Force open sidepanel & focus crawler settings
+                        chrome.runtime.sendMessage({ action: 'OPEN_CRAWLER_SETTINGS' });
+                        window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'OPEN_CRAWLER_SETTINGS' } }, '*');
+
+                        // Local Fallback inside popup
                         const settingsOverlay = document.getElementById('settings-overlay');
                         if (settingsOverlay) {
                             settingsOverlay.classList.remove('hidden');
                             const witaiGroup = document.getElementById('captcha-witai-group');
                             if (witaiGroup) {
                                 witaiGroup.style.display = 'block';
-                                // Also make sure the auto-solver toggle shows it as on
                                 const toggle = document.getElementById('captcha-solve-toggle');
                                 if (toggle && !toggle.checked) toggle.checked = true;
                                 setTimeout(() => {

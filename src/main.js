@@ -1984,6 +1984,24 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
         return { success: true };
     }
 
+    // ── FOCUS_MAIN_WINDOW: bring the main window to the absolute front and focus ──
+    if (message.action === 'FOCUS_MAIN_WINDOW') {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.show();
+            mainWindow.focus();
+        }
+        return { success: true };
+    }
+
+    // ── OPEN_CRAWLER_SETTINGS: broadcast to renderer so it opens the sidepanel and displays settings ──
+    if (message.action === 'OPEN_CRAWLER_SETTINGS') {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('xpider-ext-runtime-on-message', message);
+        }
+        return { success: true };
+    }
+
     // 2. Relay message to all other webContents (Sidepanel/Content Scripts)
     const all = webContents.getAllWebContents();
     const senderId = event.sender.id;

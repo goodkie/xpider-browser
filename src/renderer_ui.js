@@ -855,6 +855,54 @@ window.electronAPI.on('xpider-ext-runtime-on-message', async (message) => {
         return;
     }
 
+    if (message.action === 'OPEN_CRAWLER_SETTINGS') {
+        const extBtns = document.querySelectorAll('.ext-btn');
+        let crawlerBtn = null;
+        for (const btn of extBtns) {
+            const titleLower = (btn.title || '').toLowerCase();
+            const textLower  = (btn.textContent || '').toLowerCase();
+            const dataName   = (btn.getAttribute('data-ext-name') || '').toLowerCase();
+            const extId      = (btn.getAttribute('data-ext-id') || '').toLowerCase();
+            if (titleLower.includes('crawler') || titleLower.includes('collect') || 
+                textLower.includes('crawler') || textLower.includes('collect') ||
+                dataName.includes('crawler') || dataName.includes('collect') ||
+                extId.includes('crawler') || extId.includes('localbusiness')) {
+                crawlerBtn = btn;
+                break;
+            }
+        }
+        if (crawlerBtn) {
+            const extId = crawlerBtn.getAttribute('data-ext-id');
+            // If the sidepanel is hidden or current extension is not this one, click it to open/focus
+            if (sidePanel.classList.contains('hidden') || currentExtensionId !== extId) {
+                crawlerBtn.click();
+            }
+            // Execute settings overlay opening script in webview
+            setTimeout(() => {
+                if (extensionWebview && extensionWebview.src) {
+                    extensionWebview.executeJavaScript(`
+                        const settingsOverlay = document.getElementById('settings-overlay');
+                        if (settingsOverlay) {
+                            settingsOverlay.classList.remove('hidden');
+                            const witaiGroup = document.getElementById('captcha-witai-group');
+                            if (witaiGroup) {
+                                witaiGroup.style.display = 'block';
+                                const toggle = document.getElementById('captcha-solve-toggle');
+                                if (toggle && !toggle.checked) toggle.checked = true;
+                                setTimeout(() => {
+                                    witaiGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    const keyInput = document.getElementById('audio-stt-key');
+                                    if (keyInput) keyInput.focus();
+                                }, 200);
+                            }
+                        }
+                    `).catch(() => {});
+                }
+            }, 500);
+        }
+        return;
+    }
+
     if (message.action === 'startHardwareCruiser' || message.action === 'startCruiser') {
         console.log('[CRUISER] ▶ Starting hardware cruiser via runtime message', message.config);
         startHardwareCruiser(message.config || {});
