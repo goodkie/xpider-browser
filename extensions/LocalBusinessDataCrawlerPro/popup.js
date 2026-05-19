@@ -945,44 +945,66 @@ document.addEventListener('DOMContentLoaded', () => {
             const s3 = document.getElementById('cstep-3');
 
             if (msg.status === 'detected') {
-                // ── 단계 1: 감지됨 ──
-                overlay.classList.remove('hidden');
-                icon.textContent  = '⚠️';
-                title.textContent = 'CAPTCHA 감지됨!';
-                stepLabel.textContent = '1단계: 새 탭 열림';
-                statusMsg.innerHTML = `🌐 Google이 자동화 요청을 차단했습니다.<br>
-                    브라우저에 <strong>새 탭</strong>이 열렸습니다. 해당 탭에서 CAPTCHA를 직접 해제해 주세요.`;
-                if (failMsg) failMsg.style.display = 'none';
-                if (spinner) spinner.style.display = 'flex';
-                if (waitText) waitText.textContent = '🆕 새 탭에서 CAPTCHA 해결을 기다리는 중... (자동 감지)';
-                // 단계 바
-                if (s1) { s1.style.background = '#667eea'; }
-                if (s2) { s2.style.background = '#e0e0e0'; }
-                if (s3) { s3.style.background = '#e0e0e0'; }
-                // 새 탭 URL 표시
-                if (msg.captchaUrl) {
-                    if (tabUrl) tabUrl.textContent = '🔗 ' + msg.captchaUrl.substring(0, 60) + (msg.captchaUrl.length > 60 ? '...' : '');
-                    if (tabInd) tabInd.style.display = msg.tabOpened ? 'flex' : 'none';
-                }
-                // 로그
-                if (logInline) {
-                    const ts = new Date().toLocaleTimeString();
-                    logInline.innerHTML += `<div>[${ts}] ⚠️ CAPTCHA 감지 → 새 탭 열림</div>`;
-                    logInline.scrollTop = logInline.scrollHeight;
-                }
+                // Check if Wit.ai key is configured before showing the CAPTCHA modal
+                chrome.storage.local.get(['audioSttKey', 'witKey', 'captchaSolveEnabled'], (keys) => {
+                    const hasKey = keys.audioSttKey || keys.witKey;
+                    if (!hasKey) {
+                        // No Wit.ai key – open Settings panel and scroll to Wit.ai section
+                        const settingsOverlay = document.getElementById('settings-overlay');
+                        if (settingsOverlay) {
+                            settingsOverlay.classList.remove('hidden');
+                            const witaiGroup = document.getElementById('captcha-witai-group');
+                            if (witaiGroup) {
+                                witaiGroup.style.display = 'block';
+                                // Also make sure the auto-solver toggle shows it as on
+                                const toggle = document.getElementById('captcha-solve-toggle');
+                                if (toggle && !toggle.checked) toggle.checked = true;
+                                setTimeout(() => {
+                                    witaiGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                    const keyInput = document.getElementById('audio-stt-key');
+                                    if (keyInput) keyInput.focus();
+                                }, 200);
+                            }
+                        }
+                        return; // Don't show CAPTCHA modal, prompt for key first
+                    }
+
+                    // Wit.ai key exists – show CAPTCHA modal normally
+                    overlay.classList.remove('hidden');
+                    icon.textContent  = '⚠️';
+                    title.textContent = 'CAPTCHA Detected!';
+                    stepLabel.textContent = 'Step 1: New Tab Opened';
+                    statusMsg.innerHTML = `🌐 Google has blocked automated requests.<br>
+                        A <strong>new tab</strong> has opened in your browser. Please solve the CAPTCHA there.`;
+                    if (failMsg) failMsg.style.display = 'none';
+                    if (spinner) spinner.style.display = 'flex';
+                    if (waitText) waitText.textContent = '🆕 Waiting for CAPTCHA resolution in new tab... (auto-detect)';
+                    if (s1) { s1.style.background = '#667eea'; }
+                    if (s2) { s2.style.background = '#e0e0e0'; }
+                    if (s3) { s3.style.background = '#e0e0e0'; }
+                    if (msg.captchaUrl) {
+                        if (tabUrl) tabUrl.textContent = '🔗 ' + msg.captchaUrl.substring(0, 60) + (msg.captchaUrl.length > 60 ? '...' : '');
+                        if (tabInd) tabInd.style.display = msg.tabOpened ? 'flex' : 'none';
+                    }
+                    if (logInline) {
+                        const ts = new Date().toLocaleTimeString();
+                        logInline.innerHTML += `<div>[${ts}] ⚠️ CAPTCHA Detected → New Tab Opened</div>`;
+                        logInline.scrollTop = logInline.scrollHeight;
+                    }
+                });
             } else if (msg.status === 'resolved') {
-                // ── 단계 3: 해결됨 ──
+                // ── Step 3: Resolved ──
                 icon.textContent  = '✅';
-                title.textContent = 'CAPTCHA 해결됨!';
-                stepLabel.textContent = msg.auto ? '자동 감지로 해결' : '수동으로 해결';
-                statusMsg.innerHTML = `✅ CAPTCHA가 해결되었습니다.<br>수집을 자동으로 재개합니다...`;
+                title.textContent = 'CAPTCHA Solved!';
+                stepLabel.textContent = msg.auto ? 'Auto-detected & Solved' : 'Manually Solved';
+                statusMsg.innerHTML = `✅ CAPTCHA has been solved.<br>Collection will automatically resume...`;
                 if (spinner) spinner.style.display = 'none';
                 if (s1) s1.style.background = '#34c759';
                 if (s2) s2.style.background = '#34c759';
                 if (s3) s3.style.background = '#34c759';
                 if (logInline) {
                     const ts = new Date().toLocaleTimeString();
-                    logInline.innerHTML += `<div>[${ts}] ✅ 해결됨 (${msg.auto ? '자동' : '수동'}) → 수집 재개</div>`;
+                    logInline.innerHTML += `<div>[${ts}] ✅ Solved (${msg.auto ? 'Auto' : 'Manual'}) → Resuming</div>`;
                     logInline.scrollTop = logInline.scrollHeight;
                 }
 
@@ -999,18 +1021,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 1.5초 후 모달 자동 닫기
                 setTimeout(() => { overlay.classList.add('hidden'); }, 1500);
             } else if (msg.status === 'bypassed') {
-                // ── [v3.3] 9분 자동 바이패스 ──
+                // ── [v3.3] 9-minute Auto Bypass ──
                 icon.textContent  = '⚡';
-                title.textContent = 'CAPTCHA 자동 바이패스!';
-                stepLabel.textContent = '9분 경과 — 자동 우회하여 수집 재개';
-                if (statusMsg) statusMsg.innerHTML = '⚡ 9분 대기 후 자동 바이패스<br>수집이 재개됩니다...';
+                title.textContent = 'CAPTCHA Auto-Bypassed!';
+                stepLabel.textContent = '9 min elapsed — auto bypass, resuming collection';
+                if (statusMsg) statusMsg.innerHTML = '⚡ 9-minute wait complete, auto-bypass activated.<br>Collection is resuming...';
                 if (spinner) spinner.style.display = 'none';
                 if (s1) s1.style.background = '#ff9500';
                 if (s2) s2.style.background = '#ff9500';
                 if (s3) s3.style.background = '#ff9500';
                 if (logInline) {
                     const ts = new Date().toLocaleTimeString();
-                    logInline.innerHTML += `<div>[${ts}] ⚡ 9분 바이패스 → 수집 재개</div>`;
+                    logInline.innerHTML += `<div>[${ts}] ⚡ 9-min Bypass → Resuming</div>`;
                     logInline.scrollTop = logInline.scrollHeight;
                 }
                 chrome.runtime.sendMessage({ action: 'MANUAL_CAPTCHA_RESOLVED' }, () => {
@@ -1018,10 +1040,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 setTimeout(() => { overlay.classList.add('hidden'); }, 2000);
             } else if (msg.status === 'timeout') {
-                // ── 실패 (하위 호환) ──
+                // ── Timeout (backward compat) ──
                 icon.textContent  = '⏱️';
-                title.textContent = '시간 초과';
-                stepLabel.textContent = '9분 경과 — 자동 바이패스';
+                title.textContent = 'Timed Out';
+                stepLabel.textContent = '9 min elapsed — auto bypass';
                 if (spinner) spinner.style.display = 'none';
                 if (failMsg) failMsg.style.display = 'block';
                 if (s1) s1.style.background = '#ff3b30';
@@ -1029,7 +1051,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (s3) s3.style.background = '#e0e0e0';
                 if (logInline) {
                     const ts = new Date().toLocaleTimeString();
-                    logInline.innerHTML += `<div>[${ts}] ⏱️ 9분 타임아웃 → 바이패스</div>`;
+                    logInline.innerHTML += `<div>[${ts}] ⏱️ 9-min Timeout → Bypass</div>`;
                 }
                 chrome.runtime.sendMessage({ action: 'MANUAL_CAPTCHA_RESOLVED' }, () => {});
                 setTimeout(() => { overlay.classList.add('hidden'); }, 3000);
@@ -1279,16 +1301,16 @@ function _closeCaptchaModal(auto) {
     const s3 = document.getElementById('cstep-3');
     const logInline = document.getElementById('captcha-log-inline');
     if (icon) icon.textContent = '✅';
-    if (title) title.textContent = 'CAPTCHA 해결됨!';
-    if (stepLabel) stepLabel.textContent = auto ? '자동 감지로 해결' : '수동으로 해결';
-    if (statusMsg) statusMsg.innerHTML = '✅ CAPTCHA가 해결되었습니다.<br>수집을 자동으로 재개합니다...';
+    if (title) title.textContent = 'CAPTCHA Solved!';
+    if (stepLabel) stepLabel.textContent = auto ? 'Auto-detected & Solved' : 'Manually Solved';
+    if (statusMsg) statusMsg.innerHTML = '✅ CAPTCHA has been solved.<br>Collection will automatically resume...';
     if (spinner) spinner.style.display = 'none';
     if (s1) s1.style.background = '#34c759';
     if (s2) s2.style.background = '#34c759';
     if (s3) s3.style.background = '#34c759';
     if (logInline) {
         const ts = new Date().toLocaleTimeString();
-        logInline.innerHTML += '<div>[' + ts + '] ✅ 해결됨 (' + (auto ? '자동' : '수동') + ') → 수집 재개</div>';
+        logInline.innerHTML += '<div>[' + ts + '] ✅ Solved (' + (auto ? 'Auto' : 'Manual') + ') → Resuming</div>';
         logInline.scrollTop = logInline.scrollHeight;
     }
     chrome.runtime.sendMessage({ action: 'MANUAL_CAPTCHA_RESOLVED' }, () => {
