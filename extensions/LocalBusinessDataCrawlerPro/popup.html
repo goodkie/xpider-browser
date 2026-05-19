@@ -53,6 +53,23 @@
                         A <strong>new tab</strong> has opened in your browser. Please solve the CAPTCHA there.
                     </div>
 
+                    <!-- [v4.9.44] Wit.ai Token Setting Field (Shown when key is missing) -->
+                    <div id="captcha-wit-input-container" style="display:none;margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;text-align:left;">
+                        <div style="font-size:0.82rem;color:#f8fafc;margin-bottom:6px;font-weight:700;display:flex;align-items:center;gap:6px;">
+                            <span>🔑</span> <span id="captcha-wit-title" data-i18n="wit_token_setting_title">Wit.ai Server Access Token 설정</span>
+                        </div>
+                        <div id="captcha-wit-desc" style="font-size:0.72rem;color:#94a3b8;margin-bottom:10px;line-height:1.4;" data-i18n="wit_token_setting_desc">
+                            자동 캡차 해결을 위해 Wit.ai 서버 액세스 토큰이 필요합니다. 토큰을 입력하고 저장하세요.
+                        </div>
+                        <div style="display:flex;gap:8px;margin-bottom:8px;">
+                            <input type="password" id="captcha-wit-key-input" placeholder="Wit.ai Token" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(15,23,42,0.6);color:#fff;font-size:0.8rem;outline:none;margin-bottom:0;">
+                            <button id="captcha-wit-save-btn" class="primary-btn" style="width:auto;padding:0 16px;font-size:0.8rem;margin:0;border-radius:8px;" data-i18n="wit_token_save_btn">저장</button>
+                        </div>
+                        <button id="captcha-wit-link-btn" class="secondary-btn" style="width:100%;font-size:0.75rem;padding:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;font-weight:600;border-radius:8px;" data-i18n="wit_token_get_btn">
+                            무료 Wit.ai API 키 발급 받기 →
+                        </button>
+                    </div>
+
                     <!-- New Tab Indicator -->
                     <div id="captcha-tab-indicator" style="display:none;align-items:center;gap:8px;padding:9px 12px;background:rgba(52,199,89,0.08);border:1px solid rgba(52,199,89,0.3);border-radius:8px;margin-bottom:12px;font-size:0.82rem;color:#2d9f52;">
                         <span style="font-size:1.1rem;">🆕</span>

@@ -64,6 +64,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const stealthModeToggle = document.getElementById('stealth-mode-toggle');
     const audioSttKeyInput = document.getElementById('audio-stt-key');
 
+    // [v4.9.44] CAPTCHA Wit.ai Token Quick Setup Elements
+    const captchaWitInputContainer = document.getElementById('captcha-wit-input-container');
+    const captchaWitKeyInput = document.getElementById('captcha-wit-key-input');
+    const captchaWitSaveBtn = document.getElementById('captcha-wit-save-btn');
+    const captchaWitLinkBtn = document.getElementById('captcha-wit-link-btn');
+
     const vpnCheckToggle = document.getElementById('vpn-check-toggle');
     const slowModeToggle = document.getElementById('slow-mode-toggle');
     const proxyEnableToggle = document.getElementById('proxy-enable-toggle');
@@ -399,6 +405,61 @@ document.addEventListener('DOMContentLoaded', () => {
         engineOptions.classList.add('hidden');
         updateHeaderStatus();
     });
+
+    // [v4.9.44] CAPTCHA Wit.ai Token Quick Setup Click Event Bindings
+    if (captchaWitSaveBtn) {
+        captchaWitSaveBtn.addEventListener('click', () => {
+            const val = captchaWitKeyInput ? captchaWitKeyInput.value.trim() : '';
+            if (!val) {
+                chrome.storage.local.get(['language'], (storage) => {
+                    const lang = storage.language || 'en';
+                    const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData ? i18nData['en'] : {});
+                    alert(dict.wit_token_empty_alert || "Wit.ai Server Access Token을 입력해주세요.");
+                });
+                return;
+            }
+
+            captchaWitSaveBtn.innerText = '...';
+            captchaWitSaveBtn.disabled = true;
+
+            chrome.storage.local.set({ 
+                witKey: val, 
+                audioSttKey: val, 
+                captchaSolveEnabled: true 
+            }, () => {
+                // Sync settings fields if they exist
+                if (audioSttKeyInput) audioSttKeyInput.value = val;
+                if (captchaSolveToggle) captchaSolveToggle.checked = true;
+                if (captchaWitaiGroup) captchaWitaiGroup.style.display = 'block';
+
+                chrome.storage.local.get(['language'], (storage) => {
+                    const lang = storage.language || 'en';
+                    const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData ? i18nData['en'] : {});
+                    
+                    // Show feedback success message
+                    const ts = new Date().toLocaleTimeString();
+                    const logInline = document.getElementById('captcha-log-inline');
+                    if (logInline) {
+                        logInline.innerHTML += `<div style="color:var(--success-color)">[${ts}] ${dict.wit_token_saved_msg || "✅ Token saved! Resuming CAPTCHA..."}</div>`;
+                        logInline.scrollTop = logInline.scrollHeight;
+                    }
+
+                    // Hide quick input
+                    if (captchaWitInputContainer) captchaWitInputContainer.style.display = 'none';
+
+                    // Clean up and restore button state
+                    captchaWitSaveBtn.innerText = dict.wit_token_save_btn || "저장";
+                    captchaWitSaveBtn.disabled = false;
+                });
+            });
+        });
+    }
+
+    if (captchaWitLinkBtn) {
+        captchaWitLinkBtn.addEventListener('click', () => {
+            window.open('https://wit.ai/apps', '_blank');
+        });
+    }
 
     selectAllEngines.addEventListener('change', (e) => {
         const checked = e.target.checked;
@@ -948,41 +1009,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Check if Wit.ai key is configured before showing the CAPTCHA modal
                 chrome.storage.local.get(['audioSttKey', 'witKey', 'captchaSolveEnabled'], (keys) => {
                     const hasKey = (keys.audioSttKey && keys.audioSttKey.trim() !== '') || (keys.witKey && keys.witKey.trim() !== '');
-                    if (!hasKey) {
-                        // Force bring browser window to absolute front
-                        chrome.runtime.sendMessage({ action: 'FOCUS_MAIN_WINDOW' });
-                        window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'FOCUS_MAIN_WINDOW' } }, '*');
-
-                        // Force open sidepanel & focus crawler settings
-                        chrome.runtime.sendMessage({ action: 'OPEN_CRAWLER_SETTINGS' });
-                        window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'OPEN_CRAWLER_SETTINGS' } }, '*');
-
-                        // Local Fallback inside popup
-                        const settingsOverlay = document.getElementById('settings-overlay');
-                        if (settingsOverlay) {
-                            settingsOverlay.classList.remove('hidden');
-                            const witaiGroup = document.getElementById('captcha-witai-group');
-                            if (witaiGroup) {
-                                witaiGroup.style.display = 'block';
-                                const toggle = document.getElementById('captcha-solve-toggle');
-                                if (toggle && !toggle.checked) toggle.checked = true;
-                                setTimeout(() => {
-                                    witaiGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    const keyInput = document.getElementById('audio-stt-key');
-                                    if (keyInput) keyInput.focus();
-                                }, 200);
-                            }
-                        }
-                        return; // Don't show CAPTCHA modal, prompt for key first
-                    }
-
-                    // Wit.ai key exists – show CAPTCHA modal normally
+                    
+                    // Show CAPTCHA modal in all cases
                     overlay.classList.remove('hidden');
                     icon.textContent  = '⚠️';
                     title.textContent = 'CAPTCHA Detected!';
                     stepLabel.textContent = 'Step 1: New Tab Opened';
                     statusMsg.innerHTML = `🌐 Google has blocked automated requests.<br>
                         A <strong>new tab</strong> has opened in your browser. Please solve the CAPTCHA there.`;
+
+                    // Handle Wit.ai quick setup form visibility
+                    if (captchaWitInputContainer) {
+                        if (!hasKey) {
+                            captchaWitInputContainer.style.display = 'block';
+                            if (captchaWitKeyInput) {
+                                captchaWitKeyInput.value = '';
+                                captchaWitKeyInput.focus();
+                            }
+                        } else {
+                            captchaWitInputContainer.style.display = 'none';
+                        }
+                    }
                     if (failMsg) failMsg.style.display = 'none';
                     if (spinner) spinner.style.display = 'flex';
                     if (waitText) waitText.textContent = '🆕 Waiting for CAPTCHA resolution in new tab... (auto-detect)';

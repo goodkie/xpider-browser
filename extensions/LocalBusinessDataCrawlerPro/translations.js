@@ -150,7 +150,13 @@ var I18N_DATA = {
         "btn_wait_5": "Wait 5 Minutes & Auto-Resume",
         "btn_paid_api": "Register Paid API (No Delay)",
         "secondary_wait_title": "Security Wait (5 Min)",
-        "secondary_wait_msg": "Google has detected frequent requests. We recommend a 5-minute pause to protect your IP from a permanent hard block."
+        "secondary_wait_msg": "Google has detected frequent requests. We recommend a 5-minute pause to protect your IP from a permanent hard block.",
+        "wit_token_setting_title": "Wit.ai Server Access Token Settings",
+        "wit_token_setting_desc": "A Wit.ai Server Access Token is required for automatic CAPTCHA audio bypass. Enter your token and click Save.",
+        "wit_token_save_btn": "Save",
+        "wit_token_get_btn": "🆓 Get Free Wit.ai API Key →",
+        "wit_token_saved_msg": "✅ Token saved! Resuming CAPTCHA auto-bypass...",
+        "wit_token_empty_alert": "Please enter your Wit.ai Server Access Token."
     },
     "ko": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -305,7 +311,13 @@ var I18N_DATA = {
         "btn_wait_5": "5분 기다리기 (이후 자동 재개)",
         "btn_paid_api": "유료 API 등록 (대기 없이 즉시 우회)",
         "secondary_wait_title": "보안 대기 모드 (5분)",
-        "secondary_wait_msg": "구글 검색 시 'To continue...' 문구가 감지되었습니다. 아이피 보호 및 하드 차단 방지를 위해 5분간 휴식 후 작업을 재개합니다."
+        "secondary_wait_msg": "구글 검색 시 'To continue...' 문구가 감지되었습니다. 아이피 보호 및 하드 차단 방지를 위해 5분간 휴식 후 작업을 재개합니다.",
+        "wit_token_setting_title": "Wit.ai Server Access Token 설정",
+        "wit_token_setting_desc": "자동 캡차 오디오 우회를 위해 Wit.ai 서버 액세스 토큰이 필요합니다. 토큰을 입력하고 저장하세요.",
+        "wit_token_save_btn": "저장",
+        "wit_token_get_btn": "🆓 무료 Wit.ai API 키 발급 받기 →",
+        "wit_token_saved_msg": "✅ 토큰이 저장되었습니다! 자동 캡차 우회를 시작합니다...",
+        "wit_token_empty_alert": "Wit.ai Server Access Token을 입력해주세요."
     },
     "ja": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
