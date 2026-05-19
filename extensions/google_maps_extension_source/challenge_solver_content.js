@@ -108,20 +108,29 @@
             });
 
             const title = document.createElement('h2');
-            title.innerHTML = '🚨 자동화된 쿼리 차단됨 (Hard Block)';
+            title.innerHTML = '🚨 Automated Query Blocked (Hard Block)';
             title.style.color = '#333';
-            title.style.fontSize = '14px'; // [v18.8] much smaller
+            title.style.fontSize = '14px';
             title.style.margin = '0 0 12px 0';
             
             const desc = document.createElement('p');
-            desc.innerHTML = '컴퓨터 또는 네트워크에서 자동화된 쿼리를 보내고 있을 수 있습니다. 사용자 보호를 위해 현재 IP의 접속이 잠시 거부되었습니다.<br><br>작업을 계속하기 위해 아래 옵션을 선택해 주세요.';
+            desc.innerHTML = 'Your computer or network may be sending automated queries. To protect users, access from your current IP has been temporarily denied.<br><br>Please select an option below to continue.';
             desc.style.color = '#666';
-            desc.style.fontSize = '10px'; // [v18.8] much smaller
+            desc.style.fontSize = '11px';
             desc.style.lineHeight = '1.6';
             desc.style.marginBottom = '20px';
 
+            const btnXpiderVpn = document.createElement('button');
+            btnXpiderVpn.innerHTML = '🛡️ Use XPIDER VPN to Bypass (Recommended)';
+            Object.assign(btnXpiderVpn.style, {
+                display: 'block', width: '100%', padding: '12px', marginBottom: '8px',
+                backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px',
+                fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s',
+                boxShadow: '0 4px 12px rgba(59,130,246,0.3)'
+            });
+
             const btnWait = document.createElement('button');
-            btnWait.innerHTML = '약 20~30분 수집을 일시 중단 후 재시작';
+            btnWait.innerHTML = '⏳ Pause Scraping for 25 Minutes & Auto-Resume';
             Object.assign(btnWait.style, {
                 display: 'block', width: '100%', padding: '10px', marginBottom: '8px',
                 backgroundColor: '#ff3366', color: '#fff', border: 'none', borderRadius: '8px',
@@ -129,7 +138,7 @@
             });
 
             const btnVpn = document.createElement('button');
-            btnVpn.innerHTML = '커스텀 프록시 사용 (설정 적용)';
+            btnVpn.innerHTML = '🔌 Use Custom Proxy (Apply Settings)';
             Object.assign(btnVpn.style, {
                 display: 'block', width: '100%', padding: '10px', marginBottom: '8px',
                 backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px',
@@ -137,7 +146,7 @@
             });
             
             const btnForceQuit = document.createElement('button');
-            btnForceQuit.innerHTML = '강제 종료 (현재 검색 중지)';
+            btnForceQuit.innerHTML = '⏹️ Force Quit (Stop Current Search)';
             Object.assign(btnForceQuit.style, {
                 display: 'block', width: '100%', padding: '10px',
                 backgroundColor: '#333', color: '#fff', border: 'none', borderRadius: '8px',
@@ -152,24 +161,24 @@
             
             proxyContainer.innerHTML = `
                 <div style="margin-bottom: 8px;">
-                    <label style="font-size: 12px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">IP 호스트</label>
+                    <label style="font-size: 12px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">IP Host</label>
                     <input type="text" id="xpider-proxy-ip" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;" placeholder="1.2.3.4">
                 </div>
                 <div style="margin-bottom: 8px;">
-                    <label style="font-size: 12px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">포트</label>
+                    <label style="font-size: 12px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Port</label>
                     <input type="text" id="xpider-proxy-port" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;" placeholder="8080">
                 </div>
                 <div style="display: flex; gap: 10px; margin-bottom: 12px;">
                     <div style="flex: 1;">
-                        <label style="font-size: 12px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">유저네임(선택)</label>
+                        <label style="font-size: 12px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Username (Optional)</label>
                         <input type="text" id="xpider-proxy-user" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
                     </div>
                     <div style="flex: 1;">
-                        <label style="font-size: 12px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">암호(선택)</label>
+                        <label style="font-size: 12px; font-weight: bold; color: #475569; display: block; margin-bottom: 4px;">Password (Optional)</label>
                         <input type="password" id="xpider-proxy-pass" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box;">
                     </div>
                 </div>
-                <button id="xpider-proxy-apply" style="width: 100%; padding: 10px; background-color: #3b82f6; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">프록시 적용 후 재개</button>
+                <button id="xpider-proxy-apply" style="width: 100%; padding: 10px; background-color: #3b82f6; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Apply Proxy & Resume</button>
             `;
 
             const countdownText = document.createElement('div');
@@ -180,10 +189,11 @@
 
             btnWait.addEventListener('click', () => {
                 btnWait.style.display = 'none';
+                btnXpiderVpn.style.display = 'none';
                 btnVpn.style.display = 'none';
                 btnForceQuit.style.display = 'none';
                 proxyContainer.style.display = 'none';
-                desc.innerHTML = '25분 타이머가 시작되었습니다. 브라우저를 켜두시면 타이머 종료 후 자동으로 작업을 재개합니다.';
+                desc.innerHTML = 'A 25-minute timer has started. Keep this browser open, and the task will automatically resume when finished.';
                 countdownText.style.display = 'block';
                 
                 chrome.runtime.sendMessage({ action: 'RESOLVE_HARD_BLOCK', choice: 'wait' });
@@ -193,7 +203,7 @@
                 setInterval(() => {
                     timeLeft--;
                     if (timeLeft <= 0) {
-                        countdownText.innerHTML = `✅ 타이머 종료! (재시작 진행중)`;
+                        countdownText.innerHTML = `✅ Timer Complete! (Resuming)`;
                         setTimeout(() => window.close(), 3000); 
                     } else {
                         const m = Math.floor(timeLeft / 60);
@@ -213,14 +223,19 @@
                 });
             });
             
+            btnXpiderVpn.addEventListener('click', () => {
+                chrome.runtime.sendMessage({ action: 'OPEN_XPIDER_VPN' });
+            });
+
             btnForceQuit.addEventListener('click', () => {
                 chrome.runtime.sendMessage({ action: 'cancelSearch' });
-                btnForceQuit.innerText = '종료 중...';
+                btnForceQuit.innerText = 'Closing...';
                 setTimeout(() => window.close(), 1000);
             });
 
             modal.appendChild(title);
             modal.appendChild(desc);
+            modal.appendChild(btnXpiderVpn);
             modal.appendChild(btnWait);
             modal.appendChild(btnVpn);
             modal.appendChild(btnForceQuit);
@@ -234,9 +249,9 @@
                     applyBtn.addEventListener('click', () => {
                         const host = document.getElementById('xpider-proxy-ip').value.trim();
                         const port = document.getElementById('xpider-proxy-port').value.trim();
-                        if (!host || !port) return alert("IP와 포트를 모두 입력해주세요.");
+                        if (!host || !port) return alert("Please enter both IP and Port.");
                         
-                        applyBtn.innerText = 'VPN 적용 및 수집 재개 중...';
+                        applyBtn.innerText = 'Applying Proxy & Resuming...';
                         applyBtn.style.backgroundColor = '#22c55e';
                         
                         chrome.storage.local.set({

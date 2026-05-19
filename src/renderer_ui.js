@@ -835,6 +835,20 @@ window.electronAPI.on('xpider-ext-runtime-on-message', async (message) => {
     if (!message.action) return;
     console.log('[XPIDER-RUNTIME-MSG] Received:', message.action);
 
+    if (message.action === 'OPEN_XPIDER_VPN') {
+        const extBtns = document.querySelectorAll('.ext-btn');
+        for (const btn of extBtns) {
+            if (btn.title.toLowerCase().includes('vpn') || btn.title.toLowerCase().includes('proxy')) {
+                // If the panel is hidden or not on this extension, click it
+                if (currentExtensionId !== btn.getAttribute('data-ext-id') || sidePanel.classList.contains('hidden')) {
+                    btn.click();
+                }
+                break;
+            }
+        }
+        return;
+    }
+
     if (message.action === 'startHardwareCruiser' || message.action === 'startCruiser') {
         console.log('[CRUISER] ▶ Starting hardware cruiser via runtime message', message.config);
         startHardwareCruiser(message.config || {});
