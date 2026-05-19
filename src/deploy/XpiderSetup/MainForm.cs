@@ -238,11 +238,11 @@ namespace XpiderSetup
 
             chkShortcut = new CheckBox { Location = new Point(0, 70), AutoSize = true, Checked = true, ForeColor = TEXT, Font = new Font(regFont.FontFamily, 10f), BackColor = Color.Transparent, Cursor = Cursors.Hand };
             
-            chkToS = new CheckBox { Location = new Point(0, 95), AutoSize = true, Checked = false, ForeColor = TEXT, Font = new Font(regFont.FontFamily, 10f), BackColor = Color.Transparent, Cursor = Cursors.Hand };
+            chkToS = new CheckBox { Location = new Point(0, 95), AutoSize = true, Checked = false, ForeColor = TEXT, Font = new Font(regFont.FontFamily, 8.5f), BackColor = Color.Transparent, Cursor = Cursors.Hand };
             chkToS.CheckedChanged += (s, e) => btnExtract.Enabled = chkToS.Checked;
 
-            lblToSLink = new Label { Location = new Point(130, 97), AutoSize = true, Font = new Font(regFont.FontFamily, 10f, FontStyle.Underline), ForeColor = ACCENT, Cursor = Cursors.Hand };
-            lblToSLink.Click += (s, e) => LaunchChromeAppMode($"https://github.com/goodkie/xpider-browser/blob/main/TOS_{currentLang}.md");
+            lblToSLink = new Label { Location = new Point(130, 97), AutoSize = true, Font = new Font(regFont.FontFamily, 8.5f, FontStyle.Underline), ForeColor = ACCENT, Cursor = Cursors.Hand };
+            lblToSLink.Click += (s, e) => LaunchChromeAppMode($"https://goodkie.github.io/xpider-browser/landing/tos.html?lang={currentLang}");
 
             lblStatus = new Label { Location = new Point(0, 140), Size = new Size(510, 18), Font = regFont, ForeColor = DIM };
             pbExtract = new RoundedProgressBar { Location = new Point(0, 164), Size = new Size(510, 8), Maximum = 100, Value = 0, BarColor = ACCENT, BackColor = Color.FromArgb(30, 30, 30), Radius = 4 };
