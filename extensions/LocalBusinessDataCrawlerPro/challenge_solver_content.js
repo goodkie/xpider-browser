@@ -379,6 +379,10 @@
 
         logToSystem("⚠️ Wit.ai API Key missing", "WAIT");
 
+        // ── [v4.9.43] Open the premium, large Electron settings popup window! ──
+        chrome.runtime.sendMessage({ action: 'OPEN_WIT_SETTINGS_POPUP' }).catch(() => {});
+        window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'OPEN_WIT_SETTINGS_POPUP' } }, '*');
+
         const overlay = document.createElement('div');
         overlay.id = 'xpider-wit-modal';
         Object.assign(overlay.style, {
@@ -451,7 +455,7 @@
             const val = input.value.trim();
             if (!val) return alert("Please enter the Server Access Token.");
             btnSave.innerText = 'Saving...';
-            chrome.storage.local.set({ witKey: val }, () => {
+            chrome.storage.local.set({ witKey: val, audioSttKey: val, captchaSolveEnabled: true }, () => {
                 overlay.remove();
                 logToSystem("✅ API Key Saved. Retrying...", "DONE");
             });
@@ -531,8 +535,9 @@
 
             if (audioInput) {
                 if (!solving) {
-                    const keys = await chrome.storage.local.get(['witKey']);
-                    if (!keys.witKey) {
+                    const keys = await chrome.storage.local.get(['witKey', 'audioSttKey']);
+                    const hasKey = (keys.witKey && keys.witKey.trim() !== '') || (keys.audioSttKey && keys.audioSttKey.trim() !== '');
+                    if (!hasKey) {
                         injectWitKeyMissingModal();
                         return;
                     }

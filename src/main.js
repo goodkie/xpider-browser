@@ -45,6 +45,7 @@ log.info(`[Portable] UserData Path: ${app.getPath('userData')}`);
 // ─── 윈도우 핸들 ──────────────────────────────────────────────
 let splashWindow = null;
 let loginWindow  = null;
+let witSettingsWindow = null;
 let loadedExtensionsInfo = [];
 let lastActiveTabByWindow = {}; // Cache active tab per windowId
 
@@ -290,6 +291,19 @@ ipcMain.on('auth-success', () => {
 });
 
 ipcMain.on('auth-close-app', () => app.quit());
+
+ipcMain.on('close-wit-settings-window', () => {
+  if (witSettingsWindow && !witSettingsWindow.isDestroyed()) {
+    witSettingsWindow.close();
+    witSettingsWindow = null;
+  }
+});
+
+ipcMain.on('open-wit-external-link', (event, url) => {
+  if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+    shell.openExternal(url);
+  }
+});
 
 // ─── 로그아웃 ─────────────────────────────────────────────────
 ipcMain.on('auth-logout', async () => {
@@ -1998,6 +2012,37 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
     if (message.action === 'OPEN_CRAWLER_SETTINGS') {
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('xpider-ext-runtime-on-message', message);
+        }
+        return { success: true };
+    }
+
+    // ── OPEN_WIT_SETTINGS_POPUP: show the beautiful large setting window for Wit.ai ──
+    if (message.action === 'OPEN_WIT_SETTINGS_POPUP') {
+        const path = require('path');
+        if (!witSettingsWindow || witSettingsWindow.isDestroyed()) {
+            witSettingsWindow = new BrowserWindow({
+                width: 520,
+                height: 460,
+                frame: false,
+                resizable: false,
+                show: false,
+                alwaysOnTop: true,
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                    preload: path.join(__dirname, 'wit-preload.js')
+                }
+            });
+
+            witSettingsWindow.loadFile(path.join(__dirname, 'wit_settings.html'));
+
+            witSettingsWindow.once('ready-to-show', () => {
+                witSettingsWindow.show();
+                witSettingsWindow.focus();
+            });
+        } else {
+            witSettingsWindow.show();
+            witSettingsWindow.focus();
         }
         return { success: true };
     }
