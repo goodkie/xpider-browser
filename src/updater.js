@@ -375,7 +375,11 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
 
       if (app.isPackaged) {
         const { shell: electronShell } = require('electron');
-        electronShell.openItem(filePath);
+        if (electronShell.openPath) {
+          await electronShell.openPath(filePath);
+        } else {
+          electronShell.openItem(filePath);
+        }
         await _sleep(2000);
         progress('done', 100, '✅ DMG 파일이 열렸습니다. 설치 후 재시작해주세요.');
       } else {
