@@ -641,6 +641,67 @@ document.addEventListener('DOMContentLoaded', () => {
         )];
     }
 
+    // ── [v1.1.4] Wit.ai Setup Modal helpers ─────────────────────────────
+    const witaiSetupModal  = document.getElementById('witai-setup-modal');
+    const witaiModalInput  = document.getElementById('witai-modal-input');
+    const witaiModalSave   = document.getElementById('witai-modal-save');
+    const witaiModalClose  = document.getElementById('witai-modal-close');
+    const witaiModalSkip   = document.getElementById('witai-modal-skip');
+    const witaiToggleVis   = document.getElementById('witai-modal-toggle-vis');
+
+    // Show/hide Wit.ai token visibility
+    if (witaiToggleVis && witaiModalInput) {
+        witaiToggleVis.addEventListener('click', () => {
+            witaiModalInput.type = witaiModalInput.type === 'password' ? 'text' : 'password';
+        });
+    }
+
+    // Close / Skip
+    function _closeWitaiModal() {
+        if (witaiSetupModal) witaiSetupModal.style.display = 'none';
+    }
+    if (witaiModalClose) witaiModalClose.addEventListener('click', _closeWitaiModal);
+    if (witaiModalSkip)  witaiModalSkip.addEventListener('click', _closeWitaiModal);
+
+    // Save & Continue
+    let _pendingStartFn = null; // stores the continuation after saving token
+    if (witaiModalSave) {
+        witaiModalSave.addEventListener('click', () => {
+            const token = (witaiModalInput ? witaiModalInput.value : '').trim();
+            if (!token) {
+                if (witaiModalInput) {
+                    witaiModalInput.style.borderColor = '#ff5555';
+                    witaiModalInput.focus();
+                }
+                return;
+            }
+            // Save to both keys for compatibility
+            chrome.storage.local.set({ audioSttKey: token, witKey: token }, () => {
+                // Also sync to the settings panel input
+                if (audioSttKeyInput) audioSttKeyInput.value = token;
+                _closeWitaiModal();
+                // Resume the pending collection start if any
+                if (typeof _pendingStartFn === 'function') {
+                    _pendingStartFn();
+                    _pendingStartFn = null;
+                }
+            });
+        });
+    }
+
+    // Helper: show the Wit.ai setup modal and queue a continuation
+    function _showWitaiSetupModal(onContinue) {
+        if (!witaiSetupModal) return;
+        _pendingStartFn = onContinue;
+        if (witaiModalInput) {
+            witaiModalInput.value = '';
+            witaiModalInput.style.borderColor = 'rgba(102,126,234,0.4)';
+            witaiModalInput.type = 'password';
+        }
+        witaiSetupModal.style.display = 'flex';
+        setTimeout(() => { if (witaiModalInput) witaiModalInput.focus(); }, 120);
+    }
+
     // Start Collection
     startBtn.addEventListener('click', async () => {
         const lang = languageSelect.value;
@@ -656,7 +717,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return alert(dictionary ? dictionary.alert_empty : 'Please enter content.');
         }
 
-        startBtn.disabled = true;
+        // [v1.1.4] Wit.ai pre-flight: if Auto CAPTCHA Solver is ON but token is missing, show setup modal
+        const _doStartCollection = () => {
+            startBtn.disabled = true;
         pauseBtn.classList.remove('hidden');
         cancelBtn.classList.remove('hidden');
         cancelBtn.disabled = false;
@@ -788,6 +851,20 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             startBtn.disabled = false;
         }
+        }; // end _doStartCollection
+
+        // Wit.ai preflight gate
+        chrome.storage.local.get(['captchaSolveEnabled', 'audioSttKey', 'witKey'], (keys) => {
+            const solverOn = !!keys.captchaSolveEnabled;
+            const hasToken = (keys.audioSttKey && keys.audioSttKey.trim() !== '') ||
+                             (keys.witKey && keys.witKey.trim() !== '');
+            if (solverOn && !hasToken) {
+                // Show Wit.ai setup modal — _doStartCollection will run after token is saved
+                _showWitaiSetupModal(_doStartCollection);
+            } else {
+                _doStartCollection();
+            }
+        });
     });
 
     // [v18.6] Optimized Pause/Resume Toggle for immediate feedback

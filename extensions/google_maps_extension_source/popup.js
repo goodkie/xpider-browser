@@ -42,11 +42,77 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ── [v1.1.4] Wit.ai Setup Modal helpers ─────────────────────────────
+  const witaiSetupModal  = document.getElementById('witai-setup-modal');
+  const witaiModalInput  = document.getElementById('witai-modal-input');
+  const witaiModalSave   = document.getElementById('witai-modal-save');
+  const witaiModalClose  = document.getElementById('witai-modal-close');
+  const witaiModalSkip   = document.getElementById('witai-modal-skip');
+  const witaiToggleVis   = document.getElementById('witai-modal-toggle-vis');
+
+  if (witaiToggleVis && witaiModalInput) {
+    witaiToggleVis.addEventListener('click', () => {
+      witaiModalInput.type = witaiModalInput.type === 'password' ? 'text' : 'password';
+    });
+  }
+
+  function _closeWitaiModal() {
+    if (witaiSetupModal) witaiSetupModal.style.display = 'none';
+  }
+  if (witaiModalClose) witaiModalClose.addEventListener('click', _closeWitaiModal);
+  if (witaiModalSkip)  witaiModalSkip.addEventListener('click', _closeWitaiModal);
+
+  let _pendingStartFn = null;
+  if (witaiModalSave) {
+    witaiModalSave.addEventListener('click', () => {
+      const token = (witaiModalInput ? witaiModalInput.value : '').trim();
+      if (!token) {
+        if (witaiModalInput) {
+          witaiModalInput.style.borderColor = '#ff5555';
+          witaiModalInput.focus();
+        }
+        return;
+      }
+      chrome.storage.local.set({ witKey: token, audioSttKey: token }, () => {
+        if (witKeyInput) witKeyInput.value = token;
+        _closeWitaiModal();
+        if (typeof _pendingStartFn === 'function') {
+          _pendingStartFn();
+          _pendingStartFn = null;
+        }
+      });
+    });
+  }
+
+  function _showWitaiSetupModal(onContinue) {
+    if (!witaiSetupModal) return;
+    _pendingStartFn = onContinue;
+    if (witaiModalInput) {
+      witaiModalInput.value = '';
+      witaiModalInput.style.borderColor = 'rgba(102,126,234,0.4)';
+      witaiModalInput.type = 'password';
+    }
+    witaiSetupModal.style.display = 'flex';
+    setTimeout(() => { if (witaiModalInput) witaiModalInput.focus(); }, 120);
+  }
+
   startBtn.addEventListener('click', () => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'start' });
-      chrome.runtime.sendMessage({ action: 'startScraping' });
-      setUIStatus(true);
+    const _doStartScraping = () => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        chrome.tabs.sendMessage(tabs[0].id, { action: 'start' });
+        chrome.runtime.sendMessage({ action: 'startScraping' });
+        setUIStatus(true);
+      });
+    };
+
+    chrome.storage.local.get(['witKey', 'audioSttKey'], (keys) => {
+      const hasToken = (keys.witKey && keys.witKey.trim() !== '') || 
+                       (keys.audioSttKey && keys.audioSttKey.trim() !== '');
+      if (!hasToken) {
+        _showWitaiSetupModal(_doStartScraping);
+      } else {
+        _doStartScraping();
+      }
     });
   });
 
