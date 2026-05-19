@@ -243,7 +243,7 @@ if (!window.chrome.tabs) {
         },
         create: (createProperties, callback) => {
             // Open a new URL in the main browser webview
-            ipcRenderer.invoke('xpider-ext-tabs-create', createProperties).then(tab => {
+            ipcRenderer.invoke('xpider-ext-create-tab', createProperties).then(tab => {
                 if (callback) callback(tab || { id: Date.now() });
             }).catch(() => {
                 if (callback) callback({ id: Date.now() });
@@ -257,7 +257,7 @@ if (!window.chrome.tabs) {
             });
         },
         update: (tabId, props, callback) => {
-            ipcRenderer.invoke('xpider-ext-tabs-update', props).then(callback);
+            ipcRenderer.invoke('xpider-ext-update-tab', props).then(callback);
         },
         onUpdated: {
             addListener: (callback) => {

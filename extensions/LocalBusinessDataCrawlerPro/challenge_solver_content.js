@@ -448,7 +448,12 @@
         });
 
         btnLink.addEventListener('click', () => {
-            window.open('https://wit.ai/apps', '_blank');
+            try {
+                chrome.runtime.sendMessage({ action: 'CREATE_TAB', url: 'https://wit.ai/apps' });
+            } catch (e) {
+                console.error("Failed to send CREATE_TAB message:", e);
+                window.open('https://wit.ai/apps', '_blank'); // fallback
+            }
         });
 
         btnSave.addEventListener('click', () => {

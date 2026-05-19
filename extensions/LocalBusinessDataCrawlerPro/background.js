@@ -769,6 +769,11 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                 return { status: 'ok' };
             }
 
+            if (m.action === 'CREATE_TAB') {
+                chrome.tabs.create({ url: m.url });
+                return { status: 'ok' };
+            }
+
             return { error: 'Unknown action: ' + m.action };
         } catch (err) {
             console.error("[v20.0] handleMessage Fatal:", err);

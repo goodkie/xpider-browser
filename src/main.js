@@ -526,7 +526,7 @@ ipcMain.on('xpider-ext-report-active-tab', (event, tabInfo) => {
     lastActiveTabByWindow[1] = tabInfo;
 });
 
-ipcMain.handle('xpider-ext-update-tab', async (event, props) => {
+const handleExtUpdateTab = async (event, props) => {
     console.log(`[NAV-TRACE] Received update-tab request for: ${props.url}`);
     if (!mainWindow || mainWindow.isDestroyed()) return null;
     try {
@@ -538,9 +538,11 @@ ipcMain.handle('xpider-ext-update-tab', async (event, props) => {
         log.error('[ExtBridge] update-tab error:', e);
         return null;
     }
-});
+};
+ipcMain.handle('xpider-ext-update-tab', handleExtUpdateTab);
+ipcMain.handle('xpider-ext-tabs-update', handleExtUpdateTab);
 
-ipcMain.handle('xpider-ext-create-tab', async (event, props) => {
+const handleExtCreateTab = async (event, props) => {
     if (!mainWindow || mainWindow.isDestroyed()) return { id: Date.now(), url: props.url || '' };
     try {
         const url = props.url || 'about:blank';
@@ -569,7 +571,9 @@ ipcMain.handle('xpider-ext-create-tab', async (event, props) => {
         log.error('[ExtBridge] create-tab error:', e);
         return { id: Date.now(), url: props.url || '' };
     }
-});
+};
+ipcMain.handle('xpider-ext-create-tab', handleExtCreateTab);
+ipcMain.handle('xpider-ext-tabs-create', handleExtCreateTab);
 
 // [v1.1.2] 익스텐션에서 탭 제거 요청 처리 (크롤러 작업 후 탭 닫기)
 ipcMain.handle('xpider-ext-tabs-remove', async (event, removeProps) => {
