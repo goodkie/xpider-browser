@@ -837,14 +837,20 @@ window.electronAPI.on('xpider-ext-runtime-on-message', async (message) => {
 
     if (message.action === 'OPEN_XPIDER_VPN') {
         const extBtns = document.querySelectorAll('.ext-btn');
+        let vpnBtn = null;
+        const vpnKeywords = ['vpn', 'proxy', 'xpider vpn', 'xpidervpn'];
         for (const btn of extBtns) {
-            if (btn.title.toLowerCase().includes('vpn') || btn.title.toLowerCase().includes('proxy')) {
-                // If the panel is hidden or not on this extension, click it
-                if (currentExtensionId !== btn.getAttribute('data-ext-id') || sidePanel.classList.contains('hidden')) {
-                    btn.click();
-                }
+            const titleLower = (btn.title || '').toLowerCase();
+            const textLower  = (btn.textContent || '').toLowerCase();
+            const dataName   = (btn.getAttribute('data-ext-name') || '').toLowerCase();
+            if (vpnKeywords.some(kw => titleLower.includes(kw) || textLower.includes(kw) || dataName.includes(kw))) {
+                vpnBtn = btn;
                 break;
             }
+        }
+        if (vpnBtn) {
+            // Always click to open/focus the VPN extension panel
+            vpnBtn.click();
         }
         return;
     }

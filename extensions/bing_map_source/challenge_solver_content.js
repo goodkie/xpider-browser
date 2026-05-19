@@ -93,17 +93,18 @@
             const overlay = document.createElement('div');
             overlay.id = 'xpider-hard-block-modal';
             Object.assign(overlay.style, {
-                position: 'fixed', top: '0', left: '0', width: '100%', height: '100%',
+                position: 'fixed', top: '30px', left: '0', width: '100%', height: 'calc(100% - 30px)',
                 backgroundColor: 'rgba(0, 0, 0, 0.85)', zIndex: '9999999',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+                paddingTop: '12px', boxSizing: 'border-box',
                 fontFamily: 'sans-serif'
             });
 
             const modal = document.createElement('div');
             Object.assign(modal.style, {
                 backgroundColor: '#fff', borderTop: '5px solid #ff3333',
-                borderRadius: '12px', padding: '25px', width: '95%', maxWidth: '520px',
-                maxHeight: '90vh', overflowY: 'auto', boxSizing: 'border-box',
+                borderRadius: '12px', padding: '16px 20px', width: '95%', maxWidth: '520px',
+                maxHeight: 'calc(100vh - 60px)', overflowY: 'auto', boxSizing: 'border-box',
                 boxShadow: '0 10px 30px rgba(0,0,0,0.5)', textAlign: 'center'
             });
 
@@ -111,19 +112,19 @@
             title.innerHTML = '🚨 Automated Query Blocked (Hard Block)';
             title.style.color = '#333';
             title.style.fontSize = '14px';
-            title.style.margin = '0 0 12px 0';
+            title.style.margin = '0 0 8px 0';
             
             const desc = document.createElement('p');
-            desc.innerHTML = 'Your computer or network may be sending automated queries. To protect users, access from your current IP has been temporarily denied.<br><br>Please select an option below to continue.';
+            desc.innerHTML = 'Your computer or network may be sending automated queries. Access from your current IP has been temporarily denied.<br>Please select an option below to continue.';
             desc.style.color = '#666';
             desc.style.fontSize = '11px';
-            desc.style.lineHeight = '1.6';
-            desc.style.marginBottom = '20px';
+            desc.style.lineHeight = '1.5';
+            desc.style.marginBottom = '12px';
 
             const btnXpiderVpn = document.createElement('button');
             btnXpiderVpn.innerHTML = '🛡️ Use XPIDER VPN to Bypass (Recommended)';
             Object.assign(btnXpiderVpn.style, {
-                display: 'block', width: '100%', padding: '12px', marginBottom: '8px',
+                display: 'block', width: '100%', padding: '11px', marginBottom: '7px',
                 backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px',
                 fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s',
                 boxShadow: '0 4px 12px rgba(59,130,246,0.3)'
@@ -132,7 +133,7 @@
             const btnWait = document.createElement('button');
             btnWait.innerHTML = '⏳ Pause Scraping for 25 Minutes & Auto-Resume';
             Object.assign(btnWait.style, {
-                display: 'block', width: '100%', padding: '10px', marginBottom: '8px',
+                display: 'block', width: '100%', padding: '9px', marginBottom: '7px',
                 backgroundColor: '#ff3366', color: '#fff', border: 'none', borderRadius: '8px',
                 fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'
             });
@@ -140,7 +141,7 @@
             const btnVpn = document.createElement('button');
             btnVpn.innerHTML = '🔌 Use Custom Proxy (Apply Settings)';
             Object.assign(btnVpn.style, {
-                display: 'block', width: '100%', padding: '10px', marginBottom: '8px',
+                display: 'block', width: '100%', padding: '8px', marginBottom: '6px',
                 backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px',
                 fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'
             });
@@ -148,7 +149,7 @@
             const btnForceQuit = document.createElement('button');
             btnForceQuit.innerHTML = '⏹️ Force Quit (Stop Current Search)';
             Object.assign(btnForceQuit.style, {
-                display: 'block', width: '100%', padding: '10px',
+                display: 'block', width: '100%', padding: '8px',
                 backgroundColor: '#333', color: '#fff', border: 'none', borderRadius: '8px',
                 fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s'
             });

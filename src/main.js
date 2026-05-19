@@ -1976,6 +1976,14 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
         stopDeepSearchInMain();
     }
     
+    // ── OPEN_XPIDER_VPN: broadcast to renderer so it opens the VPN extension panel ──
+    if (message.action === 'OPEN_XPIDER_VPN') {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('xpider-ext-runtime-on-message', message);
+        }
+        return { success: true };
+    }
+
     // 2. Relay message to all other webContents (Sidepanel/Content Scripts)
     const all = webContents.getAllWebContents();
     const senderId = event.sender.id;
