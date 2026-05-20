@@ -458,18 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (captchaWitLinkBtn) {
         captchaWitLinkBtn.addEventListener('click', () => {
             const witUrl = 'https://wit.ai/apps';
-            // main.js 에 이미 있는 open-wit-external-link IPC 채널을 사용 (shell.openExternal)
-            try {
-                window.postMessage({
-                    type: 'XPIDER_SEND',
-                    channel: 'open-wit-external-link',
-                    data: witUrl
-                }, '*');
-                return;
-            } catch(e1) {
-                console.warn('[XPIDER] XPIDER_SEND failed:', e1);
-            }
-            // 폴백 1: XPIDER_INVOKE 방식
+            // 1순위: XPIDER 브릿지(postMessage) XPIDER_INVOKE 방식 - Electron 내에서 새 탭을 직접 띄움
             try {
                 window.postMessage({
                     type: 'XPIDER_INVOKE',
@@ -478,12 +467,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     id: 'wit-open-' + Date.now()
                 }, '*');
                 return;
-            } catch(e2) {
-                console.warn('[XPIDER] XPIDER_INVOKE failed:', e2);
+            } catch(e1) {
+                console.warn('[XPIDER] XPIDER_INVOKE failed, trying chrome.tabs.create:', e1);
             }
-            // 폴백 2: chrome.tabs.create
-            try { chrome.tabs.create({ url: witUrl }); return; } catch(e3) {}
-            // 폴백 3: 마지막
+            // 2순위: chrome.tabs.create (프리로드 가로채기 또는 확장 API가 직접 처리)
+            try {
+                chrome.tabs.create({ url: witUrl });
+                return;
+            } catch(e2) {
+                console.warn('[XPIDER] chrome.tabs.create failed, using window.open:', e2);
+            }
+            // 3순위: 폴백
             window.open(witUrl, '_blank');
         });
     }

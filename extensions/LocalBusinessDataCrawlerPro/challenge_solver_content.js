@@ -449,17 +449,26 @@
 
         btnLink.addEventListener('click', () => {
             const witUrl = 'https://wit.ai/apps';
-            // 1순위: XPIDER_SEND로 main.js의 shell.openExternal 호출
-            try {
-                window.postMessage({ type: 'XPIDER_SEND', channel: 'open-wit-external-link', data: witUrl }, '*');
-                return;
-            } catch(e1) {}
-            // 2순위: background.js 경유 탭 생성
+            // 1순위: background.js 경유하여 chrome.tabs.create 실행 (XPIDER 내 새 탭으로 로드)
             try {
                 chrome.runtime.sendMessage({ action: 'CREATE_TAB', url: witUrl });
                 return;
+            } catch(e1) {}
+            // 2순위: 직접 chrome.tabs.create 호출 (만약 스크립팅 API 권한이 있으면)
+            try {
+                chrome.tabs.create({ url: witUrl });
+                return;
             } catch(e2) {}
-            // 3순위: 마지막 폴백
+            // 3순위: postMessage XPIDER_INVOKE 방식
+            try {
+                window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-ext-create-tab', args: { url: witUrl, active: true }, id: 'wit-open-' + Date.now() }, '*');
+                return;
+            } catch(e3) {}
+            // 4순위: 외부 창으로 열기 (최종 폴백)
+            try {
+                window.postMessage({ type: 'XPIDER_SEND', channel: 'open-wit-external-link', data: witUrl }, '*');
+                return;
+            } catch(e4) {}
             window.open(witUrl, '_blank');
         });
 
