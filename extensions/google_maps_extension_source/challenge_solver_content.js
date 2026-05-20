@@ -225,8 +225,23 @@
             });
             
             btnXpiderVpn.addEventListener('click', () => {
-                chrome.runtime.sendMessage({ action: 'OPEN_XPIDER_VPN' });
-                window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'OPEN_XPIDER_VPN' } }, '*');
+                // 1순위: XPIDER_INVOKE → main.js ipcMain.handle → renderer_ui.js가 VPN 패널 오픈
+                try {
+                    window.postMessage({
+                        type: 'XPIDER_INVOKE',
+                        channel: 'open-xpider-vpn-panel',
+                        args: {},
+                        id: 'open-vpn-' + Date.now()
+                    }, '*');
+                } catch(e1) {}
+                // 2순위: XPIDER_BRIDGE_RELAY (폴백)
+                try {
+                    window.postMessage({ type: 'XPIDER_BRIDGE_RELAY', message: { action: 'OPEN_XPIDER_VPN' } }, '*');
+                } catch(e2) {}
+                // 3순위: background.js 경유 (폴백)
+                try {
+                    chrome.runtime.sendMessage({ action: 'OPEN_XPIDER_VPN' });
+                } catch(e3) {}
             });
 
             btnForceQuit.addEventListener('click', () => {

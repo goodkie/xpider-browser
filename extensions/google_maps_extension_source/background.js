@@ -69,6 +69,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       });
       sendLog("🧹 데이터 및 캐시 완전 삭제 완료.");
   }
+
+  if (request.action === 'OPEN_XPIDER_VPN') {
+      try {
+          chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+              if (tabs && tabs[0] && tabs[0].id) {
+                  chrome.scripting.executeScript({
+                      target: { tabId: tabs[0].id },
+                      world: 'MAIN',
+                      func: () => {
+                          window.postMessage({
+                              type: 'XPIDER_INVOKE',
+                              channel: 'open-xpider-vpn-panel',
+                              args: {},
+                              id: 'bg-vpn-' + Date.now()
+                          }, '*');
+                      }
+                  }).catch(() => {});
+              }
+          });
+      } catch(e) {}
+      return { status: 'relayed' };
+  }
 });
 
 // ─── 신규 업체 추가 ─ XPIDER 모드에서는 main.js가 저장소 관리 ─────────
