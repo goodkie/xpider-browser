@@ -271,19 +271,19 @@ namespace XpiderSetup
             chkShortcut.Text = dict["createShortcut"];
             chkToS.Text = dict["agreeTos"];
             
-            // Adjust Link location based on checkbox text width
-            using (Graphics g = CreateGraphics()) {
-                SizeF size = g.MeasureString(chkToS.Text, chkToS.Font);
-                int linkX = chkToS.Left + (int)size.Width + 12;
-                // If it's too far right, wrap it to the next line
-                if (linkX + 150 > pnlMain.Width) {
-                    lblToSLink.Location = new Point(chkToS.Left + 25, chkToS.Top + 22);
-                } else {
-                    lblToSLink.Location = new Point(linkX, chkToS.Top + 1);
-                }
-            }
+            // 먼저 텍스트를 설정해야 AutoSize 너비가 정확히 측정됨
             lblToSLink.Text = dict["tosLink"];
-            
+
+            // Adjust Link location: CheckBox 아이콘(~20px) + 도우삼 텍스트 너비
+            int checkGlyphWidth = 20;
+            Size measured = TextRenderer.MeasureText(chkToS.Text, chkToS.Font);
+            int linkX = chkToS.Left + checkGlyphWidth + measured.Width;
+            if (linkX + lblToSLink.PreferredWidth + 10 > pnlMain.Width) {
+                lblToSLink.Location = new Point(chkToS.Left + 25, chkToS.Top + 22);
+            } else {
+                lblToSLink.Location = new Point(linkX, chkToS.Top + 1);
+            }
+
             lblStatus.Text = dict["verifyPath"];
             btnExtract.Text = dict["extractBtn"];
         }
