@@ -130,7 +130,7 @@
     <div class="ring r3"></div>
     <div class="ring r4"></div>
     <div class="center">
-      <img class="logo" id="splashLogo" src="assets/icon.png" alt="X" onerror="console.error('Failed to load splash logo: assets/icon.png')">
+      <img class="logo" id="splashLogo" src="assets/icon.png" alt="X">
       <span class="name">XPIDER</span>
       <span class="sub">Loading...</span>
     </div>
@@ -138,6 +138,7 @@
   </div>
 
   <script>
+
     if (window.splashAPI) {
       window.splashAPI.onProgress(msg => {
         const el = document.getElementById('status-text');
