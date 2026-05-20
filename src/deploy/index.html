@@ -263,6 +263,12 @@ header {
       <input class="ver-input" id="customVer" placeholder="예: 2.3.0">
       <button class="btn btn-cyan" style="width:auto;padding:10px 16px;" onclick="deployCustom()">배포</button>
     </div>
+
+    <div class="divider"></div>
+    <div class="ptitle" style="margin-bottom:8px;">📥 빌드 파일 다운로드</div>
+    <div id="releaseList" style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;padding-right:4px;">
+      <div style="color:var(--dim);font-size:11px;text-align:center;padding:10px;">빌드 목록 조회 중...</div>
+    </div>
   </div>
 
   <!-- 오른쪽: 익스텐션 관리 -->
@@ -359,14 +365,59 @@ const es = new EventSource('/events');
 es.onmessage = e => {
   const { type, payload } = JSON.parse(e.data);
   if (type === 'log')     addLog(payload.text, payload.err);
-  if (type === 'status')  setStatus(payload === 'deploying');
-  if (type === 'refresh') renderInfo(payload);
+  if (type === 'status')  {
+    setStatus(payload === 'deploying');
+    if (payload !== 'deploying') loadReleases();
+  }
+  if (type === 'refresh') {
+    renderInfo(payload);
+    loadReleases();
+  }
 };
 
 // ── 정보 로드 ────────────────────────────────────────
 async function loadInfo() {
   const info = await fetch('/api/info').then(r=>r.json());
   renderInfo(info);
+  loadReleases();
+}
+
+async function loadReleases() {
+  const container = $('releaseList');
+  if (!container) return;
+  try {
+    const res = await fetch('/api/releases').then(r => r.json());
+    if (!res || res.length === 0) {
+      container.innerHTML = `<div style="color:var(--dim);font-size:11px;text-align:center;padding:10px;">사용 가능한 빌드 파일이 없습니다.</div>`;
+      return;
+    }
+    
+    container.innerHTML = res.map(file => {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      const isZip = file.name.endsWith('.zip');
+      const dateStr = new Date(file.mtime).toLocaleString('ko-KR', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+      const icon = isZip ? '📦' : '💿';
+      const label = isZip ? 'ZIP 패키지' : '인스톨러';
+      
+      return `
+        <a href="/releases/${encodeURIComponent(file.name)}" class="btn btn-sec" style="text-align:left;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;text-decoration:none;margin-bottom:4px;width:100%;box-sizing:border-box;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:16px;">${icon}</span>
+            <div style="display:flex;flex-direction:column;text-align:left;">
+              <span style="font-weight:600;font-size:12px;color:var(--text);word-break:break-all;">${file.name}</span>
+              <span style="font-size:10px;color:var(--dim);">${label} • ${sizeMB} MB • ${dateStr}</span>
+            </div>
+          </div>
+          <span style="font-size:12px;color:var(--accent);">⬇</span>
+        </a>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = `<div style="color:var(--red);font-size:11px;text-align:center;padding:10px;">목록을 불러오지 못했습니다.</div>`;
+  }
 }
 
 let globalExtensions = [];

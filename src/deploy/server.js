@@ -244,6 +244,92 @@ http.createServer(async (req, res) => {
     if (u.pathname === '/api/info') {
       res.writeHead(200,{'Content-Type':'application/json'}); res.end(JSON.stringify(await getInfo())); return;
     }
+    if (u.pathname === '/api/releases' && req.method==='GET') {
+      const releases = [];
+      try {
+        if (fs.existsSync(ROOT)) {
+          fs.readdirSync(ROOT).forEach(file => {
+            if ((file.startsWith('XPIDER-Browser-Windows-') && file.endsWith('.exe')) ||
+                (file.startsWith('XPIDER-Browser-Windows-') && file.endsWith('.zip'))) {
+              const stat = fs.statSync(path.join(ROOT, file));
+              releases.push({
+                name: file,
+                size: stat.size,
+                mtime: stat.mtime.getTime(),
+                location: 'root'
+              });
+            }
+          });
+        }
+        
+        const squirrelDir = path.join(ROOT, 'out', 'make', 'squirrel', 'win32', 'x64');
+        if (fs.existsSync(squirrelDir)) {
+          fs.readdirSync(squirrelDir).forEach(file => {
+            if (file.endsWith('.exe')) {
+              const stat = fs.statSync(path.join(squirrelDir, file));
+              if (!releases.some(r => r.name === file)) {
+                releases.push({
+                  name: file,
+                  size: stat.size,
+                  mtime: stat.mtime.getTime(),
+                  location: 'make-squirrel'
+                });
+              }
+            }
+          });
+        }
+
+        const zipDir = path.join(ROOT, 'out', 'make', 'zip', 'win32', 'x64');
+        if (fs.existsSync(zipDir)) {
+          fs.readdirSync(zipDir).forEach(file => {
+            if (file.endsWith('.zip')) {
+              const stat = fs.statSync(path.join(zipDir, file));
+              if (!releases.some(r => r.name === file)) {
+                releases.push({
+                  name: file,
+                  size: stat.size,
+                  mtime: stat.mtime.getTime(),
+                  location: 'make-zip'
+                });
+              }
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Error listing releases:', err);
+      }
+      
+      releases.sort((a, b) => b.mtime - a.mtime);
+      res.writeHead(200,{'Content-Type':'application/json'});
+      res.end(JSON.stringify(releases));
+      return;
+    }
+    if (u.pathname.startsWith('/releases/')) {
+      const fileName = decodeURIComponent(u.pathname.substring(10));
+      if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+        res.writeHead(403); res.end('Access Denied'); return;
+      }
+      
+      let filePath = path.join(ROOT, fileName);
+      if (!fs.existsSync(filePath)) {
+        if (fileName.endsWith('.exe')) {
+          filePath = path.join(ROOT, 'out', 'make', 'squirrel', 'win32', 'x64', fileName);
+        } else if (fileName.endsWith('.zip')) {
+          filePath = path.join(ROOT, 'out', 'make', 'zip', 'win32', 'x64', fileName);
+        }
+      }
+      
+      if (fs.existsSync(filePath)) {
+        res.writeHead(200, {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`
+        });
+        fs.createReadStream(filePath).pipe(res);
+        return;
+      } else {
+        res.writeHead(404); res.end('File Not Found'); return;
+      }
+    }
     if (u.pathname === '/api/get-tos' && req.method==='GET') {
       const lang = u.searchParams.get('lang') || 'en';
       const tosPath = path.join(ROOT, `TOS_${lang}.md`);
