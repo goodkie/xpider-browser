@@ -54,6 +54,7 @@ module.exports = {
     {
       name: '@electron-forge/maker-dmg',
       config: {
+        name: 'XPIDER-Browser',
         format: 'UDZO',
         icon: './assets/icons/mac/icon.icns'
       },
