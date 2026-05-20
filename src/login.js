@@ -34,14 +34,14 @@
   (async () => {
     const session = await window.authAPI.checkSession();
     if (session) {
-      showMsg('자동 로그인 중...', 'info');
+      showMsg('Auto-logging in...', 'info');
       setTimeout(() => window.authAPI.success(), 600);
       return;
     }
 
     // 저장된 이메일+패스워드가 있으면 자동 로그인 시도
     if (savedEmail && savedPw) {
-      showMsg('저장된 계정으로 로그인 중...', 'info');
+      showMsg('Logging in with saved account...', 'info');
       const res = await window.authAPI.login(savedEmail, savedPw);
       if (res.success) {
         showMsg('Login successful! Starting browser...', 'success');
@@ -95,7 +95,7 @@
   async function handleLogin() {
     const email = document.getElementById('login-email').value.trim();
     const pw    = document.getElementById('login-password').value;
-    if (!email || !pw) { showMsg('이메일과 비밀번호를 입력하세요.', 'error'); return; }
+    if (!email || !pw) { showMsg('Please enter your email and password.', 'error'); return; }
 
     setLoading(btnLogin, true);
     hideMsg();
@@ -120,12 +120,12 @@
       failCount++;
       const remaining = MAX_FAIL - failCount;
       if (remaining <= 0) {
-        showMsg('로그인 실패가 3회를 초과했습니다. 앱을 종료합니다.', 'error');
+        showMsg('Login attempts exceeded 3 times. Closing application.', 'error');
         startCountdown();
       } else {
-        showMsg(`오류: ${res.error}`, 'error');
+        showMsg(`Error: ${res.error}`, 'error');
         attBar.classList.remove('hidden');
-        attText.textContent = `남은 시도: ${remaining}회`;
+        attText.textContent = `Remaining attempts: ${remaining}`;
       }
     }
   }
@@ -139,9 +139,9 @@
     const pw       = document.getElementById('signup-password').value;
     const confirm  = document.getElementById('signup-confirm').value;
 
-    if (!username || !email || !pw || !confirm) { showMsg('모든 필드를 입력하세요.', 'error'); return; }
-    if (pw.length < 8)   { showMsg('비밀번호는 8자 이상이어야 합니다.', 'error'); return; }
-    if (pw !== confirm)  { showMsg('비밀번호가 일치하지 않습니다.', 'error'); return; }
+    if (!username || !email || !pw || !confirm) { showMsg('Please fill in all fields.', 'error'); return; }
+    if (pw.length < 8)   { showMsg('Password must be at least 8 characters long.', 'error'); return; }
+    if (pw !== confirm)  { showMsg('Passwords do not match.', 'error'); return; }
 
     setLoading(btnSignup, true);
     hideMsg();
@@ -151,9 +151,9 @@
     setLoading(btnSignup, false);
 
     if (res.success) {
-      showMsg(res.message || '가입 완료! 이메일을 확인해주세요.', 'success');
+      showMsg(res.message || 'Signup successful! Please check your email.', 'success');
     } else {
-      showMsg(`오류: ${res.error}`, 'error');
+      showMsg(`Error: ${res.error}`, 'error');
     }
   }
 
@@ -162,7 +162,7 @@
     let sec = 5;
     const interval = setInterval(() => {
       sec--;
-      showMsg(`${sec}초 후 앱이 종료됩니다...`, 'error');
+      showMsg(`Closing application in ${sec} seconds...`, 'error');
       if (sec <= 0) {
         clearInterval(interval);
         window.authAPI.closeApp();
@@ -183,7 +183,7 @@
     const label = btn.querySelector('.btn-label');
     const icon  = btn.querySelector('.btn-icon');
     if (loading) {
-      label.textContent = '처리 중...';
+      label.textContent = 'Processing...';
       icon.innerHTML = '<span class="spinner"></span>';
     } else {
       const isLogin = btn.id === 'btn-login';
