@@ -457,7 +457,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (captchaWitLinkBtn) {
         captchaWitLinkBtn.addEventListener('click', () => {
-            chrome.tabs.create({ url: 'https://wit.ai/apps' });
+            const witUrl = 'https://wit.ai/apps';
+            // main.js 에 이미 있는 open-wit-external-link IPC 채널을 사용 (shell.openExternal)
+            try {
+                window.postMessage({
+                    type: 'XPIDER_SEND',
+                    channel: 'open-wit-external-link',
+                    data: witUrl
+                }, '*');
+                return;
+            } catch(e1) {
+                console.warn('[XPIDER] XPIDER_SEND failed:', e1);
+            }
+            // 폴백 1: XPIDER_INVOKE 방식
+            try {
+                window.postMessage({
+                    type: 'XPIDER_INVOKE',
+                    channel: 'xpider-ext-create-tab',
+                    args: { url: witUrl, active: true },
+                    id: 'wit-open-' + Date.now()
+                }, '*');
+                return;
+            } catch(e2) {
+                console.warn('[XPIDER] XPIDER_INVOKE failed:', e2);
+            }
+            // 폴백 2: chrome.tabs.create
+            try { chrome.tabs.create({ url: witUrl }); return; } catch(e3) {}
+            // 폴백 3: 마지막
+            window.open(witUrl, '_blank');
         });
     }
 

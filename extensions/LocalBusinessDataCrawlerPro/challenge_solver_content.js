@@ -448,12 +448,19 @@
         });
 
         btnLink.addEventListener('click', () => {
+            const witUrl = 'https://wit.ai/apps';
+            // 1순위: XPIDER_SEND로 main.js의 shell.openExternal 호출
             try {
-                chrome.runtime.sendMessage({ action: 'CREATE_TAB', url: 'https://wit.ai/apps' });
-            } catch (e) {
-                console.error("Failed to send CREATE_TAB message:", e);
-                window.open('https://wit.ai/apps', '_blank'); // fallback
-            }
+                window.postMessage({ type: 'XPIDER_SEND', channel: 'open-wit-external-link', data: witUrl }, '*');
+                return;
+            } catch(e1) {}
+            // 2순위: background.js 경유 탭 생성
+            try {
+                chrome.runtime.sendMessage({ action: 'CREATE_TAB', url: witUrl });
+                return;
+            } catch(e2) {}
+            // 3순위: 마지막 폴백
+            window.open(witUrl, '_blank');
         });
 
         btnSave.addEventListener('click', () => {
