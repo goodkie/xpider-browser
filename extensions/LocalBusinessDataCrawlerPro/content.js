@@ -39,6 +39,16 @@
                 if (sendResponse) sendResponse({ status: 'received' });
             } else if (m.action === 'ping') {
                 if (sendResponse) sendResponse({ status: 'pong' });
+            } else if (m.action === 'RELAY_WIT_EXTERNAL' && m.url) {
+                // [v4.9.54] background.js로부터 Wit.ai 외부 링크 열기 릴레이 수신
+                // window.postMessage → ext-preload.js(XPIDER_SEND) → main.js(shell.openExternal) 경로로 전달
+                try {
+                    window.postMessage({ type: 'XPIDER_SEND', channel: 'open-wit-external-link', data: m.url }, '*');
+                    if (sendResponse) sendResponse({ status: 'relayed' });
+                } catch(e) {
+                    console.warn('[XPIDER Content] RELAY_WIT_EXTERNAL postMessage failed:', e);
+                    if (sendResponse) sendResponse({ status: 'error' });
+                }
             }
             return true;
         });
