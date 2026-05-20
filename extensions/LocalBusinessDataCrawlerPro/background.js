@@ -774,6 +774,30 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                 return { status: 'ok' };
             }
 
+            if (m.action === 'OPEN_XPIDER_VPN') {
+                // background.js에서는 직접 패널을 열 수 없으므로,
+                // 현재 활성 탭에 XPIDER_INVOKE 메시지를 주입하여 VPN 패널을 오픈
+                try {
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        if (tabs && tabs[0] && tabs[0].id) {
+                            chrome.scripting.executeScript({
+                                target: { tabId: tabs[0].id },
+                                world: 'MAIN',
+                                func: () => {
+                                    window.postMessage({
+                                        type: 'XPIDER_INVOKE',
+                                        channel: 'open-xpider-vpn-panel',
+                                        args: {},
+                                        id: 'bg-vpn-' + Date.now()
+                                    }, '*');
+                                }
+                            }).catch(() => {});
+                        }
+                    });
+                } catch(e) {}
+                return { status: 'relayed' };
+            }
+
             return { error: 'Unknown action: ' + m.action };
         } catch (err) {
             console.error("[v20.0] handleMessage Fatal:", err);

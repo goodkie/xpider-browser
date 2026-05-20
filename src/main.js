@@ -305,6 +305,17 @@ ipcMain.on('open-wit-external-link', (event, url) => {
   }
 });
 
+// ─── Hard Block VPN 패널 열기 (content.js → XPIDER_INVOKE → here → renderer_ui.js) ──
+ipcMain.handle('open-xpider-vpn-panel', async (event) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    mainWindow.webContents.send('xpider-ext-runtime-on-message', { action: 'OPEN_XPIDER_VPN' });
+  }
+  return { success: true };
+});
+
 // ─── 로그아웃 ─────────────────────────────────────────────────
 ipcMain.on('auth-logout', async () => {
   const userId = authService.getCurrentUserId();

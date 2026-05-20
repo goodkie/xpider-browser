@@ -849,8 +849,15 @@ window.electronAPI.on('xpider-ext-runtime-on-message', async (message) => {
             }
         }
         if (vpnBtn) {
-            // Always click to open/focus the VPN extension panel
-            vpnBtn.click();
+            const extId = vpnBtn.getAttribute('data-ext-id');
+            if (extId && currentExtensionId === extId) {
+                // VPN 패널이 이미 로드된 상태 → 사이드패널만 확실히 표시 (toggle 방지)
+                const sp = document.getElementById('side-panel') || document.querySelector('.side-panel');
+                if (sp) sp.classList.remove('hidden');
+            } else {
+                // 다른 익스텐션이 열려있거나 처음 → 클릭해서 VPN 팝업 로드
+                vpnBtn.click();
+            }
         }
         return;
     }
