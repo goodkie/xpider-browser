@@ -80,7 +80,7 @@ async function signup(email, password, username) {
       options: { data: { username } }
     });
     if (error) return { success: false, error: error.message };
-    return { success: true, message: '이메일을 확인하여 계정을 활성화하세요.' };
+    return { success: true, message: 'Account created successfully.' };
   } catch (e) {
     return { success: false, error: e.message };
   }
