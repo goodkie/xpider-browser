@@ -44,7 +44,7 @@
       showMsg('저장된 계정으로 로그인 중...', 'info');
       const res = await window.authAPI.login(savedEmail, savedPw);
       if (res.success) {
-        showMsg('로그인 성공! 브라우저를 시작합니다...', 'success');
+        showMsg('Login successful! Starting browser...', 'success');
         setTimeout(() => window.authAPI.success(), 800);
       } else {
         hideMsg();
@@ -114,7 +114,7 @@
         localStorage.removeItem('xpider-saved-email');
         localStorage.removeItem('xpider-saved-pw');
       }
-      showMsg('로그인 성공! 브라우저를 시작합니다...', 'success');
+      showMsg('Login successful! Starting browser...', 'success');
       setTimeout(() => window.authAPI.success(), 800);
     } else {
       failCount++;
