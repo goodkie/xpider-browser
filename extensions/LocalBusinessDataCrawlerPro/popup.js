@@ -458,7 +458,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (captchaWitLinkBtn) {
         captchaWitLinkBtn.addEventListener('click', () => {
             const witUrl = 'https://wit.ai/apps';
-            // 1순위: 외부 브라우저(기본 브라우저) 새 창으로 열기 (XPIDER_SEND)
+            // 1순위: chrome.runtime.sendMessage 브릿지로 외부 브라우저 호출
+            try {
+                chrome.runtime.sendMessage({ action: 'open-wit-external-link', url: witUrl });
+                return;
+            } catch(e0) {
+                console.warn('[XPIDER] chrome.runtime.sendMessage failed:', e0);
+            }
+            // 2순위: 외부 브라우저(기본 브라우저) 새 창으로 열기 (XPIDER_SEND)
             try {
                 window.postMessage({
                     type: 'XPIDER_SEND',
