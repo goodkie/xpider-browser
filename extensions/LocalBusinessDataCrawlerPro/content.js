@@ -1,11 +1,36 @@
 (function () {
+    // 🛡️ [Stealth] DOM Injection to override navigator.webdriver directly in the page context
+    try {
+        const injectScript = document.createElement('script');
+        injectScript.textContent = `
+            try {
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined,
+                    configurable: true
+                });
+            } catch (e) {}
+            try {
+                const newProto = navigator.__proto__;
+                delete newProto.webdriver;
+                navigator.__proto__ = newProto;
+            } catch (e) {}
+        `;
+        (document.head || document.documentElement).appendChild(injectScript);
+        injectScript.remove();
+        console.log("🛡️ [Stealth] DOM injection applied successfully.");
+    } catch (e) {
+        console.warn("🛡️ [Stealth] DOM injection failed:", e);
+    }
+
     /**
      * [v4.0] Secure Stealth & Behavior Mimicry
      */
     async function applyStealth() {
         try {
             const storage = await chrome.storage.local.get(['stealthModeEnabled']);
-            if (!storage.stealthModeEnabled) return;
+            // If stealthModeEnabled is not set yet, default to true for crawlers
+            const stealthEnabled = (storage.stealthModeEnabled !== false);
+            if (!stealthEnabled) return;
 
             console.log("🛡️ [Stealth] Behavioral Jitter Enabled.");
             

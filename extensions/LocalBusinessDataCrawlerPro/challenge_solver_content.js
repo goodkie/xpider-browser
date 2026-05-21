@@ -1,4 +1,27 @@
 (function() {
+    // 🛡️ [Stealth] DOM Injection to override navigator.webdriver directly in the page context
+    try {
+        const injectScript = document.createElement('script');
+        injectScript.textContent = `
+            try {
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined,
+                    configurable: true
+                });
+            } catch (e) {}
+            try {
+                const newProto = navigator.__proto__;
+                delete newProto.webdriver;
+                navigator.__proto__ = newProto;
+            } catch (e) {}
+        `;
+        (document.head || document.documentElement).appendChild(injectScript);
+        injectScript.remove();
+        console.log("🛡️ [Stealth] DOM injection applied successfully in Challenge Solver.");
+    } catch (e) {
+        console.warn("🛡️ [Stealth] DOM injection failed in Challenge Solver:", e);
+    }
+
     console.log("🤖 [ChallengeSolver v18.0 RESILIENT-HUD] Loaded:", window.location.href);
 
     /**
@@ -551,10 +574,12 @@
             if (audioInput) {
                 if (!solving) {
                     const keys = await chrome.storage.local.get(['witKey', 'audioSttKey']);
-                    const hasKey = (keys.witKey && keys.witKey.trim() !== '') || (keys.audioSttKey && keys.audioSttKey.trim() !== '');
-                    if (!hasKey) {
-                        injectWitKeyMissingModal();
-                        return;
+                    let activeKey = keys.witKey || keys.audioSttKey;
+                    if (!activeKey || activeKey.trim() === '') {
+                        // 공용 무료 폴백 키 지정 (사용자가 키를 입력하지 않아도 자동 캡챠가 우회되도록 조치)
+                        activeKey = '3T7NUX6UUPXHXGMDQLB7P23JSHYI2C7O';
+                        await chrome.storage.local.set({ witKey: activeKey, audioSttKey: activeKey, captchaSolveEnabled: true });
+                        logToSystem("🔑 [Auto STT] 공용 무료 우회 API 키 적용됨", "PROXY");
                     }
                     executeResilientSolve(audioInput, attempts);
                 }

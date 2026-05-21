@@ -27,13 +27,10 @@ app.commandLine.appendSwitch('ignore-gpu-blocklist');
 const profileArg = process.argv.find(a => a.startsWith('--profile='));
 const profileId  = profileArg ? profileArg.split('=')[1] : '1';
 
-// Use data folder relative to executable (Portable Isolation)
+// Use common AppData folder for both local dev and packaged release (Method C: Shared Trust Session)
 const getPortableDataPath = () => {
-  const baseDir = app.isPackaged 
-    ? path.dirname(app.getPath('exe')) 
-    : path.join(__dirname, '..');
-  
-  const dataDir = path.join(baseDir, 'data', `profile-${profileId}`);
+  const systemAppData = app.getPath('appData');
+  const dataDir = path.join(systemAppData, 'XPIDER-Browser-Common-Data', `profile-${profileId}`);
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
   return dataDir;
 };

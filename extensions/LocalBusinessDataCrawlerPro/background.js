@@ -2213,10 +2213,22 @@ async function runEngineSearch(enginesArr, keyword, startPage = 1, maxPages = 1,
                     };
                     const gTld = googleTLDs[gl] || 'com';
 
-                    if (engine === 'google') searchUrl = `https://www.google.${gTld}/search?q=${q}&start=${(page - 1) * 10}&hl=${hl}&gl=${gl}&tbm=lcl`;
+                    if (engine === 'google') {
+                        // 구글 검색 시 봇 차단 예방을 위한 4~7초 간의 랜덤 안전 딜레이 적용
+                        const googleSafeDelay = 4000 + Math.floor(Math.random() * 3000);
+                        sendLog(`⏳ 구글 감지 우회를 위해 안전 대기 중 (${Math.round(googleSafeDelay/1000)}초)...`);
+                        await new Promise(r => setTimeout(r, googleSafeDelay));
+                        searchUrl = `https://www.google.${gTld}/search?q=${q}&start=${(page - 1) * 10}&hl=${hl}&gl=${gl}&tbm=lcl`;
+                    }
                     else if (engine === 'naver') searchUrl = `https://search.naver.com/search.naver?where=web&query=${q}&start=${(page - 1) * 10 + 1}`;
                     else if (engine === 'naver_place') searchUrl = `https://map.naver.com/v5/search/${q}`;
-                    else if (engine === 'google_maps') searchUrl = `https://www.google.${gTld}/maps/search/${q}?hl=${hl}&gl=${gl}&tbm=lcl`;
+                    else if (engine === 'google_maps') {
+                        // 구글 맵스 검색 전 안전 대기
+                        const googleSafeDelay = 4000 + Math.floor(Math.random() * 3000);
+                        sendLog(`⏳ 구글 감지 우회를 위해 안전 대기 중 (${Math.round(googleSafeDelay/1000)}초)...`);
+                        await new Promise(r => setTimeout(r, googleSafeDelay));
+                        searchUrl = `https://www.google.${gTld}/maps/search/${q}?hl=${hl}&gl=${gl}&tbm=lcl`;
+                    }
                     else if (engine === 'bing') {
                         const bingDomain = (gl === 'cn') ? 'cn.bing.com' : 'www.bing.com';
                         searchUrl = `https://${bingDomain}/search?q=${q}&first=${(page - 1) * 10 + 1}&FORM=PERE`;

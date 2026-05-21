@@ -1,3 +1,11 @@
+// ─── 봇 차단 우회 (navigator.webdriver 제거) ───
+try {
+  Object.defineProperty(navigator, 'webdriver', {
+    get: () => false,
+    configurable: true
+  });
+} catch(e) {}
+
 const { ipcRenderer } = require('electron');
 
 console.log('[EXT-PRELOAD] PostMessage Bridge Active');
