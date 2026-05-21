@@ -3,7 +3,7 @@ const path = require('path');
 
 const outputFile = path.join(__dirname, 'xpider_agent_backup.txt');
 const extensions = ['.js', '.html', '.css', '.cs', '.json', '.md', '.sql'];
-const excludeDirs = ['node_modules', '.git', 'out', 'snapshots', 'portable_temp', 'assets', 'colors-logo-template-2023-11-27-04-58-44-utc', 'drone-x-logo-template-2023-11-27-04-53-46-utc', 'test_ext'];
+const excludeDirs = ['node_modules', '.git', 'out', 'snapshots', 'portable_temp', 'assets', 'colors-logo-template-2023-11-27-04-58-44-utc', 'drone-x-logo-template-2023-11-27-04-53-46-utc', 'test_ext', 'backups', 'restore_points', '_snapshots_full', '_RESTORE_POINTS', 'data'];
 
 function walkSync(dir, filelist = []) {
   if (!fs.existsSync(dir)) return filelist;
