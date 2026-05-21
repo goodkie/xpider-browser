@@ -455,11 +455,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (captchaWitLinkBtn) {
-        captchaWitLinkBtn.addEventListener('click', () => {
-            window.open('https://wit.ai/apps', '_blank');
+    // [v1.1.2] 두 개의 captcha-wit-link-btn 중 어느 것을 클릭해도 브릿지를 통해 시스템 기본 브라우저로 열리도록 처리
+    document.querySelectorAll('#captcha-wit-link-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            window.postMessage({
+                type: 'XPIDER_SEND',
+                channel: 'open-wit-external-link',
+                data: 'https://wit.ai/apps'
+            }, '*');
         });
-    }
+    });
 
     selectAllEngines.addEventListener('change', (e) => {
         const checked = e.target.checked;
