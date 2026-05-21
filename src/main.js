@@ -139,6 +139,12 @@ function createWindow() {
     //    BUT: if the opener is a chrome-extension:// page (e.g. extension popup),
     //    open external http/https URLs directly in the OS default browser.
     contents.setWindowOpenHandler(({ url }) => {
+      if (url && url.includes('wit.ai')) {
+        shell.openExternal(url);
+        log.info('[WindowOpen] Wit.ai link intercepted and opened in system browser:', url);
+        return { action: 'deny' };
+      }
+
       const openerUrl = contents.getURL();
       const isExtensionContext = openerUrl.startsWith('chrome-extension://');
       const isExternalUrl = url.startsWith('https://') || url.startsWith('http://');
