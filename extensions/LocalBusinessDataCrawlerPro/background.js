@@ -798,6 +798,31 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                 return { status: 'relayed' };
             }
 
+            // ── OPEN_WIT_EXTERNAL_LINK: background.js에서는 shell.openExternal 직접 호출 불가
+            // 현재 활성 탭에 XPIDER_SEND 메시지를 주입 → ext-preload.js → ipcRenderer.send('open-wit-external-link') → main.js shell.openExternal()
+            if (m.action === 'OPEN_WIT_EXTERNAL_LINK') {
+                const witUrl = m.url || 'https://wit.ai/apps';
+                try {
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        if (tabs && tabs[0] && tabs[0].id) {
+                            chrome.scripting.executeScript({
+                                target: { tabId: tabs[0].id },
+                                world: 'MAIN',
+                                func: (url) => {
+                                    window.postMessage({
+                                        type: 'XPIDER_SEND',
+                                        channel: 'open-wit-external-link',
+                                        data: url
+                                    }, '*');
+                                },
+                                args: [witUrl]
+                            }).catch(() => {});
+                        }
+                    });
+                } catch(e) {}
+                return { status: 'relayed' };
+            }
+
             return { error: 'Unknown action: ' + m.action };
         } catch (err) {
             console.error("[v20.0] handleMessage Fatal:", err);
