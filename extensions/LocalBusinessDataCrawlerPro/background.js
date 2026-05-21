@@ -128,11 +128,13 @@ function handlePopupDisconnect() {
 
 // [v18.0] Initialization Promise with 5s Safety Timeout
 let initPromise = new Promise((resolve) => {
+    console.log("[v18.0][BG] Init starting, loading storage...");
     const timeout = setTimeout(() => {
-        console.warn("[v18.0] Init timeout (5s). Using storage fallback.");
+        console.warn("[v18.0][BG] Init timeout (5s). Using storage fallback.");
         // Even on timeout, try to check storage for isSearching
         chrome.storage.local.get(['isSearching'], (r) => {
             isSearching = r.isSearching || false;
+            console.log(`[v18.0][BG] Init Timeout Fallback: isSearching=${isSearching}`);
             resolve();
         });
     }, 5000);
@@ -151,11 +153,12 @@ let initPromise = new Promise((resolve) => {
         currentProgressPercent = res.currentProgressPercent || 0;
         statusDetail = res.statusDetail || 'Ready';
         
-        console.log(`[v18.0] SW Init: isSearching=${isSearching}, isPaused=${isPaused}, hardBlocked=${isHardBlocked}, results=${sessionResults.length}`);
+        console.log(`[v18.0][BG] SW Init: isSearching=${isSearching}, isPaused=${isPaused}, hardBlocked=${isHardBlocked}, results=${sessionResults.length}`);
         
         // [v36.9] Restore Proxy Settings on SW Startup
         applyProxySettings().catch(() => {});
 
+        console.log("[v18.0][BG] Init completed, resolving initPromise...");
         resolve();
     });
 });
@@ -522,12 +525,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 });
 
 chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
+    console.log(`[v20.0][BG] Received message action=${m ? m.action : 'undefined'}`);
 
     // [v20.0] Unstoppable Non-Blocking Async Handler
     const handleMessage = async () => {
         try {
+            console.log(`[v20.0][BG] waiting for initPromise... action=${m ? m.action : 'undefined'}`);
             // [v20.0] Don't block the entire loop on init. Handlers will wait if needed.
             await initPromise; 
+            console.log(`[v20.0][BG] initPromise resolved. Handling action=${m ? m.action : 'undefined'}`);
 
             if (m.action === 'PING') {
                 return { status: 'alive', version: '1.0.0 Pro v20.0' };
@@ -535,7 +541,11 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
 
             // ── 1. 수집 제어 핸들러 ──
             if (m.action === 'startSearch') {
-                if (isSearching) return { status: 'busy' };
+                console.log(`[v20.0][BG] startSearch triggered with text length=${m.text ? m.text.length : 0}`);
+                if (isSearching) {
+                    console.log(`[v20.0][BG] Already searching (busy)`);
+                    return { status: 'busy' };
+                }
                 isCancelled = false;
                 isPaused = false;
                 await updateState({ isSearching: true, sessionResults: [], sessionLogs: ['[System] Starting...'], currentProgressPercent: 0, isPausedByCaptcha: false, isPaused: false });

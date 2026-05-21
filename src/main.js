@@ -38,6 +38,23 @@ const getPortableDataPath = () => {
 app.setPath('userData', getPortableDataPath());
 log.info(`[Portable] UserData Path: ${app.getPath('userData')}`);
 
+// ─── [v4.9.69 FIX] 싱글 인스턴스 락 (중복 실행 방지 및 좀비 프로세스 캐시 잠금 차단) ───
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  log.warn(`[SingleInstance] Instance for profile-${profileId} is already running. Quitting duplicate process.`);
+  app.quit();
+  process.exit(0);
+} else {
+  app.on('second-instance', (event, commandLine, workingDirectory) => {
+    log.info(`[SingleInstance] Second instance execution attempted with commandLine: ${commandLine}`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
 
 // ─── 윈도우 핸들 ──────────────────────────────────────────────
 let splashWindow = null;
@@ -1958,6 +1975,7 @@ ipcMain.handle('xpider-ext-storage-clear', async () => {
 // ─── RUNTIME MESSAGE RELAY (Content -> Sidepanel) ───────────
 ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => {
     if (!message) return { success: false };
+    log.info(`[ExtBridge] Received runtime message: action=${message.action}`);
     
     // 1. Handle Business Data
     if (message.action === 'foundBusiness' && message.data) {
@@ -2098,10 +2116,20 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
     });
 
     // 3. Optional: Relay to background workers (if present)
+    log.info(`[ExtRelay] Relaying message action=${message.action} to ${loadedExtensionsInfo.length} loaded extensions`);
     loadedExtensionsInfo.forEach(ext => {
+        log.info(`[ExtRelay] Sending to extId=${ext.id} (${ext.name})`);
         try {
-            session.defaultSession.extensions.sendMessage(ext.id, message).catch(() => {});
-        } catch(e) {}
+            session.defaultSession.extensions.sendMessage(ext.id, message)
+                .then(res => {
+                    log.info(`[ExtRelay] Successfully sent to extId=${ext.id}, response:`, res);
+                })
+                .catch(err => {
+                    log.error(`[ExtRelay] Promise rejected for extId=${ext.id}:`, err.message);
+                });
+        } catch(e) {
+            log.error(`[ExtRelay] Synchronous error for extId=${ext.id}:`, e.message);
+        }
     });
     
     return { success: true };
