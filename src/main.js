@@ -133,8 +133,13 @@ function createWindow() {
   mainWindow.webContents.on('will-attach-webview', (event, webPreferences, params) => {
     // 서브프레임(iframe)에서도 preload 실행 허용
     webPreferences.nodeIntegrationInSubFrames = true;
-    // preload가 명시되지 않은 webview에 ext-preload 강제 설정
-    if (!webPreferences.preload && !webPreferences.preloadURL) {
+    
+    // [v4.9.68] preload가 상대 경로로 지정된 경우, Electron 메인 프로세스 기준 절대 경로로 자동 변환
+    if (webPreferences.preload) {
+      if (!path.isAbsolute(webPreferences.preload)) {
+        webPreferences.preload = path.join(__dirname, webPreferences.preload);
+      }
+    } else if (!webPreferences.preloadURL) {
       webPreferences.preload = path.join(__dirname, 'ext-preload.js');
     }
   });
