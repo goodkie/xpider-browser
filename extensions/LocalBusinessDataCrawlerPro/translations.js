@@ -313,7 +313,7 @@ var I18N_DATA = {
         "secondary_wait_title": "보안 대기 모드 (5분)",
         "secondary_wait_msg": "구글 검색 시 'To continue...' 문구가 감지되었습니다. 아이피 보호 및 하드 차단 방지를 위해 5분간 휴식 후 작업을 재개합니다.",
         "wit_token_setting_title": "Wit.ai Server Access Token 설정",
-        "wit_token_setting_desc": "자동 캡차 오디오 우회를 위해 Wit.ai 서버 액세스 토큰이 필요합니다. 토큰을 입력하고 저장하세요.",
+        "wit_token_setting_desc": "자동 캡차 오디오 해결을 위해 무료 Wit.ai API 키가 필요합니다.<br><br><b>💡 무료 발급 방법:</b><br>1. 아래 링크를 클릭해 Wit.ai 웹사이트로 이동하여 Facebook 계정으로 로그인합니다.<br>2. 로그인 후, 우측 상단 <b>[Create App]</b> 버튼을 클릭하여 새 앱을 생성합니다 (이름은 자유 입력).<br>3. 생성 완료 후, 좌측 메뉴에서 <b>[Management] → [Settings]</b> 메뉴로 이동합니다.<br>4. 화면 중간에 있는 <b>'Server Access Token'</b> 값을 복사하여 아래에 입력한 후 저장해 주세요.",
         "wit_token_save_btn": "저장",
         "wit_token_get_btn": "🆓 무료 Wit.ai API 키 발급 받기 →",
         "wit_token_saved_msg": "✅ 토큰이 저장되었습니다! 자동 캡차 우회를 시작합니다...",

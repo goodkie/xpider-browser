@@ -428,9 +428,9 @@
         subtitle.style.marginBottom = '20px';
 
         const desc = document.createElement('p');
-        desc.innerHTML = '🆓 Register a free key to automatically recognize CAPTCHA audio.<br>Create an app at the link below and copy the Server Access Token.';
+        desc.innerHTML = '🤖 자동 캡차 오디오 해결을 위해 무료 Wit.ai API 키가 필요합니다.<br><br><b>💡 무료 발급 방법:</b><br>1. 아래 링크를 클릭해 Wit.ai 웹사이트로 이동하여 Facebook 계정으로 로그인합니다.<br>2. 로그인 후, 우측 상단 <b>[Create App]</b> 버튼을 클릭하여 새 앱을 생성합니다 (이름은 자유 입력).<br>3. 생성 완료 후, 좌측 메뉴에서 <b>[Management] → [Settings]</b> 메뉴로 이동합니다.<br>4. 화면 중간에 있는 <b>\'Server Access Token\'</b> 값을 복사하여 아래에 입력한 후 저장해 주세요.';
         desc.style.color = '#666';
-        desc.style.fontSize = '12px';
+        desc.style.fontSize = '11px';
         desc.style.lineHeight = '1.6';
         desc.style.marginBottom = '20px';
 

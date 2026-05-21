@@ -269,9 +269,21 @@
 
     <div class="content-box">
       <h2>🤖 자동 캡차 해제 설정</h2>
-      <p class="subtitle">
-        음성 인식 CAPTCHA 자동 우회를 완료하려면 Wit.ai Server Access Token이 필요합니다. 아래에 토큰을 입력하고 저장해 주세요.
+      <p class="subtitle" style="margin-bottom: 12px;">
+        음성 인식 CAPTCHA 자동 우회를 위해 Wit.ai Server Access Token이 필요합니다.
       </p>
+
+      <div style="margin-bottom: 16px; padding: 12px; background: rgba(255, 255, 255, 0.03); border-radius: 10px; border-left: 3px solid #3b82f6; text-align: left; font-size: 11px; line-height: 1.5; color: #94a3b8;">
+        <div style="font-weight: bold; color: #60a5fa; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+          <span>💡</span> 무료 Wit.ai API Key 발급 방법
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <div>1. 아래 <b>[무료 API 키 발급받기]</b>를 클릭하여 로그인 (Facebook 연동)</div>
+          <div>2. 우측 상단 <b>[Create App]</b>을 클릭해 새 앱을 생성합니다 (이름은 자유)</div>
+          <div>3. 생성된 앱 좌측 메뉴에서 <b>[Management] → [Settings]</b>로 이동</div>
+          <div>4. <b>'Server Access Token'</b>을 복사하여 아래 입력 칸에 붙여넣기</div>
+        </div>
+      </div>
 
       <div class="form-group">
         <label for="token-input">WIT.AI SERVER ACCESS TOKEN</label>
@@ -284,7 +296,7 @@
         <span>저장 및 수집 재개</span>
       </button>
 
-      <button class="btn-link" id="btn-get-key">
+      <button class="btn-link" id="btn-get-key" style="margin-top: 8px;">
         <span>🔑 무료 API 키 발급받기 →</span>
       </button>
     </div>
