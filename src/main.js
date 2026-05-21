@@ -136,7 +136,20 @@ function createWindow() {
   // Global handler to catch all window.open / target="_blank" from ANY webview or tab
   app.on('web-contents-created', (event, contents) => {
     // 1. Handle New Windows -> Redirect to Tabs
+    //    BUT: if the opener is a chrome-extension:// page (e.g. extension popup),
+    //    open external http/https URLs directly in the OS default browser.
     contents.setWindowOpenHandler(({ url }) => {
+      const openerUrl = contents.getURL();
+      const isExtensionContext = openerUrl.startsWith('chrome-extension://');
+      const isExternalUrl = url.startsWith('https://') || url.startsWith('http://');
+
+      if (isExtensionContext && isExternalUrl) {
+        // Open in OS default browser (e.g. Chrome, Edge, Safari)
+        shell.openExternal(url);
+        log.info('[WindowOpen] Extension opened external URL in system browser:', url);
+        return { action: 'deny' };
+      }
+
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('open-new-tab', url);
       }
