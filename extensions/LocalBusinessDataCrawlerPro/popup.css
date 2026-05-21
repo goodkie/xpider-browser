@@ -1040,3 +1040,41 @@ th {
 .range-item input[type="range"] {
     flex: 1;
 }
+
+/* [Premium Diagnostics Toggle Button Style] */
+.status-diagnostics-toggle-container {
+    text-align: center;
+    margin-top: 12px;
+    margin-bottom: 8px;
+}
+
+#toggle-diagnostics-btn {
+    width: auto;
+    font-size: 0.75rem;
+    padding: 6px 14px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(102, 126, 234, 0.05);
+    border: 1px solid rgba(102, 126, 234, 0.15);
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+#toggle-diagnostics-btn:hover {
+    background: rgba(102, 126, 234, 0.15);
+    border-color: rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+    transform: translateY(-1px);
+}
+
+#toggle-diagnostics-btn.active {
+    background: rgba(102, 126, 234, 0.25);
+    border-color: rgba(102, 126, 234, 0.6);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+}

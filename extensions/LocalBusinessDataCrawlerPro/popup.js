@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const statusBox = document.getElementById('status-box');
     const logContainer = document.getElementById('log-container');
+    const toggleDiagnosticsBtn = document.getElementById('toggle-diagnostics-btn');
     const captchaLogBox = document.getElementById('captcha-log-box');
     const captchaLogContainer = document.getElementById('captcha-log-container');
     const progressBar = document.getElementById('progress-bar');
@@ -92,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('[v68.0][Popup] I18N_DATA not found. translations.js might have failed to load.');
         }
 
-        chrome.storage.local.get(['language', 'region', 'captchaSolveEnabled', 'stealthModeEnabled', 'audioSttKey', 'proxyEnabled', 'proxyHost', 'proxyPort', 'proxyUser', 'proxyPass'], (storage) => {
+        chrome.storage.local.get(['language', 'region', 'captchaSolveEnabled', 'stealthModeEnabled', 'audioSttKey', 'proxyEnabled', 'proxyHost', 'proxyPort', 'proxyUser', 'proxyPass', 'showDiagnostics'], (storage) => {
             if (chrome.runtime.lastError || !storage) {
                 console.error('[v68.0][Popup] Storage access failed:', chrome.runtime.lastError);
                 return;
@@ -121,6 +122,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (proxyPortInput) proxyPortInput.value = storage.proxyPort || '';
             if (proxyUserInput) proxyUserInput.value = storage.proxyUser || '';
             if (proxyPassInput) proxyPassInput.value = storage.proxyPass || '';
+            
+            // Diagnostics log visibility initialization
+            const showDiag = !!storage.showDiagnostics;
+            if (toggleDiagnosticsBtn) {
+                toggleDiagnosticsBtn.classList.toggle('active', showDiag);
+            }
+            if (captchaLogBox) {
+                captchaLogBox.classList.toggle('hidden', !showDiag);
+            }
             
             // [v11.0] Initial captcha logs load
             chrome.runtime.sendMessage({ action: 'GET_CAPTCHA_LOGS' }, (resp) => {
@@ -707,6 +717,24 @@ document.addEventListener('DOMContentLoaded', () => {
         )];
     }
 
+    // Toggle Diagnostics Logs
+    if (toggleDiagnosticsBtn) {
+        toggleDiagnosticsBtn.addEventListener('click', () => {
+            chrome.storage.local.get(['showDiagnostics'], (storage) => {
+                const currentStatus = !storage.showDiagnostics;
+                chrome.storage.local.set({ showDiagnostics: currentStatus }, () => {
+                    toggleDiagnosticsBtn.classList.toggle('active', currentStatus);
+                    if (captchaLogBox) {
+                        captchaLogBox.classList.toggle('hidden', !currentStatus);
+                        if (currentStatus && captchaLogContainer) {
+                            captchaLogContainer.scrollTop = captchaLogContainer.scrollHeight;
+                        }
+                    }
+                });
+            });
+        });
+    }
+
     // Start Collection
     startBtn.addEventListener('click', async () => {
         const lang = languageSelect.value;
@@ -1125,9 +1153,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateCaptchaLogs(logs) {
         if (!captchaLogContainer) return;
-        if (logs.length > 0 && captchaLogBox) captchaLogBox.classList.remove('hidden');
-        captchaLogContainer.innerHTML = logs.map(line => `<div>${line}</div>`).join('');
-        captchaLogContainer.scrollTop = captchaLogContainer.scrollHeight;
+        chrome.storage.local.get(['showDiagnostics'], (storage) => {
+            const showDiag = !!storage.showDiagnostics;
+            if (captchaLogBox) {
+                captchaLogBox.classList.toggle('hidden', !showDiag || logs.length === 0);
+            }
+            captchaLogContainer.innerHTML = logs.map(line => `<div>${line}</div>`).join('');
+            if (showDiag) {
+                captchaLogContainer.scrollTop = captchaLogContainer.scrollHeight;
+            }
+        });
     }
 
     function downloadFile(content, filename, type) {
