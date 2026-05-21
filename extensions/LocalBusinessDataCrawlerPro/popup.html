@@ -261,9 +261,10 @@
                                     <div style="display: flex; gap: 6px;"><span style="color: #38bdf8; font-weight: bold;">3.</span> <span>생성된 앱 내부의 <b>[Management] → [Settings]</b> 메뉴로 이동합니다.</span></div>
                                     <div style="display: flex; gap: 6px;"><span style="color: #38bdf8; font-weight: bold;">4.</span> <span>화면 중간에 있는 <b>'Server Access Token'</b> 값을 복사한 후 위의 입력란에 입력해 주세요.</span></div>
                                 </div>
-                                <button onclick="window.open('https://wit.ai/apps', '_blank')" style="display: block; width: 100%; padding: 8px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 6px; border: none; font-size: 0.76rem; font-weight: bold; box-shadow: 0 2px 6px rgba(102,126,234,0.4); cursor: pointer; text-align: center; transition: all 0.2s;">
+                                <button onclick="window.postMessage({type:'XPIDER_SEND',channel:'open-wit-external-link',data:'https://wit.ai/apps'},'*')" style="display: block; width: 100%; padding: 8px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 6px; border: none; font-size: 0.76rem; font-weight: bold; box-shadow: 0 2px 6px rgba(102,126,234,0.4); cursor: pointer; text-align: center; transition: all 0.2s;">
                                     🔑 무료 Wit.ai API 키 발급받기 →
                                 </button>
+
                             </div>
                         </div>
                         <div class="settings-group">

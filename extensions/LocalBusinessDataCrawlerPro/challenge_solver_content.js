@@ -463,8 +463,13 @@
         });
 
         btnLink.addEventListener('click', () => {
-            const witUrl = 'https://wit.ai/apps';
-            window.open(witUrl, '_blank');
+            // [v1.1.4] XPIDER_SEND 브릿지 → IPC → shell.openExternal()
+            // postMessage를 사용하여 ext-preload.js가 ipcRenderer.send()로 중계
+            window.postMessage({
+                type: 'XPIDER_SEND',
+                channel: 'open-wit-external-link',
+                data: 'https://wit.ai/apps'
+            }, '*');
         });
 
         btnSave.addEventListener('click', () => {

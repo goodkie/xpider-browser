@@ -456,11 +456,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (captchaWitLinkBtn) {
-        // [v1.1.2] Electron setWindowOpenHandler in main.js now detects chrome-extension://
-        // context and automatically routes window.open() calls to shell.openExternal().
-        // No messaging bridge needed — just use window.open().
+        // [v1.1.4] Use XPIDER_SEND postMessage bridge → IPC → shell.openExternal()
+        // This is the most reliable method for opening URLs in the OS default browser
+        // from within an Electron extension popup.
         captchaWitLinkBtn.addEventListener('click', () => {
-            window.open('https://wit.ai/apps', '_blank');
+            window.postMessage({
+                type: 'XPIDER_SEND',
+                channel: 'open-wit-external-link',
+                data: 'https://wit.ai/apps'
+            }, '*');
         });
     }
 
