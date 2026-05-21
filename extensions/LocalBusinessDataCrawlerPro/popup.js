@@ -458,26 +458,48 @@ document.addEventListener('DOMContentLoaded', () => {
     if (captchaWitLinkBtn) {
         captchaWitLinkBtn.addEventListener('click', () => {
             const witUrl = 'https://wit.ai/apps';
-            // [v4.9.54] popup은 독립된 Extension 컨텍스트이므로 window.postMessage가 ext-preload.js에 도달하지 않음.
-            // background.js → content.js → window.postMessage(XPIDER_SEND) → ext-preload.js → main.js(shell.openExternal) 경로로 라우팅.
+            // 1순위: chrome.runtime.sendMessage 를 사용하여 메인 프로세스에서 기본 브라우저로 열기
             try {
-                chrome.runtime.sendMessage({ action: 'OPEN_WIT_EXTERNAL', url: witUrl }, (resp) => {
+                chrome.runtime.sendMessage({ action: 'OPEN_WIT_EXTERNAL_LINK', url: witUrl }, (response) => {
                     if (chrome.runtime.lastError) {
-                        console.warn('[XPIDER] OPEN_WIT_EXTERNAL sendMessage failed:', chrome.runtime.lastError.message);
+                        console.warn('[XPIDER] chrome.runtime.sendMessage error:', chrome.runtime.lastError);
                     }
                 });
                 return;
-            } catch(e1) {
-                console.warn('[XPIDER] chrome.runtime.sendMessage failed:', e1);
+            } catch(e0) {
+                console.warn('[XPIDER] chrome.runtime.sendMessage failed, trying postMessage:', e0);
             }
-            // 폴백: chrome.tabs.create로 XPIDER 내부 새탭
+            // 2순위: 외부 브라우저(기본 브라우저) 새 창으로 열기 (XPIDER_SEND)
+            try {
+                window.postMessage({
+                    type: 'XPIDER_SEND',
+                    channel: 'open-wit-external-link',
+                    data: witUrl
+                }, '*');
+                return;
+            } catch(e1) {
+                console.warn('[XPIDER] XPIDER_SEND failed:', e1);
+            }
+            // 3순위: XPIDER 브릿지(postMessage) XPIDER_INVOKE 방식 - Electron 내에서 새 탭을 직접 띄움 (폴백)
+            try {
+                window.postMessage({
+                    type: 'XPIDER_INVOKE',
+                    channel: 'xpider-ext-create-tab',
+                    args: { url: witUrl, active: true },
+                    id: 'wit-open-' + Date.now()
+                }, '*');
+                return;
+            } catch(e2) {
+                console.warn('[XPIDER] XPIDER_INVOKE failed, trying chrome.tabs.create:', e2);
+            }
+            // 4순위: chrome.tabs.create (프리로드 가로채기 또는 확장 API가 직접 처리)
             try {
                 chrome.tabs.create({ url: witUrl });
                 return;
-            } catch(e2) {
-                console.warn('[XPIDER] chrome.tabs.create failed:', e2);
+            } catch(e3) {
+                console.warn('[XPIDER] chrome.tabs.create failed, using window.open:', e3);
             }
-            // 최종 폴백: window.open
+            // 5순위: 폴백
             window.open(witUrl, '_blank');
         });
     }

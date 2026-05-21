@@ -1942,14 +1942,6 @@ ipcMain.handle('xpider-ext-storage-clear', async () => {
 ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => {
     if (!message) return { success: false };
     
-    // [v4.9.54] Handle external link opening requests
-    if (message.action === 'open-wit-external-link' && message.url) {
-        if (message.url && (message.url.startsWith('https://') || message.url.startsWith('http://'))) {
-            shell.openExternal(message.url);
-            return { success: true };
-        }
-    }
-    
     // 1. Handle Business Data
     if (message.action === 'foundBusiness' && message.data) {
         const biz = message.data;
@@ -2027,6 +2019,15 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
             if (mainWindow.isMinimized()) mainWindow.restore();
             mainWindow.show();
             mainWindow.focus();
+        }
+        return { success: true };
+    }
+
+    // ── OPEN_WIT_EXTERNAL_LINK: Open url in OS default browser ──
+    if (message.action === 'OPEN_WIT_EXTERNAL_LINK' || message.action === 'open-wit-external-link') {
+        const url = message.url || message.data || 'https://wit.ai/apps';
+        if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+            shell.openExternal(url);
         }
         return { success: true };
     }
