@@ -463,13 +463,11 @@
         });
 
         btnLink.addEventListener('click', () => {
-            // [v1.1.4] XPIDER_SEND 브릿지 → IPC → shell.openExternal()
-            // postMessage를 사용하여 ext-preload.js가 ipcRenderer.send()로 중계
-            window.postMessage({
-                type: 'XPIDER_SEND',
-                channel: 'open-wit-external-link',
-                data: 'https://wit.ai/apps'
-            }, '*');
+            // [v1.1.6] background.js를 통한 라우팅
+            chrome.runtime.sendMessage({
+                action: 'OPEN_WIT_EXTERNAL_LINK',
+                url: 'https://wit.ai/apps'
+            });
         });
 
         btnSave.addEventListener('click', () => {

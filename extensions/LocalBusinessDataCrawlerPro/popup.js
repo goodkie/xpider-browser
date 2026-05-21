@@ -456,15 +456,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (captchaWitLinkBtn) {
-        // [v1.1.4] Use XPIDER_SEND postMessage bridge → IPC → shell.openExternal()
+        // [v1.1.6] Use background.js messaging to inject XPIDER_SEND into active tab
         // This is the most reliable method for opening URLs in the OS default browser
-        // from within an Electron extension popup.
+        // since popup might not have direct IPC bridge.
         captchaWitLinkBtn.addEventListener('click', () => {
-            window.postMessage({
-                type: 'XPIDER_SEND',
-                channel: 'open-wit-external-link',
-                data: 'https://wit.ai/apps'
-            }, '*');
+            chrome.runtime.sendMessage({
+                action: 'OPEN_WIT_EXTERNAL_LINK',
+                url: 'https://wit.ai/apps'
+            });
         });
     }
 
