@@ -230,7 +230,11 @@ let _captchaBypassCountdown = null; // [v3.3] 30초 업데이트 인터벌
 const CAPTCHA_BYPASS_MS = 9 * 60 * 1000; // 9분
 
 async function checkPause() {
+    let wasPausedByCaptcha = false;
     if ((isPaused || isPausedByCaptcha || isHardBlocked) && !isCancelled) {
+        if (isPausedByCaptcha) {
+            wasPausedByCaptcha = true;
+        }
         const t = await getT();
         const pauseMsg = isHardBlocked ? '\uD83D\uDEA8 HARD BLOCKED - USER ACTION NEEDED' : (isPausedByCaptcha ? '\u23F3 CAPTCHA BLOCKED - WAITING' : '\u23F8\uFE0F PAUSED BY USER');
         await sendStatusDetail(pauseMsg);
@@ -285,6 +289,25 @@ async function checkPause() {
 
     while ((isPaused || isPausedByCaptcha || isHardBlocked) && !isCancelled) {
         await new Promise(r => setTimeout(r, 500));
+    }
+
+    // [v1.1.4] CAPTCHA 해결 후 즉각적인 재요청 방지를 위한 안전 쿨다운 추가
+    if (wasPausedByCaptcha && !isCancelled) {
+        const cooldownMs = 5000 + Math.floor(Math.random() * 7000); // 5초 ~ 12초 무작위 딜레이
+        sendLog(`⏳ [CAPTCHA 쿨다운] 구글 감지 우회를 위해 ${Math.round(cooldownMs / 1000)}초 동안 대기 후 안전하게 수집을 재개합니다.`);
+        
+        let elapsed = 0;
+        while (elapsed < cooldownMs && !isCancelled) {
+            if (isPaused || isPausedByCaptcha || isHardBlocked) {
+                // 대기 중 정지나 추가 캡챠가 뜨면 쿨다운을 중단
+                break;
+            }
+            await new Promise(r => setTimeout(r, 500));
+            elapsed += 500;
+        }
+        if (!isPaused && !isPausedByCaptcha && !isHardBlocked && !isCancelled) {
+            sendLog(`▶️ [CAPTCHA 쿨다운 완료] 안전 대기가 종료되었습니다. 수집을 계속합니다.`);
+        }
     }
 
     // 타이머 클린업 (정상 해제 또는 취소 시)
@@ -482,13 +505,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
 });
 
-// ─── [v3.1] 수동 [계속] 버튼 처리 ────────────────────────────────────────
-// popup.js의 ✅ 버튼 → chrome.runtime.sendMessage → 여기서 처리
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg && msg.action === 'MANUAL_CAPTCHA_RESOLVED') {
         if (isPausedByCaptcha) {
             isPausedByCaptcha = false;
             _captchaTabId = null;
+            _captchaResolvedAt = Date.now(); // [v1.1.4] 수동 해결 시에도 쿨다운 시각 정상 갱신
             updateState({ isPausedByCaptcha: false }).then(() => {
                 sendLog('▶️ [CAPTCHA] 수동 해결 확인 → 수집 재개');
                 chrome.runtime.sendMessage({ action: 'CAPTCHA_STATUS', status: 'resolved', auto: false }).catch(() => {});
@@ -713,8 +735,8 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
             }
 
             if (m.action === 'MANUAL_CAPTCHA_RESOLVED') {
-                await updateState({ isPausedByCaptcha: false });
-                sendLog("🛠️ [Manual] CAPTCHA resolution forced by user.");
+                // [v1.1.4] 508번 라인의 전용 리스너에서 상세 복구 처리를 전담하므로,
+                // 여기서는 중복 로그 및 무분별한 상태 비동기 갱신을 방지하기 위해 단순히 리턴합니다.
                 return { status: 'ok' };
             }
 
@@ -1919,6 +1941,15 @@ async function startSearchProcess(text, collectEmails = false, targetOption = 'a
 chrome.runtime.onInstalled.addListener(() => {
     isSearching = false;
     isCancelled = false;
+    // [v1.1.9] 최초 설치 시 CAPTCHA 기본 해결 옵션 자동 탑재 (릴리즈 무설정 상태 대응)
+    chrome.storage.local.get(['captchaSolveEnabled', 'captchaMethod'], (res) => {
+        const updates = {};
+        if (res.captchaSolveEnabled === undefined) updates.captchaSolveEnabled = true;
+        if (res.captchaMethod === undefined) updates.captchaMethod = 'audio';
+        if (Object.keys(updates).length > 0) {
+            chrome.storage.local.set(updates);
+        }
+    });
 });
 
 chrome.runtime.onStartup.addListener(() => {
