@@ -482,36 +482,6 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
 });
 
-// ─── [v4.9.54] Wit.ai 외부 링크 열기 라우터 ─────────────────────────────────
-// popup.js → chrome.runtime.sendMessage(OPEN_WIT_EXTERNAL) → 여기서 처리
-// → chrome.tabs.sendMessage → content.js → window.postMessage(XPIDER_SEND)
-// → ext-preload.js → main.js(shell.openExternal)로 전달하여 기본 브라우저에서 열기
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-    if (msg && msg.action === 'OPEN_WIT_EXTERNAL' && msg.url) {
-        const url = msg.url;
-        // 현재 활성 탭 찾기 (XPIDER 브라우저의 메인 뷰)
-        chrome.tabs.query({ active: true }, (tabs) => {
-            if (!tabs || tabs.length === 0) {
-                console.warn('[XPIDER BG] OPEN_WIT_EXTERNAL: No active tab found.');
-                sendResponse({ status: 'error', reason: 'no active tab' });
-                return;
-            }
-            // 활성 탭 중 확장 팝업이 아닌 실제 브라우저 탭으로 전달
-            const targetTab = tabs.find(t => t.id && !t.url.startsWith('chrome-extension://'));
-            const tabId = targetTab ? targetTab.id : tabs[0].id;
-            chrome.tabs.sendMessage(tabId, { action: 'RELAY_WIT_EXTERNAL', url }, (resp) => {
-                if (chrome.runtime.lastError) {
-                    console.warn('[XPIDER BG] sendMessage to content.js failed:', chrome.runtime.lastError.message);
-                    // 폴백: chrome.tabs.create로 XPIDER 내부 탭으로 열기
-                    chrome.tabs.create({ url });
-                }
-                sendResponse({ status: 'relayed' });
-            });
-        });
-        return true; // async sendResponse
-    }
-});
-
 // ─── [v3.1] 수동 [계속] 버튼 처리 ────────────────────────────────────────
 // popup.js의 ✅ 버튼 → chrome.runtime.sendMessage → 여기서 처리
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {

@@ -464,12 +464,7 @@
 
         btnLink.addEventListener('click', () => {
             const witUrl = 'https://wit.ai/apps';
-            // 1순위: chrome.runtime.sendMessage 브릿지로 외부 브라우저 호출
-            try {
-                chrome.runtime.sendMessage({ action: 'open-wit-external-link', url: witUrl });
-                return;
-            } catch(e0) {}
-            // 2순위: XPIDER_SEND로 main.js의 shell.openExternal 호출 (기본 브라우저 새 창)
+            // 1순위: XPIDER_SEND로 main.js의 shell.openExternal 호출 (기본 브라우저 새 창)
             try {
                 window.postMessage({ type: 'XPIDER_SEND', channel: 'open-wit-external-link', data: witUrl }, '*');
                 return;
