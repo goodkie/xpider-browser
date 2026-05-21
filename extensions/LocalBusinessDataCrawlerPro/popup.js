@@ -69,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const captchaWitKeyInput = document.getElementById('captcha-wit-key-input');
     const captchaWitSaveBtn = document.getElementById('captcha-wit-save-btn');
     const captchaWitLinkBtn = document.getElementById('captcha-wit-link-btn');
+    const settingsWitLinkBtn = document.getElementById('settings-wit-link-btn');
 
     const vpnCheckToggle = document.getElementById('vpn-check-toggle');
     const slowModeToggle = document.getElementById('slow-mode-toggle');
@@ -455,53 +456,58 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const handleWitLinkClick = () => {
+        const witUrl = 'https://wit.ai/apps';
+        // 1순위: chrome.runtime.sendMessage 를 사용하여 메인 프로세스에서 기본 브라우저로 열기
+        try {
+            chrome.runtime.sendMessage({ action: 'OPEN_WIT_EXTERNAL_LINK', url: witUrl }, (response) => {
+                if (chrome.runtime.lastError) {
+                    console.warn('[XPIDER] chrome.runtime.sendMessage error:', chrome.runtime.lastError);
+                }
+            });
+            return;
+        } catch(e0) {
+            console.warn('[XPIDER] chrome.runtime.sendMessage failed, trying postMessage:', e0);
+        }
+        // 2순위: 외부 브라우저(기본 브라우저) 새 창으로 열기 (XPIDER_SEND)
+        try {
+            window.postMessage({
+                type: 'XPIDER_SEND',
+                channel: 'open-wit-external-link',
+                data: witUrl
+            }, '*');
+            return;
+        } catch(e1) {
+            console.warn('[XPIDER] XPIDER_SEND failed:', e1);
+        }
+        // 3순위: XPIDER 브릿지(postMessage) XPIDER_INVOKE 방식 - Electron 내에서 새 탭을 직접 띄움 (폴백)
+        try {
+            window.postMessage({
+                type: 'XPIDER_INVOKE',
+                channel: 'xpider-ext-create-tab',
+                args: { url: witUrl, active: true },
+                id: 'wit-open-' + Date.now()
+            }, '*');
+            return;
+        } catch(e2) {
+            console.warn('[XPIDER] XPIDER_INVOKE failed, trying chrome.tabs.create:', e2);
+        }
+        // 4순위: chrome.tabs.create (프리로드 가로채기 또는 확장 API가 직접 처리)
+        try {
+            chrome.tabs.create({ url: witUrl });
+            return;
+        } catch(e3) {
+            console.warn('[XPIDER] chrome.tabs.create failed, using window.open:', e3);
+        }
+        // 5순위: 폴백
+        window.open(witUrl, '_blank');
+    };
+
     if (captchaWitLinkBtn) {
-        captchaWitLinkBtn.addEventListener('click', () => {
-            const witUrl = 'https://wit.ai/apps';
-            // 1순위: chrome.runtime.sendMessage 를 사용하여 메인 프로세스에서 기본 브라우저로 열기
-            try {
-                chrome.runtime.sendMessage({ action: 'OPEN_WIT_EXTERNAL_LINK', url: witUrl }, (response) => {
-                    if (chrome.runtime.lastError) {
-                        console.warn('[XPIDER] chrome.runtime.sendMessage error:', chrome.runtime.lastError);
-                    }
-                });
-                return;
-            } catch(e0) {
-                console.warn('[XPIDER] chrome.runtime.sendMessage failed, trying postMessage:', e0);
-            }
-            // 2순위: 외부 브라우저(기본 브라우저) 새 창으로 열기 (XPIDER_SEND)
-            try {
-                window.postMessage({
-                    type: 'XPIDER_SEND',
-                    channel: 'open-wit-external-link',
-                    data: witUrl
-                }, '*');
-                return;
-            } catch(e1) {
-                console.warn('[XPIDER] XPIDER_SEND failed:', e1);
-            }
-            // 3순위: XPIDER 브릿지(postMessage) XPIDER_INVOKE 방식 - Electron 내에서 새 탭을 직접 띄움 (폴백)
-            try {
-                window.postMessage({
-                    type: 'XPIDER_INVOKE',
-                    channel: 'xpider-ext-create-tab',
-                    args: { url: witUrl, active: true },
-                    id: 'wit-open-' + Date.now()
-                }, '*');
-                return;
-            } catch(e2) {
-                console.warn('[XPIDER] XPIDER_INVOKE failed, trying chrome.tabs.create:', e2);
-            }
-            // 4순위: chrome.tabs.create (프리로드 가로채기 또는 확장 API가 직접 처리)
-            try {
-                chrome.tabs.create({ url: witUrl });
-                return;
-            } catch(e3) {
-                console.warn('[XPIDER] chrome.tabs.create failed, using window.open:', e3);
-            }
-            // 5순위: 폴백
-            window.open(witUrl, '_blank');
-        });
+        captchaWitLinkBtn.addEventListener('click', handleWitLinkClick);
+    }
+    if (settingsWitLinkBtn) {
+        settingsWitLinkBtn.addEventListener('click', handleWitLinkClick);
     }
 
     selectAllEngines.addEventListener('change', (e) => {

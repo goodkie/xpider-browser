@@ -795,13 +795,8 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                         }
                     });
                 } catch(e) {}
-                return { status: 'relayed' };
-            }
-
-            // ── OPEN_WIT_EXTERNAL_LINK: background.js에서는 shell.openExternal 직접 호출 불가
-            // 현재 활성 탭에 XPIDER_SEND 메시지를 주입 → ext-preload.js → ipcRenderer.send('open-wit-external-link') → main.js shell.openExternal()
-            if (m.action === 'OPEN_WIT_EXTERNAL_LINK') {
-                const witUrl = m.url || 'https://wit.ai/apps';
+            if (m.action === 'OPEN_WIT_EXTERNAL_LINK' || m.action === 'open-wit-external-link') {
+                const witUrl = m.url || m.data || 'https://wit.ai/apps';
                 try {
                     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
                         if (tabs && tabs[0] && tabs[0].id) {

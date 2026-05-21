@@ -256,7 +256,7 @@
                                     🆓 Register a <strong>free</strong> Wit.ai API key to automatically bypass CAPTCHA audio.<br>
                                     Create an app at the link below and copy the <strong>Server Access Token</strong>.
                                 </p>
-                                <button id="captcha-wit-link-btn" onclick="(function(){ var u='https://wit.ai/apps'; try { chrome.runtime.sendMessage({ action: 'OPEN_WIT_EXTERNAL_LINK', url: u }); return; } catch(e){} try { window.postMessage({ type:'XPIDER_SEND', channel:'open-wit-external-link', data:u }, '*'); return; } catch(e){} try { window.postMessage({ type:'XPIDER_INVOKE', channel:'xpider-ext-create-tab', args:{ url:u, active:true }, id:'wit-s-'+Date.now() }, '*'); return; } catch(e){} try { chrome.tabs.create({ url:u }); return; } catch(e){} window.open(u,'_blank'); })()" style="display: inline-block; padding: 7px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 6px; border: none; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 6px rgba(102,126,234,0.4); cursor: pointer;">
+                                <button id="settings-wit-link-btn" style="display: inline-block; padding: 7px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 6px; border: none; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 6px rgba(102,126,234,0.4); cursor: pointer;">
                                     🔑 Get Free Wit.ai API Key →
                                 </button>
                             </div>
