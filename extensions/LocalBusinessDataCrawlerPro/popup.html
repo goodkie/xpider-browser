@@ -251,13 +251,16 @@
                         <div class="settings-group" id="captcha-witai-group" style="display: none;">
                             <label>🎙️ Wit.ai API Key (Free CAPTCHA Audio Bypass)</label>
                             <input type="password" id="audio-stt-key" class="premium-input" placeholder="Enter Wit.ai Server Access Token">
-                            <div style="margin-top: 10px; padding: 10px; background: linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.08)); border-radius: 8px; border-left: 3px solid #667eea;">
-                                <p style="margin: 0 0 8px 0; font-size: 0.78rem; color: #555; line-height: 1.5;">
-                                    🆓 Register a <strong>free</strong> Wit.ai API key to automatically bypass CAPTCHA audio.<br>
-                                    Create an app at the link below and copy the <strong>Server Access Token</strong>.
-                                </p>
-                                <button id="captcha-wit-link-btn" onclick="(function(){ var u='https://wit.ai/apps'; try { chrome.runtime.sendMessage({ action: 'OPEN_WIT_EXTERNAL_LINK', url: u }); return; } catch(e){} try { window.postMessage({ type:'XPIDER_SEND', channel:'open-wit-external-link', data:u }, '*'); return; } catch(e){} try { window.postMessage({ type:'XPIDER_INVOKE', channel:'xpider-ext-create-tab', args:{ url:u, active:true }, id:'wit-s-'+Date.now() }, '*'); return; } catch(e){} try { chrome.tabs.create({ url:u }); return; } catch(e){} window.open(u,'_blank'); })()" style="display: inline-block; padding: 7px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 6px; border: none; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 6px rgba(102,126,234,0.4); cursor: pointer;">
-                                    🔑 Get Free Wit.ai API Key →
+                            <div style="margin-top: 10px; padding: 12px; background: linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.08)); border-radius: 8px; border-left: 3px solid #667eea; font-size: 0.78rem; color: #444; line-height: 1.6;">
+                                <p style="margin: 0 0 10px 0; font-weight: bold; color: #333;">💡 무료 Wit.ai API 키 발급 방법 (1분 소요)</p>
+                                <div style="margin-bottom: 12px;">
+                                    <div style="display: flex; gap: 6px;"><span style="color: #667eea; font-weight: bold;">1.</span> <span>아래 버튼을 눌러 Wit.ai 사이트에 로그인합니다 (Facebook 계정).</span></div>
+                                    <div style="display: flex; gap: 6px;"><span style="color: #667eea; font-weight: bold;">2.</span> <span>우측 상단 <b>[Create App]</b> 버튼으로 새 앱을 생성합니다.</span></div>
+                                    <div style="display: flex; gap: 6px;"><span style="color: #667eea; font-weight: bold;">3.</span> <span>생성된 앱 내부의 <b>[Management] → [Settings]</b> 메뉴로 이동합니다.</span></div>
+                                    <div style="display: flex; gap: 6px;"><span style="color: #667eea; font-weight: bold;">4.</span> <span>화면 중간에 있는 <b>'Server Access Token'</b> 값을 복사한 후 위의 입력란에 입력해 주세요.</span></div>
+                                </div>
+                                <button id="captcha-wit-link-btn" style="display: block; width: 100%; padding: 8px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 6px; border: none; font-size: 0.76rem; font-weight: bold; box-shadow: 0 2px 6px rgba(102,126,234,0.4); cursor: pointer; text-align: center; transition: all 0.2s;">
+                                    🔑 무료 Wit.ai API 키 발급받기 →
                                 </button>
                             </div>
                         </div>

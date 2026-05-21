@@ -137,6 +137,10 @@ function createWindow() {
   app.on('web-contents-created', (event, contents) => {
     // 1. Handle New Windows -> Redirect to Tabs
     contents.setWindowOpenHandler(({ url }) => {
+      if (url && url.includes('wit.ai')) {
+        shell.openExternal(url).catch(err => console.error('[XPIDER] Failed to open external Wit.ai URL:', err));
+        return { action: 'deny' };
+      }
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('open-new-tab', url);
       }
