@@ -1,26 +1,68 @@
 (function () {
-    // 🛡️ [Stealth] DOM Injection to override navigator.webdriver directly in the page context
+    // 🛡️ [Stealth v4.9.67] DOM Injection — Main World 스텔스 패치
     try {
         const injectScript = document.createElement('script');
-        injectScript.textContent = `
-            try {
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined,
-                    configurable: true
-                });
-            } catch (e) {}
-            try {
-                const newProto = navigator.__proto__;
-                delete newProto.webdriver;
-                navigator.__proto__ = newProto;
-            } catch (e) {}
-        `;
+        injectScript.textContent = `(function() {
+  'use strict';
+  // 1. Navigator.prototype.webdriver 프로토타입 체인 완전 제거
+  try { delete Navigator.prototype.webdriver; } catch(e) {}
+  try { if (navigator.hasOwnProperty('webdriver')) delete navigator.webdriver; } catch(e) {}
+  try {
+    const _d = Object.getOwnPropertyDescriptor(Navigator.prototype, 'webdriver');
+    if (_d) Object.defineProperty(Navigator.prototype, 'webdriver', { ..._d, get: () => false, configurable: true });
+  } catch(e) {}
+  // 2. window.chrome 완전 모킹 (app / csi / loadTimes)
+  try {
+    if (!window.chrome) window.chrome = {};
+    if (!window.chrome.app) {
+      window.chrome.app = {
+        isInstalled: false,
+        InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
+        RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' },
+        getDetails:     function getDetails()     { return null; },
+        getIsInstalled: function getIsInstalled() { return false; },
+        installState:   function installState(cb) { cb && cb('not_installed'); },
+        runningState:   function runningState()   { return 'cannot_run'; }
+      };
+    }
+    if (!window.chrome.csi) {
+      window.chrome.csi = function csi() {
+        var t = performance.timing || {};
+        return { startE: t.navigationStart || Date.now(), onloadT: t.loadEventStart || Date.now(),
+                 pageT: performance.now ? performance.now() : 0, tran: 15 };
+      };
+    }
+    if (!window.chrome.loadTimes) {
+      window.chrome.loadTimes = function loadTimes() {
+        var t = performance.timing || {}; var ns = t.navigationStart || Date.now();
+        return { requestTime: ns/1000, startLoadTime: ns/1000, commitLoadTime: (t.domLoading||ns)/1000,
+          finishDocumentLoadTime: (t.domContentLoadedEventEnd||ns)/1000, finishLoadTime: (t.loadEventEnd||ns)/1000,
+          firstPaintTime: 0, firstPaintAfterLoadTime: 0, navigationType: 'Other',
+          wasFetchedViaSpdy: false, wasNpnNegotiated: true, npnNegotiatedProtocol: 'h2',
+          wasAlternateProtocolAvailable: false, connectionInfo: 'h2' };
+      };
+    }
+  } catch(e) {}
+  // 3. Function.prototype.toString 네이티브 마스킹
+  try {
+    var _orig = Function.prototype.toString; var _fns = new WeakSet();
+    [window.chrome.csi, window.chrome.loadTimes].forEach(function(f) { if (typeof f === 'function') _fns.add(f); });
+    if (window.chrome.app) ['getDetails','getIsInstalled','installState','runningState'].forEach(function(m) {
+      if (typeof window.chrome.app[m] === 'function') _fns.add(window.chrome.app[m]);
+    });
+    Function.prototype.toString = function toString() {
+      if (_fns.has(this)) return 'function ' + (this.name || '') + '() { [native code] }';
+      return _orig.call(this);
+    };
+  } catch(e) {}
+})();`;
         (document.head || document.documentElement).appendChild(injectScript);
         injectScript.remove();
-        console.log("🛡️ [Stealth] DOM injection applied successfully.");
+        console.log("🛡️ [Stealth v4.9.67] DOM injection applied successfully.");
     } catch (e) {
         console.warn("🛡️ [Stealth] DOM injection failed:", e);
     }
+
 
     /**
      * [v4.0] Secure Stealth & Behavior Mimicry

@@ -1,10 +1,99 @@
-// ─── 봇 차단 우회 (navigator.webdriver 제거) ───
-try {
-  Object.defineProperty(navigator, 'webdriver', {
-    get: () => false,
-    configurable: true
-  });
-} catch(e) {}
+// ═══════════════════════════════════════════════════════════════════
+// [Stealth v4.9.67] 봇 탐지 완전 우회 — ext-preload.js
+// ═══════════════════════════════════════════════════════════════════
+;(function _stealthInit() {
+  'use strict';
+
+  // ── 1. Navigator.prototype.webdriver 프로토타입 체인 완전 제거 ───
+  try {
+    if ('webdriver' in Navigator.prototype) {
+      delete Navigator.prototype.webdriver;
+    }
+  } catch(e) {}
+  try {
+    if (navigator.hasOwnProperty('webdriver')) {
+      delete navigator.webdriver;
+    }
+  } catch(e) {}
+  try {
+    const _desc = Object.getOwnPropertyDescriptor(Navigator.prototype, 'webdriver');
+    if (_desc) {
+      Object.defineProperty(Navigator.prototype, 'webdriver', {
+        ..._desc,
+        get: () => false,
+        configurable: true
+      });
+    }
+  } catch(e) {}
+
+  // ── 2. window.chrome 기본 객체 생성 (app / csi / loadTimes 모킹) ─
+  try {
+    if (!window.chrome) window.chrome = {};
+
+    if (!window.chrome.app) {
+      window.chrome.app = {
+        isInstalled: false,
+        InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
+        RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' },
+        getDetails:     function getDetails()     { return null; },
+        getIsInstalled: function getIsInstalled() { return false; },
+        installState:   function installState(cb) { cb && cb('not_installed'); },
+        runningState:   function runningState()   { return 'cannot_run'; }
+      };
+    }
+    if (!window.chrome.csi) {
+      window.chrome.csi = function csi() {
+        return {
+          startE:  (window.performance && performance.timing && performance.timing.navigationStart) || Date.now(),
+          onloadT: (window.performance && performance.timing && performance.timing.loadEventStart)  || Date.now(),
+          pageT:   (window.performance && performance.now) ? performance.now() : 0,
+          tran:    15
+        };
+      };
+    }
+    if (!window.chrome.loadTimes) {
+      window.chrome.loadTimes = function loadTimes() {
+        const t  = (window.performance && performance.timing) || {};
+        const ns = t.navigationStart || Date.now();
+        return {
+          requestTime:             ns / 1000,
+          startLoadTime:           ns / 1000,
+          commitLoadTime:          (t.domLoading            || ns) / 1000,
+          finishDocumentLoadTime:  (t.domContentLoadedEventEnd || ns) / 1000,
+          finishLoadTime:          (t.loadEventEnd          || ns) / 1000,
+          firstPaintTime:          0,
+          firstPaintAfterLoadTime: 0,
+          navigationType:          'Other',
+          wasFetchedViaSpdy:       false,
+          wasNpnNegotiated:        true,
+          npnNegotiatedProtocol:   'h2',
+          wasAlternateProtocolAvailable: false,
+          connectionInfo:          'h2'
+        };
+      };
+    }
+  } catch(e) {}
+
+  // ── 3. Function.prototype.toString Native Code 마스킹 ────────────
+  try {
+    const _origToString = Function.prototype.toString;
+    const _nativeFns    = new WeakSet();
+    if (window.chrome) {
+      [window.chrome.csi, window.chrome.loadTimes].forEach(fn => {
+        if (typeof fn === 'function') _nativeFns.add(fn);
+      });
+      if (window.chrome.app) {
+        ['getDetails','getIsInstalled','installState','runningState'].forEach(m => {
+          if (typeof window.chrome.app[m] === 'function') _nativeFns.add(window.chrome.app[m]);
+        });
+      }
+    }
+    Function.prototype.toString = function toString() {
+      if (_nativeFns.has(this)) return `function ${this.name || ''}() { [native code] }`;
+      return _origToString.call(this);
+    };
+  } catch(e) {}
+})();
 
 const { ipcRenderer } = require('electron');
 

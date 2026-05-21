@@ -128,6 +128,17 @@ function createWindow() {
     show: false,
   });
 
+  // [Stealth v4.9.67] 모든 Webview에 nodeIntegrationInSubFrames 강제 주입
+  // → iframe 내부에서도 preload 스크립트가 실행되어 HEADCHR_IFRAME 탐지 우회 가능
+  mainWindow.webContents.on('will-attach-webview', (event, webPreferences, params) => {
+    // 서브프레임(iframe)에서도 preload 실행 허용
+    webPreferences.nodeIntegrationInSubFrames = true;
+    // preload가 명시되지 않은 webview에 ext-preload 강제 설정
+    if (!webPreferences.preload && !webPreferences.preloadURL) {
+      webPreferences.preload = path.join(__dirname, 'ext-preload.js');
+    }
+  });
+
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   // Global handler to catch all window.open / target="_blank" from ANY webview or tab
