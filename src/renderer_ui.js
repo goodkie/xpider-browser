@@ -1472,26 +1472,11 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     wv.setAttribute('allowpopups', ''); 
     wv.setAttribute('preload', 'ext-preload.js'); 
     
-    // [CORS 우회 & 캡챠해결] 맥OS Chromium의 엄격한 CORS 해제 설정 주입
-    wv.setAttribute('webpreferences', 'webSecurity=no, allowRunningInsecureContent=yes');
-    
     // Remove custom UA to improve loading speed/compatibility
     // wv.useragent = ...
 
     webviewsWrapper.appendChild(wv);
-    
-    // [절대 경로 변환] 로컬 상대 경로 URL을 window.location.href 기준의 절대 file:// 경로로 완벽 변환
-    let targetUrl = url;
-    if (targetUrl && !/^(https?|file|chrome|about):/i.test(targetUrl)) {
-        try {
-            const baseHref = window.location.href; // e.g. file:///path/to/src/index.html
-            const dirUrl = baseHref.substring(0, baseHref.lastIndexOf('/'));
-            targetUrl = dirUrl + '/' + targetUrl;
-        } catch(e) {
-            console.error('[createNewTab] Failed to convert relative path to absolute:', e);
-        }
-    }
-    wv.src = targetUrl;
+    wv.src = url;
     
     wv.addEventListener('console-message', (e) => {
         window.electronAPI.send('log-from-renderer', `[MAIN-WEBVIEW] ${e.message}`);

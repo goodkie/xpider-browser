@@ -7,8 +7,8 @@
     * { margin:0; padding:0; box-sizing:border-box; }
 
     body {
-      width: 320px;
-      height: 320px;
+      width: 100vw;
+      height: 100vh;
       background: transparent;
       display: flex;
       align-items: center;
@@ -139,11 +139,6 @@
 
   <script>
     if (window.splashAPI) {
-      const logoEl = document.getElementById('splashLogo');
-      if (logoEl && typeof window.splashAPI.getIcon === 'function') {
-        const b64 = window.splashAPI.getIcon();
-        if (b64) logoEl.src = b64;
-      }
       window.splashAPI.onProgress(msg => {
         const el = document.getElementById('status-text');
         if (!el) return;

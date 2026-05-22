@@ -73,16 +73,18 @@ function xLog(level, source, ...args) {
 // ─── 스플래시 창 ───────────────────────────────────────────────
 function createSplashWindow() {
   splashWindow = new BrowserWindow({
-    width: 460,
-    height: 540,
+    width: 340,
+    height: 340,
     resizable: false,
     center: true,
     frame: false,
     transparent: true,
+    hasShadow: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     title: 'XPIDER',
     icon: ICON_PNG,
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: path.join(__dirname, 'splash-preload.js'),
       contextIsolation: true,
@@ -151,10 +153,6 @@ function createWindow() {
     // 서브프레임(iframe)에서도 preload 실행 허용
     webPreferences.nodeIntegrationInSubFrames = true;
     
-    // [CORS 우회 & 캡챠해결] 맥OS Chromium의 엄격한 CORS 해제 설정 주입
-    webPreferences.webSecurity = false;
-    webPreferences.allowRunningInsecureContent = true;
-    
     // [v4.9.68] preload가 상대 경로로 지정된 경우, Electron 메인 프로세스 기준 절대 경로로 자동 변환
     if (webPreferences.preload) {
       if (!path.isAbsolute(webPreferences.preload)) {
@@ -175,20 +173,7 @@ function createWindow() {
         shell.openExternal(url).catch(err => console.error('[XPIDER] Failed to open external Wit.ai URL:', err));
         return { action: 'deny' };
       }
-      
-      // [포커스 방지 & 불필요한 탭 팝업 방지]
-      // 팝업을 요청한 부모 webContents로부터 BrowserWindow 인스턴스 확인
-      const parentWin = BrowserWindow.fromWebContents(contents);
-      
-      // 만약 부모 윈도우가 _scanWin(수집 엔진 백그라운드)이거나 _previewWin(수집 시각화 미리보기)이거나,
-      // 또는 메인 윈도우(mainWindow)가 아닌 별도 백그라운드 구동 컨텍스트라면 새 탭 열기를 차단(deny)
-      if (!parentWin || parentWin === _scanWin || parentWin === _previewWin) {
-        log.info(`[Popup Blocked] Blocked popup from crawling process parent: ${url}`);
-        return { action: 'deny' };
-      }
-      
-      // 오로지 메인 윈도우 브라우징 상황에서만 새 탭 열기 전송
-      if (mainWindow && !mainWindow.isDestroyed() && parentWin === mainWindow) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('open-new-tab', url);
       }
       return { action: 'deny' };
@@ -1097,12 +1082,20 @@ class XpiderTabQueue {
 }
 const tabQueue = new XpiderTabQueue();
 
+// [v5.3] 맥OS 캡챠 우회 고도화: 플랫폼에 따라 동적인 User-Agent 공급
+function getOptimalUserAgent() {
+    if (process.platform === 'darwin') {
+        return 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+    }
+    return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+}
+
 // 단일 숨겨진 스캔 윈도우 (절대로 show:true 하지 않음)
 let _scanWin = null;
 
 function _getScanWin() {
     if (_scanWin && !_scanWin.isDestroyed()) return _scanWin;
-    const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+    const UA = getOptimalUserAgent();
     _scanWin = new BrowserWindow({
         show: false,
         width: 1280,
@@ -1112,8 +1105,6 @@ function _getScanWin() {
             contextIsolation: false,
             javascript: true,
             session: session.defaultSession,
-            webSecurity: false,
-            allowRunningInsecureContent: true,
         }
     });
     _scanWin.webContents.setUserAgent(UA);
@@ -1139,8 +1130,6 @@ function _getPreviewWin() {
             nodeIntegration: false,
             contextIsolation: true,
             partition: 'persist:preview', // [v5.2 FIX] 격리된 세션 — web-contents-created 이벤트가 메인 창에 영향 안 줌
-            webSecurity: false,
-            allowRunningInsecureContent: true,
         }
     });
     _previewWin.on('closed', () => { _previewWin = null; });
@@ -1555,7 +1544,41 @@ ipcMain.handle('xpider-captcha-resume', async () => {
         const cb = _captchaResolveCallback;
         _captchaResolveCallback = null;
         if (_captchaCheckInterval) { clearInterval(_captchaCheckInterval); _captchaCheckInterval = null; }
+        
+        // [수동 해결 핵심 추가] 수동 해결 시 탭 강제 닫기 예약
+        const targetTabUIId = _captchaTabUIId;
         cb(true);
+        
+        // 300ms 후 탭을 강제 닫아줍니다.
+        setTimeout(async () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                try {
+                    await mainWindow.webContents.executeJavaScript(`
+                        (function() {
+                            const tid = ${JSON.stringify(targetTabUIId)};
+                            if (typeof closeTab === 'function') {
+                                if (tid) { closeTab(tid); }
+                                if (window.tabs) {
+                                    window.tabs
+                                        .filter(t => t && t.url && (
+                                            t.url === 'about:blank' ||
+                                            t.url.includes('google.com/search') ||
+                                            t.url.includes('bing.com/search') ||
+                                            t.url.includes('/sorry/') ||
+                                            t.url.includes('google.com') // 캡챠 풀린 뒤의 구글 관련 탭도 모두 닫기
+                                        ))
+                                        .forEach(t => closeTab(t.id));
+                                }
+                            }
+                        })()
+                    `);
+                    log.info('[CAPTCHA] 수동 재개 탭 강제 닫기 실행 완료 (targetId: ' + targetTabUIId + ')');
+                } catch(e) {
+                    log.warn('[CAPTCHA] 수동 재개 탭 닫기 실패:', e.message);
+                }
+            }
+        }, 300);
+
         return { success: true };
     }
     return { success: false, message: '대기 중인 CAPTCHA 없음' };
@@ -1667,7 +1690,7 @@ ipcMain.on('xpider-captcha-tab-resolved', async (event, { tabUIId, url }) => {
     }, 300);
 });
 
-async function _scanUrlWithHiddenWin(url, waitMs = 6000) {
+async function _scanUrlWithHiddenWin(url, waitMs = 6000, showTab = false) {
     const EMPTY = { emails:[], phone:'', address:'', homepage:'', sns:[], contactLinks:[], pageText:'' };
     // [v5.1] 검색 URL 여부 플래그 — finally에서 미리보기 창 자동 숨김 판단용
     let _didShowPreview = false;
@@ -1680,10 +1703,10 @@ async function _scanUrlWithHiddenWin(url, waitMs = 6000) {
             (url.includes('yahoo.co') && url.includes('/search')) ||
             (url.includes('baidu.com') && url.includes('/search'))
         );
-        if (isSearchUrl) {
+        if (isSearchUrl && showTab) {
             try {
                 const pw = _getPreviewWin();
-                const UA_PW = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+                const UA_PW = getOptimalUserAgent();
                 pw.webContents.loadURL(url, { userAgent: UA_PW }).catch(() => {});
                 pw.showInactive();  // 포커스 탈취 없이 창 표시
                 _didShowPreview = true;
@@ -1694,7 +1717,7 @@ async function _scanUrlWithHiddenWin(url, waitMs = 6000) {
 
         const win = _getScanWin();
         const wc = win.webContents;
-        const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+        const UA = getOptimalUserAgent();
         await new Promise((resolve) => {
             let done = false;
             const finish = (delay = 0) => { if (!done) { done = true; setTimeout(resolve, delay); } };
@@ -1820,7 +1843,7 @@ async function _crawlUrlWithScroll(url, { scrollSteps = 5, scrollWaitMs = 2500, 
     try {
         const win = _getScanWin();
         const wc = win.webContents;
-        const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+        const UA = getOptimalUserAgent();
 
         // 페이지 로드
         await new Promise((resolve) => {
@@ -1965,13 +1988,13 @@ ipcMain.handle('xpider-crawl-with-scroll', (event, args) =>
 );
 // [핵심 FIX] xpider-scan-page: ext-preload.js에서 invoke하는 채널 — 누락되어 있었음!
 ipcMain.handle('xpider-scan-page', (event, args) =>
-    tabQueue.run(() => _scanUrlWithHiddenWin(args.url, args.waitMs || 6000))
+    tabQueue.run(() => _scanUrlWithHiddenWin(args.url, args.waitMs || 6000, args.showTab))
 );
 ipcMain.handle('xpider-scan-full', (event, args) =>
-    tabQueue.run(() => _scanUrlWithHiddenWin(args.url, args.waitMs || 5000))
+    tabQueue.run(() => _scanUrlWithHiddenWin(args.url, args.waitMs || 5000, args.showTab))
 );
 ipcMain.handle('xpider-contact-page', async (event, args) => {
-    const r = await tabQueue.run(() => _scanUrlWithHiddenWin(args.url, args.waitMs || 4000));
+    const r = await tabQueue.run(() => _scanUrlWithHiddenWin(args.url, args.waitMs || 4000, args.showTab));
     return { contactLinks: (r && r.contactLinks) ? r.contactLinks : [] };
 });
 // 레거시 호환 (no-op)
