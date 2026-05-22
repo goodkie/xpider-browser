@@ -79,6 +79,7 @@ jobs:
           path: |
             out/make/squirrel.windows/**/*.exe
             out/make/zip/win32/x64/*.zip
+            out/make/zip/win32/x64/*.exe
           retention-days: 1
 
 
@@ -220,20 +221,22 @@ jobs:
 
             ### 📦 Download Links
 
-            | Platform | File | Type |
-            |----------|------|------|
-            | 🪟 Windows | `XPIDER-Browser-Windows-${{ steps.tag_version.outputs.version }}-Setup.exe` | Squirrel Installer |
-            | 🪟 Windows | `XPIDER-Browser-Windows-${{ steps.tag_version.outputs.version }}.zip` | Portable (Zip) |
-            | 🍎 macOS | `XPIDER-Browser-Mac-Intel-${{ steps.tag_version.outputs.version }}.dmg` | Intel Mac (DMG) |
-            | 🍎 macOS | `XPIDER-Browser-Mac-Arm-${{ steps.tag_version.outputs.version }}.dmg` | Apple Silicon (DMG) |
+            | Platform | File | Type | Description |
+            |----------|------|------|-------------|
+            | 🪟 Windows | `XPIDER-Browser-Windows-${{ steps.tag_version.outputs.version }}-Silent-Installer.exe` | Squirrel 공식 설치기 | 더블 클릭 시 백그라운드에서 자동 설치 후 즉시 실행 |
+            | 🪟 Windows | `XPIDER-Browser-Windows-${{ steps.tag_version.outputs.version }}-Portable-Installer.exe` | 포터블 압축해제 설치기 | 압축 풀 대상 폴더 경로를 지정할 수 있는 설치 마법사 |
+            | 🪟 Windows | `XPIDER-Browser-Windows-${{ steps.tag_version.outputs.version }}.zip` | 포터블 압축 파일 (Zip) | 다운로드 후 수동 압축 해제하여 즉시 실행 가능 |
+            | 🍎 macOS | `XPIDER-Browser-Mac-Intel-${{ steps.tag_version.outputs.version }}.dmg` | Intel Mac 전용 (DMG) | Intel CPU 기반 Mac 전용 설치 이미지 |
+            | 🍎 macOS | `XPIDER-Browser-Mac-Arm-${{ steps.tag_version.outputs.version }}.dmg` | Apple Silicon 전용 (DMG) | Apple Silicon (M1/M2/M3) Mac 전용 설치 이미지 |
 
             ### 🚀 설치 방법
-            - **Windows (Installer)**: `...-Setup.exe` 실행 → 설치 폴더 선택 → 바탕화면 바로가기 생성
-            - **Windows (Portable)**: `.zip` 압축 해제 후 `XPIDERBrowser.exe` 실행. 폴더별 로그인 정보가 독립 보관됩니다.
-            - **macOS**: `.dmg` 파일 열기 → XPIDER를 Applications 폴더로 드래그
+            - **Windows (공식 설치기)**: `...-Silent-Installer.exe` 실행 시 무음 백그라운드 설치 후 바탕화면 단축 아이콘 생성 및 브라우저가 자동 기동됩니다.
+            - **Windows (포터블 압축해제 설치기)**: `...-Portable-Installer.exe` 실행 시 원하는 경로를 지정하고 약관에 동의한 후 압축을 풀어 간편하게 설치 및 즉시 실행이 가능합니다.
+            - **Windows (포터블 Zip)**: `.zip` 압축 해제 후 `XPIDERBrowser.exe` 실행. 각 디렉터리별로 로그인 정보 및 세션이 개별 격리되어 독립적으로 보관됩니다.
+            - **macOS**: `.dmg` 파일 열기 → XPIDER 아이콘을 응용 프로그램(Applications) 폴더로 드래그 앤 드롭
 
-            ### 📂 Portable 격리
-            로그인 세션과 설정은 각 브라우저 디렉터리 내의 `data/` 폴더에 저장됩니다.
+            ### 📂 Portable 세션 격리 안내
+            포터블 버전을 사용할 때 로그인 세션 및 사용자 설정은 브라우저 실행 파일 하위 디렉터리의 `data/` 폴더에 각각 안전하고 독립적으로 격리 보관됩니다.
           files: |
             dist/**/*.exe
             dist/**/*.zip
