@@ -107,7 +107,11 @@ jobs:
         run: npm ci
 
       - name: Build macOS Intel DMG
-        run: npm run make:mac
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 8
+          max_attempts: 3
+          command: npm run make:mac
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -120,7 +124,7 @@ jobs:
             echo "DMG renamed → XPIDER-Browser-Mac-Intel-v${VER}.dmg"
           else
             echo "⚠️ DMG not found — checking build output:"
-            find out/ -type f | sort
+            find out/  -type f | sort
           fi
 
       - name: Upload macOS Intel artifact
@@ -156,7 +160,11 @@ jobs:
         run: npm ci
 
       - name: Build macOS ARM64 DMG
-        run: npm run make:mac-arm
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 8
+          max_attempts: 3
+          command: npm run make:mac-arm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -169,7 +177,7 @@ jobs:
             echo "DMG renamed → XPIDER-Browser-Mac-Arm-v${VER}.dmg"
           else
             echo "⚠️ DMG not found — checking build output:"
-            find out/ -type f | sort
+            find out/  -type f | sort
           fi
 
       - name: Upload macOS ARM artifact
