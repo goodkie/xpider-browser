@@ -1,8 +1,7 @@
-const { app, BrowserWindow, session, ipcMain, shell, webContents, dialog, Menu, MenuItem, clipboard, Notification } = require('electron');
+const { app, BrowserWindow, session, ipcMain, shell, webContents, dialog, Menu, MenuItem, clipboard } = require('electron');
 const path = require('path');
 const fs   = require('fs');
 const log  = require('electron-log');
-const { pathToFileURL } = require('url');
 
 // ─── Campaign Engine (AutoForm Sender Pro) ────────────────────
 const campaignEngine = require('./campaign-engine');
@@ -23,15 +22,6 @@ app.commandLine.appendSwitch('disable-touch-adjustment');
 app.commandLine.appendSwitch('enable-gpu-rasterization');
 app.commandLine.appendSwitch('enable-zero-copy');
 app.commandLine.appendSwitch('ignore-gpu-blocklist');
-
-// ─── [v4.9.75] 플랫폼별 User-Agent 헬퍼 ─────────────────────────
-// Mac에서 Windows UA를 보내면 OS 핑거프린트 불일치로 CAPTCHA 유발
-function _getPlatformUA() {
-  if (process.platform === 'darwin') {
-    return 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-  }
-  return 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-}
 
 // --- Multi-Instance / Profile Support (Portable Isolation) ---
 const profileArg = process.argv.find(a => a.startsWith('--profile='));
@@ -105,9 +95,6 @@ function createSplashWindow() {
     splashWindow.show();
     // 버전 정보 전달
     splashWindow.webContents.send('splash-version', app.getVersion());
-    // [v4.9.75] 아이콘 절대 file:// URL 전달 — Mac 패키징 경로 불일치 해결
-    const iconFileUrl = pathToFileURL(ICON_PNG).href;
-    splashWindow.webContents.send('splash-icon', iconFileUrl);
   });
   splashWindow.on('closed', () => { splashWindow = null; });
 }
@@ -1098,8 +1085,7 @@ let _scanWin = null;
 
 function _getScanWin() {
     if (_scanWin && !_scanWin.isDestroyed()) return _scanWin;
-    // [v4.9.75] 플랫폼별 UA 적용 — Mac에서 Windows UA 사용 시 OS 불일치로 CAPTCHA 유발
-    const UA = _getPlatformUA();
+    const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
     _scanWin = new BrowserWindow({
         show: false,
         width: 1280,
@@ -1109,8 +1095,6 @@ function _getScanWin() {
             contextIsolation: false,
             javascript: true,
             session: session.defaultSession,
-            // [v4.9.75] stealth preload: navigator.webdriver 제거 + window.chrome 모킹
-            preload: path.join(__dirname, 'ext-preload.js'),
         }
     });
     _scanWin.webContents.setUserAgent(UA);
@@ -1124,21 +1108,18 @@ let _previewWin = null;
 
 function _getPreviewWin() {
     if (_previewWin && !_previewWin.isDestroyed()) return _previewWin;
-    // [v4.9.75] Mac에서 포커스 탈취를 완전히 방지하기 위해 type:'panel' 추가
-    const macOpts = process.platform === 'darwin' ? { type: 'panel' } : {};
     _previewWin = new BrowserWindow({
         width: 1100,
         height: 750,
         show: false,          // showInactive()로만 표시 — 포커스 탈취 없음
         focusable: false,     // 클릭해도 포커스 이동 안 됨
-        skipTaskbar: true,
+        skipTaskbar: true,    // [v5.2] 작업 표시줄에서 숨김 (메인 앱과 분리)
         alwaysOnTop: false,
         title: 'XPIDER - Collection Progress',
-        ...macOpts,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            partition: 'persist:preview',
+            partition: 'persist:preview', // [v5.2 FIX] 격리된 세션 — web-contents-created 이벤트가 메인 창에 영향 안 줌
         }
     });
     _previewWin.on('closed', () => { _previewWin = null; });
@@ -1261,8 +1242,8 @@ async function _handleCaptchaDetected(captchaUrl) {
             const result = await mainWindow.webContents.executeJavaScript(`
                 (function() {
                     if (typeof createNewTab !== 'function') return 'ERR_NO_FUNC';
-                    // [v4.9.75] makeActive=false: 포커스 탈취 없이 백그라운드 탭으로 열기
-                    createNewTab(${JSON.stringify(captchaUrl)}, false);
+                    createNewTab(${JSON.stringify(captchaUrl)}, true);
+                    // 전역 window.tabs가 이제 노출되어 있음 (renderer_ui.js 수정됨)
                     const ts = window.tabs || [];
                     return ts.length > 0 ? ts[ts.length - 1].id : 'ERR_NO_TAB';
                 })()
@@ -1293,35 +1274,6 @@ async function _handleCaptchaDetected(captchaUrl) {
     // 2. ── [핵심] 모든 수집 프로세스 일시중지 ──────────────────
     broadcastExtMessage({ action: 'CAPTCHA_PAUSE_ALL' });
     log.info('[CAPTCHA] ⏸️ 전체 수집 일시중지 브로드캐스트 완료');
-
-    // [v4.9.75] macOS 시스템 알림 + 탭 경고 아이콘 (사용자 주의 유도)
-    try {
-        if (Notification.isSupported()) {
-            new Notification({
-                title: '⚠️ XPIDER — CAPTCHA 감지',
-                body: 'CAPTCHA가 감지되어 수집이 일시 중지됐습니다.\n새 탭(⚠️)을 클릭하여 CAPTCHA를 해결해 주세요.',
-                icon: ICON_PNG,
-                urgency: 'critical',
-            }).show();
-        }
-    } catch(ne) { log.warn('[CAPTCHA] 시스템 알림 실패:', ne.message); }
-
-    // 탭 경고 아이콘 표시 (renderer에 신호 전달)
-    if (_captchaTabUIId && mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.executeJavaScript(`
-            (function() {
-                const tabId = ${JSON.stringify(_captchaTabUIId)};
-                const tabEl = document.getElementById('tab-ui-' + tabId);
-                if (tabEl) {
-                    tabEl.classList.add('captcha-alert');
-                    const favicon = document.getElementById('tab-favicon-' + tabId);
-                    if (favicon) { favicon.style.display = 'none'; }
-                    const titleEl = document.getElementById('tab-title-' + tabId);
-                    if (titleEl) { titleEl.textContent = '\u26a0\ufe0f CAPTCHA'; }
-                }
-            })()
-        `).catch(() => {});
-    }
 
     // 3. 익스텐션 팝업에 상태 알림
     broadcastExtMessage({
@@ -1710,8 +1662,7 @@ async function _scanUrlWithHiddenWin(url, waitMs = 6000) {
         if (isSearchUrl) {
             try {
                 const pw = _getPreviewWin();
-                // [v4.9.75] 플랫폼별 UA 적용
-                const UA_PW = _getPlatformUA();
+                const UA_PW = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
                 pw.webContents.loadURL(url, { userAgent: UA_PW }).catch(() => {});
                 pw.showInactive();  // 포커스 탈취 없이 창 표시
                 _didShowPreview = true;
@@ -1722,8 +1673,7 @@ async function _scanUrlWithHiddenWin(url, waitMs = 6000) {
 
         const win = _getScanWin();
         const wc = win.webContents;
-        // [v4.9.75] 플랫폼별 UA 적용
-        const UA = _getPlatformUA();
+        const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
         await new Promise((resolve) => {
             let done = false;
             const finish = (delay = 0) => { if (!done) { done = true; setTimeout(resolve, delay); } };
@@ -1849,8 +1799,7 @@ async function _crawlUrlWithScroll(url, { scrollSteps = 5, scrollWaitMs = 2500, 
     try {
         const win = _getScanWin();
         const wc = win.webContents;
-        // [v4.9.75] 플랫폼별 UA 적용
-        const UA = _getPlatformUA();
+        const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
         // 페이지 로드
         await new Promise((resolve) => {
@@ -2750,6 +2699,13 @@ ipcMain.handle('xpider-show-save-dialog', async (event, { defaultName, content }
 app.whenReady().then(async () => {
   // --- 익스텐션 브릿지 주입 (Extension Compatibility Layer) ---
   session.defaultSession.setPreloads([path.join(__dirname, 'ext-preload.js')]);
+
+  // --- [Mac OS 전용 Stealth] 맥OS 환경에서 일렉트론/XPIDER 식별자 완전 차단 ---
+  if (process.platform === 'darwin') {
+    const macUA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+    session.defaultSession.setUserAgent(macUA);
+    log.info('[Stealth-Mac] 맥OS 전용 Chrome User-Agent 설정 완료');
+  }
 
   // 1. 스플래시 창 먼저 표시
   createSplashWindow();
