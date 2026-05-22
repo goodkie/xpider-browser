@@ -175,15 +175,16 @@
     }
 
     function checkAndInjectHardBlockModal() {
-        // [Mac OS Stealth v4.9.79] 서브프레임(reCAPTCHA iframe 등)인 경우에는 하드 블록 모달 검사를 수행하지 않음
+        // [v4.9.80] 이 스크립트는 이제 부모 sorry 페이지에서만 실행됨 (manifest.json 역할 분리 완료)
+        // 서브프레임 guard는 혹시 모를 예외를 위해 유지
         if (window.self !== window.top) {
             return false;
         }
 
         if (document.getElementById('xpider-hard-block-modal')) return true; // Already injected
 
-        // [Mac OS Stealth v4.9.79] reCAPTCHA 동적 로딩 시간을 보장하기 위해 로드 후 4.5초간 판정 유예
-        if (Date.now() - window.__xpiderPageLoadTime < 4500) {
+        // [v4.9.80] reCAPTCHA 동적 로딩을 위한 6초 판정 유예 (4.5초 → 6초로 상향)
+        if (Date.now() - window.__xpiderPageLoadTime < 6000) {
             return false;
         }
 
@@ -195,15 +196,16 @@
                                 pageText.includes('automated queries') ||
                                 pageText.includes('unusual traffic');
 
-        // [Mac OS Stealth v4.9.79] reCAPTCHA 및 이미지 캡챠, 관련 폼 감지 강력화 (오판 차단)
-        const hasCaptchaInput = document.querySelector(
+        // [v4.9.80] reCAPTCHA/이미지 캡챠 감지 강화 + iframe src 직접 확인
+        const hasRecaptchaIframe = Array.from(document.querySelectorAll('iframe')).some(f =>
+            (f.src && (f.src.includes('recaptcha') || f.src.includes('google.com/recaptcha'))) ||
+            (f.title && /recaptcha/i.test(f.title))
+        );
+
+        const hasCaptchaInput = hasRecaptchaIframe || document.querySelector(
             'img[src*="captcha"], ' +
             'img[src*="sorry/image"], ' +
-            'iframe[src*="recaptcha"], ' +
-            'iframe[title*="reCAPTCHA"], ' +
-            'iframe[title*="recaptcha"], ' +
             '.g-recaptcha, ' +
-            '#recaptcha-anchor, ' +
             '#captcha-form, ' +
             'input[name="captcha"], ' +
             'input[id*="captcha"]'
@@ -615,73 +617,17 @@
 
     async function attemptSolve() {
         try {
+            // [v4.9.80] 이 함수는 sorry 페이지 부모 프레임에서만 실행
+            // 체크박스 클릭 및 reCAPTCHA iframe 조작은 recaptcha_iframe_solver.js가 담당
             if (checkAndInjectHardBlockModal()) return;
 
             ensureHUD();
             const state = await chrome.storage.local.get(['captchaSolveEnabled', 'captchaAttempts', 'captchaBlocked']);
             if (state.captchaSolveEnabled === false) return;
-            let attempts = state.captchaAttempts || 0;
 
             if (state.captchaBlocked) {
                 logToSystem("🚨 Google blocking detected", "BLOCKED");
                 return;
-            }
-
-            // [v26.0] Auto-reset: if 90s passed since last attempt, reset counter
-            const now = Date.now();
-            if (attempts >= MAX_ATTEMPTS) {
-                if (lastAttemptTime && (now - lastAttemptTime > 90000)) {
-                    console.log('[v26.0] Auto-reset: 90s elapsed. Resetting captcha counter.');
-                    await chrome.storage.local.set({ captchaAttempts: 0, captchaBlocked: false });
-                    attempts = 0;
-                    logToSystem("🔄 Auto-reset complete. Retrying...", "RESET");
-                } else {
-                    if (!lastAttemptTime) lastAttemptTime = now;
-                    logToSystem("⏳ Cooling down... (" + Math.round((90000 - (now - lastAttemptTime)) / 1000) + "s)", "WAIT");
-                    return;
-                }
-            }
-            lastAttemptTime = now;
-
-            // ── 1. 체크박스 ──
-            const cb = document.querySelector('#recaptcha-anchor') || document.querySelector('.recaptcha-checkbox');
-            if (cb) {
-                if (cb.getAttribute('aria-checked') === 'false') {
-                    const now = Date.now();
-                    if (now - lastCheckboxClickTime > 5000) {
-                        logToSystem("✅ Clicking checkbox...");
-                        lastCheckboxClickTime = now;
-                        triggerHumanLikeClick(cb);
-                    }
-                } else {
-                    logToSystem("🎉 Check complete!", "PASS");
-                }
-                return;
-            }
-
-            // ── 2. 도전 영역 ──
-            const audioInput = document.querySelector('#audio-response') || document.querySelector('input[id*="audio"]');
-            const audioBtn = findButtonByPattern(['audio', '음성', '헤드셋'], ['#recaptcha-audio-button', '.rc-button-audio']);
-
-            if (audioBtn && !audioInput) {
-                logToSystem("🎧 Switching to audio challenge...");
-                audioBtn.click();
-                waitCycles = 0;
-                return;
-            }
-
-            if (audioInput) {
-                if (!solving) {
-                    const keys = await chrome.storage.local.get(['witKey', 'audioSttKey']);
-                    let activeKey = keys.witKey || keys.audioSttKey;
-                    if (!activeKey || activeKey.trim() === '') {
-                        // 공용 무료 폴백 키 지정 (사용자가 키를 입력하지 않아도 자동 캡챠가 우회되도록 조치)
-                        activeKey = '3T7NUX6UUPXHXGMDQLB7P23JSHYI2C7O';
-                        await chrome.storage.local.set({ witKey: activeKey, audioSttKey: activeKey, captchaSolveEnabled: true });
-                        logToSystem("🔑 [Auto STT] 공용 무료 우회 API 키 적용됨", "PROXY");
-                    }
-                    executeResilientSolve(audioInput, attempts);
-                }
             }
 
             const isSorryPage = isGoogleSorryPage();
@@ -689,21 +635,21 @@
             if (isSorryPage && !solving) {
                 // [v1.0.0 Pro] Distinguish between Hard Block and Solvable Text Captcha
                 const solvable = isSolvableTextCaptcha();
-                
+
                 if (solvable) {
                     const captchaImg = document.querySelector('img[src*="captcha"], img[src*="sorry/image"]');
                     const textInput = document.querySelector('input[name="captcha"], input[name="q"]');
                     const sorryForm = textInput ? textInput.closest('form') : null;
-                    
+
                     // Show 5-minute wait modal if no paid key
                     const settings = await chrome.storage.local.get(['twoCaptchaKey', 'nopeChaKey', 'captchaApiKey']);
                     const hasPaidKey = settings.twoCaptchaKey || settings.nopeChaKey || settings.captchaApiKey;
-                    
+
                     if (!hasPaidKey) {
                         injectSecondaryWaitModal();
                         return;
                     }
-                    
+
                     if (captchaImg && textInput && sorryForm) {
                         solveTextCaptcha(captchaImg, textInput, sorryForm);
                     }
@@ -941,5 +887,6 @@
         if (btn) btn.click();
     }
 
-    setInterval(attemptSolve, 900);
+    // [v4.9.80] 폴링 주기를 3초로 늘려 과도한 판정 방지 (reCAPTCHA 솔버는 recaptcha_iframe_solver.js가 별도 담당)
+    setInterval(attemptSolve, 3000);
 })();
