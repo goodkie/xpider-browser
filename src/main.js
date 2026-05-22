@@ -1102,7 +1102,8 @@ function _getScanWin() {
     return _scanWin;
 }
 
-// ─── [v5.1] 검색 시각화 미리보기 창 (포커스 없이 표시, 수집 완료 후 자동 숨김) ───
+// ─── [v5.2] 검색 시각화 미리보기 창 (포커스 없이 표시, 수집 완료 후 자동 숨김) ───
+// [v5.2 FIX] 격리된 partition을 사용하여 메인 창 / 스플래시 흐름 간섭 방지
 let _previewWin = null;
 
 function _getPreviewWin() {
@@ -1112,13 +1113,13 @@ function _getPreviewWin() {
         height: 750,
         show: false,          // showInactive()로만 표시 — 포커스 탈취 없음
         focusable: false,     // 클릭해도 포커스 이동 안 됨
-        skipTaskbar: false,   // 작업 표시줄에는 표시
+        skipTaskbar: true,    // [v5.2] 작업 표시줄에서 숨김 (메인 앱과 분리)
         alwaysOnTop: false,
         title: 'XPIDER - Collection Progress',
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
-            session: session.defaultSession,
+            partition: 'persist:preview', // [v5.2 FIX] 격리된 세션 — web-contents-created 이벤트가 메인 창에 영향 안 줌
         }
     });
     _previewWin.on('closed', () => { _previewWin = null; });
