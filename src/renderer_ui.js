@@ -14,7 +14,8 @@ const extensionWebview = document.getElementById('extension-webview');
 
 window.electronAPI.on('open-new-tab', (url) => {
     console.log('[IPC] Opening new tab from main process:', url);
-    createNewTab(url);
+    // [v4.9.75] 포커스 탈취 방지: 수집 도중 새 탭이 리가 작업에서 포커스를 가져가지 않게 makeActive=false
+    createNewTab(url, false);
 });
 const settingsBtn      = document.getElementById('settings-btn');
 const settingsMenu     = document.getElementById('settings-menu');
@@ -1531,6 +1532,16 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
                 tabUIId: tabId,
                 captchaUrl: currentUrl
             });
+
+            // [v4.9.75] CAPTCHA 탭 경고 표시: 파비콘 숨김 + 제목 교체 + 깜박임 CSS 클래스
+            const _tabEl = document.getElementById('tab-ui-' + tabId);
+            if (_tabEl) {
+                _tabEl.classList.add('captcha-alert');
+                const _fav = document.getElementById('tab-favicon-' + tabId);
+                if (_fav) _fav.style.display = 'none';
+                const _ttl = document.getElementById('tab-title-' + tabId);
+                if (_ttl) _ttl.textContent = '\u26a0\ufe0f CAPTCHA';
+            }
         }
     });
 
@@ -1610,8 +1621,31 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
         }
     });
     
-    if (makeActive) switchTab(tabId);
-}
+    if (makeActive) {
+        switchTab(tabId);
+    } else {
+        // [v4.9.75] 마지막 탭이 닫탄 수집 완료 탭 자동 닫기
+        // Google/Bing 검색 URL이면 30초 후 자동으로 닫햐 (탭 무한 누적 방지)
+        const _isAutoSearchTab = url && (
+            (url.includes('google.') && url.includes('/search')) ||
+            (url.includes('bing.com') && url.includes('/search')) ||
+            (url.includes('naver.com') && (url.includes('/search') || url.includes('/place'))) ||
+            (url.includes('yahoo.co') && url.includes('/search'))
+        );
+        if (_isAutoSearchTab) {
+            const _autoCloseTimer = setTimeout(() => {
+                if (tabs.find(t => t.id === tabId)) {
+                    console.log('[AUTO-CLOSE] 수집 완료 탭 자동 닫기:', tabId);
+                    closeTab(tabId);
+                }
+            }, 30000); // 30초 후 자동 닫기
+            // 사용자가 직접 닫는다면 타이머 취소
+            const _tabCloseBtn = document.querySelector(`#tab-ui-${tabId} .tab-close`);
+            if (_tabCloseBtn) {
+                _tabCloseBtn.addEventListener('click', () => clearTimeout(_autoCloseTimer), { once: true });
+            }
+        }
+    }}
 
 function switchTab(tabId) {
     activeTabId = tabId;

@@ -7,8 +7,8 @@
     * { margin:0; padding:0; box-sizing:border-box; }
 
     body {
-      width: 100vw;
-      height: 100vh;
+      width: 320px;
+      height: 320px;
       background: transparent;
       display: flex;
       align-items: center;
@@ -148,6 +148,11 @@
       window.splashAPI.onVersion(ver => {
         const s = document.querySelector('.sub');
         if (s) s.textContent = 'v' + ver;
+      });
+      // [v4.9.75] Mac 패키징 경로 불일치 해결: 절대 file:// URL로 src 교체
+      window.splashAPI.onIcon(url => {
+        const img = document.getElementById('splashLogo');
+        if (img && url) img.src = url;
       });
     }
   </script>
