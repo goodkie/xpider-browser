@@ -1,4 +1,4 @@
-name: Build XPIDER Browser (Portable)
+name: XPIDER Browser — Build & Release
 
 on:
   push:
@@ -10,144 +10,228 @@ permissions:
   contents: write
 
 jobs:
-  # ──────────────────────────────────────────────────────────
-  # Windows 포터블 ZIP + SFX Setup
-  # ──────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────────────
+  # 1. Windows 빌드: Squirrel 설치 파일 + SFX Setup + Portable ZIP
+  # ──────────────────────────────────────────────────────────────────
   build-windows:
-    name: Build Windows (Portable ZIP)
+    name: 🪟 Build Windows
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      # SFX C# 프로젝트 빌드를 위한 .NET SDK 설치
-      - name: Setup .NET SDK
+
+      - name: Setup .NET SDK (SFX 빌드용)
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - run: npm ci
-      - name: Build Windows ZIP
-        run: npm run make:win-zip
+
+      - name: Get version from package.json
+        id: get_version
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Squirrel 인스톨러 빌드 ──────────────────────────────────
+      - name: Build Windows (Squirrel Setup.exe)
+        run: npm run make:win
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Rename Windows ZIP
+
+      # ── Portable ZIP 이름 정규화 ──────────────────────────────────
+      - name: Rename Portable ZIP
         shell: bash
-        run: mv out/make/zip/win32/x64/*.zip "out/make/zip/win32/x64/XPIDER-Browser-Windows-${{ github.ref_name }}.zip"
-      - name: Build Windows SFX (Auto-Extractor)
+        run: |
+          VER=${{ steps.get_version.outputs.version }}
+          SRC=$(find out/make/zip/win32/x64 -name "*.zip" | head -1)
+          mv "$SRC" "out/make/zip/win32/x64/XPIDER-Browser-Windows-v${VER}.zip"
+          echo "ZIP renamed → XPIDER-Browser-Windows-v${VER}.zip"
+
+      # ── SFX (Auto-Extractor) Setup.exe 빌드 ─────────────────────
+      - name: Build SFX Setup (Auto-Extractor)
         shell: powershell
-        run: powershell src\\deploy\\build-sfx.ps1
-      - uses: actions/upload-artifact@v4
+        run: powershell src\deploy\build-sfx.ps1
+        continue-on-error: true   # SFX 실패해도 나머지 아티팩트는 배포
+
+      # ── Squirrel Setup.exe 이름 정규화 ──────────────────────────
+      - name: Rename Squirrel Setup.exe
+        shell: bash
+        run: |
+          VER=${{ steps.get_version.outputs.version }}
+          # Squirrel이 생성한 Setup.exe 찾기 (이미 올바른 이름이면 스킵)
+          find out/make/squirrel.windows -name "*.exe" | head -5
+
+      # ── 아티팩트 업로드 ────────────────────────────────────────
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts
           path: |
-            out/make/**/*.zip
-            out/make/**/*.exe
+            out/make/squirrel.windows/**/*.exe
+            out/make/zip/win32/x64/*.zip
           retention-days: 1
 
 
+  # ──────────────────────────────────────────────────────────────────
+  # 2. macOS Intel (x64) 빌드: DMG
+  # ──────────────────────────────────────────────────────────────────
+  build-macos-intel:
+    name: 🍎 Build macOS Intel (x64)
+    runs-on: macos-13        # Intel Mac 환경
 
-  # ──────────────────────────────────────────────────────────
-  # macOS Intel 포터블 ZIP
-  # ──────────────────────────────────────────────────────────
-  build-macos-x64:
-    name: Build macOS Intel (Portable ZIP)
-    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      - run: npm ci
+
+      - name: Get version from package.json
+        id: get_version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Build macOS Intel DMG
         run: npm run make:mac
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Rename Mac Intel DMG
+
+      - name: Rename macOS Intel DMG
         run: |
-          mkdir -p out/make/dmg/x64
-          find out/make -name "*.dmg" -exec mv {} "out/make/dmg/x64/XPIDER-Browser-Mac-Intel-${{ github.ref_name }}.dmg" \; || true
-      - uses: actions/upload-artifact@v4
+          VER=${{ steps.get_version.outputs.version }}
+          SRC=$(find out/make -name "*.dmg" | head -1)
+          if [ -n "$SRC" ]; then
+            mv "$SRC" "out/make/XPIDER-Browser-Mac-Intel-v${VER}.dmg"
+            echo "DMG renamed → XPIDER-Browser-Mac-Intel-v${VER}.dmg"
+          else
+            echo "⚠️ DMG not found — checking build output:"
+            find out/ -type f | sort
+          fi
+
+      - name: Upload macOS Intel artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: macos-x64-dmg
-          path: out/make/**/*.dmg
+          name: macos-intel-dmg
+          path: out/make/*.dmg
           retention-days: 1
 
 
-  # ──────────────────────────────────────────────────────────
-  # macOS Apple Silicon 포터블 ZIP
-  # ──────────────────────────────────────────────────────────
-  build-macos-arm64:
-    name: Build macOS Apple Silicon (Portable ZIP)
-    runs-on: macos-latest
+  # ──────────────────────────────────────────────────────────────────
+  # 3. macOS Apple Silicon (arm64) 빌드: DMG
+  # ──────────────────────────────────────────────────────────────────
+  build-macos-arm:
+    name: 🍎 Build macOS Apple Silicon (arm64)
+    runs-on: macos-latest    # Apple Silicon (M1/M2/M3)
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-      - run: npm ci
+
+      - name: Get version from package.json
+        id: get_version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Build macOS ARM64 DMG
         run: npm run make:mac-arm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Rename Mac Arm DMG
+
+      - name: Rename macOS ARM DMG
         run: |
-          mkdir -p out/make/dmg/arm64
-          find out/make -name "*.dmg" -exec mv {} "out/make/dmg/arm64/XPIDER-Browser-Mac-Arm-${{ github.ref_name }}.dmg" \; || true
-      - uses: actions/upload-artifact@v4
+          VER=${{ steps.get_version.outputs.version }}
+          SRC=$(find out/make -name "*.dmg" | head -1)
+          if [ -n "$SRC" ]; then
+            mv "$SRC" "out/make/XPIDER-Browser-Mac-Arm-v${VER}.dmg"
+            echo "DMG renamed → XPIDER-Browser-Mac-Arm-v${VER}.dmg"
+          else
+            echo "⚠️ DMG not found — checking build output:"
+            find out/ -type f | sort
+          fi
+
+      - name: Upload macOS ARM artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: macos-arm64-dmg
-          path: out/make/**/*.dmg
+          name: macos-arm-dmg
+          path: out/make/*.dmg
           retention-days: 1
 
 
-  # ──────────────────────────────────────────────────────────
-  # GitHub Releases에 파일 업로드
-  # ──────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────────────
+  # 4. GitHub Release 생성 + 모든 아티팩트 업로드
+  #    (태그 push 시에만 실행)
+  # ──────────────────────────────────────────────────────────────────
   release:
-    name: Publish Release
-    needs: [build-windows, build-macos-x64, build-macos-arm64]
+    name: 🚀 Publish GitHub Release
+    needs: [build-windows, build-macos-intel, build-macos-arm]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
         with:
           path: dist/
 
-      - name: List artifacts
+      - name: List downloaded artifacts
         run: find dist/ -type f | sort
 
-      - name: Create GitHub Release
+      - name: Get version from tag
+        id: tag_version
+        run: echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release & Upload Assets
         uses: softprops/action-gh-release@v2
         with:
-          name: "XPIDER Browser ${{ github.ref_name }}"
+          name: "XPIDER Browser ${{ steps.tag_version.outputs.version }}"
           body: |
-            ## XPIDER Browser ${{ github.ref_name }}
+            ## XPIDER Browser ${{ steps.tag_version.outputs.version }}
 
             ### 📦 Download Links
 
             | Platform | File | Type |
             |----------|------|------|
-            | 🪟 Windows | `XPIDER-Browser-Windows-${{ github.ref_name }}-Setup.exe` | Auto-Extractor (SFX) & Shortcut |
-            | 🪟 Windows | `XPIDER-Browser-Windows-${{ github.ref_name }}.zip` | Portable (Zip) |
-            | 🍎 macOS | `XPIDER-Browser-Mac-Intel-${{ github.ref_name }}.dmg` | Intel Mac (DMG) |
-            | 🍎 macOS | `XPIDER-Browser-Mac-Arm-${{ github.ref_name }}.dmg` | Apple Silicon (DMG) |
+            | 🪟 Windows | `XPIDER-Browser-Windows-${{ steps.tag_version.outputs.version }}-Setup.exe` | Squirrel Installer |
+            | 🪟 Windows | `XPIDER-Browser-Windows-${{ steps.tag_version.outputs.version }}.zip` | Portable (Zip) |
+            | 🍎 macOS | `XPIDER-Browser-Mac-Intel-${{ steps.tag_version.outputs.version }}.dmg` | Intel Mac (DMG) |
+            | 🍎 macOS | `XPIDER-Browser-Mac-Arm-${{ steps.tag_version.outputs.version }}.dmg` | Apple Silicon (DMG) |
 
-            ### 🚀 Instructions
-            - **Windows (Auto-Extractor)**: Run `...-Setup.exe` to extract to a chosen folder and optionally create a desktop shortcut.
-            - **Windows (Portable)**: Extract `.zip` to any folder. Each folder keeps its own login info.
-            - **macOS**: Open `.dmg` and drag XPIDER to the Applications folder.
+            ### 🚀 설치 방법
+            - **Windows (Installer)**: `...-Setup.exe` 실행 → 설치 폴더 선택 → 바탕화면 바로가기 생성
+            - **Windows (Portable)**: `.zip` 압축 해제 후 `XPIDERBrowser.exe` 실행. 폴더별 로그인 정보가 독립 보관됩니다.
+            - **macOS**: `.dmg` 파일 열기 → XPIDER를 Applications 폴더로 드래그
 
-            ### 📂 Portable Isolation
-            Login sessions and settings are stored in the `data/` folder inside your browser directory.
+            ### 📂 Portable 격리
+            로그인 세션과 설정은 각 브라우저 디렉터리 내의 `data/` 폴더에 저장됩니다.
           files: |
+            dist/**/*.exe
             dist/**/*.zip
             dist/**/*.dmg
-            dist/**/*.exe
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
