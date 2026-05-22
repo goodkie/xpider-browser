@@ -84,6 +84,42 @@
     let lastAttemptTime = 0; // [v26.0] Auto-reset timer
     let ocrAttemptCount = 0; // [v18.3] OCR retry counter
 
+    // ── [Mac OS Stealth v4.9.79] 로딩 타임스탬프 및 Human-like 마우스 조작 모킹 ──
+    if (!window.__xpiderPageLoadTime) {
+        window.__xpiderPageLoadTime = Date.now();
+    }
+
+    function triggerHumanLikeClick(el) {
+        try {
+            const rect = el.getBoundingClientRect();
+            const x = rect.left + rect.width / 2 + (Math.random() * 10 - 5);
+            const y = rect.top + rect.height / 2 + (Math.random() * 10 - 5);
+
+            const mousedown = new MouseEvent('mousedown', {
+                bubbles: true, cancelable: true, view: window,
+                clientX: x, clientY: y, button: 0, buttons: 1
+            });
+            const mouseup = new MouseEvent('mouseup', {
+                bubbles: true, cancelable: true, view: window,
+                clientX: x, clientY: y, button: 0, buttons: 1
+            });
+            const click = new MouseEvent('click', {
+                bubbles: true, cancelable: true, view: window,
+                clientX: x, clientY: y, button: 0
+            });
+
+            el.dispatchEvent(mousedown);
+            setTimeout(() => {
+                el.dispatchEvent(mouseup);
+                setTimeout(() => {
+                    el.dispatchEvent(click);
+                }, Math.floor(Math.random() * 50) + 30);
+            }, Math.floor(Math.random() * 80) + 50);
+        } catch(e) {
+            el.click();
+        }
+    }
+
     function ensureHUD() {
         if (hud || !document.body) return;
         hud = document.createElement('div');
@@ -139,9 +175,19 @@
     }
 
     function checkAndInjectHardBlockModal() {
+        // [Mac OS Stealth v4.9.79] 서브프레임(reCAPTCHA iframe 등)인 경우에는 하드 블록 모달 검사를 수행하지 않음
+        if (window.self !== window.top) {
+            return false;
+        }
+
         if (document.getElementById('xpider-hard-block-modal')) return true; // Already injected
 
-        const pageText = document.body.innerText;
+        // [Mac OS Stealth v4.9.79] reCAPTCHA 동적 로딩 시간을 보장하기 위해 로드 후 4.5초간 판정 유예
+        if (Date.now() - window.__xpiderPageLoadTime < 4500) {
+            return false;
+        }
+
+        const pageText = document.body ? document.body.innerText : '';
         const isHardBlockText = pageText.includes('자동화된 쿼리를 보내고 있을 수 있습니다') ||
                                 pageText.includes('컴퓨터 또는 네트워크에서 자동화된 쿼리를 보내고 있을 수 있습니다') ||
                                 pageText.includes('비정상적인 트래픽을 감지') ||
@@ -149,8 +195,19 @@
                                 pageText.includes('automated queries') ||
                                 pageText.includes('unusual traffic');
 
-        // Verify there is no actual solvable captcha
-        const hasCaptchaInput = document.querySelector('img[src*="captcha"], iframe[src*="recaptcha"]');
+        // [Mac OS Stealth v4.9.79] reCAPTCHA 및 이미지 캡챠, 관련 폼 감지 강력화 (오판 차단)
+        const hasCaptchaInput = document.querySelector(
+            'img[src*="captcha"], ' +
+            'img[src*="sorry/image"], ' +
+            'iframe[src*="recaptcha"], ' +
+            'iframe[title*="reCAPTCHA"], ' +
+            'iframe[title*="recaptcha"], ' +
+            '.g-recaptcha, ' +
+            '#recaptcha-anchor, ' +
+            '#captcha-form, ' +
+            'input[name="captcha"], ' +
+            'input[id*="captcha"]'
+        );
 
         if (isHardBlockText && !hasCaptchaInput) {
             logToSystem("🚫 [Critical] Google Hard Block detected", "BLOCKED");
@@ -594,7 +651,7 @@
                     if (now - lastCheckboxClickTime > 5000) {
                         logToSystem("✅ Clicking checkbox...");
                         lastCheckboxClickTime = now;
-                        cb.click();
+                        triggerHumanLikeClick(cb);
                     }
                 } else {
                     logToSystem("🎉 Check complete!", "PASS");
