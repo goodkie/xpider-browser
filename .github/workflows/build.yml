@@ -87,7 +87,7 @@ jobs:
   # ──────────────────────────────────────────────────────────────────
   build-macos-intel:
     name: 🍎 Build macOS Intel (x64)
-    runs-on: macos-13        # Intel Mac 환경
+    runs-on: macos-latest        # M1/M2 Mac 환경에서 x64 교차 컴파일 (매우 빠름)
 
     steps:
       - name: Checkout
