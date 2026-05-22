@@ -487,12 +487,20 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                            (url.includes('google.com/search') || url.startsWith('about:'));
 
         if (isResolved) {
+            const resolvedTabId = _captchaTabId;
             _captchaTabId = null;
             isPausedByCaptcha = false;
             _captchaResolvedAt = Date.now(); // [v3.3] 쿨다운 시각 기록
             await updateState({ isPausedByCaptcha: false });
 
             sendLog('▶️ [CAPTCHA] CAPTCHA 해결 감지 → 수집 자동 재개');
+            
+            // [자동 닫기] 캡챠 해결 탭 명시적 자동 제거
+            if (resolvedTabId) {
+                console.log(`[CAPTCHA-BG] Automatically removing resolved captcha tab: ${resolvedTabId}`);
+                safeRemoveTab(resolvedTabId);
+            }
+
             chrome.runtime.sendMessage({
                 action: 'CAPTCHA_STATUS',
                 status: 'resolved',
@@ -511,9 +519,17 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg && msg.action === 'MANUAL_CAPTCHA_RESOLVED') {
         if (isPausedByCaptcha) {
+            const resolvedTabId = _captchaTabId;
             isPausedByCaptcha = false;
             _captchaTabId = null;
             _captchaResolvedAt = Date.now(); // [v4.9.64] 수동 해결 쿨다운 적용
+            
+            // [자동 닫기] 수동 해결 캡챠 탭 명시적 자동 제거
+            if (resolvedTabId) {
+                console.log(`[CAPTCHA-BG] Automatically removing manually confirmed captcha tab: ${resolvedTabId}`);
+                safeRemoveTab(resolvedTabId);
+            }
+
             updateState({ isPausedByCaptcha: false }).then(() => {
                 sendLog('▶️ [CAPTCHA] 수동 해결 확인 → 수집 재개');
                 chrome.runtime.sendMessage({ action: 'CAPTCHA_STATUS', status: 'resolved', auto: false }).catch(() => {});

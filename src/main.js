@@ -151,6 +151,10 @@ function createWindow() {
     // 서브프레임(iframe)에서도 preload 실행 허용
     webPreferences.nodeIntegrationInSubFrames = true;
     
+    // [CORS 우회 & 캡챠해결] 맥OS Chromium의 엄격한 CORS 해제 설정 주입
+    webPreferences.webSecurity = false;
+    webPreferences.allowRunningInsecureContent = true;
+    
     // [v4.9.68] preload가 상대 경로로 지정된 경우, Electron 메인 프로세스 기준 절대 경로로 자동 변환
     if (webPreferences.preload) {
       if (!path.isAbsolute(webPreferences.preload)) {
@@ -171,7 +175,20 @@ function createWindow() {
         shell.openExternal(url).catch(err => console.error('[XPIDER] Failed to open external Wit.ai URL:', err));
         return { action: 'deny' };
       }
-      if (mainWindow && !mainWindow.isDestroyed()) {
+      
+      // [포커스 방지 & 불필요한 탭 팝업 방지]
+      // 팝업을 요청한 부모 webContents로부터 BrowserWindow 인스턴스 확인
+      const parentWin = BrowserWindow.fromWebContents(contents);
+      
+      // 만약 부모 윈도우가 _scanWin(수집 엔진 백그라운드)이거나 _previewWin(수집 시각화 미리보기)이거나,
+      // 또는 메인 윈도우(mainWindow)가 아닌 별도 백그라운드 구동 컨텍스트라면 새 탭 열기를 차단(deny)
+      if (!parentWin || parentWin === _scanWin || parentWin === _previewWin) {
+        log.info(`[Popup Blocked] Blocked popup from crawling process parent: ${url}`);
+        return { action: 'deny' };
+      }
+      
+      // 오로지 메인 윈도우 브라우징 상황에서만 새 탭 열기 전송
+      if (mainWindow && !mainWindow.isDestroyed() && parentWin === mainWindow) {
         mainWindow.webContents.send('open-new-tab', url);
       }
       return { action: 'deny' };
@@ -1095,6 +1112,8 @@ function _getScanWin() {
             contextIsolation: false,
             javascript: true,
             session: session.defaultSession,
+            webSecurity: false,
+            allowRunningInsecureContent: true,
         }
     });
     _scanWin.webContents.setUserAgent(UA);
@@ -1120,6 +1139,8 @@ function _getPreviewWin() {
             nodeIntegration: false,
             contextIsolation: true,
             partition: 'persist:preview', // [v5.2 FIX] 격리된 세션 — web-contents-created 이벤트가 메인 창에 영향 안 줌
+            webSecurity: false,
+            allowRunningInsecureContent: true,
         }
     });
     _previewWin.on('closed', () => { _previewWin = null; });
