@@ -38,22 +38,52 @@ const getPortableDataPath = () => {
 app.setPath('userData', getPortableDataPath());
 log.info(`[Portable] UserData Path: ${app.getPath('userData')}`);
 
-// ─── [v4.9.69 FIX] 싱글 인스턴스 락 (중복 실행 방지 및 좀비 프로세스 캐시 잠금 차단) ───
-const gotTheLock = app.requestSingleInstanceLock();
-if (!gotTheLock) {
-  log.warn(`[SingleInstance] Instance for profile-${profileId} is already running. Quitting duplicate process.`);
-  app.quit();
-  process.exit(0);
-} else {
-  app.on('second-instance', (event, commandLine, workingDirectory) => {
-    log.info(`[SingleInstance] Second instance execution attempted with commandLine: ${commandLine}`);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show();
-      mainWindow.focus();
-    }
-  });
+// ─── [v4.9.86 FIX] 프로필 전용 커스텀 락 (멀티 인스턴스 허용 및 좀비 방지) ───
+// 특정 PID 프로세스가 현재 구동 중인지 교차 플랫폼 테스트하는 유틸리티
+function isProcessRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return e.code === 'EPERM';
+  }
 }
+
+const lockFilePath = path.join(getPortableDataPath(), 'xpider-profile.lock');
+let gotLock = false;
+
+try {
+  if (fs.existsSync(lockFilePath)) {
+    const oldPidStr = fs.readFileSync(lockFilePath, 'utf8').trim();
+    const oldPid = parseInt(oldPidStr, 10);
+    
+    if (oldPid && oldPid !== process.pid && isProcessRunning(oldPid)) {
+      log.warn(`[ProfileLock] 프로필 ${profileId}는 이미 실행 중인 프로세스(PID: ${oldPid})가 점유하고 있어 실행을 거부합니다.`);
+      app.quit();
+      process.exit(0);
+    }
+  }
+  
+  fs.writeFileSync(lockFilePath, process.pid.toString(), 'utf8');
+  gotLock = true;
+  log.info(`[ProfileLock] 프로필 ${profileId} 락 파일 획득 완료 (PID: ${process.pid})`);
+} catch (err) {
+  log.error(`[ProfileLock] 락 파일 작성 실패 (실행 계속): ${err.message}`);
+}
+
+function releaseProfileLock() {
+  try {
+    if (fs.existsSync(lockFilePath)) {
+      fs.rmSync(lockFilePath, { force: true });
+      log.info(`[ProfileLock] 프로필 ${profileId} 락 파일이 정상 해제되었습니다.`);
+    }
+  } catch (e) {
+    log.error(`[ProfileLock] 락 파일 삭제 실패: ${e.message}`);
+  }
+}
+
+app.on('will-quit', releaseProfileLock);
+app.on('quit', releaseProfileLock);
 
 
 // ─── 윈도우 핸들 ──────────────────────────────────────────────
@@ -358,13 +388,28 @@ ipcMain.on('auth-logout', async () => {
   createLoginWindow();
 });
 
-// ─── 앱 종료 전 잠금 해제 ────────────────────────────────────
+// ─── 앱 종료 전 잠금 해제 및 좀비 방지 2초 안전 타임아웃 ──────────────────────
 app.on('before-quit', async (e) => {
   const userId = authService.getCurrentUserId();
   if (userId) {
     e.preventDefault();
-    await authService.logout(userId);
-    app.exit(0);
+    log.info(`[Quit] 종료 이벤트 수신 -> 비동기 안전 로그아웃 처리 개시 (UID: ${userId})`);
+    
+    releaseProfileLock();
+    
+    const logoutPromise = authService.logout(userId);
+    const timeoutPromise = new Promise(r => setTimeout(r, 2000));
+    
+    try {
+      await Promise.race([logoutPromise, timeoutPromise]);
+      log.info('[Quit] 안전 로그아웃 처리 혹은 2초 안전 대기 시간 종료. 프로세스 정상 폭파.');
+    } catch (err) {
+      log.error('[Quit] 로그아웃 중 예외 발생:', err.message);
+    } finally {
+      app.exit(0);
+    }
+  } else {
+    releaseProfileLock();
   }
 });
 
