@@ -624,7 +624,19 @@ function _startLocalProxy(upHost, upPort, upUser, upPass) {
           upSocket.pipe(clientSocket);
           clientSocket.pipe(upSocket);
         } else {
-          log.error('[VPN-RELAY] Upstream CONNECT rejected:', response.substring(0, 100));
+          const is402 = response.includes('402');
+          if (is402) {
+            log.error('[VPN-RELAY] Upstream CONNECT rejected: HTTP/1.1 402 Payment Required (Bandwidth Limit Exceeded!)');
+            extStorage.vpn_error_402 = true;
+            saveExtStorage();
+            // Broadcast change
+            const all = webContents.getAllWebContents();
+            all.forEach(wc => {
+              try { wc.send('xpider-ext-storage-changed', { vpn_error_402: { oldValue: undefined, newValue: true } }); } catch(e) {}
+            });
+          } else {
+            log.error('[VPN-RELAY] Upstream CONNECT rejected:', response.substring(0, 100));
+          }
           clientSocket.write('HTTP/1.1 502 Bad Gateway\r\n\r\n');
           clientSocket.end();
           upSocket.end();
@@ -653,6 +665,16 @@ function _startLocalProxy(upHost, upPort, upUser, upPass) {
 ipcMain.handle('xpider-vpn-connect', async (event, { host, port, username, password, country, city }) => {
   try {
     if (!host || !port) return { ok: false, error: 'Invalid proxy: host/port missing' };
+
+    // Clear any previous 402 proxy errors on new connection attempt
+    if (extStorage.vpn_error_402) {
+      delete extStorage.vpn_error_402;
+      saveExtStorage();
+      const all = webContents.getAllWebContents();
+      all.forEach(wc => {
+        try { wc.send('xpider-ext-storage-changed', { vpn_error_402: { oldValue: true, newValue: undefined } }); } catch(e) {}
+      });
+    }
 
     // 기존 로컬 프록시 중지
     await _stopLocalProxy();
@@ -686,6 +708,16 @@ ipcMain.handle('xpider-vpn-disconnect', async () => {
     const { session: electronSession } = require('electron');
     await electronSession.defaultSession.setProxy({ mode: 'direct' });
     await _stopLocalProxy();
+
+    // Clear any previous 402 proxy errors on disconnect
+    if (extStorage.vpn_error_402) {
+      delete extStorage.vpn_error_402;
+      saveExtStorage();
+      const all = webContents.getAllWebContents();
+      all.forEach(wc => {
+        try { wc.send('xpider-ext-storage-changed', { vpn_error_402: { oldValue: true, newValue: undefined } }); } catch(e) {}
+      });
+    }
 
     _vpnState = { connected: false, server: null };
     log.info('[VPN] Disconnected — proxy cleared, relay stopped');

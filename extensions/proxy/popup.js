@@ -3,12 +3,15 @@
 // chrome.runtime.sendMessage 제거 → XPIDER IPC 브릿지(xpider-vpn-*) 사용
 
 // ─── WebShare API ────────────────────────────────────────────────────────
-const WEBSHARE_API_KEY = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
+const DEFAULT_WEBSHARE_API_KEY = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
 const WEBSHARE_API_URL = 'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=25';
 
 async function getProxyList() {
+  const settings = await chrome.storage.local.get(['webshareApiKey']);
+  const apiKey = settings.webshareApiKey ? settings.webshareApiKey.trim() : DEFAULT_WEBSHARE_API_KEY;
+
   const res = await fetch(WEBSHARE_API_URL, {
-    headers: { Authorization: `Token ${WEBSHARE_API_KEY}` }
+    headers: { Authorization: `Token ${apiKey}` }
   });
   if (!res.ok) throw new Error(`WebShare API ${res.status}`);
   const data = await res.json();
@@ -90,6 +93,7 @@ const settingsTrigger = $('settings-trigger');
 const settingsPanel   = $('settings-panel');
 const closeSettings   = $('close-settings');
 const langGrid        = $('lang-grid');
+const customApiKeyInput = $('custom-api-key');
 const flagPlaceholder = document.querySelector('.flag-placeholder');
 
 // ─── State ────────────────────────────────────────────────────────────────
@@ -263,8 +267,12 @@ window.addEventListener('message', (evt) => {
 // ─── Init ────────────────────────────────────────────────────────────────
 async function init() {
   // 1. 저장된 언어/상태 불러오기
-  const settings = await chrome.storage.local.get(['connected', 'server', 'language']);
+  const settings = await chrome.storage.local.get(['connected', 'server', 'language', 'webshareApiKey']);
   currentLang = settings.language || 'en';
+
+  if (customApiKeyInput) {
+    customApiKeyInput.value = settings.webshareApiKey || '';
+  }
 
   // 2. main.js에서 실제 VPN 상태 확인 (스토리지와 싱크)
   const vpnState = await xpiderInvoke('xpider-vpn-get-state', {});
@@ -303,6 +311,15 @@ async function init() {
 }
 
 // ─── 이벤트 바인딩 ────────────────────────────────────────────────────────
+if (customApiKeyInput) {
+  customApiKeyInput.onchange = async () => {
+    const val = customApiKeyInput.value.trim();
+    await chrome.storage.local.set({ webshareApiKey: val });
+    // reload servers
+    init();
+  };
+}
+
 connectBtn.onclick    = () => connected ? handleDisconnect() : handleConnect();
 serverTrigger.onclick = () => serverModal.classList.add('active');
 closeModal.onclick    = () => serverModal.classList.remove('active');

@@ -2283,6 +2283,13 @@ async function runEngineSearch(enginesArr, keyword, startPage = 1, maxPages = 1,
                         let rawResults = unifiedNames.map(name => ({ name, url: '' }));
                         sendLog(t('log_unified_count', { count: unifiedNames.length }));
 
+                        if (unifiedNames.length === 0) {
+                            const vpnCheck = await chrome.storage.local.get(['vpn_error_402']);
+                            if (vpnCheck.vpn_error_402) {
+                                sendLog("⚠️ [프록시 대역폭 만료] 프록시(VPN) 트래픽이 만료되었습니다. 프록시를 비활성화하거나 새로운 Webshare API 키를 등록해주세요.");
+                            }
+                        }
+
                         // [AI 모드] Gemini API 가 있을 때만 추가 추출 (tab 없이 텍스트 기반)
                         const storageMode = await chrome.storage.local.get(['extractionMode', 'geminiApiKey']);
                         if ((storageMode.extractionMode === 'ai' || engine === 'naver' || engine === 'naver_place') && storageMode.geminiApiKey && serpText) {
