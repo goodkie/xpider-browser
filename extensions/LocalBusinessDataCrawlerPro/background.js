@@ -1812,7 +1812,7 @@ async function sendLog(msg) {
  * [TEXT_LIST v2.0] 텍스트에서 업체명을 최대한 많이/정확하게 추출
  * Yellow Pages, Yelp, 기타 디렉토리 텍스트 노이즈 완전 차단
  */
-function extractNamesFromText(text, hl = 'en') {
+function extractNamesFromText(text, hl = 'en', isMap = false) {
     const currentLang = (hl === 'kr') ? 'ko' : hl;
     const candidates = new Set();
 
@@ -1857,12 +1857,15 @@ function extractNamesFromText(text, hl = 'en') {
         const dm = line.match(DASH_CAT);
         if (dm) line = dm[1].trim();
 
-        // 1~2단어: 업체 관련 단어 없으면 도시명 등으로 간주 → 스킵
-        if (line.split(/\s+/).length <= 2 && !BIZ_WORD.test(line)) return;
+        // 1~2단어: 구글/빙 지도 수집 시에는 누락 없이 수집하도록 1~2단어 필터링 우회
+        if (!isMap) {
+            if (line.split(/\s+/).length <= 2 && !BIZ_WORD.test(line)) return;
+        }
 
         line.split(/[,;]+/).map(p => p.trim()).filter(p => p.length >= 2 && p.length <= 80)
             .forEach(part => { const dm2 = part.match(DASH_CAT); candidates.add(dm2 ? dm2[1].trim() : part); });
     });
+
 
     // === 전략 2: 마커 기반 추출 ===
     extractBusinessNames(text, hl).forEach(n => candidates.add(n));
@@ -2276,7 +2279,7 @@ async function runEngineSearch(enginesArr, keyword, startPage = 1, maxPages = 1,
 
                         // pageText 기반으로 업체명 추출 (tab.id 불필요)
                         // [v1.1.0 Pro] URL 탭과 동일하게 extractNamesFromText로 업체명 추출력 강화
-                        const unifiedNames = extractNamesFromText(serpText, hl);
+                        const unifiedNames = extractNamesFromText(serpText, hl, isMapEngine);
                         let rawResults = unifiedNames.map(name => ({ name, url: '' }));
                         sendLog(t('log_unified_count', { count: unifiedNames.length }));
 
