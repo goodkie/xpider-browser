@@ -31,7 +31,7 @@ jobs:
       - name: Build Windows ZIP
         run: npm run make:win-zip
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Rename Windows ZIP
         shell: bash
         run: mv out/make/zip/win32/x64/*.zip "out/make/zip/win32/x64/XPIDER-Browser-Windows-${{ github.ref_name }}.zip"
@@ -64,7 +64,7 @@ jobs:
       - name: Build macOS Intel DMG
         run: npm run make:mac
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Rename Mac Intel DMG
         run: |
           mkdir -p out/make/dmg/x64
@@ -92,7 +92,7 @@ jobs:
       - name: Build macOS ARM64 DMG
         run: npm run make:mac-arm
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
       - name: Rename Mac Arm DMG
         run: |
           mkdir -p out/make/dmg/arm64
@@ -150,4 +150,4 @@ jobs:
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
