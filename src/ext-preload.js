@@ -93,59 +93,6 @@
       return _origToString.call(this);
     };
   } catch(e) {}
-
-  // ── 4. [Mac OS 전용 캡챠 방지 우회 극대화] userAgent, platform, userAgentData 강제 모킹 ──
-  try {
-    const isMac = /mac/i.test(navigator.userAgent) || /mac/i.test(navigator.platform);
-    if (isMac) {
-      const macUA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-      
-      // 1) userAgent 강제 재정의
-      Object.defineProperty(Navigator.prototype, 'userAgent', {
-        get: () => macUA,
-        configurable: true
-      });
-      
-      // 2) appVersion 강제 재정의
-      Object.defineProperty(Navigator.prototype, 'appVersion', {
-        get: () => macUA.substring(8),
-        configurable: true
-      });
-
-      // 3) platform 강제 재정의
-      Object.defineProperty(Navigator.prototype, 'platform', {
-        get: () => 'MacIntel',
-        configurable: true
-      });
-
-      // 4) userAgentData 완벽하게 모킹 (브랜드에서 Electron/XPIDER 완전 박멸)
-      const mockUserAgentData = {
-        brands: [
-          { brand: 'Not-A.Brand', version: '99' },
-          { brand: 'Chromium', version: '124' },
-          { brand: 'Google Chrome', version: '124' }
-        ],
-        mobile: false,
-        platform: 'macOS',
-        getHighEntropyValues: function(hints) {
-          return Promise.resolve({
-            brands: this.brands,
-            mobile: this.mobile,
-            platform: this.platform,
-            platformVersion: '10.15.7',
-            architecture: 'x86',
-            model: '',
-            uaFullVersion: '124.0.0.0'
-          });
-        }
-      };
-
-      Object.defineProperty(Navigator.prototype, 'userAgentData', {
-        get: () => mockUserAgentData,
-        configurable: true
-      });
-    }
-  } catch(e) {}
 })();
 
 const { ipcRenderer } = require('electron');

@@ -42,7 +42,7 @@ module.exports = {
       name: '@electron-forge/maker-squirrel',
       config: {
         name: 'XPIDERBrowser',
-        setupExe: `XPIDER-Browser-Windows-v${require('./package.json').version}-Silent-Installer.exe`,
+        setupExe: `XPIDER-Browser-Windows-v${require('./package.json').version}-Setup.exe`,
         setupIcon: './assets/icons/win/icon.ico',
       },
     },

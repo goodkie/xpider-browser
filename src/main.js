@@ -1102,30 +1102,6 @@ function _getScanWin() {
     return _scanWin;
 }
 
-// ─── [v5.2] 검색 시각화 미리보기 창 (포커스 없이 표시, 수집 완료 후 자동 숨김) ───
-// [v5.2 FIX] 격리된 partition을 사용하여 메인 창 / 스플래시 흐름 간섭 방지
-let _previewWin = null;
-
-function _getPreviewWin() {
-    if (_previewWin && !_previewWin.isDestroyed()) return _previewWin;
-    _previewWin = new BrowserWindow({
-        width: 1100,
-        height: 750,
-        show: false,          // showInactive()로만 표시 — 포커스 탈취 없음
-        focusable: false,     // 클릭해도 포커스 이동 안 됨
-        skipTaskbar: true,    // [v5.2] 작업 표시줄에서 숨김 (메인 앱과 분리)
-        alwaysOnTop: false,
-        title: 'XPIDER - Collection Progress',
-        webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true,
-            partition: 'persist:preview', // [v5.2 FIX] 격리된 세션 — web-contents-created 이벤트가 메인 창에 영향 안 줌
-        }
-    });
-    _previewWin.on('closed', () => { _previewWin = null; });
-    return _previewWin;
-}
-
 // ─── [v3.0] CAPTCHA 감지 + 새 탭 표시 + 해결 대기 시스템 ───
 let _captchaResolveCallback = null;
 let _captchaCheckInterval   = null;
@@ -1648,29 +1624,7 @@ ipcMain.on('xpider-captcha-tab-resolved', async (event, { tabUIId, url }) => {
 
 async function _scanUrlWithHiddenWin(url, waitMs = 6000) {
     const EMPTY = { emails:[], phone:'', address:'', homepage:'', sns:[], contactLinks:[], pageText:'' };
-    // [v5.1] 검색 URL 여부 플래그 — finally에서 미리보기 창 자동 숨김 판단용
-    let _didShowPreview = false;
     try {
-        // [v5.1] 검색 URL이면 포커스 없이 별도 시각화 창에 표시 (기본 브라우저 탭 무한 누적 방지)
-        const isSearchUrl = url && (
-            (url.includes('google.') && url.includes('/search')) ||
-            (url.includes('naver.com') && (url.includes('/search') || url.includes('/place'))) ||
-            (url.includes('bing.com') && url.includes('/search')) ||
-            (url.includes('yahoo.co') && url.includes('/search')) ||
-            (url.includes('baidu.com') && url.includes('/search'))
-        );
-        if (isSearchUrl) {
-            try {
-                const pw = _getPreviewWin();
-                const UA_PW = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-                pw.webContents.loadURL(url, { userAgent: UA_PW }).catch(() => {});
-                pw.showInactive();  // 포커스 탈취 없이 창 표시
-                _didShowPreview = true;
-            } catch(pe) {
-                log.warn('[PreviewWin] Failed to show preview:', pe.message);
-            }
-        }
-
         const win = _getScanWin();
         const wc = win.webContents;
         const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -1783,11 +1737,6 @@ async function _scanUrlWithHiddenWin(url, waitMs = 6000) {
     } catch(e) {
         log.error('[ScanWin]', e.message);
         return EMPTY;
-    } finally {
-        // [v5.1] 수집 완료 후 미리보기 창 자동 숨김 — 탭 무한 누적 방지
-        if (_didShowPreview && _previewWin && !_previewWin.isDestroyed()) {
-            _previewWin.hide();
-        }
     }
 }
 
@@ -2699,13 +2648,6 @@ ipcMain.handle('xpider-show-save-dialog', async (event, { defaultName, content }
 app.whenReady().then(async () => {
   // --- 익스텐션 브릿지 주입 (Extension Compatibility Layer) ---
   session.defaultSession.setPreloads([path.join(__dirname, 'ext-preload.js')]);
-
-  // --- [Mac OS 전용 Stealth] 맥OS 환경에서 일렉트론/XPIDER 식별자 완전 차단 ---
-  if (process.platform === 'darwin') {
-    const macUA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
-    session.defaultSession.setUserAgent(macUA);
-    log.info('[Stealth-Mac] 맥OS 전용 Chrome User-Agent 설정 완료');
-  }
 
   // 1. 스플래시 창 먼저 표시
   createSplashWindow();

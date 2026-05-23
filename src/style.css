@@ -434,30 +434,6 @@ body, html {
     100% { opacity: 1; }
 }
 
-/* [v4.9.75] CAPTCHA 탭 경고 스타일 — 주황색 테두리 + 깜박임 */
-.tab.captcha-alert {
-    border-color: #ff9500 !important;
-    background-color: rgba(255, 149, 0, 0.1) !important;
-    animation: captcha-tab-blink 1.2s ease-in-out infinite;
-}
-
-.tab.captcha-alert .tab-title {
-    color: #ff9500 !important;
-    font-weight: 700;
-}
-
-@keyframes captcha-tab-blink {
-    0%, 100% {
-        border-color: #ff9500;
-        box-shadow: 0 0 0 0 rgba(255, 149, 0, 0);
-    }
-    50% {
-        border-color: #ff9500;
-        box-shadow: 0 0 8px 2px rgba(255, 149, 0, 0.45);
-    }
-}
-
-
 #new-tab-btn {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border);

@@ -15,7 +15,7 @@ if (-not $zipFile) {
 $zipPath = $zipFile.FullName
 Write-Host "Found ZIP: $zipPath" -ForegroundColor Green
 
-$exeName   = $zipFile.Name.Replace(".zip", "-Portable-Installer.exe")
+$exeName   = $zipFile.Name.Replace(".zip", "-Setup.exe")
 $exeDestPath = Join-Path $zipFile.DirectoryName $exeName
 
 # 2. 리소스 폴더에 ZIP 복사
