@@ -493,11 +493,21 @@ app.whenReady().then(() => {
         headers['sec-ch-ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"';
         headers['sec-ch-ua-mobile'] = '?0';
         headers['sec-ch-ua-platform'] = '"Windows"';
-        headers['Sec-Fetch-Dest'] = 'document';
-        headers['Sec-Fetch-Mode'] = 'navigate';
-        headers['Sec-Fetch-Site'] = 'none';
-        headers['Sec-Fetch-User'] = '?1';
-        headers['Upgrade-Insecure-Requests'] = '1';
+        
+        // [핵심 해결책] 메인 프레임 문서 탐색시에만 주입하여 서브 리소스(XHR, API, JS 등)의 Fetch Metadata CORS 충돌 방지
+        if (details.resourceType === 'mainFrame') {
+          headers['Sec-Fetch-Dest'] = 'document';
+          headers['Sec-Fetch-Mode'] = 'navigate';
+          headers['Sec-Fetch-Site'] = 'none';
+          headers['Sec-Fetch-User'] = '?1';
+          headers['Upgrade-Insecure-Requests'] = '1';
+        } else {
+          // 서브 리소스 요청에서는 충돌 유발 헤더 제거
+          delete headers['Sec-Fetch-Dest'];
+          delete headers['Sec-Fetch-Mode'];
+          delete headers['Sec-Fetch-Site'];
+          delete headers['Sec-Fetch-User'];
+        }
         
         // 4. 언어 헤더 실재 한국인처럼 다양화 (구글의 지역 필터 우회)
         headers['Accept-Language'] = 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7';
