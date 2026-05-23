@@ -134,14 +134,49 @@ const CAPTCHA_SOLVER = {
                     throw new Error("오디오 데이터가 너무 작거나 비어있음");
                 }
 
-                const apiRes = await fetch("https://api.wit.ai/speech", {
+                // [v37.0] 오디오 MIME 타입 자동 감지 — 고정된 audio/mpeg3 제거
+                // Google CAPTCHA 오디오는 주로 audio/wav 또는 audio/mp3 형식임
+                const blobMime = audioBlob.type || '';
+                let contentType;
+                if (blobMime.includes('wav') || blobMime.includes('wave')) {
+                    contentType = 'audio/wav';
+                } else if (blobMime.includes('ogg') || blobMime.includes('opus')) {
+                    contentType = 'audio/ogg;codecs=opus';
+                } else if (blobMime.includes('webm')) {
+                    contentType = 'audio/webm';
+                } else if (blobMime.includes('mp4')) {
+                    contentType = 'audio/mp4';
+                } else {
+                    // 기본값: mpeg3 (URL 확장자 기반으로도 추가 감지)
+                    const urlLower = (audioUrl || '').toLowerCase();
+                    if (urlLower.includes('.wav')) contentType = 'audio/wav';
+                    else if (urlLower.includes('.ogg')) contentType = 'audio/ogg;codecs=opus';
+                    else contentType = 'audio/mpeg3';
+                }
+                console.log(`[v37.0] Wit.ai 요청 Content-Type: ${contentType} (blob.type: '${blobMime}')`);
+
+                // [v37.0] Wit.ai API 호출 (감지된 타입으로 전송)
+                let apiRes = await fetch("https://api.wit.ai/speech", {
                     method: "POST",
                     headers: {
                         "Authorization": `Bearer ${keys.audioSttKey}`,
-                        "Content-Type": "audio/mpeg3"
+                        "Content-Type": contentType
                     },
                     body: audioBlob
                 });
+
+                // [v37.0] 첫 시도 실패 시, audio/mpeg3으로 폴백 재시도
+                if (!apiRes.ok && contentType !== 'audio/mpeg3') {
+                    console.warn(`[v37.0] ${contentType} 전송 실패(${apiRes.status}). audio/mpeg3으로 폴백 재시도...`);
+                    apiRes = await fetch("https://api.wit.ai/speech", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${keys.audioSttKey}`,
+                            "Content-Type": "audio/mpeg3"
+                        },
+                        body: audioBlob
+                    });
+                }
 
                 if (!apiRes.ok) {
                     const errData = await apiRes.json().catch(() => ({}));

@@ -228,9 +228,9 @@ async function flushStateToStorage() {
  * [v18.5] Pause Lock Helper
  * Stops execution while isPaused is true.
  */
-let _captchaBypassTimer = null;   // [v3.3] 9분 자동 바이패스 타이머
-let _captchaBypassCountdown = null; // [v3.3] 30초 업데이트 인터벌
-const CAPTCHA_BYPASS_MS = 9 * 60 * 1000; // 9분
+let _captchaBypassTimer = null;   // [v3.3] 자동 바이패스 타이머 (쮡차 미해결 시 30분 후 강제 스킵)
+let _captchaBypassCountdown = null; // [v3.3] 30초 업데이트 인터밬
+const CAPTCHA_BYPASS_MS = 30 * 60 * 1000; // [v37.0] 9분에서 30분으로 연장 (9분은 너무 짧아 하드블록 유발)
 
 async function checkPause() {
     if ((isPaused || isPausedByCaptcha || isHardBlocked) && !isCancelled) {
@@ -238,10 +238,11 @@ async function checkPause() {
         const pauseMsg = isHardBlocked ? '\uD83D\uDEA8 HARD BLOCKED - USER ACTION NEEDED' : (isPausedByCaptcha ? '\u23F3 CAPTCHA BLOCKED - WAITING' : '\u23F8\uFE0F PAUSED BY USER');
         await sendStatusDetail(pauseMsg);
 
-        // [v3.3] CAPTCHA 일 때만: 9분 자동 바이패스 타이머 시작
+        // [v3.3] CAPTCHA 일 때만: 자동 바이패스 타이머 시작
         if (isPausedByCaptcha && !_captchaBypassTimer) {
             const bypassAt = Date.now() + CAPTCHA_BYPASS_MS;
-            sendLog('\u23F3 [CAPTCHA-BYPASS] 9분 후 자동 바이패스 예정');
+            sendLog('⏳ [CAPTCHA-BYPASS] 캡챠 자동 해결을 대기합니다. 30분 후 강제 스킵으로 수집을 재개합니다.');
+            sendLog('💡 팝업의 [✅ 계속] 버튼을 누르거나 캡챠를 직접 해결하시면 즉시 재개됩니다.');
 
             // 30초마다 카운트다운 표시
             _captchaBypassCountdown = setInterval(() => {
@@ -253,13 +254,15 @@ async function checkPause() {
                 const remaining = Math.max(0, Math.round((bypassAt - Date.now()) / 1000));
                 const mins = Math.floor(remaining / 60);
                 const secs = remaining % 60;
-                sendStatusDetail('\u23F3 CAPTCHA BLOCKED - ' + mins + '\ubd84 ' + secs + '\ucd08 후 자동 재개');
+                sendStatusDetail('⏸️ CAPTCHA 해결 대기 중 — ' + mins + '분 ' + secs + '초 후 강제 스킵');
             }, 30000);
 
             _captchaBypassTimer = setTimeout(async () => {
                 if (!isPausedByCaptcha) return; // 이미 해결됨
 
-                sendLog('\u26A1 [CAPTCHA-BYPASS] 9분 경과 → CAPTCHA 자동 바이패스 실행');
+                // [v37.0] 30분 경과 후에도 미해결이면 강제 스킵 (해결된 것이 아님을 명확히 기록)
+                sendLog('⚠️ [CAPTCHA-BYPASS] 30분 경과 → CAPTCHA 미해결 상태로 강제 스킵. 결과 수집 불완전할 수 있습니다.');
+                sendLog('💡 [CAPTCHA-BYPASS] 팁: Wit.ai API 키를 직접 등록하거나 VPN을 설정하시면 캡챠를 더 잘 우회할 수 있습니다.');
                 _captchaTabId = null;
                 isPausedByCaptcha = false;
                 _captchaResolvedAt = Date.now(); // 쿨다운 시작
@@ -273,9 +276,9 @@ async function checkPause() {
                 }).catch(() => {});
                 chrome.runtime.sendMessage({
                     action: 'statusDetail',
-                    message: '\u26A1 CAPTCHA 9분 바이패스 → 수집 재개 중...'
+                    message: '⚠️ CAPTCHA 30분 경과 → 강제 스킵. 다음 키워드로 이동 중...'
                 }).catch(() => {});
-                sendLog('\u25B6\uFE0F [CAPTCHA-BYPASS] 컴렉션 재개');
+                sendLog('▶️ [CAPTCHA-BYPASS] 강제 스킵 후 컬렉션 재개');
 
                 if (_captchaBypassCountdown) {
                     clearInterval(_captchaBypassCountdown);

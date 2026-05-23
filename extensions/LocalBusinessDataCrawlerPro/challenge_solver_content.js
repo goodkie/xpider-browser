@@ -83,6 +83,7 @@
     let lastCheckboxClickTime = 0;
     let lastAttemptTime = 0; // [v26.0] Auto-reset timer
     let ocrAttemptCount = 0; // [v18.3] OCR retry counter
+    let consecutiveFailures = 0; // [v37.0] 연속 실패 카운터 (하드블록 방지)
 
     function ensureHUD() {
         if (hud || !document.body) return;
@@ -708,6 +709,7 @@
                         return;
                     }
                     logToSystem("✅ Analysis success: [" + cleanText + "]", "DONE");
+                    consecutiveFailures = 0; // [v37.0] 성공 시 연속 실패 카운터 리셋
                     submitFinalAnswer(input, cleanText);
                 } else {
                     const errorMsg = resp.error || "Unknown reason";
@@ -720,8 +722,18 @@
                     const res = await chrome.storage.local.get(['captchaAttempts']);
                     const newCount = (res.captchaAttempts || 0) + 1;
                     await chrome.storage.local.set({ captchaAttempts: newCount });
+                    consecutiveFailures++; // [v37.0] 연속 실패 카운터
                     logToSystem("❌ Analysis failed: " + errorMsg + " (" + newCount + "/" + MAX_ATTEMPTS + ")", "FAIL");
-                    if (newCount < MAX_ATTEMPTS) setTimeout(clickReload, 1500);
+                    if (newCount < MAX_ATTEMPTS) {
+                        // [v37.0] 오답 후 3~6서 랜덤 딜레이 후 재시도 (Google 탐지 방지)
+                        const retryDelay = 3000 + Math.floor(Math.random() * 3000);
+                        logToSystem("⏳ " + Math.round(retryDelay/1000) + "s 후 재시도...", "WAIT");
+                        setTimeout(clickReload, retryDelay);
+                    } else {
+                        // [v37.0] MAX_ATTEMPTS 초과 시 수집 강제 중지
+                        logToSystem("🚫 최대 시도 횟수 초과. 수집을 중지합니다.", "FAIL");
+                        chrome.runtime.sendMessage({ action: 'cancelSearch' }).catch(() => {});
+                    }
                 }
             });
         } catch (err) {
@@ -781,8 +793,18 @@
                         const res = await chrome.storage.local.get(['captchaAttempts']);
                         const newCount = (res.captchaAttempts || 0) + 1;
                         await chrome.storage.local.set({ captchaAttempts: newCount });
+                        consecutiveFailures++; // [v37.0]
                         logToSystem("⚠️ Incorrect answer (" + newCount + "/" + MAX_ATTEMPTS + ")", "FAIL");
-                        if (newCount < MAX_ATTEMPTS) clickReload();
+                        if (newCount < MAX_ATTEMPTS) {
+                            // [v37.0] 오답 후 3~6초 딜레이 추가
+                            const retryDelay = 3000 + Math.floor(Math.random() * 3000);
+                            logToSystem("⏳ " + Math.round(retryDelay/1000) + "s 후 새 오디오 요청...", "WAIT");
+                            setTimeout(clickReload, retryDelay);
+                        } else {
+                            // [v37.0] MAX_ATTEMPTS 초과 시 수집 강제 중지
+                            logToSystem("🚫 최대 시도 횟수 초과. 수집을 중지합니다.", "FAIL");
+                            chrome.runtime.sendMessage({ action: 'cancelSearch' }).catch(() => {});
+                        }
                     } else {
                         logToSystem("🎉 Solved successfully!", "SUCCESS");
                         await chrome.storage.local.set({ captchaAttempts: 0, captchaBlocked: false });
