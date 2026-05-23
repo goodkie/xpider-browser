@@ -60,7 +60,8 @@ namespace XpiderSetup
                 {"agreeTos", "I agree to the "}, {"tosLink", "Terms of Service"}, {"verifyPath", "Verify the path, agree to ToS, and click Extract."},
                 {"extractBtn", "Extract"}, {"pathEmpty", "Please specify a folder path."}, {"creatingShortcut", "Creating shortcut..."},
                 {"done", "Done!"}, {"launch", "Launch XPIDER Browser"}, {"error", "Error: "}, {"retry", "Retry"},
-                {"zipNotFound", "Embedded ZIP not found."}, {"extracting", "Extracting... {0}/{1}"}
+                {"zipNotFound", "Embedded ZIP not found."}, {"extracting", "Extracting... {0}/{1}"},
+                {"folderExistsTitle", "Folder Already Exists"}, {"folderExistsPrompt", "The folder already exists. To avoid overwriting, please enter a new folder name:"}, {"invalidFolder", "Invalid folder name. Please try again."}
             }},
             { "ko", new Dictionary<string, string> {
                 {"setupTitle", "포터블 에디션  -  설치"}, {"langSelect", "언어 선택"}, {"next", "다음"},
@@ -68,7 +69,8 @@ namespace XpiderSetup
                 {"agreeTos", "다음에 동의합니다: "}, {"tosLink", "이용 약관"}, {"verifyPath", "경로 확인 후 약관에 동의하고 압축 해제를 누르세요."},
                 {"extractBtn", "압축 해제 (Extract)"}, {"pathEmpty", "폴더 경로를 지정해주세요."}, {"creatingShortcut", "바로가기 생성 중..."},
                 {"done", "설치 완료!"}, {"launch", "브라우저 실행하기 (Launch)"}, {"error", "오류: "}, {"retry", "다시 시도"},
-                {"zipNotFound", "내장된 앱 압축 파일을 찾을 수 없습니다."}, {"extracting", "압축 해제 중... {0}/{1}"}
+                {"zipNotFound", "내장된 앱 압축 파일을 찾을 수 없습니다."}, {"extracting", "압축 해제 중... {0}/{1}"},
+                {"folderExistsTitle", "폴더 이름 중복"}, {"folderExistsPrompt", "해당 폴더가 이미 존재합니다. 덮어쓰지 않으려면 새 이름을 입력해주세요:"}, {"invalidFolder", "올바르지 않거나 이미 존재하는 폴더명입니다. 다시 입력해주세요."}
             }},
             { "ja", new Dictionary<string, string> {
                 {"setupTitle", "ポータブルエディション - セットアップ"}, {"langSelect", "言語を選択"}, {"next", "次へ"},
@@ -288,7 +290,14 @@ namespace XpiderSetup
             btnExtract.Text = dict["extractBtn"];
         }
 
-        private string GetStr(string key) { return i18n[currentLang][key]; }
+        private string GetStr(string key)
+        {
+            if (i18n.ContainsKey(currentLang) && i18n[currentLang].ContainsKey(key))
+                return i18n[currentLang][key];
+            if (i18n.ContainsKey("en") && i18n["en"].ContainsKey(key))
+                return i18n["en"][key];
+            return key;
+        }
 
         private void LaunchChromeAppMode(string url)
         {
@@ -374,12 +383,12 @@ namespace XpiderSetup
             using (var path = GetRoundedPath(new Rectangle(0, 0, Width, Height), 20))
             {
                 g.SetClip(path);
-                using (var br = new LinearGradientBrush(new Rectangle(0, 0, Width, 4), Color.FromArgb(60, 0, 229, 255), Color.FromArgb(60, 123, 97, 255), 0f))
+                using (var br = new LinearGradientBrush(new Rectangle(0, 0, Width, 4), Color.FromArgb(255, 0, 229, 255), Color.FromArgb(255, 123, 97, 255), 0f))
                     g.FillRectangle(br, 0, 0, Width, 4);
                 g.ResetClip();
             }
 
-            using (var p = new Pen(Color.FromArgb(40, 40, 40), 2))
+            using (var p = new Pen(Color.FromArgb(50, 50, 50), 2))
                 g.DrawPath(p, GetRoundedPath(new Rectangle(1, 1, Width - 3, Height - 3), 19));
 
             if (pnlMain.Visible)
@@ -430,14 +439,35 @@ namespace XpiderSetup
             {
                 int counter = 2;
                 string baseDir = dir;
-                string newDir = baseDir + "-" + counter;
-                while (Directory.Exists(newDir) && Directory.GetFileSystemEntries(newDir).Length > 0)
+                string suggestedName = Path.GetFileName(baseDir) + "-" + counter;
+                string parentDir = Path.GetDirectoryName(baseDir);
+                if (string.IsNullOrEmpty(parentDir)) parentDir = ".";
+                string suggestedPath = Path.Combine(parentDir, suggestedName);
+                while (Directory.Exists(suggestedPath) && Directory.GetFileSystemEntries(suggestedPath).Length > 0)
                 {
                     counter++;
-                    newDir = baseDir + "-" + counter;
+                    suggestedName = Path.GetFileName(baseDir) + "-" + counter;
+                    suggestedPath = Path.Combine(parentDir, suggestedName);
                 }
-                dir = newDir;
-                this.Invoke((Action)(() => txtPath.Text = dir));
+
+                using (var dlg = new PromptDialog(GetStr("folderExistsTitle"), GetStr("folderExistsPrompt"), suggestedName, regFont, boldFont))
+                {
+                    if (dlg.ShowDialog(this) == DialogResult.OK)
+                    {
+                        string enteredName = dlg.InputText;
+                        if (string.IsNullOrEmpty(enteredName) || enteredName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                        {
+                            MessageBox.Show(GetStr("invalidFolder"), "XPIDER Setup", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            return;
+                        }
+                        dir = Path.Combine(parentDir, enteredName);
+                        this.Invoke((Action)(() => txtPath.Text = dir));
+                    }
+                    else
+                    {
+                        return;
+                    }
+                }
             }
 
             bool shortcut = chkShortcut.Checked;
@@ -639,6 +669,128 @@ namespace XpiderSetup
                         e.Graphics.FillPath(brush, path);
                 }
             }
+        }
+    }
+
+    public class PromptDialog : Form
+    {
+        [DllImport("user32.dll")]
+        static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
+        private const int WM_NCLBUTTONDOWN = 0xA1;
+        private const int HTCAPTION = 2;
+
+        private readonly Color BG      = Color.FromArgb(13, 13, 13);
+        private readonly Color ACCENT  = Color.FromArgb(0, 229, 255);
+        private readonly Color ACCENT2 = Color.FromArgb(123, 97, 255);
+        private readonly Color TEXT    = Color.FromArgb(210, 210, 210);
+        private readonly Color DIM     = Color.FromArgb(90, 90, 90);
+        private readonly Color INBG    = Color.FromArgb(28, 28, 28);
+        private readonly Color BORDER  = Color.FromArgb(55, 55, 55);
+
+        private Label lblTitle;
+        private Label lblPrompt;
+        private TextBox txtInput;
+        private RoundedButton btnOk;
+        private RoundedButton btnCancel;
+        private Font regFont, boldFont;
+
+        public string InputText => txtInput.Text.Trim();
+
+        public PromptDialog(string title, string prompt, string defaultValue, Font regFont, Font boldFont)
+        {
+            this.regFont = regFont;
+            this.boldFont = boldFont;
+            this.Text            = title;
+            this.Size            = new Size(440, 250);
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.StartPosition   = FormStartPosition.CenterParent;
+            this.BackColor       = BG;
+            this.DoubleBuffered  = true;
+            this.Region          = new Region(MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 18));
+
+            lblTitle = new Label { Text = title, Location = new Point(25, 20), Size = new Size(390, 30), Font = new Font(boldFont.FontFamily, 14f, FontStyle.Bold), ForeColor = ACCENT, BackColor = Color.Transparent };
+            lblPrompt = new Label { Text = prompt, Location = new Point(25, 58), Size = new Size(390, 50), Font = new Font(regFont.FontFamily, 9.5f), ForeColor = TEXT, BackColor = Color.Transparent };
+            
+            txtInput = new TextBox { Location = new Point(33, 126), Size = new Size(374, 25), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font(regFont.FontFamily, 10.5f) };
+            txtInput.Text = defaultValue;
+            txtInput.KeyDown += (s, e) => {
+                if (e.KeyCode == Keys.Enter) {
+                    this.DialogResult = DialogResult.OK;
+                    this.Close();
+                } else if (e.KeyCode == Keys.Escape) {
+                    this.DialogResult = DialogResult.Cancel;
+                    this.Close();
+                }
+            };
+
+            btnOk = new RoundedButton { Text = "OK", Location = new Point(25, 180), Size = new Size(185, 46), Radius = 10 };
+            btnOk.Font = new Font(boldFont.FontFamily, 11f, FontStyle.Bold);
+            btnOk.BackColor = ACCENT;
+            btnOk.ForeColor = Color.Black;
+            btnOk.HoverBackColor = ACCENT2;
+            btnOk.HoverForeColor = Color.White;
+            btnOk.Click += (s, e) => {
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            };
+
+            btnCancel = new RoundedButton { Text = "Cancel", Location = new Point(230, 180), Size = new Size(185, 46), Radius = 10 };
+            btnCancel.Font = new Font(boldFont.FontFamily, 11f, FontStyle.Bold);
+            btnCancel.BackColor = INBG;
+            btnCancel.ForeColor = TEXT;
+            btnCancel.HoverBackColor = Color.FromArgb(45, 45, 45);
+            btnCancel.HoverForeColor = Color.White;
+            btnCancel.Click += (s, e) => {
+                this.DialogResult = DialogResult.Cancel;
+                this.Close();
+            };
+
+            this.Controls.AddRange(new Control[] { lblTitle, lblPrompt, txtInput, btnOk, btnCancel });
+            
+            this.MouseDown += (s, e) => {
+                if (e.Button == MouseButtons.Left)
+                    SendMessage(Handle, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+            };
+            lblTitle.MouseDown += (s, e) => {
+                if (e.Button == MouseButtons.Left)
+                    SendMessage(Handle, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+            };
+            lblPrompt.MouseDown += (s, e) => {
+                if (e.Button == MouseButtons.Left)
+                    SendMessage(Handle, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+            };
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            using (var path = MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 18))
+            {
+                g.SetClip(path);
+                using (var br = new LinearGradientBrush(new Rectangle(0, 0, Width, 4), Color.FromArgb(255, 0, 229, 255), Color.FromArgb(255, 123, 97, 255), 0f))
+                    g.FillRectangle(br, 0, 0, Width, 4);
+                g.ResetClip();
+            }
+
+            using (var p = new Pen(Color.FromArgb(40, 40, 40), 2))
+                g.DrawPath(p, MainForm.GetRoundedPath(new Rectangle(1, 1, Width - 3, Height - 3), 17));
+
+            using (var p = new Pen(BORDER, 1))
+            using (var path = MainForm.GetRoundedPath(new Rectangle(txtInput.Left - 8, txtInput.Top - 8, txtInput.Width + 16, txtInput.Height + 16), 8))
+            {
+                g.FillPath(new SolidBrush(INBG), path);
+                g.DrawPath(p, path);
+            }
+        }
+        
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            txtInput.Focus();
+            txtInput.SelectAll();
         }
     }
 }

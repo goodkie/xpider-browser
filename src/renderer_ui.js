@@ -1470,7 +1470,7 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     wv.className = 'webview-hidden';
     wv.setAttribute('autosize', 'on');
     wv.setAttribute('allowpopups', ''); 
-    wv.setAttribute('preload', 'ext-preload.js'); 
+    wv.setAttribute('preload', new URL('ext-preload.js', window.location.href).href); 
     
     // Remove custom UA to improve loading speed/compatibility
     // wv.useragent = ...
