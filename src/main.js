@@ -25,7 +25,35 @@ app.commandLine.appendSwitch('ignore-gpu-blocklist');
 
 // --- Multi-Instance / Profile Support (Portable Isolation) ---
 const profileArg = process.argv.find(a => a.startsWith('--profile='));
-const profileId  = profileArg ? profileArg.split('=')[1] : '1';
+let profileId = '1';
+
+if (profileArg) {
+  profileId = profileArg.split('=')[1];
+} else {
+  const systemAppData = app.getPath('appData');
+  let candidate = 1;
+  while (true) {
+    const candidateDataDir = path.join(systemAppData, 'XPIDER-Browser-Common-Data', `profile-${candidate}`);
+    const candLockPath = path.join(candidateDataDir, 'xpider-profile.lock');
+    let isOccupied = false;
+    
+    if (fs.existsSync(candLockPath)) {
+      try {
+        const oldPidStr = fs.readFileSync(candLockPath, 'utf8').trim();
+        const oldPid = parseInt(oldPidStr, 10);
+        if (oldPid && oldPid !== process.pid && isProcessRunning(oldPid)) {
+          isOccupied = true;
+        }
+      } catch (e) {}
+    }
+    
+    if (!isOccupied) {
+      profileId = candidate.toString();
+      break;
+    }
+    candidate++;
+  }
+}
 
 // Use common AppData folder for both local dev and packaged release (Method C: Shared Trust Session)
 const getPortableDataPath = () => {

@@ -14,7 +14,8 @@ var EN_SERP_NOISE = [
     "Best 10", "Top 100", "Highly rated", "Trusted partners", "Service catalog", "Quick quotes", "Getting started", "Started is", "Same Day Service",
     "24/7 Support", "Call today", "Schedule now", "Book now", "Free quotes", "Free estimates", "Reviews", "Ratings", "Location", "Phone", "Website", "Directions",
     "Find", "Search", "Google", "Bing", "Yahoo", "Baidu", "Yelp", "TripAdvisor", "Facebook", "Instagram", "Twitter", "X", "LinkedIn", "YouTube", "Video", "Images",
-    "### STRUCTURED ELEMENTS ###", "### LITERAL PAGE DUMP (SELECTION) ###", "### RENDERED TEXT DUMP ###", "[HEADING]", "STRUCTURED ELEMENTS", "LITERAL PAGE DUMP", "RENDERED TEXT DUMP"
+    "### STRUCTURED ELEMENTS ###", "### LITERAL PAGE DUMP (SELECTION) ###", "### RENDERED TEXT DUMP ###", "[HEADING]", "STRUCTURED ELEMENTS", "LITERAL PAGE DUMP", "RENDERED TEXT DUMP",
+    "Google Maps can't reach the internet", "Check your internet connection", "can't reach the internet", "internet connection"
 ];
 
 var KO_SERP_NOISE = [
@@ -22,7 +23,8 @@ var KO_SERP_NOISE = [
     "로그인", "회원가입", "계정 만들기", "개인정보처리방침", "이용약관", "고객센터", "도움말", "의견", "검색 원리", "카테고리", "디렉토리", "공지사항",
     "홈", "소개", "연락처", "다음", "이전", "1페이지", "2페이지", "더보기", "전체보기", "자세히 보기", "공식 사이트", "공식 홈페이지", "추천 검색어",
     "지도보기", "상세보기", "길찾기", "웹 사이트", "전화하기", "공유하기", "메뉴", "리스트", "블로그", "카페", "지식iN", "이미지 더보기", "동영상 더보기",
-    "AI 모드", "짧은 동영상", "접근성 도움말", "의견 보내기", "개인정보", "약관", "도움말", "의견", "대한민국", "페이지 탐색"
+    "AI 모드", "짧은 동영상", "접근성 도움말", "의견 보내기", "개인정보", "약관", "도움말", "의견", "대한민국", "페이지 탐색",
+    "인터넷에 연결할 수 없습니다", "인터넷 연결을 확인하세요", "구글 지도에 연결할 수 없습니다"
 ];
 
 var JA_SERP_NOISE = [
