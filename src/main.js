@@ -378,6 +378,91 @@ ipcMain.handle('admin-force-logout', async (_, { userId }) =>
 );
 
 
+// ─── [Stealth/Session] 강력한 차단 우회 시스템 ─────────────────────────────────
+let _stealthHeadersEnabled = true; // 기본값: 강력한 스텔스 헤더 활성화
+
+const CHROME_USER_AGENTS = [
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+];
+
+function getRandomUserAgent() {
+  return CHROME_USER_AGENTS[Math.floor(Math.random() * CHROME_USER_AGENTS.length)];
+}
+
+// 1) 세션 쿠키, 캐시, 스토리지 완전 초기화 핸들러
+ipcMain.handle('xpider-ext-clear-session', async () => {
+  log.info('[Session] 수집 시작 전 세션 데이터(쿠키, 캐시, 스토리지) 자동 초기화 실행');
+  try {
+    const { session } = require('electron');
+    await session.defaultSession.clearStorageData({
+      storages: ['cookies', 'localstorage', 'sessionstorage', 'cache', 'serviceworkers', 'indexdb']
+    });
+    log.info('[Session] 브라우저 세션 데이터가 성공적으로 초기화되었습니다.');
+    return { success: true };
+  } catch (e) {
+    log.error('[Session] 세션 데이터 초기화 중 오류 발생:', e.message);
+    return { success: false, error: e.message };
+  }
+});
+
+// 2) 스텔스 헤더 상태 갱신 통신 수신
+ipcMain.on('xpider-ext-update-stealth-settings', (event, { stealthHeadersEnabled }) => {
+  _stealthHeadersEnabled = !!stealthHeadersEnabled;
+  log.info(`[Stealth] 스텔스 헤더 필터 활성화 상태 변경: ${_stealthHeadersEnabled}`);
+});
+
+// 3) 스텔스 헤더 필터 강제 적용 (구글 전역 검색 요청 도메인 타겟팅)
+app.whenReady().then(() => {
+  const { session: electronSession } = require('electron');
+  
+  electronSession.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: [
+      "*://*.google.com/*", 
+      "*://*.google.co.kr/*", 
+      "*://*.google.co.jp/*", 
+      "*://*.google.co.uk/*", 
+      "*://*.google.com.sg/*", 
+      "*://*.google.com.hk/*", 
+      "*://*.google.com.tw/*", 
+      "*://*.google.ca/*", 
+      "*://*.google.de/*", 
+      "*://*.google.fr/*", 
+      "*://*.google.it/*", 
+      "*://*.google.es/*"
+    ] },
+    (details, callback) => {
+      const headers = details.requestHeaders;
+      
+      if (_stealthHeadersEnabled) {
+        const ua = getRandomUserAgent();
+        // 1. User-Agent 최신 크롬으로 변조
+        headers['User-Agent'] = ua;
+        
+        // 2. Electron 봇 흔적 제거
+        delete headers['X-Requested-With'];
+        
+        // 3. 최신 Chrome Client Hints 강제 주입
+        headers['sec-ch-ua'] = '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"';
+        headers['sec-ch-ua-mobile'] = '?0';
+        headers['sec-ch-ua-platform'] = '"Windows"';
+        headers['Sec-Fetch-Dest'] = 'document';
+        headers['Sec-Fetch-Mode'] = 'navigate';
+        headers['Sec-Fetch-Site'] = 'none';
+        headers['Sec-Fetch-User'] = '?1';
+        headers['Upgrade-Insecure-Requests'] = '1';
+        
+        // 4. 언어 헤더 실재 한국인처럼 다양화 (구글의 지역 필터 우회)
+        headers['Accept-Language'] = 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7';
+      }
+      
+      callback({ requestHeaders: headers });
+    }
+  );
+});
+
 // 익스텐션 재로드 IPC
 ipcMain.on('reload-extensions', async () => {
   loadedExtensionsInfo = await loadExtensions();
@@ -385,6 +470,7 @@ ipcMain.on('reload-extensions', async () => {
     mainWindow.webContents.send('extensions_loaded', loadedExtensionsInfo);
   }
 });
+
 
 // ─── [VPN] XPIDER VPN IPC 핸들러 ─────────────────────────────────────────────
 // 구조: popup.js → XPIDER_INVOKE → ext-preload → ipcMain.handle('xpider-vpn-*')

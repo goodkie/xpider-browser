@@ -157,7 +157,11 @@ var I18N_DATA = {
         "wit_token_save_btn": "Save",
         "wit_token_get_btn": "🆓 Get Free Wit.ai API Key →",
         "wit_token_saved_msg": "✅ Token saved! Resuming CAPTCHA auto-bypass...",
-        "wit_token_empty_alert": "Please enter your Wit.ai Server Access Token."
+        "wit_token_empty_alert": "Please enter your Wit.ai Server Access Token.",
+        "label_auto_clear_session": "🧹 Auto-Clear Session on Start (Google Bypass)",
+        "auto_clear_session_tip": "Clears cookies & cache before starting to prevent Google blocks.",
+        "label_stealth_headers": "🛡️ Premium Stealth Headers & UA Spoofing",
+        "stealth_headers_tip": "Spoofs headers & client hints to act as a real retail browser."
     },
     "ko": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -319,7 +323,11 @@ var I18N_DATA = {
         "wit_token_save_btn": "저장",
         "wit_token_get_btn": "🆓 무료 Wit.ai API 키 발급 받기 →",
         "wit_token_saved_msg": "✅ 토큰이 저장되었습니다! 자동 캡차 우회를 시작합니다...",
-        "wit_token_empty_alert": "Wit.ai Server Access Token을 입력해주세요."
+        "wit_token_empty_alert": "Wit.ai Server Access Token을 입력해주세요.",
+        "label_auto_clear_session": "🧹 수집 시작 시 세션 자동 초기화 (구글 우회)",
+        "auto_clear_session_tip": "수집 시작 전 구글 차단을 방지하기 위해 쿠키 및 캐시를 완전히 비웁니다.",
+        "label_stealth_headers": "🛡️ 프리미엄 스텔스 헤더 및 User-Agent 위장",
+        "stealth_headers_tip": "구글 검색 시 HTTP 헤더와 브라우저 지문을 실제 최신 크롬 브라우저처럼 위장합니다."
     },
     "ja": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -409,7 +417,11 @@ var I18N_DATA = {
         "btn_wait_5": "5分間待機（その後自動的に再開）",
         "btn_paid_api": "有料APIを登録する（待機なし）",
         "secondary_wait_title": "セキュリティ待機 (5分)",
-        "secondary_wait_msg": "頻繁なリクエストが検出されました。IPブロックを回避するため、5分間の待機を推奨します。"
+        "secondary_wait_msg": "頻繁なリクエストが検出されました。IPブロックを回避するため、5分間の待機を推奨します。",
+        "label_auto_clear_session": "🧹 起動時にセッション自動初期化 (Google回避)",
+        "auto_clear_session_tip": "Googleブロックを防止するため、収集開始前にクッキーとキャッシュをクリアします。",
+        "label_stealth_headers": "🛡️ プレミアムステルスヘッダー & UA偽装",
+        "stealth_headers_tip": "HTTPヘッダーとブラウザ指紋を実際の最新Chromeブラウザのように偽装します。"
     },
     "zh": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -495,7 +507,11 @@ var I18N_DATA = {
         "btn_wait_5": "等待5分钟（之后自动恢复）",
         "btn_paid_api": "注册付费API（无需等待）",
         "secondary_wait_title": "安全等待 (5分钟)",
-        "secondary_wait_msg": "检测到频繁请求。为了保护您的IP免受硬件封锁，建议暂停5分钟。"
+        "secondary_wait_msg": "检测到频繁请求。为了保护您的IP免受硬件封锁，建议暂停5分钟。",
+        "label_auto_clear_session": "🧹 启动时自动清除会话 (绕过谷歌限制)",
+        "auto_clear_session_tip": "在开始采集前清除Cookie和缓存，以防止谷歌屏蔽。",
+        "label_stealth_headers": "🛡️ 高级伪装请求头 & UA伪装",
+        "stealth_headers_tip": "将HTTP请求头和浏览器指纹伪装成真实的最新Chrome浏览器。"
     },
     "es": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",

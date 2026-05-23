@@ -64,6 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const captchaWitaiGroup = document.getElementById('captcha-witai-group'); // Wit.ai 전용 그룹
     const stealthModeToggle = document.getElementById('stealth-mode-toggle');
     const audioSttKeyInput = document.getElementById('audio-stt-key');
+    const autoClearSessionToggle = document.getElementById('auto-clear-session-toggle');
+    const stealthHeadersToggle = document.getElementById('stealth-headers-toggle');
 
     // [v4.9.44] CAPTCHA Wit.ai Token Quick Setup Elements
     const captchaWitInputContainer = document.getElementById('captcha-wit-input-container');
@@ -93,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('[v68.0][Popup] I18N_DATA not found. translations.js might have failed to load.');
         }
 
-        chrome.storage.local.get(['language', 'region', 'captchaSolveEnabled', 'stealthModeEnabled', 'audioSttKey', 'proxyEnabled', 'proxyHost', 'proxyPort', 'proxyUser', 'proxyPass', 'showDiagnostics'], (storage) => {
+        chrome.storage.local.get(['language', 'region', 'captchaSolveEnabled', 'stealthModeEnabled', 'audioSttKey', 'proxyEnabled', 'proxyHost', 'proxyPort', 'proxyUser', 'proxyPass', 'showDiagnostics', 'autoClearSessionEnabled', 'stealthHeadersEnabled'], (storage) => {
             if (chrome.runtime.lastError || !storage) {
                 console.error('[v68.0][Popup] Storage access failed:', chrome.runtime.lastError);
                 return;
@@ -113,6 +115,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (stealthModeToggle) stealthModeToggle.checked = !!storage.stealthModeEnabled;
             if (vpnCheckToggle) vpnCheckToggle.checked = !!storage.vpnCheckEnabled;
             if (slowModeToggle) slowModeToggle.checked = !!storage.slowModeEnabled;
+
+            // 기본값은 true (보안 우회 극대화)
+            const autoClear = storage.autoClearSessionEnabled !== undefined ? !!storage.autoClearSessionEnabled : true;
+            const stealthHeaders = storage.stealthHeadersEnabled !== undefined ? !!storage.stealthHeadersEnabled : true;
+            
+            if (autoClearSessionToggle) autoClearSessionToggle.checked = autoClear;
+            if (stealthHeadersToggle) stealthHeadersToggle.checked = stealthHeaders;
 
             if (proxyEnableToggle) {
                 proxyEnableToggle.checked = !!storage.proxyEnabled;
@@ -547,6 +556,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const stealthEnabled = stealthModeToggle.checked;
         const vpnCheckEnabled = vpnCheckToggle.checked;
         const slowModeEnabled = slowModeToggle.checked;
+        const autoClearEnabled = autoClearSessionToggle ? autoClearSessionToggle.checked : true;
+        const stealthHeadersEnabled = stealthHeadersToggle ? stealthHeadersToggle.checked : true;
 
         const proxyEnabled = proxyEnableToggle.checked;
         const proxyHost = proxyHostInput.value.trim();
@@ -563,12 +574,20 @@ document.addEventListener('DOMContentLoaded', () => {
             stealthModeEnabled: stealthEnabled,
             vpnCheckEnabled: vpnCheckEnabled,
             slowModeEnabled: slowModeEnabled,
+            autoClearSessionEnabled: autoClearEnabled,
+            stealthHeadersEnabled: stealthHeadersEnabled,
             proxyEnabled: proxyEnabled,
             proxyHost: proxyHost,
             proxyPort: proxyPort,
             proxyUser: proxyUser,
             proxyPass: proxyPass
         }, () => {
+            // 메인 프로세스에 스텔스 상태 전달
+            window.postMessage({
+                type: 'XPIDER_SEND',
+                channel: 'xpider-ext-update-stealth-settings',
+                data: { stealthHeadersEnabled: stealthHeadersEnabled }
+            }, '*');
             const msg = (i18nData && i18nData[lang]) ? i18nData[lang].msg_saved : 'Applied!';
             
             applyTranslations(lang, reg);
@@ -737,6 +756,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Start Collection
     startBtn.addEventListener('click', async () => {
+        // ─── [Stealth] 수집 시작 시 세션(쿠키, 캐시, 스토리지) 자동 초기화 연동 ───
+        const autoClear = autoClearSessionToggle ? autoClearSessionToggle.checked : true;
+        if (autoClear) {
+            addLog('🧹 [System] 구글 감지 우회를 위해 브라우저 세션 데이터(쿠키, 캐시, 스토리지)를 완전 초기화합니다...');
+            window.postMessage({
+                type: 'XPIDER_SEND',
+                channel: 'xpider-ext-clear-session'
+            }, '*');
+            
+            // 초기화 비동기 처리가 완료될 수 있도록 0.8초의 짧은 안전 대기 지연 적용
+            await new Promise(r => setTimeout(r, 800));
+            addLog('✅ [System] 초기화 완료! 보안 무결성 상태로 안전하게 수집을 시작합니다.');
+        }
+
         const lang = languageSelect.value;
         const reg = regionSelect.value;
         const dictionary = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData ? i18nData['en'] : null);
