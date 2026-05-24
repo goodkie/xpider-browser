@@ -302,21 +302,21 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
 
   // ── 더미(테스트) 모드 ──────────────────────────────────────
   if (dryRun) {
-    progress('download', 0,  '🧪 [테스트 모드] 더미 다운로드 시뮬레이션 시작...');
+    progress('download', 0,  '🧪 [Test Mode] Simulating dummy download...');
     await _sleep(600);
     for (let i = 10; i <= 100; i += 10) {
       await _sleep(300);
-      progress('download', i, `🧪 [테스트] 다운로드 중... ${i}%`);
+      progress('download', i, `🧪 [Test] Downloading... ${i}%`);
     }
-    progress('extract', 0,  '📦 [테스트] 설치 준비 중...');
+    progress('extract', 0,  '📦 [Test] Preparing installation...');
     await _sleep(800);
-    progress('extract', 100, '✅ [테스트 완료] 실제 업데이트가 아닙니다. 재시작 없이 종료합니다.');
+    progress('extract', 100, '✅ [Test Complete] Not a real update. Exiting without restart.');
     return { ok: true, dryRun: true };
   }
 
   // URL 유효성 검사
   if (!downloadUrl || (!downloadUrl.startsWith('http://') && !downloadUrl.startsWith('https://'))) {
-    progress('error', 0, '❌ 유효한 다운로드 URL이 없습니다. 릴리즈 페이지에서 수동으로 설치해주세요.');
+    progress('error', 0, '❌ No valid download URL found. Please install manually from the releases page.');
     return { ok: false, error: 'invalid_url' };
   }
 
@@ -346,9 +346,9 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
 
     // ── 2a단계: EXE 설치 파일 실행 (Windows) ──────────────
     if (isExe) {
-      progress('extract', 10, '🚀 설치 파일 실행 중...');
+      progress('extract', 10, '🚀 Running setup file...');
       await _sleep(500);
-      progress('extract', 50, '🔄 설치 프로그램이 실행됩니다. 브라우저가 잠시 후 종료됩니다...');
+      progress('extract', 50, '🔄 Setup utility is launching. The browser will quit shortly...');
 
       if (app.isPackaged) {
         // Windows: shell:true로 UAC 권한 상승 지원
@@ -359,18 +359,18 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
         }).unref();
 
         await _sleep(2000);
-        progress('done', 100, '✅ 설치 파일 실행 완료! 브라우저를 종료합니다...');
+        progress('done', 100, '✅ Setup file running. Exiting browser...');
         await _sleep(1000);
         app.quit();
       } else {
-        progress('done', 100, '✅ [개발 모드] EXE 실행 생략. 실제 배포 환경에서는 설치 파일이 자동 실행됩니다.');
+        progress('done', 100, '✅ [Dev Mode] EXE execution skipped. Setup will run automatically in production.');
       }
       return { ok: true };
     }
 
     // ── 2b단계: DMG 열기 (macOS) ──────────────────────────
     if (isDmg) {
-      progress('extract', 10, '🍎 DMG 파일 마운트 중...');
+      progress('extract', 10, '🍎 Mounting DMG file...');
       await _sleep(500);
 
       if (app.isPackaged) {
@@ -381,9 +381,9 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
           electronShell.openItem(filePath);
         }
         await _sleep(2000);
-        progress('done', 100, '✅ DMG 파일이 열렸습니다. 설치 후 재시작해주세요.');
+        progress('done', 100, '✅ DMG file opened. Please restart after installation.');
       } else {
-        progress('done', 100, '✅ [개발 모드] DMG 열기 생략.');
+        progress('done', 100, '✅ [Dev Mode] DMG open skipped.');
       }
       return { ok: true };
     }
@@ -392,15 +392,15 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
     const AdmZip = (() => { try { return require('adm-zip'); } catch(e) { return null; } })();
 
     if (!AdmZip) {
-      progress('error', 0, '❌ adm-zip 모듈 없음. 릴리즈 페이지에서 직접 다운로드해주세요.');
+      progress('error', 0, '❌ adm-zip module missing. Please download manually from the releases page.');
       return { ok: false, error: 'adm-zip not found' };
     }
 
-    progress('extract', 0, '📦 ZIP 압축 해제 중...');
+    progress('extract', 0, '📦 Extracting ZIP...');
     const zip = new AdmZip(filePath);
     const extractDir = path.join(tmpDir, 'extracted');
     zip.extractAllTo(extractDir, true);
-    progress('extract', 40, '📂 파일 교체 런처 준비 중...');
+    progress('extract', 40, '📂 Preparing file replacement launcher...');
 
     if (app.isPackaged) {
       const appDir  = path.dirname(process.execPath);
@@ -417,7 +417,7 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
         const psPath = path.join(tmpDir, 'launcher.ps1');
         fs.writeFileSync(psPath, psScript, 'utf8');
 
-        progress('extract', 80, '🔄 런처 실행 중...');
+        progress('extract', 80, '🔄 Executing launcher...');
         spawn('powershell.exe', ['-NonInteractive', '-WindowStyle', 'Hidden', '-File', psPath], {
           detached: true, stdio: 'ignore', shell: false
         }).unref();
@@ -432,21 +432,21 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
         const shPath = path.join(tmpDir, 'launcher.sh');
         fs.writeFileSync(shPath, shScript, { mode: 0o755 });
 
-        progress('extract', 80, '🔄 런처 실행 중...');
+        progress('extract', 80, '🔄 Executing launcher...');
         spawn('bash', [shPath], { detached: true, stdio: 'ignore' }).unref();
       }
 
-      progress('extract', 100, '🔄 업데이트 런처 시작 완료! 브라우저를 종료하고 재시작합니다...');
+      progress('extract', 100, '🔄 Update launcher started. Exiting browser to restart...');
       await _sleep(1500);
       app.quit();
     } else {
-      progress('done', 100, '✅ [개발 모드] 파일 교체 생략. 실제 배포 환경에서는 자동으로 교체됩니다.');
+      progress('done', 100, '✅ [Dev Mode] File replacement skipped. It will run automatically in production.');
     }
 
     return { ok: true };
   } catch (e) {
     console.error('[HotUpdate] Error:', e.message);
-    progress('error', 0, `❌ 업데이트 실패: ${e.message}`);
+    progress('error', 0, `❌ Update Failed: ${e.message}`);
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch (_) {}
     return { ok: false, error: e.message };
   }

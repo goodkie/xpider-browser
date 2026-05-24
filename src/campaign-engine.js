@@ -339,6 +339,38 @@ async function pollAllFrames(wc) {
     return null;
 }
 
+// ─── Close XPIDER Browser Tab ──────────────────────────────────
+async function closeXpiderTab(tabWC) {
+    if (!tabWC || tabWC.isDestroyed()) return;
+    const mw = _getMainWindow ? _getMainWindow() : null;
+    if (!mw || mw.isDestroyed()) return;
+
+    try {
+        const targetId = tabWC.id;
+        await mw.webContents.executeJavaScript(`
+            (async function() {
+                const targetId = ${JSON.stringify(targetId)};
+                const allWvs = document.querySelectorAll('webview');
+                for (const wv of allWvs) {
+                    try {
+                        const wcId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : -1;
+                        if (wcId == targetId) {
+                            const tabUiId = wv.id ? wv.id.replace('webview-', '') : null;
+                            if (tabUiId && typeof window.closeTab === 'function') {
+                                window.closeTab(tabUiId);
+                                return 'closed';
+                            }
+                        }
+                    } catch(e) {}
+                }
+                return 'not-found';
+            })()
+        `).catch(() => {});
+    } catch (e) {
+        console.error('[CampaignEngine] closeXpiderTab error:', e.message);
+    }
+}
+
 // ─── Open URL in XPIDER Browser as New Tab ────────────────────
 async function openInXpiderTab(contactUrl) {
     const mw = _getMainWindow ? _getMainWindow() : null;
@@ -421,6 +453,10 @@ async function processTarget(targetUrl, template) {
 
         const globalTimer = setTimeout(() => {
             sendLog(`⏱️ Timeout: ${targetUrl}`, 'warning');
+            if (state.currentTabWC && !state.currentTabWC.isDestroyed()) {
+                const tempTabWC = state.currentTabWC;
+                closeXpiderTab(tempTabWC);
+            }
             done({ success: false, reason: 'TIMEOUT' });
         }, 120000);
 
@@ -496,14 +532,24 @@ async function processTarget(targetUrl, template) {
                 if (result && result.success) {
                     sendLog(`✅ Step 4: Form submitted! (${result.filled} fields filled)`, 'success');
                     // Keep the tab open briefly so user can see the confirmation
-                    setTimeout(() => { if (win && !win.isDestroyed()) try { win.close(); } catch(e) {} }, 5000);
+                    const tempWin = win;
+                    const tempTab = tabWC;
+                    setTimeout(() => {
+                        if (tempWin && !tempWin.isDestroyed()) try { tempWin.close(); } catch(e) {}
+                        if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab);
+                    }, 5000);
                     done({ success: true });
                     return;
                 } else {
                     const reason = result ? result.reason : 'NO_RESULT';
                     sendLog(`⚠️ Path ${path}: ${reason}. Closing tab and trying next...`, 'warning');
                     // ✅ Close tab/window immediately on failure
-                    if (win && !win.isDestroyed()) setTimeout(() => { try { win.close(); } catch(e) {} }, 500);
+                    const tempWin = win;
+                    const tempTab = tabWC;
+                    setTimeout(() => {
+                        if (tempWin && !tempWin.isDestroyed()) try { tempWin.close(); } catch(e) {}
+                        if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab);
+                    }, 500);
                 }
             }
 
@@ -564,6 +610,9 @@ function stop() {
     state.active = false; state.cancelled = true; state.queue = [];
     if (state.currentTabWC && !state.currentTabWC.isDestroyed()) {
         try { if (state.currentTabWC._campaignCleanup) state.currentTabWC._campaignCleanup(); } catch(e) {}
+        // 사용자 수동 정지 시 현재 구동 중인 XPIDER 탭을 즉시 강제 닫기
+        const tempTab = state.currentTabWC;
+        closeXpiderTab(tempTab);
         state.currentTabWC = null;
     }
     sendLog('🛑 Campaign stopped by user.', 'stop');
