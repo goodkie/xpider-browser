@@ -17,17 +17,28 @@ const state = {
     currentTabWC: null, sessionId: 0
 };
 
-function init(getAllWebContentsFn, logFn, getMainWindowFn) {
+let _closeAllTabs = null;
+
+function init(getAllWebContentsFn, logFn, getMainWindowFn, closeAllTabsFn) {
     _getAllWebContents = getAllWebContentsFn;
     _log = logFn;
     _getMainWindow = getMainWindowFn;
+    _closeAllTabs = closeAllTabsFn;
 }
 
 function broadcast(message) {
-    if (!_getAllWebContents) return;
-    _getAllWebContents().forEach(wc => {
-        try { wc.send('xpider-ext-runtime-on-message', message); } catch(e) {}
-    });
+    // 1. 메인 윈도우에 직접 송신하여 사이드 패널에 100% 실시간 복구 포워딩 보장
+    const mw = _getMainWindow ? _getMainWindow() : null;
+    if (mw && !mw.isDestroyed()) {
+        try { mw.webContents.send('xpider-ext-runtime-on-message', message); } catch(e) {}
+    }
+    
+    // 2. 다른 모든 webContents에도 브로드캐스트 (기존 흐름 유지)
+    if (_getAllWebContents) {
+        _getAllWebContents().forEach(wc => {
+            try { wc.send('xpider-ext-runtime-on-message', message); } catch(e) {}
+        });
+    }
 }
 
 function sendLog(msg, type = 'info') {
@@ -578,6 +589,13 @@ async function runCampaign(urls, template, delayMs) {
         if (!state.active || state.cancelled) break;
 
         const url = state.queue.shift();
+        
+        // [Clean-up] 다음 타겟 웹사이트 리스트로 전이하기 전에 혹시 남아있을 수 있는 모든 캠페인 흔적 탭 일괄 자동 닫기
+        if (_closeAllTabs) {
+            sendLog('🧹 Leftover campaign tabs auto cleanup scan...', 'debug');
+            await _closeAllTabs().catch(() => {});
+            await new Promise(r => setTimeout(r, 1000)); // 탭 정리가 완료되고 브라우저가 안정화될 수 있도록 1초 대기
+        }
         let normalized;
         try { normalized = new URL(url.startsWith('http') ? url : 'https://' + url).origin; }
         catch(e) { sendLog(`⚠️ Invalid URL: ${url}`, 'warning'); continue; }
@@ -622,4 +640,14 @@ function pause() { state.paused = true; sendLog('⏸️ Campaign paused.', 'info
 function resume() { state.paused = false; sendLog('▶️ Campaign resumed.', 'info'); }
 function isActive() { return state.active; }
 
-module.exports = { init, start, stop, pause, resume, isActive };
+function getState() {
+    return {
+        isActive: state.active,
+        isPaused: state.paused,
+        totalTargets: state.totalTargets,
+        successCount: state.successCount,
+        remainingCount: state.queue.length
+    };
+}
+
+module.exports = { init, start, stop, pause, resume, isActive, getState };

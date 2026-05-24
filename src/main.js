@@ -3305,12 +3305,44 @@ ipcMain.on('trigger-background-sync', () => {
 });
 
 // ─── Campaign Engine IPC Handlers (AutoForm Sender Pro) ──────────────────────
-// campaign-engine 초기화: webContents 목록, 로그, mainWindow getter 전달
+// campaign-engine 초기화: webContents 목록, 로그, mainWindow getter, 일괄 탭 닫기 함수 전달
 campaignEngine.init(
     () => webContents.getAllWebContents(),
     (msg) => log.info('[Campaign]', msg),
-    () => mainWindow
+    () => mainWindow,
+    async () => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        try {
+            await mainWindow.webContents.executeJavaScript(`
+                (async function() {
+                    if (typeof window.tabs !== 'undefined' && Array.isArray(window.tabs)) {
+                        const targetTabs = window.tabs.filter(t => {
+                            const url = (t.url || '').toLowerCase();
+                            return url.includes('contact') || url.includes('inquiry') || url.includes('support') || 
+                                   url.includes('parastorage') || url.includes('wixstatic') || url.includes('tpaWorker');
+                        });
+                        for (const t of targetTabs) {
+                            if (typeof window.closeTab === 'function') {
+                                window.closeTab(t.id);
+                            }
+                        }
+                    }
+                })()
+            `);
+        } catch(e) {
+            log.error('[Campaign] Leftover tabs cleanup error:', e.message);
+        }
+    }
 );
+
+ipcMain.handle('xpider-campaign-get-state', async () => {
+    try {
+        return { success: true, ...campaignEngine.getState() };
+    } catch (e) {
+        log.error('[Campaign] get-state error:', e.message);
+        return { success: false, error: e.message };
+    }
+});
 
 ipcMain.handle('xpider-campaign-start', async (event, { queue, template, delayMs }) => {
     try {
