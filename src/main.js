@@ -767,7 +767,22 @@ async function _isProxyClean(host, port, username, password) {
     const localPort = serverInstance.address().port;
     
     const { session, net } = require('electron');
+    
+    // Purge both default session and temp session prior to running the test
+    // to strictly avoid cookie/cache leaks or captcha persistence between tests.
+    await session.defaultSession.clearStorageData({
+      storages: ['cookies', 'localstorage', 'shadercache', 'cachestorage', 'serviceworkers', 'websql', 'indexdb'],
+      quotas: ['temporary', 'persistent', 'syncable']
+    });
+    await session.defaultSession.clearCache();
+
     const tempSession = session.fromPartition(`temp-vpn-test-${Date.now()}`);
+    await tempSession.clearStorageData({
+      storages: ['cookies', 'localstorage', 'shadercache', 'cachestorage', 'serviceworkers', 'websql', 'indexdb'],
+      quotas: ['temporary', 'persistent', 'syncable']
+    });
+    await tempSession.clearCache();
+
     await tempSession.setProxy({
       proxyRules: `http://127.0.0.1:${localPort}`
     });
