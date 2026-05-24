@@ -686,6 +686,7 @@ function startCampaign() {
     if (campaignQueue.length === 0) return alert("Please upload a file or enter an email first.");
 
     currentTpl = {
+        senderName: document.getElementById('tpl-sender-name').value,
         firstName: document.getElementById('tpl-first-name').value,
         lastName: document.getElementById('tpl-last-name').value,
         name: document.getElementById('tpl-name').value,

@@ -659,7 +659,7 @@ async function sendDirectEmailViaBrevo(recipient, template) {
         
         const payload = {
             sender: {
-                name: template.senderName || 'XPIDER Mailer Pro',
+                name: template.senderName || template.name || 'XPIDER Mailer Pro',
                 email: template.email || 'no-reply@xpider.pro'
             },
             to: [{ email: recipient }],
