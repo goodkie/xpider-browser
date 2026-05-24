@@ -624,19 +624,7 @@ function _startLocalProxy(upHost, upPort, upUser, upPass) {
           upSocket.pipe(clientSocket);
           clientSocket.pipe(upSocket);
         } else {
-          const is402 = response.includes('402');
-          if (is402) {
-            log.error('[VPN-RELAY] Upstream CONNECT rejected: HTTP/1.1 402 Payment Required (Bandwidth Limit Exceeded!)');
-            extStorage.vpn_error_402 = true;
-            saveExtStorage();
-            // Broadcast change
-            const all = webContents.getAllWebContents();
-            all.forEach(wc => {
-              try { wc.send('xpider-ext-storage-changed', { vpn_error_402: { oldValue: undefined, newValue: true } }); } catch(e) {}
-            });
-          } else {
-            log.error('[VPN-RELAY] Upstream CONNECT rejected:', response.substring(0, 100));
-          }
+          log.error('[VPN-RELAY] Upstream CONNECT rejected:', response.substring(0, 100));
           clientSocket.write('HTTP/1.1 502 Bad Gateway\r\n\r\n');
           clientSocket.end();
           upSocket.end();
@@ -662,64 +650,313 @@ function _startLocalProxy(upHost, upPort, upUser, upPass) {
   });
 }
 
-ipcMain.handle('xpider-vpn-connect', async (event, { host, port, username, password, country, city }) => {
-  try {
-    if (!host || !port) return { ok: false, error: 'Invalid proxy: host/port missing' };
+let _vpnAutoSelectTimer = null;
+let _vpnIsAutoSelecting = false;
 
-    // Clear any previous 402 proxy errors on new connection attempt
-    if (extStorage.vpn_error_402) {
-      delete extStorage.vpn_error_402;
-      saveExtStorage();
-      const all = webContents.getAllWebContents();
-      all.forEach(wc => {
-        try { wc.send('xpider-ext-storage-changed', { vpn_error_402: { oldValue: true, newValue: undefined } }); } catch(e) {}
+function _vpnFlag(cc) {
+  if (!cc) return '🌐';
+  return [...cc.toUpperCase()].map(c => String.fromCodePoint(c.charCodeAt(0) + 127397)).join('');
+}
+
+async function _getWebShareProxyList() {
+  const WEBSHARE_API_URL = 'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=25';
+  const DEFAULT_WEBSHARE_API_KEY = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
+  const apiKey = (extStorage.webshareApiKey ? extStorage.webshareApiKey.trim() : '') || DEFAULT_WEBSHARE_API_KEY;
+  
+  const { net } = require('electron');
+  const response = await net.fetch(WEBSHARE_API_URL, {
+    headers: { Authorization: `Token ${apiKey}` }
+  });
+  if (!response.ok) throw new Error(`WebShare API returned status ${response.status}`);
+  const data = await response.json();
+  return data.results.map(p => ({
+    id:       p.id,
+    name:     `${_vpnFlag(p.country_code)} ${p.country_code} — ${p.proxy_address}`,
+    host:     p.proxy_address,
+    port:     p.port,
+    username: p.username,
+    password: p.password,
+    country:  p.country_code,
+    city:     p.city_name || '',
+    valid:    p.valid
+  }));
+}
+
+function _startLocalProxyForTest(upHost, upPort, upUser, upPass) {
+  return new Promise((resolve, reject) => {
+    const proxyAuthB64 = Buffer.from(`${upUser}:${upPass}`).toString('base64');
+    const authHeader   = `Basic ${proxyAuthB64}`;
+    
+    const server = http.createServer((req, res) => {
+      const upReq = http.request({
+        host: upHost,
+        port: upPort,
+        method: req.method,
+        path: req.url,
+        headers: { ...req.headers, 'Proxy-Authorization': authHeader },
+      }, (upRes) => {
+        res.writeHead(upRes.statusCode, upRes.headers);
+        upRes.pipe(res);
       });
+      req.pipe(upReq);
+      upReq.on('error', () => res.end());
+    });
+    
+    server.on('connect', (req, clientSocket, head) => {
+      const [targetHost, targetPort] = req.url.split(':');
+      const upSocket = net.connect(upPort, upHost, () => {
+        upSocket.write(
+          `CONNECT ${req.url} HTTP/1.1\r\n` +
+          `Host: ${req.url}\r\n` +
+          `Proxy-Authorization: ${authHeader}\r\n` +
+          `\r\n`
+        );
+      });
+      
+      upSocket.once('data', (chunk) => {
+        const response = chunk.toString();
+        if (response.includes('200')) {
+          clientSocket.write('HTTP/1.1 200 Connection established\r\n\r\n');
+          if (head && head.length) upSocket.write(head);
+          upSocket.pipe(clientSocket);
+          clientSocket.pipe(upSocket);
+        } else {
+          clientSocket.write('HTTP/1.1 502 Bad Gateway\r\n\r\n');
+          clientSocket.end();
+          upSocket.end();
+        }
+      });
+      
+      upSocket.on('error', (err) => {
+        clientSocket.write('HTTP/1.1 502 Bad Gateway\r\n\r\n');
+        clientSocket.end();
+      });
+      clientSocket.on('error', () => upSocket.end());
+    });
+    
+    server.listen(0, '127.0.0.1', () => {
+      resolve(server);
+    });
+    
+    server.on('error', reject);
+  });
+}
+
+async function _isProxyClean(host, port, username, password) {
+  let serverInstance = null;
+  try {
+    serverInstance = await _startLocalProxyForTest(host, port, username, password);
+    const localPort = serverInstance.address().port;
+    
+    const { session, net } = require('electron');
+    const tempSession = session.fromPartition(`temp-vpn-test-${Date.now()}`);
+    await tempSession.setProxy({
+      proxyRules: `http://127.0.0.1:${localPort}`
+    });
+    
+    const testQueries = ['weather', 'restaurants', 'hotels', 'local+business', 'coffee+shops', 'pizza+delivery'];
+    const query = testQueries[Math.floor(Math.random() * testQueries.length)];
+    const testUrl = `https://www.google.com/search?q=${query}&hl=en`;
+    
+    const response = await net.fetch(testUrl, {
+      session: tempSession,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    
+    if (response.status !== 200) {
+      return false;
     }
+    
+    const html = await response.text();
+    const lowerHtml = html.toLowerCase();
+    const hasCaptcha = lowerHtml.includes('recaptcha') || 
+                       lowerHtml.includes('g-recaptcha') || 
+                       lowerHtml.includes('sorry/index') || 
+                       lowerHtml.includes('unusual traffic') || 
+                       lowerHtml.includes('captcha') || 
+                       lowerHtml.includes('/sorry/');
+                        
+    return !hasCaptcha;
+  } catch (err) {
+    return false;
+  } finally {
+    if (serverInstance) {
+      await new Promise(r => serverInstance.close(r));
+    }
+  }
+}
 
-    // 기존 로컬 프록시 중지
+async function _connectProxyInternal(server) {
+  try {
     await _stopLocalProxy();
-
-    // 로컬 릴레이 서버 기동 (자격증명 자동 주입)
-    const localPort = await _startLocalProxy(host, port, username, password);
-
-    // Electron 세션을 로컬 릴레이로 연결 (인증 불필요 — 릴레이가 대신 처리)
+    const localPort = await _startLocalProxy(server.host, server.port, server.username, server.password);
     const { session: electronSession } = require('electron');
     await electronSession.defaultSession.setProxy({
       proxyRules: `http://127.0.0.1:${localPort}`,
       proxyBypassRules: '<local>',
     });
-
-    _vpnState = { connected: true, server: { host, port, username, password, country, city } };
-    log.info(`[VPN] Connected via relay 127.0.0.1:${localPort} → ${host}:${port} (${country}${city ? '/' + city : ''})`);
-
+    
+    _vpnState = { connected: true, server };
+    extStorage.connected = true;
+    extStorage.server = server;
+    saveExtStorage();
+    
+    // Broadcast states
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('xpider-vpn-state', _vpnState);
     }
+    
+    // Send message to extension's chrome storage sync
+    const changes = {
+      connected: { oldValue: undefined, newValue: true },
+      server: { oldValue: undefined, newValue: server }
+    };
+    const all = webContents.getAllWebContents();
+    all.forEach(wc => {
+      try { wc.send('xpider-ext-storage-changed', changes); } catch(e) {}
+    });
+
     return { ok: true };
-  } catch (e) {
-    log.error('[VPN] Connect error:', e.message);
+  } catch (err) {
+    log.error('[VPN-AUTO] Internal connection failed:', err.message);
     await _stopLocalProxy();
-    return { ok: false, error: e.message };
+    return { ok: false, error: err.message };
+  }
+}
+
+async function _runAutoSelectVPN() {
+  if (_vpnIsAutoSelecting) return;
+  _vpnIsAutoSelecting = true;
+  log.info('[VPN-AUTO] Starting CAPTCHA-free background proxy search...');
+  
+  try {
+    const servers = await _getWebShareProxyList();
+    servers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
+    
+    if (servers.length === 0) {
+      log.error('[VPN-AUTO] No servers found in WebShare API list.');
+      _vpnIsAutoSelecting = false;
+      return;
+    }
+    
+    let cleanServer = null;
+    for (const server of servers) {
+      if (!extStorage.autoSelect || !_vpnState.connected) {
+        log.info('[VPN-AUTO] Auto-select cancelled or VPN disconnected.');
+        _vpnIsAutoSelecting = false;
+        return;
+      }
+      
+      const isClean = await _isProxyClean(server.host, server.port, server.username, server.password);
+      if (isClean) {
+        cleanServer = server;
+        break;
+      }
+    }
+    
+    if (cleanServer) {
+      log.info(`[VPN-AUTO] Found clean proxy! Connecting to ${cleanServer.host}:${cleanServer.port}...`);
+      const connectRes = await _connectProxyInternal(cleanServer);
+      if (connectRes && connectRes.ok) {
+        log.info(`[VPN-AUTO] Automatically connected to captcha-free proxy: ${cleanServer.host}:${cleanServer.port}`);
+      }
+    } else {
+      log.warn('[VPN-AUTO] No captcha-free proxy found. Keeping current.');
+    }
+  } catch (err) {
+    log.error('[VPN-AUTO] Error in auto-select rotation:', err.message);
+  } finally {
+    _vpnIsAutoSelecting = false;
+  }
+}
+
+function _startAutoSelectRotation() {
+  _stopAutoSelectRotation();
+  const TEN_MINUTES_MS = 10 * 60 * 1000;
+  _vpnAutoSelectTimer = setInterval(() => {
+    if (extStorage.autoSelect && _vpnState.connected) {
+      _runAutoSelectVPN();
+    }
+  }, TEN_MINUTES_MS);
+}
+
+function _stopAutoSelectRotation() {
+  if (_vpnAutoSelectTimer) {
+    clearInterval(_vpnAutoSelectTimer);
+    _vpnAutoSelectTimer = null;
+  }
+}
+
+ipcMain.handle('xpider-vpn-connect', async (event, params) => {
+  const { host, port, username, password, country, city, autoSelect } = params;
+  
+  if (autoSelect !== undefined) {
+    extStorage.autoSelect = !!autoSelect;
+    saveExtStorage();
+  }
+  
+  if (extStorage.autoSelect) {
+    _vpnState.connected = true; 
+    _vpnIsAutoSelecting = false;
+    
+    log.info('[VPN] Auto-select enabled. Finding a captcha-free proxy first...');
+    
+    try {
+      const servers = await _getWebShareProxyList();
+      servers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
+      
+      let cleanServer = null;
+      for (const s of servers) {
+        const isClean = await _isProxyClean(s.host, s.port, s.username, s.password);
+        if (isClean) {
+          cleanServer = s;
+          break;
+        }
+      }
+      
+      if (cleanServer) {
+        const res = await _connectProxyInternal(cleanServer);
+        if (res.ok) {
+          _startAutoSelectRotation();
+          return { ok: true };
+        } else {
+          return { ok: false, error: res.error };
+        }
+      } else {
+        if (servers.length > 0) {
+          const fallback = servers[0];
+          const res = await _connectProxyInternal(fallback);
+          if (res.ok) {
+            _startAutoSelectRotation();
+            return { ok: true, warn: 'No captcha-free proxy found, using fallback' };
+          }
+        }
+        return { ok: false, error: 'No working proxies found' };
+      }
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  } else {
+    _stopAutoSelectRotation();
+    const res = await _connectProxyInternal({ host, port, username, password, country, city });
+    return res;
   }
 });
 
 ipcMain.handle('xpider-vpn-disconnect', async () => {
   try {
+    _stopAutoSelectRotation();
     const { session: electronSession } = require('electron');
     await electronSession.defaultSession.setProxy({ mode: 'direct' });
     await _stopLocalProxy();
 
-    // Clear any previous 402 proxy errors on disconnect
-    if (extStorage.vpn_error_402) {
-      delete extStorage.vpn_error_402;
-      saveExtStorage();
-      const all = webContents.getAllWebContents();
-      all.forEach(wc => {
-        try { wc.send('xpider-ext-storage-changed', { vpn_error_402: { oldValue: true, newValue: undefined } }); } catch(e) {}
-      });
-    }
-
     _vpnState = { connected: false, server: null };
+    extStorage.connected = false;
+    extStorage.server = null;
+    saveExtStorage();
+    
     log.info('[VPN] Disconnected — proxy cleared, relay stopped');
 
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -2118,6 +2355,7 @@ if (fs.existsSync(storagePath)) {
 // Default language to English on first run
 if (!extStorage.language)    extStorage.language    = 'en';
 if (!extStorage.xpider_lang) extStorage.xpider_lang = 'en';
+if (extStorage.autoSelect === undefined) extStorage.autoSelect = true;
 
 function saveExtStorage() {
     try { fs.writeFileSync(storagePath, JSON.stringify(extStorage, null, 2)); } catch(e) {}

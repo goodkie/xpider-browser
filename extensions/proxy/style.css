@@ -339,3 +339,25 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* Switch Toggle Custom Styling */
+.switch-container input:checked + .slider-round {
+  background-color: var(--accent-color) !important;
+  box-shadow: 0 0 10px var(--accent-glow) !important;
+  border-color: var(--accent-color) !important;
+}
+.slider-round:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+.switch-container input:checked + .slider-round:before {
+  transform: translateX(20px);
+}

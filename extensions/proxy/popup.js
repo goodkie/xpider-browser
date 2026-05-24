@@ -3,15 +3,12 @@
 // chrome.runtime.sendMessage 제거 → XPIDER IPC 브릿지(xpider-vpn-*) 사용
 
 // ─── WebShare API ────────────────────────────────────────────────────────
-const DEFAULT_WEBSHARE_API_KEY = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
+const WEBSHARE_API_KEY = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
 const WEBSHARE_API_URL = 'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=25';
 
 async function getProxyList() {
-  const settings = await chrome.storage.local.get(['webshareApiKey']);
-  const apiKey = settings.webshareApiKey ? settings.webshareApiKey.trim() : DEFAULT_WEBSHARE_API_KEY;
-
   const res = await fetch(WEBSHARE_API_URL, {
-    headers: { Authorization: `Token ${apiKey}` }
+    headers: { Authorization: `Token ${WEBSHARE_API_KEY}` }
   });
   if (!res.ok) throw new Error(`WebShare API ${res.status}`);
   const data = await res.json();
@@ -93,8 +90,10 @@ const settingsTrigger = $('settings-trigger');
 const settingsPanel   = $('settings-panel');
 const closeSettings   = $('close-settings');
 const langGrid        = $('lang-grid');
-const customApiKeyInput = $('custom-api-key');
 const flagPlaceholder = document.querySelector('.flag-placeholder');
+const resetTrigger     = $('reset-trigger');
+const refreshServersBtn = $('refresh-servers-btn');
+const autoSelectToggle = $('auto-select-toggle');
 
 // ─── State ────────────────────────────────────────────────────────────────
 let servers     = [];
@@ -194,24 +193,35 @@ function renderServers() {
 
 // ─── 연결 / 해제 ──────────────────────────────────────────────────────────
 async function handleConnect() {
-  if (!selected || _busy) return;
+  const isAuto = autoSelectToggle ? autoSelectToggle.checked : true;
+  if (!isAuto && !selected) {
+    showError('Select a server first.');
+    return;
+  }
+  if (_busy) return;
   _busy = true;
   setUI('connecting');
 
   try {
     // main.js IPC → session.setProxy() 직접 호출
     const res = await xpiderInvoke('xpider-vpn-connect', {
-      host:     selected.host,
-      port:     selected.port,
-      username: selected.username,
-      password: selected.password,
-      country:  selected.country,
-      city:     selected.city || ''
+      host:     selected ? selected.host : '',
+      port:     selected ? selected.port : 0,
+      username: selected ? selected.username : '',
+      password: selected ? selected.password : '',
+      country:  selected ? selected.country : '',
+      city:     selected ? (selected.city || '') : '',
+      autoSelect: isAuto
     });
 
     if (res && res.ok) {
       connected = true;
-      await chrome.storage.local.set({ connected: true, server: selected });
+      const freshSettings = await chrome.storage.local.get(['connected', 'server']);
+      if (freshSettings.server) {
+        selected = freshSettings.server;
+        if (selectedName) selectedName.textContent = selected.city ? `${selected.country} · ${selected.city}` : selected.country;
+        if (flagPlaceholder) flagPlaceholder.textContent = selected.name ? selected.name.split('—')[0].trim() : '🌐';
+      }
       setUI('connected');
     } else {
       connected = false;
@@ -267,11 +277,12 @@ window.addEventListener('message', (evt) => {
 // ─── Init ────────────────────────────────────────────────────────────────
 async function init() {
   // 1. 저장된 언어/상태 불러오기
-  const settings = await chrome.storage.local.get(['connected', 'server', 'language', 'webshareApiKey']);
+  const settings = await chrome.storage.local.get(['connected', 'server', 'language', 'autoSelect']);
   currentLang = settings.language || 'en';
 
-  if (customApiKeyInput) {
-    customApiKeyInput.value = settings.webshareApiKey || '';
+  const autoSelect = settings.autoSelect !== false;
+  if (autoSelectToggle) {
+    autoSelectToggle.checked = autoSelect;
   }
 
   // 2. main.js에서 실제 VPN 상태 확인 (스토리지와 싱크)
@@ -311,20 +322,55 @@ async function init() {
 }
 
 // ─── 이벤트 바인딩 ────────────────────────────────────────────────────────
-if (customApiKeyInput) {
-  customApiKeyInput.onchange = async () => {
-    const val = customApiKeyInput.value.trim();
-    await chrome.storage.local.set({ webshareApiKey: val });
-    // reload servers
-    init();
-  };
-}
-
 connectBtn.onclick    = () => connected ? handleDisconnect() : handleConnect();
 serverTrigger.onclick = () => serverModal.classList.add('active');
 closeModal.onclick    = () => serverModal.classList.remove('active');
 settingsTrigger.onclick = () => settingsPanel.classList.add('active');
 closeSettings.onclick   = () => settingsPanel.classList.remove('active');
+
+if (resetTrigger) {
+  resetTrigger.onclick = async () => {
+    if (_busy) return;
+    _busy = true;
+    try {
+      await xpiderInvoke('xpider-vpn-disconnect', {});
+      await chrome.storage.local.remove(['connected', 'server', 'webshareApiKey']);
+      await chrome.storage.local.set({ autoSelect: true });
+      if (autoSelectToggle) autoSelectToggle.checked = true;
+      window.location.reload();
+    } catch(e) {
+      console.error('Reset error:', e);
+    } finally {
+      _busy = false;
+    }
+  };
+}
+
+if (refreshServersBtn) {
+  refreshServersBtn.onclick = async () => {
+    if (serverListEl) {
+      serverListEl.innerHTML = `<div class="loading">Loading...</div>`;
+    }
+    try {
+      servers = await getProxyList();
+      servers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
+      renderServers();
+    } catch (err) {
+      console.error('[VPN] Refresh failed:', err.message);
+      if (serverListEl) serverListEl.innerHTML = `<div class="loading" style="color:#ff5555">⚠️ ${err.message}</div>`;
+    }
+  };
+}
+
+if (autoSelectToggle) {
+  autoSelectToggle.onchange = async () => {
+    const isAuto = autoSelectToggle.checked;
+    await chrome.storage.local.set({ autoSelect: isAuto });
+    if (connected) {
+      handleConnect();
+    }
+  };
+}
 
 [serverModal, settingsPanel].forEach(m => {
   m.onclick = (e) => { if (e.target === m) m.classList.remove('active'); };
