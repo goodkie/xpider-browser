@@ -305,30 +305,29 @@ window.addEventListener('message', (event) => {
     }
 });
 
-if (!window.chrome.runtime.onMessage) {
-    window.chrome.runtime.onMessage = {
-        addListener: (callback) => {
-            // 1. Direct IPC listener
-            ipcRenderer.on('xpider-ext-runtime-on-message', (event, message) => {
+// Always override onMessage to ensure our custom IPC bridge is used instead of any half-implemented native onMessage APIs
+window.chrome.runtime.onMessage = {
+    addListener: (callback) => {
+        // 1. Direct IPC listener
+        ipcRenderer.on('xpider-ext-runtime-on-message', (event, message) => {
+            try {
+                callback(message, { id: 'xpider-ext' }, () => {});
+            } catch(e) {
+                console.error('[XPIDER-BRIDGE] Error in onMessage listener:', e);
+            }
+        });
+        // 2. PostMessage bridge listener (relayed from renderer_ui.js via executeJavaScript)
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'XPIDER_EVENT' && e.data.name === 'runtime-on-message') {
                 try {
-                    callback(message, { id: 'xpider-ext' }, () => {});
-                } catch(e) {
-                    console.error('[XPIDER-BRIDGE] Error in onMessage listener:', e);
+                    callback(e.data.data, { id: 'xpider-ext' }, () => {});
+                } catch(err) {
+                    console.error('[XPIDER-BRIDGE] Error in postMessage runtime listener:', err);
                 }
-            });
-            // 2. PostMessage bridge listener (relayed from renderer_ui.js via executeJavaScript)
-            window.addEventListener('message', (e) => {
-                if (e.data && e.data.type === 'XPIDER_EVENT' && e.data.name === 'runtime-on-message') {
-                    try {
-                        callback(e.data.data, { id: 'xpider-ext' }, () => {});
-                    } catch(err) {
-                        console.error('[XPIDER-BRIDGE] Error in postMessage runtime listener:', err);
-                    }
-                }
-            });
-        }
-    };
-}
+            }
+        });
+    }
+};
 
 // ─── CHROME TABS BRIDGE ─────────────────────────────────────
 if (!window.chrome.tabs) {

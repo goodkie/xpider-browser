@@ -302,7 +302,7 @@ function updateActiveDownloadUI(downloadId) {
     const info  = el.querySelector('.dl-byte-info');
     const prog  = dl.progress >= 0 ? dl.progress : 0;
     if (bar) bar.style.width = `${prog}%`;
-    if (pct) pct.textContent = dl.progress >= 0 ? `${prog}%` : '다운로드 중...';
+    if (pct) pct.textContent = dl.progress >= 0 ? `${prog}%` : 'Downloading...';
     if (info && dl.receivedBytes != null) {
         const fmt = b => b >= 1048576 ? (b/1048576).toFixed(1)+'MB' : b >= 1024 ? (b/1024).toFixed(0)+'KB' : b+'B';
         info.textContent = dl.totalBytes > 0 ? `${fmt(dl.receivedBytes)} / ${fmt(dl.totalBytes)}` : fmt(dl.receivedBytes);
@@ -653,12 +653,12 @@ function showHotUpdatePanel(phase, pct, msg) {
     const titleEl = hotUpdatePanel.querySelector('.hu-title');
     if (phase === 'done' || (phase === 'extract' && pct >= 100)) {
         hotUpdatePanel.classList.add('hu-done');
-        if (titleEl) titleEl.textContent = '업데이트 완료';
+        if (titleEl) titleEl.textContent = 'Update Complete';
     } else if (phase === 'error') {
         hotUpdatePanel.classList.add('hu-error');
-        if (titleEl) titleEl.textContent = '업데이트 실패';
+        if (titleEl) titleEl.textContent = 'Update Failed';
     } else {
-        if (titleEl) titleEl.textContent = '업데이트 다운로드 중';
+        if (titleEl) titleEl.textContent = 'Downloading Update';
     }
     if (huMsg) huMsg.textContent = msg || '';
     if (huBar) huBar.style.width = `${Math.max(0, Math.min(100, pct || 0))}%`;
@@ -1170,15 +1170,15 @@ function _renderDownloadsPanel() {
     const extIcon = n => { const e=(n||'').split('.').pop().toLowerCase(); return e==='csv'?'📊':e==='json'?'📋':e==='txt'?'📝':e==='xlsx'||e==='xls'?'📈':'📄'; };
 
     if (activeDownloads.size === 0 && downloads.length === 0) {
-        panelList.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:40px 20px;"><div style="font-size:2.5rem;margin-bottom:12px;">📥</div><div style="font-size:0.95rem;font-weight:500;">다운로드 없음</div><div style="font-size:0.8rem;margin-top:6px;opacity:0.6;">익스텐션에서 CSV/JSON/TXT 내보내기 시 여기에 표시됩니다</div></div>`;
+        panelList.innerHTML = `<div style="text-align:center;color:var(--text-dim);padding:40px 20px;"><div style="font-size:2.5rem;margin-bottom:12px;">📥</div><div style="font-size:0.95rem;font-weight:500;">No Downloads</div><div style="font-size:0.8rem;margin-top:6px;opacity:0.6;">Exported CSV/JSON/TXT from extensions will appear here</div></div>`;
         return;
     }
 
-    // ── 진행 중 ──
+    // ── Active Downloads ──
     if (activeDownloads.size > 0) {
         const hdr = document.createElement('div');
         hdr.className = 'dl-section-hdr';
-        hdr.textContent = '⏳ 다운로드 중';
+        hdr.textContent = '⏳ Downloading';
         panelList.appendChild(hdr);
         activeDownloads.forEach((dl, id) => {
             const div = document.createElement('div');
@@ -1196,7 +1196,7 @@ function _renderDownloadsPanel() {
                             : `<div class="dl-progress-track"><div class="dl-bar-fill" style="width:${prog}%"></div></div>
                                <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.72rem;">
                                  <span class="dl-byte-info" style="opacity:0.55;"></span>
-                                 <span class="dl-pct-text" style="color:var(--accent);font-weight:700;">${dl.progress>=0?prog+'%':'준비 중...'}</span>
+                                 <span class="dl-pct-text" style="color:var(--accent);font-weight:700;">${dl.progress>=0?prog+'%':'Preparing...'}</span>
                                </div>`
                         }
                     </div>
@@ -1210,7 +1210,7 @@ function _renderDownloadsPanel() {
         if (activeDownloads.size > 0) {
             const hdr = document.createElement('div');
             hdr.className = 'dl-section-hdr';
-            hdr.textContent = '✅ 완료된 다운로드';
+            hdr.textContent = '✅ Completed';
             panelList.appendChild(hdr);
         }
         downloads.forEach((item, idx) => {

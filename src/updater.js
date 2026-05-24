@@ -338,11 +338,11 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
     fs.mkdirSync(tmpDir, { recursive: true });
 
     // ── 1단계: 다운로드 ────────────────────────────────────
-    progress('download', 0, `⬇️ 새 버전 다운로드 중... (${isExe ? 'Windows Setup' : isDmg ? 'macOS DMG' : 'ZIP'})`);
+    progress('download', 0, `⬇️ Downloading new version... (${isExe ? 'Windows Setup' : isDmg ? 'macOS DMG' : 'ZIP'})`);
     await downloadFileWithProgress(downloadUrl, filePath, (pct) => {
-      progress('download', pct, `⬇️ 다운로드 중... ${pct}%`);
+      progress('download', pct, `⬇️ Downloading... ${pct}%`);
     });
-    progress('download', 100, '✅ 다운로드 완료!');
+    progress('download', 100, '✅ Download Complete!');
 
     // ── 2a단계: EXE 설치 파일 실행 (Windows) ──────────────
     if (isExe) {
