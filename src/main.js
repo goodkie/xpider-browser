@@ -653,6 +653,8 @@ function _startLocalProxy(upHost, upPort, upUser, upPass) {
 let _vpnAutoSelectTimer = null;
 let _vpnIsAutoSelecting = false;
 const _activeTestServers = new Set();
+let _vpnActiveScanToken = 0;
+let _isConnectingLock = false;
 
 function _vpnFlag(cc) {
   if (!cc) return '🌐';
@@ -845,6 +847,8 @@ async function _connectProxyInternal(server) {
 async function _runAutoSelectVPN() {
   if (_vpnIsAutoSelecting) return;
   _vpnIsAutoSelecting = true;
+  
+  const currentScanToken = ++_vpnActiveScanToken;
   log.info('[VPN-AUTO] Starting CAPTCHA-free background proxy search...');
   _broadcastVPNLog('SYSTEM', 'Auto-rotation triggered. Starting background proxy check...');
   
@@ -859,14 +863,16 @@ async function _runAutoSelectVPN() {
       return;
     }
     
+    if (currentScanToken !== _vpnActiveScanToken) return;
+    
     _broadcastVPNLog('API', `Loaded ${servers.length} proxies from WebShare. Testing for captcha-free connections...`);
 
     let cleanServer = null;
     let index = 1;
     for (const server of servers) {
-      if (!extStorage.autoSelect || !_vpnState.connected) {
-        log.info('[VPN-AUTO] Auto-select cancelled or VPN disconnected.');
-        _broadcastVPNLog('SYSTEM', 'Auto-select cancelled or VPN disconnected.');
+      if (currentScanToken !== _vpnActiveScanToken || !extStorage.autoSelect || !_vpnState.connected) {
+        log.info('[VPN-AUTO] Auto-select scan cancelled or superseded.');
+        _broadcastVPNLog('SYSTEM', 'Auto-select scan cancelled or superseded.');
         _vpnIsAutoSelecting = false;
         return;
       }
@@ -880,6 +886,12 @@ async function _runAutoSelectVPN() {
       index++;
       
       const isClean = await _isProxyClean(server.host, server.port, server.username, server.password);
+      
+      if (currentScanToken !== _vpnActiveScanToken) {
+        _vpnIsAutoSelecting = false;
+        return;
+      }
+      
       if (isClean) {
         cleanServer = server;
         _broadcastVPNLog('TEST-CLEAN', `Proxy (${server.country} · ${server.host}) is clean! No CAPTCHA detected.`);
@@ -889,11 +901,24 @@ async function _runAutoSelectVPN() {
       }
     }
     
+    if (currentScanToken !== _vpnActiveScanToken) {
+      _vpnIsAutoSelecting = false;
+      return;
+    }
+    
     if (cleanServer) {
-      log.info(`[VPN-AUTO] Found clean proxy! Connecting to ${cleanServer.host}:${cleanServer.port}...`);
-      const connectRes = await _connectProxyInternal(cleanServer);
-      if (connectRes && connectRes.ok) {
-        log.info(`[VPN-AUTO] Automatically connected to captcha-free proxy: ${cleanServer.host}:${cleanServer.port}`);
+      if (_vpnState.connected && _vpnState.server && _vpnState.server.host === cleanServer.host && _vpnState.server.port === cleanServer.port) {
+        _broadcastVPNLog('SYSTEM', `Current proxy is already the cleanest (${cleanServer.country} · ${cleanServer.host}). Keeping connection.`);
+        _vpnState.statusMessage = 'Protected';
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+        }
+      } else {
+        log.info(`[VPN-AUTO] Found clean proxy! Connecting to ${cleanServer.host}:${cleanServer.port}...`);
+        const connectRes = await _connectProxyInternal(cleanServer);
+        if (connectRes && connectRes.ok) {
+          log.info(`[VPN-AUTO] Automatically connected to captcha-free proxy: ${cleanServer.host}:${cleanServer.port}`);
+        }
       }
     } else {
       log.warn('[VPN-AUTO] No captcha-free proxy found. Keeping current.');
@@ -907,7 +932,9 @@ async function _runAutoSelectVPN() {
     log.error('[VPN-AUTO] Error in auto-select rotation:', err.message);
     _broadcastVPNLog('WARN', 'Error in background check: ' + err.message);
   } finally {
-    _vpnIsAutoSelecting = false;
+    if (currentScanToken === _vpnActiveScanToken) {
+      _vpnIsAutoSelecting = false;
+    }
   }
 }
 
@@ -929,12 +956,20 @@ function _stopAutoSelectRotation() {
 }
 
 ipcMain.handle('xpider-vpn-connect', async (event, params) => {
+  if (_isConnectingLock) {
+    log.info('[VPN] Connection attempt ignored due to active lock.');
+    return { ok: false, error: 'Connection process already in progress.' };
+  }
+  _isConnectingLock = true;
+
   const { host, port, username, password, country, city, autoSelect } = params;
   
   if (autoSelect !== undefined) {
     extStorage.autoSelect = !!autoSelect;
     saveExtStorage();
   }
+  
+  const currentScanToken = ++_vpnActiveScanToken;
   
   if (extStorage.autoSelect) {
     _vpnState.connected = false; 
@@ -952,11 +987,21 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
       const servers = await _getWebShareProxyList();
       servers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
       
+      if (currentScanToken !== _vpnActiveScanToken) {
+        _isConnectingLock = false;
+        return { ok: false, error: 'Connection process aborted by a newer request.' };
+      }
+      
       _broadcastVPNLog('API', `Loaded ${servers.length} proxies from WebShare. Testing nodes...`);
 
       let cleanServer = null;
       let index = 1;
       for (const s of servers) {
+        if (currentScanToken !== _vpnActiveScanToken) {
+          _isConnectingLock = false;
+          return { ok: false, error: 'Connection process aborted by a newer request.' };
+        }
+        
         _vpnState.statusMessage = `Testing [${index}/${servers.length}] ${s.country}...`;
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('xpider-vpn-state', _vpnState);
@@ -966,6 +1011,12 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
         index++;
         
         const isClean = await _isProxyClean(s.host, s.port, s.username, s.password);
+        
+        if (currentScanToken !== _vpnActiveScanToken) {
+          _isConnectingLock = false;
+          return { ok: false, error: 'Connection process aborted by a newer request.' };
+        }
+        
         if (isClean) {
           cleanServer = s;
           _broadcastVPNLog('TEST-CLEAN', `Proxy (${s.country} · ${s.host}) is clean!`);
@@ -975,12 +1026,19 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
         }
       }
       
+      if (currentScanToken !== _vpnActiveScanToken) {
+        _isConnectingLock = false;
+        return { ok: false, error: 'Connection process aborted by a newer request.' };
+      }
+      
       if (cleanServer) {
         const res = await _connectProxyInternal(cleanServer);
         if (res.ok) {
           _startAutoSelectRotation();
+          _isConnectingLock = false;
           return { ok: true };
         } else {
+          _isConnectingLock = false;
           return { ok: false, error: res.error };
         }
       } else {
@@ -990,24 +1048,31 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
           const res = await _connectProxyInternal(fallback);
           if (res.ok) {
             _startAutoSelectRotation();
+            _isConnectingLock = false;
             return { ok: true, warn: 'No captcha-free proxy found, using fallback' };
           }
         }
+        _isConnectingLock = false;
         return { ok: false, error: 'No working proxies found' };
       }
     } catch (err) {
       _broadcastVPNLog('WARN', 'Connection check failed: ' + err.message);
+      _isConnectingLock = false;
       return { ok: false, error: err.message };
     }
   } else {
     _stopAutoSelectRotation();
     const res = await _connectProxyInternal({ host, port, username, password, country, city });
+    _isConnectingLock = false;
     return res;
   }
 });
 
 ipcMain.handle('xpider-vpn-hard-reset', async () => {
   try {
+    _isConnectingLock = false;
+    ++_vpnActiveScanToken;
+
     _stopAutoSelectRotation();
     
     const { session: electronSession } = require('electron');
@@ -1045,6 +1110,9 @@ ipcMain.handle('xpider-vpn-hard-reset', async () => {
 
 ipcMain.handle('xpider-vpn-disconnect', async () => {
   try {
+    _isConnectingLock = false;
+    ++_vpnActiveScanToken;
+
     _stopAutoSelectRotation();
     const { session: electronSession } = require('electron');
     await electronSession.defaultSession.setProxy({ mode: 'direct' });
