@@ -754,6 +754,9 @@ async function _isProxyClean(host, port, username, password) {
       proxyRules: `http://127.0.0.1:${localPort}`
     });
     
+    // Propagate proxy rules to Chromium network service
+    await new Promise(r => setTimeout(r, 250));
+    
     const testQueries = ['weather', 'restaurants', 'hotels', 'local+business', 'coffee+shops', 'pizza+delivery'];
     const query = testQueries[Math.floor(Math.random() * testQueries.length)];
     const testUrl = `https://www.google.com/search?q=${query}&hl=en`;
@@ -798,7 +801,7 @@ async function _connectProxyInternal(server) {
       proxyBypassRules: '<local>',
     });
     
-    _vpnState = { connected: true, server };
+    _vpnState = { connected: true, server, statusMessage: 'Protected' };
     extStorage.connected = true;
     extStorage.server = server;
     saveExtStorage();
@@ -842,12 +845,19 @@ async function _runAutoSelectVPN() {
     }
     
     let cleanServer = null;
+    let index = 1;
     for (const server of servers) {
       if (!extStorage.autoSelect || !_vpnState.connected) {
         log.info('[VPN-AUTO] Auto-select cancelled or VPN disconnected.');
         _vpnIsAutoSelecting = false;
         return;
       }
+      
+      _vpnState.statusMessage = `Testing [${index}/${servers.length}] ${server.country}...`;
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+      }
+      index++;
       
       const isClean = await _isProxyClean(server.host, server.port, server.username, server.password);
       if (isClean) {
@@ -864,6 +874,10 @@ async function _runAutoSelectVPN() {
       }
     } else {
       log.warn('[VPN-AUTO] No captcha-free proxy found. Keeping current.');
+      _vpnState.statusMessage = 'Protected';
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+      }
     }
   } catch (err) {
     log.error('[VPN-AUTO] Error in auto-select rotation:', err.message);
@@ -898,7 +912,12 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
   }
   
   if (extStorage.autoSelect) {
-    _vpnState.connected = true; 
+    _vpnState.connected = false; 
+    _vpnState.statusMessage = 'Searching clean proxy...';
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+    }
+    
     _vpnIsAutoSelecting = false;
     
     log.info('[VPN] Auto-select enabled. Finding a captcha-free proxy first...');
@@ -908,7 +927,14 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
       servers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
       
       let cleanServer = null;
+      let index = 1;
       for (const s of servers) {
+        _vpnState.statusMessage = `Testing [${index}/${servers.length}] ${s.country}...`;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+        }
+        index++;
+        
         const isClean = await _isProxyClean(s.host, s.port, s.username, s.password);
         if (isClean) {
           cleanServer = s;

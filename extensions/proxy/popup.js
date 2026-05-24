@@ -271,6 +271,13 @@ window.addEventListener('message', (evt) => {
       selected = state.server;
     }
     setUI(connected ? 'connected' : 'disconnected');
+    if (state && state.statusMessage && actionHint) {
+      actionHint.textContent = state.statusMessage;
+      if (!connected) {
+        statusBadge.textContent = state.statusMessage;
+        statusBadge.className = 'status-badge';
+      }
+    }
   }
 });
 
