@@ -884,6 +884,37 @@ function updateProgress(percent) {
     }
 }
 
+let localLogQueue = [];
+let localLogSaveTimer = null;
+
+function saveBlackBoxLog(message, type, timestamp) {
+    localLogQueue.push({ message, type, timestamp });
+    if (localLogQueue.length > 150) localLogQueue.shift();
+
+    const isCritical = ['start', 'stop', 'complete', 'error', 'success'].includes(type);
+
+    const saveBatch = () => {
+        try {
+            chrome.storage.local.get(['xpider_blackbox_logs'], (data) => {
+                const logs = data.xpider_blackbox_logs || [];
+                const combined = [...logs, ...localLogQueue].slice(-300); // Max 300 logs
+                chrome.storage.local.set({ xpider_blackbox_logs: combined });
+                localLogQueue = [];
+            });
+        } catch (e) {
+            console.error('[BlackBox Save Error]', e);
+        }
+    };
+
+    if (isCritical) {
+        if (localLogSaveTimer) clearTimeout(localLogSaveTimer);
+        saveBatch();
+    } else {
+        if (localLogSaveTimer) clearTimeout(localLogSaveTimer);
+        localLogSaveTimer = setTimeout(saveBatch, 1500);
+    }
+}
+
 function addLog(msg, type = 'info', forcedTime = null) {
     const container = document.getElementById('log-container');
     if (!container) return;
@@ -900,14 +931,7 @@ function addLog(msg, type = 'info', forcedTime = null) {
     const logEntry = document.createElement('div');
     logEntry.className = `log-entry ${type}`;
     
-    let time = forcedTime;
-    if (!time) {
-        const now = new Date();
-        const hours = now.getHours();
-        const minutes = now.getMinutes();
-        const seconds = now.getSeconds();
-        time = `${hours}시 ${minutes}분 ${seconds}초`;
-    }
+    const time = forcedTime || new Date().toLocaleTimeString('ko-KR', { hour12: false });
     
     // [v1.3.8] Premium Color Set for High Visibility
     let color = '#ccc';
@@ -927,6 +951,11 @@ function addLog(msg, type = 'info', forcedTime = null) {
     
     container.appendChild(logEntry);
     container.scrollTop = container.scrollHeight;
+
+    // Persist real-time logs to chrome storage blackbox
+    if (!forcedTime) {
+        saveBlackBoxLog(msg, type, time);
+    }
 }
 
 function saveTemplate() {

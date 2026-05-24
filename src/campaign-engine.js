@@ -24,10 +24,30 @@ function init(getAllWebContentsFn, logFn, getMainWindowFn) {
 }
 
 function broadcast(message) {
-    if (!_getAllWebContents) return;
-    _getAllWebContents().forEach(wc => {
-        try { wc.send('xpider-ext-runtime-on-message', message); } catch(e) {}
-    });
+    // 1. Send directly to mainWindow for robust sidepanel UI relaying
+    if (_getMainWindow) {
+        try {
+            const mw = _getMainWindow();
+            if (mw && !mw.isDestroyed()) {
+                mw.webContents.send('xpider-ext-runtime-on-message', message);
+            }
+        } catch(e) {
+            if (_log) _log(`[Broadcast Error] Failed to send to mainWindow: ${e.message}`);
+        }
+    }
+
+    // 2. Broadcast to all other webContents securely
+    if (_getAllWebContents) {
+        try {
+            _getAllWebContents().forEach(wc => {
+                if (wc && !wc.isDestroyed()) {
+                    try { wc.send('xpider-ext-runtime-on-message', message); } catch(e) {}
+                }
+            });
+        } catch(e) {
+            if (_log) _log(`[Broadcast Error] Failed to iterate allWebContents: ${e.message}`);
+        }
+    }
 }
 
 function sendLog(msg, type = 'info') {
@@ -320,6 +340,7 @@ async function injectIntoAllFrames(wc, script) {
 }
 
 async function pollAllFrames(wc) {
+    if (!wc || wc.isDestroyed()) return null;
     // Check main frame
     try {
         const r = await wc.executeJavaScript('window.__xpider_result || null');
@@ -327,13 +348,15 @@ async function pollAllFrames(wc) {
     } catch(e) {}
     // Check child frames
     try {
-        const frames = getAllFrames(wc.mainFrame);
-        for (const frame of frames) {
-            if (frame === wc.mainFrame) continue;
-            try {
-                const r = await frame.executeJavaScript('window.__xpider_result || null');
-                if (r) return r;
-            } catch(e) {}
+        if (wc.mainFrame) {
+            const frames = getAllFrames(wc.mainFrame);
+            for (const frame of frames) {
+                if (frame === wc.mainFrame) continue;
+                try {
+                    const r = await frame.executeJavaScript('window.__xpider_result || null');
+                    if (r) return r;
+                } catch(e) {}
+            }
         }
     } catch(e) {}
     return null;
