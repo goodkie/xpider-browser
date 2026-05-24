@@ -227,7 +227,7 @@ function updateRealTimeStatus(data) {
         const statusLabel = document.querySelector('[data-i18n="status_finished"]');
         if (statusLabel) {
             const lang = document.getElementById('language-select')?.value || 'en';
-            const dict = i18nData[lang] || i18nData['en'] || {};
+            const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
             let text = dict['status_finished'] || 'Campaign Status: {count} sent';
             
             const parts = text.split('{count}');
@@ -254,7 +254,7 @@ function updateRealTimeStatus(data) {
         const countDisplay = document.getElementById('url-count-display');
         if (countDisplay) {
             const lang = document.getElementById('language-select')?.value || 'en';
-            const dict = i18nData[lang] || i18nData['en'] || {};
+            const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
             const remainingLabel = dict.remaining_suffix || 'remaining';
             countDisplay.textContent = `${remainingTargets} (${remainingLabel}) / ${totalTargets} URLs`;
         }
@@ -270,7 +270,7 @@ function refreshStatusDetailUI() {
     if (!statusDetail) return;
 
     const lang = document.getElementById('language-select')?.value || 'en';
-    const dict = i18nData[lang] || i18nData['en'] || {};
+    const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
     const suffix = dict.remaining_suffix || 'remaining.';
     
     // [v2.8.9] Simplified UI: Only show remaining count, remove log noise
@@ -285,7 +285,7 @@ function updateSpeedLabel() {
     const slider = document.getElementById('delay-input');
     const display = document.getElementById('speed-value-display');
     const lang = document.getElementById('language-select')?.value || 'en';
-    const dict = i18nData[lang] || i18nData['en'] || {};
+    const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
     
     if (!slider || !display) return;
     

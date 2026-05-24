@@ -301,7 +301,7 @@ class BingMapsBulletproofScraper {
     const existing = document.getElementById('xpider-onboarding-banner');
     if (existing) existing.remove();
     const dict = {
-      ko: { title: '빙맵 비즈니스 탐색 준비!', desc: '사이드바에서 [탐색 시작] 버튼을 누르세요.' },
+      ko: { title: 'Bing Maps Business Finder Ready!', desc: 'Click [Start Scraping] in the side panel.' },
       en: { title: 'Bing Maps Business Finder Ready!', desc: 'Click [Start Scraping] in the side panel.' },
     };
     const text = dict[lang] || dict['en'];
