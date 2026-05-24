@@ -48,13 +48,31 @@ window.onerror = function(msg, url, line) {
     return false;
 };
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
+    // ── [VITAL] Step 0: Register messaging listener IMMEDIATELY and SYNCHRONOUSLY
+    // Ensures that we never miss SENDER_LOG or UPDATE_STATS events, even if translations or settings load slowly.
+    try {
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            if (request.action === 'SENDER_LOG') {
+                addLog(request.message, request.logType);
+            } else if (request.action === 'UPDATE_STATS') {
+                updateRealTimeStatus(request.data);
+            }
+        });
+        console.log("✅ [Popup] Real-time messaging listener registered.");
+    } catch(e) { console.error('[Popup] Fatal: onMessage listener failed:', e); }
+
     // ── Step 1: Bind ALL events FIRST (no async, cannot fail) ──
     try { bindEvents(); } catch(e) { console.error('[Popup] bindEvents failed:', e); }
     
     // ── Step 2: Connect to runtime (non-critical, ignore errors) ──
     try { chrome.runtime.connect({ name: 'xpider_popup' }); } catch(e) {}
 
+    // Execute all asynchronous/slower initializations in background to prevent hanging
+    initializeAsyncComponents();
+});
+
+async function initializeAsyncComponents() {
     // ── Step 3: Load localizer ──
     try { await initLocalizer(); } catch(e) { console.error('[Popup] initLocalizer failed:', e); }
 
@@ -70,17 +88,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             chrome.runtime.sendMessage({ action: 'UI_HEARTBEAT' }).catch(() => {});
         }, 30000);
     } catch(e) {}
-
-    // ── Step 7: Real-time log listener ──
-    try {
-        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-            if (request.action === 'SENDER_LOG') {
-                addLog(request.message, request.logType);
-            } else if (request.action === 'UPDATE_STATS') {
-                updateRealTimeStatus(request.data);
-            }
-        });
-    } catch(e) { console.error('[Popup] onMessage listener failed:', e); }
 
     // ── Step 8: Speed slider ──
     try {
@@ -153,7 +160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ── Step 12: Pulse check ──
     try { startPulseCheck(); } catch(e) {}
-});
+}
 
 async function initLocalizer() {
     // Wait a bit to ensure translations.js is parsed if needed
