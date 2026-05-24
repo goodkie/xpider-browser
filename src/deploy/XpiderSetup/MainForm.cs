@@ -433,7 +433,7 @@ namespace XpiderSetup
         private async void BtnExtract_Click(object sender, EventArgs e)
         {
             string dir = txtPath.Text.Trim();
-            if (string.IsNullOrEmpty(dir)) { using (var dlg = new AlertDialog("XPIDER Setup", GetStr("pathEmpty"), regFont, boldFont)) { dlg.ShowDialog(this); } return; }
+            if (string.IsNullOrEmpty(dir)) { using (var alertDlg = new AlertDialog("XPIDER Setup", GetStr("pathEmpty"), regFont, boldFont)) { alertDlg.ShowDialog(this); } return; }
 
             if (Directory.Exists(dir) && Directory.GetFileSystemEntries(dir).Length > 0)
             {
@@ -457,7 +457,7 @@ namespace XpiderSetup
                         string enteredName = dlg.InputText;
                         if (string.IsNullOrEmpty(enteredName) || enteredName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
                         {
-                            using (var dlg = new AlertDialog("XPIDER Setup", GetStr("invalidFolder"), regFont, boldFont)) { dlg.ShowDialog(this); }
+                            using (var alertDlg = new AlertDialog("XPIDER Setup", GetStr("invalidFolder"), regFont, boldFont)) { alertDlg.ShowDialog(this); }
                             return;
                         }
                         dir = Path.Combine(parentDir, enteredName);
