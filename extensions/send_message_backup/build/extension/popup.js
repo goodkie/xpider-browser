@@ -358,6 +358,12 @@ function bindEvents() {
             if (e.key === 'Enter') addSingleUrl();
         });
     }
+
+    // Clear List Button
+    const clearListBtn = document.getElementById('clear-list-btn');
+    if (clearListBtn) {
+        clearListBtn.addEventListener('click', clearCampaignQueue);
+    }
 }
 
 function toggleCaptchaApiVisibility() {
@@ -1179,4 +1185,46 @@ async function loadSettings() {
     
     // [v1.7.0] Populate template library
     await updateTemplateDropdown();
+}
+
+async function clearCampaignQueue() {
+    // 1. Reset campaign queue and counts
+    campaignQueue = [];
+    totalTargets = 0;
+    successCount = 0;
+    remainingTargets = 0;
+    
+    // 2. Hide file info and preview lists
+    const fileInfo = document.getElementById('file-info');
+    if (fileInfo) fileInfo.classList.add('hidden');
+    
+    const previewList = document.getElementById('file-urls-preview');
+    if (previewList) previewList.classList.add('hidden');
+    
+    const previewContainer = document.getElementById('preview-list');
+    if (previewContainer) previewContainer.innerHTML = '';
+    
+    // 3. Clear file input
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) fileInput.value = '';
+    
+    const nameDisplay = document.getElementById('filename-display');
+    if (nameDisplay) nameDisplay.textContent = 'No file selected';
+
+    const countDisplay = document.getElementById('url-count-display');
+    if (countDisplay) countDisplay.textContent = '0 URLs found';
+    
+    // 4. Update UI counts and progress
+    updateRealTimeStatus({ successCount: 0, remainingCount: 0 });
+    updateProgress(0);
+    
+    // 5. Clear Storage
+    await chrome.storage.local.set({
+        xpider_queue: [],
+        xpider_total: 0,
+        xpider_success: 0
+    });
+    
+    // 6. Log success
+    addLog("Business URLs list cleared.", "stop");
 }

@@ -64,7 +64,8 @@ var I18N_DATA = {
         "msg_tpl_saved": "Template saved!",
         "msg_tpl_deleted": "Template deleted.",
         "remaining_suffix": "remaining.",
-        "preview_header": "Uploaded URLs:"
+        "preview_header": "Uploaded URLs:",
+        "btn_clear_list": "Clear List"
     },
     "ko": {
         "app_title": "XPIDER AutoForm Sender Pro",
@@ -131,7 +132,8 @@ var I18N_DATA = {
         "msg_tpl_saved": "템플릿이 저장되었습니다!",
         "msg_tpl_deleted": "템플릿이 삭제되었습니다.",
         "remaining_suffix": "남음.",
-        "preview_header": "업로드된 URL 목록:"
+        "preview_header": "업로드된 URL 목록:",
+        "btn_clear_list": "리스트 초기화"
     },
     "ja": {
         "app_title": "XPIDER AutoForm Sender Pro",
@@ -170,7 +172,8 @@ var I18N_DATA = {
         "captcha_popup_title": "キャプチャ検出",
         "captcha_popup_msg": "解決後、自動的に再開されます。",
         "msg_saved": "✅ 保存完了！",
-        "remaining_suffix": "残り"
+        "remaining_suffix": "残り",
+        "btn_clear_list": "リスト初期化"
     },
     "zh": {
         "app_title": "XPIDER AutoForm Sender Pro",
@@ -229,7 +232,8 @@ var I18N_DATA = {
         "label_saved_lists": "管理已保存列表",
         "btn_delete_list": "🗑️ 删除列表",
         "msg_list_deleted": "列表已成功删除。",
-        "remaining_suffix": "剩余"
+        "remaining_suffix": "剩余",
+        "btn_clear_list": "清除列表"
     }
     // Spanish, German, French, Italian, Portuguese, Indonesian sections can be added similarly
 };

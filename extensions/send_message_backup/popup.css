@@ -1160,3 +1160,34 @@ body.template-active .action-buttons {
 .file-urls-preview .preview-item:hover {
     background: rgba(59, 130, 246, 0.1);
 }
+
+.file-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.file-info-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.clear-btn-premium {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clear-btn-premium:hover {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}

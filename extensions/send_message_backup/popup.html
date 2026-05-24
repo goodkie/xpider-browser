@@ -60,8 +60,11 @@
                         <input type="file" id="file-input" accept=".csv,.txt" hidden>
                     </label>
                     <div id="file-info" class="file-info hidden">
-                        <span id="filename-display">No file selected</span>
-                        <span id="url-count-display">0 URLs found</span>
+                        <div class="file-info-text">
+                            <span id="filename-display">No file selected</span>
+                            <span id="url-count-display">0 URLs found</span>
+                        </div>
+                        <button id="clear-list-btn" class="clear-btn-premium" data-i18n="btn_clear_list">Clear List</button>
                     </div>
                     <div id="file-urls-preview" class="file-urls-preview hidden">
                         <div class="preview-header" data-i18n="preview_header">Uploaded URLs:</div>

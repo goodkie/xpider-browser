@@ -306,28 +306,44 @@ window.addEventListener('message', (event) => {
 });
 
 // Always override onMessage to ensure our custom IPC bridge is used instead of any half-implemented native onMessage APIs
+const runtimeOnMessageCallbacks = [];
 window.chrome.runtime.onMessage = {
     addListener: (callback) => {
-        // 1. Direct IPC listener
-        ipcRenderer.on('xpider-ext-runtime-on-message', (event, message) => {
+        if (typeof callback === 'function' && !runtimeOnMessageCallbacks.includes(callback)) {
+            runtimeOnMessageCallbacks.push(callback);
+        }
+    },
+    removeListener: (callback) => {
+        const idx = runtimeOnMessageCallbacks.indexOf(callback);
+        if (idx > -1) {
+            runtimeOnMessageCallbacks.splice(idx, 1);
+        }
+    }
+};
+
+// Direct IPC listener - only registered ONCE globally
+ipcRenderer.on('xpider-ext-runtime-on-message', (event, message) => {
+    runtimeOnMessageCallbacks.forEach(cb => {
+        try {
+            cb(message, { id: 'xpider-ext' }, () => {});
+        } catch(e) {
+            console.error('[XPIDER-BRIDGE] Error in onMessage callback:', e);
+        }
+    });
+});
+
+// PostMessage bridge listener (relayed from renderer_ui.js via executeJavaScript) - only registered ONCE globally
+window.addEventListener('message', (e) => {
+    if (e.data && e.data.type === 'XPIDER_EVENT' && e.data.name === 'runtime-on-message') {
+        runtimeOnMessageCallbacks.forEach(cb => {
             try {
-                callback(message, { id: 'xpider-ext' }, () => {});
-            } catch(e) {
-                console.error('[XPIDER-BRIDGE] Error in onMessage listener:', e);
-            }
-        });
-        // 2. PostMessage bridge listener (relayed from renderer_ui.js via executeJavaScript)
-        window.addEventListener('message', (e) => {
-            if (e.data && e.data.type === 'XPIDER_EVENT' && e.data.name === 'runtime-on-message') {
-                try {
-                    callback(e.data.data, { id: 'xpider-ext' }, () => {});
-                } catch(err) {
-                    console.error('[XPIDER-BRIDGE] Error in postMessage runtime listener:', err);
-                }
+                cb(e.data.data, { id: 'xpider-ext' }, () => {});
+            } catch(err) {
+                console.error('[XPIDER-BRIDGE] Error in postMessage runtime callback:', err);
             }
         });
     }
-};
+});
 
 // ─── CHROME TABS BRIDGE ─────────────────────────────────────
 if (!window.chrome.tabs) {
