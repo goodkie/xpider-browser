@@ -655,6 +655,7 @@ let _vpnIsAutoSelecting = false;
 const _activeTestServers = new Set();
 let _vpnActiveScanToken = 0;
 let _isConnectingLock = false;
+let _vpnLogHistory = [];
 
 function _vpnFlag(cc) {
   if (!cc) return '🌐';
@@ -662,7 +663,13 @@ function _vpnFlag(cc) {
 }
 
 function _broadcastVPNLog(type, msg) {
-  _vpnState.logEvent = { type, message: msg };
+  const time = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+  const logObj = { type, message: msg, time };
+  _vpnLogHistory.push(logObj);
+  if (_vpnLogHistory.length > 200) _vpnLogHistory.shift();
+
+  _vpnState.logEvent = logObj;
+  _vpnState.logHistory = _vpnLogHistory;
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('xpider-vpn-state', _vpnState);
   }
@@ -775,7 +782,18 @@ async function _isProxyClean(host, port, username, password) {
     const response = await net.fetch(testUrl, {
       session: tempSession,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1'
       }
     });
     
@@ -805,9 +823,19 @@ async function _isProxyClean(host, port, username, password) {
 
 async function _connectProxyInternal(server) {
   try {
+    _broadcastVPNLog('SYSTEM', 'Clearing browser cache, cookies, and local storages to avoid CAPTCHA persistence...');
+    const { session: electronSession } = require('electron');
+    
+    // Purge cookies, cache, localstorage to bypass persistent captcha sessions
+    await electronSession.defaultSession.clearStorageData({
+      storages: ['cookies', 'localstorage', 'shadercache', 'cachestorage', 'serviceworkers', 'websql', 'indexdb'],
+      quotas: ['temporary', 'persistent', 'syncable']
+    });
+    await electronSession.defaultSession.clearCache();
+    _broadcastVPNLog('SYSTEM', 'Browser session fully cleaned!');
+
     await _stopLocalProxy();
     const localPort = await _startLocalProxy(server.host, server.port, server.username, server.password);
-    const { session: electronSession } = require('electron');
     await electronSession.defaultSession.setProxy({
       proxyRules: `http://127.0.0.1:${localPort}`,
       proxyBypassRules: '<local>',
@@ -1094,6 +1122,7 @@ ipcMain.handle('xpider-vpn-hard-reset', async () => {
     extStorage.server = null;
     saveExtStorage();
     
+    _vpnLogHistory = []; // Reset history
     log.info(`[VPN] Hard reset completed — closed ${closedCount} active test relays.`);
     _broadcastVPNLog('SYSTEM', `Hard reset complete! Terminated ${closedCount} active test relay servers.`);
     _broadcastVPNLog('SYSTEM', 'Cleaned all Chromium proxy session rules.');
@@ -1135,7 +1164,9 @@ ipcMain.handle('xpider-vpn-disconnect', async () => {
   }
 });
 
-ipcMain.handle('xpider-vpn-get-state', async () => _vpnState);
+ipcMain.handle('xpider-vpn-get-state', async () => {
+  return { ..._vpnState, logHistory: _vpnLogHistory };
+});
 // ─────────────────────────────────────────────────────────────────────────────
 
 

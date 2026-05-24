@@ -25,10 +25,10 @@ async function getProxyList() {
   }));
 }
 
-function addLog(type, msg) {
+function addLog(type, msg, customTime) {
   const container = document.getElementById('logs-container');
   if (!container) return;
-  const time = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+  const time = customTime || new Date().toLocaleTimeString('ko-KR', { hour12: false });
   const logLine = document.createElement('div');
   logLine.style.marginBottom = '2px';
   
@@ -302,7 +302,15 @@ window.addEventListener('message', (evt) => {
     
     // Add real-time log event to console
     if (state && state.logEvent) {
-      addLog(state.logEvent.type, state.logEvent.message);
+      addLog(state.logEvent.type, state.logEvent.message, state.logEvent.time);
+    } else if (state && state.logHistory && logsContainer) {
+      const currentLogCount = logsContainer.querySelectorAll('div').length;
+      if (currentLogCount <= 1) {
+        logsContainer.innerHTML = '';
+        state.logHistory.forEach(h => {
+          addLog(h.type, h.message, h.time);
+        });
+      }
     }
   }
 });
@@ -320,6 +328,13 @@ async function init() {
 
   // 2. main.js에서 실제 VPN 상태 확인 (스토리지와 싱크)
   const vpnState = await xpiderInvoke('xpider-vpn-get-state', {});
+  if (vpnState && vpnState.logHistory && logsContainer) {
+    logsContainer.innerHTML = '';
+    vpnState.logHistory.forEach(h => {
+      addLog(h.type, h.message, h.time);
+    });
+  }
+
   if (vpnState && vpnState.connected && vpnState.server) {
     connected = true;
     selected  = vpnState.server;
