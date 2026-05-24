@@ -934,7 +934,7 @@ document.addEventListener('DOMContentLoaded', () => {
     displayData.forEach(business => {
       const row = document.createElement('tr');
       const emailStatus = business.email === 'Pending Stage 2'
-        ? `<em style="color:#f59e0b;">${lang === 'ko' ? '수집 중...' : i18n('status_active', lang)}</em>`
+        ? `<em style="color:#f59e0b;">Scanning...</em>`
         : (business.email && business.email !== 'N/A' && business.email !== 'Not Found'
             ? `<a href="mailto:${business.email}" style="color:#10b981;text-decoration:none;" title="${business.email}">${business.email.length > 22 ? business.email.substring(0,20)+'...' : business.email}</a>`
             : (business.email || 'N/A'));
@@ -964,7 +964,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setUIStatus(active, lang = currentLang) {
-    statusBadge.innerText = active ? i18n('status_active', lang) : i18n('status_idle', lang);
+    statusBadge.innerText = active ? i18n('status_active', 'en') : i18n('status_idle', 'en');
     statusBadge.className = active ? 'status-badge active' : 'status-badge';
     startBtn.disabled = active;
     stopBtn.disabled = !active;

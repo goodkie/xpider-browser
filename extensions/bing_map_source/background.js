@@ -109,7 +109,7 @@ function isBlacklisted(name) {
 function handleNewLead(lead) {
   // ★ 블랙리스트 필터링: UI 컨트롤 버튼명 등 잘못된 업체명 제외
   if (isBlacklisted(lead.name)) {
-    console.log(`[BACKGROUND] 블랙리스트 필터: "${lead.name}" 제외됨`);
+    console.log(`[BACKGROUND] Blacklist Filter: "${lead.name}" excluded`);
     return;
   }
 
@@ -345,13 +345,13 @@ async function startDeepSearch(hl) {
   );
 
   if (leadsToProcess.length === 0) {
-    sendLog('처리할 리드가 없습니다.');
+    sendLog('No leads to process.');
     isFindingEmails = false;
     chrome.runtime.sendMessage({ action: 'emailCheckStatus', finished: true }).catch(() => {});
     return;
   }
 
-  sendLog(`Stage 2 시작: ${leadsToProcess.length}개 웹사이트 순차 처리...`);
+  sendLog(`Starting Stage 2: Processing ${leadsToProcess.length} websites sequentially...`);
   chrome.runtime.sendMessage({ action: 'emailCheckStatus', total: leadsToProcess.length, current: 0 }).catch(() => {});
 
   let processedCount = 0;
@@ -361,15 +361,15 @@ async function startDeepSearch(hl) {
     processedCount++;
 
     try {
-      sendLog(`\n[${processedCount}/${leadsToProcess.length}] ▶ 처리 중: "${lead.name}"`);
+      sendLog(`\n[${processedCount}/${leadsToProcess.length}] ▶ Processing: "${lead.name}"`);
 
       // ══ STEP 1: 웹사이트가 없으면 Bing 검색으로 찾기 ══
       if (!lead.website || lead.website === 'N/A') {
-        sendLog(`  → [STEP 1] 웹사이트 탐색 중 (Bing 검색)...`);
+        sendLog(`  → [STEP 1] Searching for website (Bing Search)...`);
         chrome.runtime.sendMessage({
           action: 'emailCheckStatus',
           total: leadsToProcess.length, current: processedCount,
-          statusText: `[${processedCount}/${leadsToProcess.length}] 웹사이트 탐색 중... "${lead.name}"`
+          statusText: `[${processedCount}/${leadsToProcess.length}] Searching website... "${lead.name}"`
         }).catch(() => {});
 
         const searchKw = hl === 'ko'
@@ -380,7 +380,7 @@ async function startDeepSearch(hl) {
 
         if (searchResult.homepage) {
           lead.website = searchResult.homepage;
-          sendLog(`  → 웹사이트 발견: ${lead.website}`);
+          sendLog(`  → Website discovered: ${lead.website}`);
         }
         if (searchResult.emails && (!lead.email || lead.email === 'Pending Stage 2')) lead.email = searchResult.emails;
         if (searchResult.phone && (!lead.phone || lead.phone === 'N/A')) lead.phone = searchResult.phone;
@@ -409,11 +409,11 @@ async function startDeepSearch(hl) {
       let contactLinksToVisit = [];
 
       if (lead.website && lead.website !== 'N/A') {
-        sendLog(`  → [STEP 2] 홈페이지 로드: ${lead.website}`);
+        sendLog(`  → [STEP 2] Loading homepage: ${lead.website}`);
         chrome.runtime.sendMessage({
           action: 'emailCheckStatus',
           total: leadsToProcess.length, current: processedCount,
-          statusText: `[${processedCount}/${leadsToProcess.length}] 홈페이지 스캔 중... "${lead.name}"`
+          statusText: `[${processedCount}/${leadsToProcess.length}] Scanning homepage... "${lead.name}"`
         }).catch(() => {});
 
         const homepageData = await scanPageInBrowser(lead.website, 5000);
@@ -426,7 +426,7 @@ async function startDeepSearch(hl) {
 
         // 홈페이지에서 찾은 콘텍트 링크
         const foundLinks = (homepageData.contactLinks || []).slice(0, 5);
-        sendLog(`  → 홈페이지 결과: 이메일(${allEmails.size}개), 콘텍트링크(${foundLinks.length}개), 소셜(${allSocials.size}개)`);
+        sendLog(`  → Homepage results: Emails(${allEmails.size}), Contact links(${foundLinks.length}), Socials(${allSocials.size})`);
 
         if (foundLinks.length > 0) {
           contactLinksToVisit = foundLinks;
@@ -435,13 +435,13 @@ async function startDeepSearch(hl) {
           const base = lead.website.replace(/\/+$/, '').split('?')[0];
           const candidates = ['/contact', '/contact-us', '/contactus', '/about', '/about-us', '/get-in-touch', '/info'];
           contactLinksToVisit = candidates.map(p => base + p);
-          sendLog(`  → 콘텍트 링크 미발견 → 공통 URL 패턴 ${contactLinksToVisit.length}개 시도`);
+          sendLog(`  → No contact link found → Probing common URL patterns: ${contactLinksToVisit.length} attempts`);
         }
       }
 
       // ══ STEP 3: 콘텍트 페이지 순차 방문 → 이메일/주소/소셜 수집 → 다음 웹사이트 ══
       if (contactLinksToVisit.length > 0) {
-        sendLog(`  → [STEP 3] 콘텍트 페이지 ${contactLinksToVisit.length}개 순차 방문 시작`);
+        sendLog(`  → [STEP 3] Starting sequential visit of ${contactLinksToVisit.length} contact pages`);
       }
 
       for (let i = 0; i < contactLinksToVisit.length; i++) {
@@ -449,16 +449,16 @@ async function startDeepSearch(hl) {
 
         // 이미 이메일 발견 시 2개 이상이면 추가 방문 생략
         if (allEmails.size >= 1 && i >= 2) {
-          sendLog(`  → 이메일 수집 완료. 나머지 콘텍트 페이지 스킵.`);
+          sendLog(`  → Email collected. Skipping remaining contact pages.`);
           break;
         }
 
         const contactUrl = contactLinksToVisit[i];
-        sendLog(`  → [STEP 3-${i + 1}/${contactLinksToVisit.length}] 콘텍트 페이지 방문: ${contactUrl}`);
+        sendLog(`  → [STEP 3-${i + 1}/${contactLinksToVisit.length}] Visiting contact page: ${contactUrl}`);
         chrome.runtime.sendMessage({
           action: 'emailCheckStatus',
           total: leadsToProcess.length, current: processedCount,
-          statusText: `[${processedCount}/${leadsToProcess.length}] 콘텍트 페이지 스캔 (${i + 1}/${contactLinksToVisit.length})... "${lead.name}"`
+          statusText: `[${processedCount}/${leadsToProcess.length}] Scanning contact page (${i + 1}/${contactLinksToVisit.length})... "${lead.name}"`
         }).catch(() => {});
 
         const contactData = await scanPageInBrowser(contactUrl, 5000);
@@ -471,9 +471,9 @@ async function startDeepSearch(hl) {
           if (contactData.address && (!lead.address || lead.address === 'N/A')) lead.address = contactData.address;
 
           if (allEmails.size > prevEmailCount) {
-            sendLog(`  → ✅ 콘텍트 페이지에서 이메일 발견! 총 ${allEmails.size}개`);
+            sendLog(`  → ✅ Email discovered on contact page! Total: ${allEmails.size}`);
           } else {
-            sendLog(`  → 콘텍트 페이지에서 이메일 없음 (소셜: ${allSocials.size}개)`);
+            sendLog(`  → No email found on contact page (Socials: ${allSocials.size})`);
           }
         }
 
@@ -493,7 +493,7 @@ async function startDeepSearch(hl) {
       if (allSocials.size > 0) lead.social = Array.from(allSocials).join(', ');
       lead.status = 'complete';
 
-      sendLog(`  → [완료] "${lead.name}" | 이메일: ${lead.email} | 소셜: ${allSocials.size}개`);
+      sendLog(`  → [Finished] "${lead.name}" | Email: ${lead.email} | Socials: ${allSocials.size}`);
       updateStorage();
 
       chrome.runtime.sendMessage({
@@ -503,7 +503,7 @@ async function startDeepSearch(hl) {
       }).catch(() => {});
 
     } catch (err) {
-      sendLog(`오류 발생 "${lead.name}": ${err.message}`);
+      sendLog(`Error processing "${lead.name}": ${err.message}`);
     }
 
     // ★ 다음 웹사이트로 넘어가기 전 1.5초 대기
@@ -511,7 +511,7 @@ async function startDeepSearch(hl) {
   }
 
   isFindingEmails = false;
-  sendLog('\n✅ Stage 2 Discovery 완료!');
+  sendLog('\n✅ Stage 2 Discovery Completed!');
 
   // ★ 완료 신호 전 최종 데이터를 사이드패널에 명시적으로 전송 (캐시 보장)
   // emailCheckStatus finished보다 먼저 전송하여 캐시가 준비된 후 완료 UI가 업데이트되게 함

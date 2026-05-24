@@ -759,7 +759,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ─── [Stealth] 수집 시작 시 세션(쿠키, 캐시, 스토리지) 자동 초기화 연동 ───
         const autoClear = autoClearSessionToggle ? autoClearSessionToggle.checked : true;
         if (autoClear) {
-            addLog('🧹 [System] 구글 감지 우회를 위해 브라우저 세션 데이터(쿠키, 캐시, 스토리지)를 완전 초기화합니다...');
+            addLog('🧹 [System] Clearing session data (cookies, caches, storage) to prevent Google detection...');
             window.postMessage({
                 type: 'XPIDER_SEND',
                 channel: 'xpider-ext-clear-session'
@@ -767,7 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // 초기화 비동기 처리가 완료될 수 있도록 0.8초의 짧은 안전 대기 지연 적용
             await new Promise(r => setTimeout(r, 800));
-            addLog('✅ [System] 초기화 완료! 보안 무결성 상태로 안전하게 수집을 시작합니다.');
+            addLog('✅ [System] Initialization complete! Starting collection safely under high stealth.');
         }
 
         const lang = languageSelect.value;

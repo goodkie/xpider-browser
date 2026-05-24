@@ -357,7 +357,7 @@ ipcMain.handle('hot-update-start', async (event, { downloadUrl, dryRun = false }
   } catch (e) {
     log.error('[HotUpdate] Error:', e.message);
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('hot-update-progress', { phase: 'error', pct: 0, msg: `❌ 업데이트 오류: ${e.message}` });
+      mainWindow.webContents.send('hot-update-progress', { phase: 'error', pct: 0, msg: `❌ Update error: ${e.message}` });
     }
     return { ok: false, error: e.message };
   }

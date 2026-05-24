@@ -674,7 +674,7 @@ window.electronAPI.on('hot-update-progress', ({ phase, pct, msg }) => {
     showHotUpdatePanel(phase, pct, msg);
     if (phase === 'done' || phase === 'error') {
         const btn = document.getElementById('modal-hot-update-btn');
-        if (btn) { btn.disabled = false; btn.textContent = '지금 업데이트 (재시작 필요)'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Update Now (Restart Required)'; }
     }
 });
 
@@ -709,14 +709,14 @@ window.electronAPI.on('app-update-result', (result) => {
     } else {
         // 에러가 있으면 에러 토스트
         if (result.error) {
-            if (result.isManual) showToast(`업데이트 확인 실패: ${result.error}`);
+            if (result.isManual) showToast(`Update check failed: ${result.error}`);
             return;
         }
         // 수동 확인일 때만 "최신 버전" 토스트 표시 (자동 확인 시에는 조용히 종료)
         if (result.isManual) {
             const cur = result.currentVersion || '';
             const lat = result.latestVersion  || cur;
-            showToast(`최신 버전입니다. (현재: v${cur} / GitHub: v${lat})`, 5000);
+            showToast(`You are on the latest version. (Current: v${cur} / GitHub: v${lat})`, 5000);
         }
     }
 });
@@ -744,16 +744,16 @@ updateModal.onclick = (e) => { if (e.target === updateModal) updateModal.classLi
 const modalHotUpdateBtn = document.getElementById('modal-hot-update-btn');
 if (modalHotUpdateBtn) {
     modalHotUpdateBtn.onclick = async () => {
-        if (!_releaseUrl) { showToast('다운로드 URL을 찾을 수 없습니다.'); return; }
+        if (!_releaseUrl) { showToast('Download URL not found.'); return; }
         updateModal.classList.add('hidden');
         modalHotUpdateBtn.disabled = true;
-        modalHotUpdateBtn.textContent = '업데이트 중...';
-        showHotUpdatePanel('download', 0, '다운로드 준비 중...');
+        modalHotUpdateBtn.textContent = 'Updating...';
+        showHotUpdatePanel('download', 0, 'Preparing download...');
         const result = await window.electronAPI.invoke('hot-update-start', { downloadUrl: _releaseUrl, dryRun: false });
         if (result && !result.ok) {
-            showToast(`업데이트 실패: ${result.error || '알 수 없는 오류'}`);
+            showToast(`Update failed: ${result.error || 'Unknown error'}`);
             modalHotUpdateBtn.disabled = false;
-            modalHotUpdateBtn.textContent = '지금 업데이트 (재시작 필요)';
+            modalHotUpdateBtn.textContent = 'Update Now (Restart Required)';
         }
     };
 }
@@ -763,11 +763,11 @@ const modalTestUpdateBtn = document.getElementById('modal-test-update-btn');
 if (modalTestUpdateBtn) {
     modalTestUpdateBtn.onclick = async () => {
         updateModal.classList.add('hidden');
-        showHotUpdatePanel('download', 0, '더미 테스트 시작...');
-        showToast('더미 업데이트 테스트 시작!', 2000);
+        showHotUpdatePanel('download', 0, 'Starting test...');
+        showToast('Dummy update test started!', 2000);
         const result = await window.electronAPI.invoke('hot-update-start', { downloadUrl: '', dryRun: true });
         if (result && result.dryRun) {
-            showToast('더미 테스트 완료! 실제 업데이트 UI가 이렇게 동작합니다.', 4000);
+            showToast('Test complete! This is how the update UI works.', 4000);
         }
     };
 }
@@ -775,7 +775,7 @@ if (modalTestUpdateBtn) {
 // ─── Check for Updates 버튼 ───────────────────────────────────
 document.getElementById('check-update-btn').onclick = () => {
     settingsMenu.classList.add('hidden');
-    showToast('최신 버전을 확인 중입니다...', 4000);
+    showToast('Checking for updates...', 4000);
     window.electronAPI.send('check-for-updates');
 };
 

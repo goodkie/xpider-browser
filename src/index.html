@@ -125,20 +125,20 @@
                 </div>
                 <p class="modal-desc" id="modal-release-notes">Loading release notes...</p>
                 <div class="modal-actions">
-                    <!-- 핫 업데이트: 브라우저를 닫지 않고 백그라운드 업데이트 -->
-                    <button id="modal-hot-update-btn" class="modal-btn hot-update" title="브라우저를 닫지 않고 백그라운드에서 업데이트">지금 업데이트 (재시작 필요)</button>
-                    <button id="modal-skip-btn" class="modal-btn secondary">나중에</button>
+                    <!-- Hot Update: Background updates without closing browser -->
+                    <button id="modal-hot-update-btn" class="modal-btn hot-update" title="Update in the background without closing browser">Update Now (Restart Required)</button>
+                    <button id="modal-skip-btn" class="modal-btn secondary">Later</button>
                 </div>
             </div>
         </div>
 
-        <!-- 핫 업데이트 진행률 패널 -->
+        <!-- Hot Update Progress Panel -->
         <div id="hot-update-panel" class="hot-update-panel hidden">
             <div class="hu-header">
-                <span class="hu-title">업데이트 다운로드 중</span>
-                <button id="hu-close-btn" class="hu-close" title="닫기">✕</button>
+                <span class="hu-title">Downloading Update</span>
+                <button id="hu-close-btn" class="hu-close" title="Close">✕</button>
             </div>
-            <div class="hu-msg" id="hu-msg">준비 중...</div>
+            <div class="hu-msg" id="hu-msg">Preparing...</div>
             <div class="hu-bar-wrap">
                 <div class="hu-bar" id="hu-bar" style="width:0%"></div>
             </div>

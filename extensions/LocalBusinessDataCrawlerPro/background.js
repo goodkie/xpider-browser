@@ -1589,7 +1589,7 @@ async function deepScan3Stage(targets, sourceLabel, hl, gl, t, keyword = '', bas
                     engineName2 = (gl === 'kr' ? 'Google Korea' : 'Google');
                 }
 
-                sendLog(`🔎 [${index + 1}/${targets.length}] "① Google 검색 시작: ${bizName}" (${engineName2})`);
+                sendLog(`🔎 [${index + 1}/${targets.length}] "① Starting Google Search: ${bizName}" (${engineName2})`);
                 await checkLockdown();
                 // [v1.1.0 Pro] Thorough Mode인 경우 사용자가 확인할 수 있도록 탭을 화면에 표시
                 let scan = await scanPageInBrowser(url2, 5000, bizName, isThoroughMode);
@@ -1600,12 +1600,12 @@ async function deepScan3Stage(targets, sourceLabel, hl, gl, t, keyword = '', bas
                 // ─────────────────────────────────────────────────
                 if (isThoroughMode) {
                     // [v1.1.0 Pro] 사용자의 요청에 맞춘 순차적 고도화 수집 흐름 (구글 검색 -> 홈페이지 -> 컨택트)
-                    sendLog(`🔎 [${index + 1}/${targets.length}] "① 구글 검색으로 공식 웹사이트 탐색 시작: ${bizName}"`);
+                    sendLog(`🔎 [${index + 1}/${targets.length}] "① Searching Google for official website of: ${bizName}"`);
                     
                     if (scan.homepage) {
-                        sendLog(`  ✅ ① 웹사이트 주소 확보: ${scan.homepage}`);
+                        sendLog(`  ✅ ① Homepage discovered: ${scan.homepage}`);
                     } else {
-                        sendLog(`  ⚠️ ① Google 검색 결과에서 홈페이지 미발견 → 대체 검색 시도...`);
+                        sendLog(`  ⚠️ ① Homepage not found in Google -> Trying alternative engines...`);
                         const gTld2 = { kr: 'co.kr', jp: 'co.jp' }[gl] || 'com';
                         const fallbackQ = encodeURIComponent(`${bizName} official website`);
                         const urlFallback = `https://www.google.${gTld2}/search?q=${fallbackQ}&hl=${hl}&gl=${gl || 'us'}`;
@@ -1615,26 +1615,26 @@ async function deepScan3Stage(targets, sourceLabel, hl, gl, t, keyword = '', bas
                         const scanFb = await scanPageInBrowser(urlFallback, 4000, bizName, true);
                         if (scanFb.homepage) {
                             scan.homepage = scanFb.homepage;
-                            sendLog(`  ✅ ① 대체 검색으로 웹사이트 확보: ${scan.homepage}`);
+                            sendLog(`  ✅ ① Discovered website via alternative engine: ${scan.homepage}`);
                         } else {
-                            sendLog(`  ❌ ① 웹사이트를 찾지 못했습니다. ${bizName} 업체는 상세 수집을 건너뜁니다.`);
+                            sendLog(`  ❌ ① Website not found. Skipping detailed extraction for ${bizName}.`);
                         }
                     }
 
                     // ② 웹사이트 진입 및 컨택트 페이지 탐색 (상세 정보 추출)
                     if (scan.homepage) {
-                        sendLog(`🔍 [${index + 1}/${targets.length}] "② 웹사이트 진입 및 컨택트 페이지 탐색 중: ${scan.homepage}"`);
-                        await sendStatusDetail(`[Stage 3] 상세 정보 수집 중 [${index+1}/${scanCount}] ${bizName}`);
+                        sendLog(`🔍 [${index + 1}/${targets.length}] "② Navigating to site and searching contact pages: ${scan.homepage}"`);
+                        await sendStatusDetail(`[Stage 3] Extracting details [${index+1}/${scanCount}] ${bizName}`);
                         
                         // scrapeBusinessWebsite 내에서 홈페이지와 컨택트 페이지를 순차적으로 탐색하며 정보 추출
                         const webScan = await scrapeBusinessWebsite(scan.homepage, targetOption, hl, gl, 5000, true);
                         if (webScan) {
-                            if (webScan.emails) { scan.emails = webScan.emails; sendLog(`    📧 이메일 추출: ${webScan.emails}`); }
-                            if (webScan.phone)  { scan.phone  = webScan.phone;  sendLog(`    📞 전화번호 추출: ${webScan.phone}`); }
-                            if (webScan.address && webScan.address !== '-') { scan.address = webScan.address; sendLog(`    📍 주소 추출: ${webScan.address}`); }
-                            if (webScan.sns && webScan.sns.length > 0) { scan.sns = webScan.sns; sendLog(`    📱 SNS 링크 추출: ${webScan.sns.join(', ')}`); }
+                            if (webScan.emails) { scan.emails = webScan.emails; sendLog(`    📧 Extracted Email: ${webScan.emails}`); }
+                            if (webScan.phone)  { scan.phone  = webScan.phone;  sendLog(`    📞 Extracted Phone: ${webScan.phone}`); }
+                            if (webScan.address && webScan.address !== '-') { scan.address = webScan.address; sendLog(`    📍 Extracted Address: ${webScan.address}`); }
+                            if (webScan.sns && webScan.sns.length > 0) { scan.sns = webScan.sns; sendLog(`    📱 Extracted SNS: ${webScan.sns.join(', ')}`); }
                         } else {
-                            sendLog(`  ⚠️ ② 웹사이트 접속 실패 또는 정보를 찾을 수 없습니다.`);
+                            sendLog(`  ⚠️ ② Failed to connect to website or retrieve details.`);
                         }
                     }
 
@@ -1784,8 +1784,9 @@ async function getT() {
     const s = await chrome.storage.local.get(['language']);
     const lang = s.language || 'ko';
     return (key, params) => {
-        // [v26.0] Use I18N_DATA instead of translations
-        let str = (typeof I18N_DATA !== 'undefined' && I18N_DATA[lang] && I18N_DATA[lang][key]) ? I18N_DATA[lang][key] : key;
+        // For logs and stats, always force English translations
+        const targetLang = (key.startsWith('log_') || key.startsWith('status_') || key.startsWith('stats_')) ? 'en' : lang;
+        let str = (typeof I18N_DATA !== 'undefined' && I18N_DATA[targetLang] && I18N_DATA[targetLang][key]) ? I18N_DATA[targetLang][key] : key;
         if (params) {
             for (const [k, v] of Object.entries(params)) {
                 str = str.replace(`{${k}}`, v);

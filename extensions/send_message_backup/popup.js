@@ -183,7 +183,15 @@ function applyTranslations(lang) {
         let text = dict[key] || (i18nData['en'] ? i18nData['en'][key] : null) || key;
         
         if (key === 'status_finished') {
-            el.textContent = text.replace('{count}', successCount || 0);
+            const parts = text.split('{count}');
+            const prefixText = parts[0] ? parts[0].trim() : 'Campaign Status:';
+            const suffixText = parts[1] ? parts[1].trim() : 'sent';
+            
+            el.textContent = prefixText;
+            
+            const suffixLabel = document.querySelector('.status-suffix');
+            if (suffixLabel) suffixLabel.textContent = suffixText;
+            
             updateRealTimeStatus({ successCount });
         } else {
             el.textContent = text;
@@ -221,7 +229,17 @@ function updateRealTimeStatus(data) {
             const lang = document.getElementById('language-select')?.value || 'en';
             const dict = i18nData[lang] || i18nData['en'] || {};
             let text = dict['status_finished'] || 'Campaign Status: {count} sent';
-            statusLabel.textContent = text.replace('{count}', successCount);
+            
+            const parts = text.split('{count}');
+            const prefixText = parts[0] ? parts[0].trim() : 'Campaign Status:';
+            const suffixText = parts[1] ? parts[1].trim() : 'sent';
+            
+            statusLabel.textContent = prefixText;
+            
+            const suffixLabel = document.querySelector('.status-suffix');
+            if (suffixLabel) {
+                suffixLabel.textContent = suffixText;
+            }
         }
     }
     
