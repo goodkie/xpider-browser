@@ -433,7 +433,7 @@ namespace XpiderSetup
         private async void BtnExtract_Click(object sender, EventArgs e)
         {
             string dir = txtPath.Text.Trim();
-            if (string.IsNullOrEmpty(dir)) { MessageBox.Show(GetStr("pathEmpty"), "XPIDER Setup", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            if (string.IsNullOrEmpty(dir)) { using (var dlg = new AlertDialog("XPIDER Setup", GetStr("pathEmpty"), regFont, boldFont)) { dlg.ShowDialog(this); } return; }
 
             if (Directory.Exists(dir) && Directory.GetFileSystemEntries(dir).Length > 0)
             {
@@ -457,7 +457,7 @@ namespace XpiderSetup
                         string enteredName = dlg.InputText;
                         if (string.IsNullOrEmpty(enteredName) || enteredName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
                         {
-                            MessageBox.Show(GetStr("invalidFolder"), "XPIDER Setup", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            using (var dlg = new AlertDialog("XPIDER Setup", GetStr("invalidFolder"), regFont, boldFont)) { dlg.ShowDialog(this); }
                             return;
                         }
                         dir = Path.Combine(parentDir, enteredName);
@@ -790,6 +790,84 @@ namespace XpiderSetup
             base.OnShown(e);
             txtInput.Focus();
             txtInput.SelectAll();
+        }
+    }
+
+    public class AlertDialog : Form
+    {
+        [DllImport("user32.dll")]
+        static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
+        [DllImport("user32.dll")]
+        static extern bool ReleaseCapture();
+        private const int WM_NCLBUTTONDOWN = 0xA1;
+        private const int HTCAPTION = 2;
+
+        private readonly Color BG      = Color.FromArgb(13, 13, 13);
+        private readonly Color ACCENT  = Color.FromArgb(0, 229, 255);
+        private readonly Color ACCENT2 = Color.FromArgb(123, 97, 255);
+        private readonly Color TEXT    = Color.FromArgb(210, 210, 210);
+        private readonly Color BORDER  = Color.FromArgb(55, 55, 55);
+
+        private Label lblTitle;
+        private Label lblMessage;
+        private RoundedButton btnOk;
+
+        public AlertDialog(string title, string message, Font regFont, Font boldFont)
+        {
+            this.Text            = title;
+            this.Size            = new Size(400, 200);
+            this.FormBorderStyle = FormBorderStyle.None;
+            this.StartPosition   = FormStartPosition.CenterParent;
+            this.BackColor       = BG;
+            this.DoubleBuffered  = true;
+            this.Region          = new Region(MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 16));
+
+            lblTitle = new Label { Text = title.ToUpper(), Location = new Point(24, 24), Size = new Size(352, 28), Font = boldFont, ForeColor = ACCENT };
+            lblMessage = new Label { Text = message, Location = new Point(24, 60), Size = new Size(352, 60), Font = regFont, ForeColor = TEXT };
+
+            btnOk = new RoundedButton { Text = "OK", Location = new Point(100, 130), Size = new Size(200, 44), Radius = 10 };
+            btnOk.Font = boldFont;
+            btnOk.BackColor = ACCENT;
+            btnOk.ForeColor = Color.Black;
+            btnOk.HoverBackColor = ACCENT2;
+            btnOk.HoverForeColor = Color.White;
+            btnOk.Click += (s, e) => {
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            };
+
+            this.Controls.AddRange(new Control[] { lblTitle, lblMessage, btnOk });
+
+            this.MouseDown += Form_MouseDown;
+            lblTitle.MouseDown += Form_MouseDown;
+            lblMessage.MouseDown += Form_MouseDown;
+        }
+
+        private void Form_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                ReleaseCapture();
+                SendMessage(Handle, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+            }
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            using (var path = MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 16))
+            {
+                g.SetClip(path);
+                using (var br = new LinearGradientBrush(new Rectangle(0, 0, Width, 4), Color.FromArgb(200, 0, 229, 255), Color.FromArgb(200, 123, 97, 255), 0f))
+                    g.FillRectangle(br, 0, 0, Width, 4);
+                g.ResetClip();
+            }
+
+            using (var p = new Pen(Color.FromArgb(40, 40, 40), 2))
+                g.DrawPath(p, MainForm.GetRoundedPath(new Rectangle(1, 1, Width - 3, Height - 3), 15));
         }
     }
 }
