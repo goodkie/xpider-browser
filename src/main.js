@@ -675,8 +675,8 @@ function _broadcastVPNLog(type, msg) {
   }
 }
 
-async function _getWebShareProxyList() {
-  const WEBSHARE_API_URL = 'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=100';
+async function _getWebShareProxyList(page = 1) {
+  const WEBSHARE_API_URL = `https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=${page}&page_size=100`;
   const DEFAULT_WEBSHARE_API_KEY = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
   const apiKey = (extStorage.webshareApiKey ? extStorage.webshareApiKey.trim() : '') || DEFAULT_WEBSHARE_API_KEY;
   
@@ -760,8 +760,10 @@ function _startLocalProxyForTest(upHost, upPort, upUser, upPass) {
   });
 }
 
-async function _isProxyClean(host, port, username, password) {
+async function _isProxyClean(host, port, username, password, country) {
   let serverInstance = null;
+  const testQueries = ['weather', 'restaurants', 'hotels', 'local+business', 'coffee+shops', 'pizza+delivery'];
+  const query = testQueries[Math.floor(Math.random() * testQueries.length)];
   try {
     serverInstance = await _startLocalProxyForTest(host, port, username, password);
     const localPort = serverInstance.address().port;
@@ -790,8 +792,6 @@ async function _isProxyClean(host, port, username, password) {
     // Propagate proxy rules to Chromium network service
     await new Promise(r => setTimeout(r, 250));
     
-    const testQueries = ['weather', 'restaurants', 'hotels', 'local+business', 'coffee+shops', 'pizza+delivery'];
-    const query = testQueries[Math.floor(Math.random() * testQueries.length)];
     const testUrl = `https://www.google.com/search?q=${query}&hl=en`;
     
     const response = await net.fetch(testUrl, {
@@ -812,21 +812,44 @@ async function _isProxyClean(host, port, username, password) {
       }
     });
     
+    // HTTP Status Check
     if (response.status !== 200) {
+      _broadcastVPNLog('TEST-BLOCKED', `Proxy (${country} · ${host}) blocked | HTTP status ${response.status} (WAF block detected)`);
+      return false;
+    }
+    
+    // Redirection Check
+    const finalUrl = response.url ? response.url.toLowerCase() : '';
+    if (finalUrl.includes('sorry/index') || finalUrl.includes('google.com/sorry') || finalUrl.includes('captcha')) {
+      _broadcastVPNLog('TEST-BLOCKED', `Proxy (${country} · ${host}) blocked | Google sorry/index redirect detected`);
       return false;
     }
     
     const html = await response.text();
+    const bodyLength = html.length;
     const lowerHtml = html.toLowerCase();
+    
+    // Strict HTML Keywords Check
     const hasCaptcha = lowerHtml.includes('recaptcha') || 
                        lowerHtml.includes('g-recaptcha') || 
                        lowerHtml.includes('sorry/index') || 
                        lowerHtml.includes('unusual traffic') || 
                        lowerHtml.includes('captcha') || 
-                       lowerHtml.includes('/sorry/');
+                       lowerHtml.includes('/sorry/') ||
+                       lowerHtml.includes('automated queries') ||
+                       lowerHtml.includes('detected your computer') ||
+                       lowerHtml.includes('http 429') ||
+                       lowerHtml.includes('too many requests');
                         
-    return !hasCaptcha;
+    if (hasCaptcha) {
+      _broadcastVPNLog('TEST-BLOCKED', `Proxy (${country} · ${host}) blocked | WAF captcha indicators found in HTML`);
+      return false;
+    }
+    
+    _broadcastVPNLog('TEST-CLEAN', `Proxy (${country} · ${host}) is 100% CLEAN | HTTP 200 (${bodyLength} bytes) | Query: '${query}'`);
+    return true;
   } catch (err) {
+    _broadcastVPNLog('WARN', `Proxy (${country} · ${host}) test error: ${err.message}`);
     return false;
   } finally {
     if (serverInstance) {
@@ -893,26 +916,14 @@ async function _runAutoSelectVPN() {
   
   const currentScanToken = ++_vpnActiveScanToken;
   log.info('[VPN-AUTO] Starting CAPTCHA-free background proxy search...');
-  _broadcastVPNLog('SYSTEM', 'Auto-rotation triggered. Starting background proxy check...');
+  _broadcastVPNLog('SYSTEM', 'Auto-rotation triggered. Initiating deep WAF-bypass search...');
   
   try {
-    const servers = await _getWebShareProxyList();
-    servers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
-    
-    if (servers.length === 0) {
-      log.error('[VPN-AUTO] No servers found in WebShare API list.');
-      _broadcastVPNLog('WARN', 'No servers returned from WebShare API.');
-      _vpnIsAutoSelecting = false;
-      return;
-    }
-    
-    if (currentScanToken !== _vpnActiveScanToken) return;
-    
-    _broadcastVPNLog('API', `Loaded ${servers.length} proxies from WebShare. Testing for captcha-free connections...`);
-
     let cleanServer = null;
-    let index = 1;
-    for (const server of servers) {
+    let apiPage = 1;
+    let totalTested = 0;
+    
+    while (apiPage <= 3) {
       if (currentScanToken !== _vpnActiveScanToken || !extStorage.autoSelect || !_vpnState.connected) {
         log.info('[VPN-AUTO] Auto-select scan cancelled or superseded.');
         _broadcastVPNLog('SYSTEM', 'Auto-select scan cancelled or superseded.');
@@ -920,28 +931,57 @@ async function _runAutoSelectVPN() {
         return;
       }
       
-      _vpnState.statusMessage = `Testing [${index}/${servers.length}] ${server.country}...`;
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('xpider-vpn-state', _vpnState);
-      }
-      
-      _broadcastVPNLog('TEST', `Testing proxy [${index}/${servers.length}] (${server.country} · ${server.host}:${server.port})...`);
-      index++;
-      
-      const isClean = await _isProxyClean(server.host, server.port, server.username, server.password);
-      
-      if (currentScanToken !== _vpnActiveScanToken) {
-        _vpnIsAutoSelecting = false;
-        return;
-      }
-      
-      if (isClean) {
-        cleanServer = server;
-        _broadcastVPNLog('TEST-CLEAN', `Proxy (${server.country} · ${server.host}) is clean! No CAPTCHA detected.`);
+      _broadcastVPNLog('API', `Fetching proxy list page ${apiPage} (size: 100) from WebShare API...`);
+      let pageServers = [];
+      try {
+        pageServers = await _getWebShareProxyList(apiPage);
+        if (pageServers.length === 0) {
+          _broadcastVPNLog('WARN', `No more proxies returned from API page ${apiPage}.`);
+          break;
+        }
+      } catch(e) {
+        _broadcastVPNLog('WARN', `Failed to load API page ${apiPage}: ${e.message}`);
         break;
-      } else {
-        _broadcastVPNLog('TEST-BLOCKED', `Proxy (${server.country} · ${server.host}) failed CAPTCHA check.`);
       }
+      
+      pageServers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
+      _broadcastVPNLog('API', `Loaded ${pageServers.length} proxies from page ${apiPage}.`);
+      
+      let index = 1;
+      for (const server of pageServers) {
+        if (currentScanToken !== _vpnActiveScanToken || !extStorage.autoSelect || !_vpnState.connected) {
+          log.info('[VPN-AUTO] Auto-select scan cancelled or superseded.');
+          _broadcastVPNLog('SYSTEM', 'Auto-select scan cancelled or superseded.');
+          _vpnIsAutoSelecting = false;
+          return;
+        }
+        
+        totalTested++;
+        _vpnState.statusMessage = `Testing [P${apiPage} · ${index}/${pageServers.length}] ${server.country}...`;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+        }
+        
+        _broadcastVPNLog('TEST', `Testing [P${apiPage} · ${index}/${pageServers.length}] (${server.country} · ${server.host}:${server.port})...`);
+        index++;
+        
+        const isClean = await _isProxyClean(server.host, server.port, server.username, server.password, server.country);
+        
+        if (currentScanToken !== _vpnActiveScanToken) {
+          _vpnIsAutoSelecting = false;
+          return;
+        }
+        
+        if (isClean) {
+          cleanServer = server;
+          break;
+        }
+      }
+      
+      if (cleanServer) break;
+      
+      apiPage++;
+      _broadcastVPNLog('WARN', `Checked all 100 proxies on page ${apiPage - 1}. Advancing to API page ${apiPage}...`);
     }
     
     if (currentScanToken !== _vpnActiveScanToken) {
@@ -964,8 +1004,8 @@ async function _runAutoSelectVPN() {
         }
       }
     } else {
-      log.warn('[VPN-AUTO] No captcha-free proxy found. Keeping current.');
-      _broadcastVPNLog('WARN', 'Checked all servers. No CAPTCHA-free proxies found. Keeping current.');
+      log.warn('[VPN-AUTO] Checked all pages. No captcha-free proxy found. Keeping current.');
+      _broadcastVPNLog('WARN', `Checked a total of ${totalTested} proxies across all pages. None were CAPTCHA-free. Keeping current.`);
       _vpnState.statusMessage = 'Protected';
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('xpider-vpn-state', _vpnState);
@@ -1024,49 +1064,68 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
     _vpnIsAutoSelecting = false;
     
     log.info('[VPN] Auto-select enabled. Finding a captcha-free proxy first...');
-    _broadcastVPNLog('SYSTEM', 'Auto-select enabled. Initiating captcha-free search...');
+    _broadcastVPNLog('SYSTEM', 'Auto-select enabled. Initiating deep WAF-bypass search...');
 
     try {
-      const servers = await _getWebShareProxyList();
-      servers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
-      
-      if (currentScanToken !== _vpnActiveScanToken) {
-        _isConnectingLock = false;
-        return { ok: false, error: 'Connection process aborted by a newer request.' };
-      }
-      
-      _broadcastVPNLog('API', `Loaded ${servers.length} proxies from WebShare. Testing nodes...`);
-
       let cleanServer = null;
-      let index = 1;
-      for (const s of servers) {
+      let apiPage = 1;
+      let totalTested = 0;
+      
+      while (apiPage <= 3) {
         if (currentScanToken !== _vpnActiveScanToken) {
           _isConnectingLock = false;
           return { ok: false, error: 'Connection process aborted by a newer request.' };
         }
         
-        _vpnState.statusMessage = `Testing [${index}/${servers.length}] ${s.country}...`;
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('xpider-vpn-state', _vpnState);
-        }
-        
-        _broadcastVPNLog('TEST', `Testing proxy [${index}/${servers.length}] (${s.country} · ${s.host}:${s.port})...`);
-        index++;
-        
-        const isClean = await _isProxyClean(s.host, s.port, s.username, s.password);
-        
-        if (currentScanToken !== _vpnActiveScanToken) {
-          _isConnectingLock = false;
-          return { ok: false, error: 'Connection process aborted by a newer request.' };
-        }
-        
-        if (isClean) {
-          cleanServer = s;
-          _broadcastVPNLog('TEST-CLEAN', `Proxy (${s.country} · ${s.host}) is clean!`);
+        _broadcastVPNLog('API', `Fetching proxy list page ${apiPage} (size: 100) from WebShare API...`);
+        let pageServers = [];
+        try {
+          pageServers = await _getWebShareProxyList(apiPage);
+          if (pageServers.length === 0) {
+            _broadcastVPNLog('WARN', `No more proxies returned from API page ${apiPage}.`);
+            break;
+          }
+        } catch(e) {
+          _broadcastVPNLog('WARN', `Failed to load API page ${apiPage}: ${e.message}`);
           break;
-        } else {
-          _broadcastVPNLog('TEST-BLOCKED', `Proxy (${s.country} · ${s.host}) failed CAPTCHA check.`);
         }
+        
+        pageServers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
+        _broadcastVPNLog('API', `Successfully loaded ${pageServers.length} proxies from page ${apiPage}.`);
+        
+        let index = 1;
+        for (const s of pageServers) {
+          if (currentScanToken !== _vpnActiveScanToken) {
+            _isConnectingLock = false;
+            return { ok: false, error: 'Connection process aborted by a newer request.' };
+          }
+          
+          totalTested++;
+          _vpnState.statusMessage = `Testing [P${apiPage} · ${index}/${pageServers.length}] ${s.country}...`;
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+          }
+          
+          _broadcastVPNLog('TEST', `Testing [P${apiPage} · ${index}/${pageServers.length}] (${s.country} · ${s.host}:${s.port})...`);
+          index++;
+          
+          const isClean = await _isProxyClean(s.host, s.port, s.username, s.password, s.country);
+          
+          if (currentScanToken !== _vpnActiveScanToken) {
+            _isConnectingLock = false;
+            return { ok: false, error: 'Connection process aborted by a newer request.' };
+          }
+          
+          if (isClean) {
+            cleanServer = s;
+            break;
+          }
+        }
+        
+        if (cleanServer) break;
+        
+        apiPage++;
+        _broadcastVPNLog('WARN', `Checked all 100 proxies on page ${apiPage - 1}. Advancing to API page ${apiPage}...`);
       }
       
       if (currentScanToken !== _vpnActiveScanToken) {
@@ -1085,9 +1144,11 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
           return { ok: false, error: res.error };
         }
       } else {
-        _broadcastVPNLog('WARN', 'No CAPTCHA-free proxies found. Using fallback...');
-        if (servers.length > 0) {
-          const fallback = servers[0];
+        _broadcastVPNLog('WARN', `No CAPTCHA-free proxies found across ${totalTested} nodes. Using fallback...`);
+        // Fallback to first page, first server
+        const fallbackServers = await _getWebShareProxyList(1);
+        if (fallbackServers.length > 0) {
+          const fallback = fallbackServers[0];
           const res = await _connectProxyInternal(fallback);
           if (res.ok) {
             _startAutoSelectRotation();
