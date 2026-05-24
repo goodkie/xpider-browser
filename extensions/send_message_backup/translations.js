@@ -63,7 +63,8 @@ var I18N_DATA = {
         "label_select_template": "Select Template",
         "msg_tpl_saved": "Template saved!",
         "msg_tpl_deleted": "Template deleted.",
-        "remaining_suffix": "remaining."
+        "remaining_suffix": "remaining.",
+        "preview_header": "Uploaded URLs:"
     },
     "ko": {
         "app_title": "XPIDER AutoForm Sender Pro",
@@ -129,7 +130,8 @@ var I18N_DATA = {
         "label_select_template": "템플릿 선택",
         "msg_tpl_saved": "템플릿이 저장되었습니다!",
         "msg_tpl_deleted": "템플릿이 삭제되었습니다.",
-        "remaining_suffix": "남음."
+        "remaining_suffix": "남음.",
+        "preview_header": "업로드된 URL 목록:"
     },
     "ja": {
         "app_title": "XPIDER AutoForm Sender Pro",

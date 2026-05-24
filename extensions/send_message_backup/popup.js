@@ -441,6 +441,28 @@ function toggleCaptchaApiVisibility() {
     if (sttGroup) sttGroup.style.display = (enabled && isAudio) ? 'block' : 'none';
 }
 
+function renderUrlsPreview(urls) {
+    const previewArea = document.getElementById('file-urls-preview');
+    const previewList = document.getElementById('preview-list');
+    if (!previewArea || !previewList) return;
+
+    previewList.innerHTML = '';
+    if (!urls || urls.length === 0) {
+        previewArea.classList.add('hidden');
+        return;
+    }
+
+    urls.forEach(url => {
+        const div = document.createElement('div');
+        div.className = 'preview-item';
+        div.textContent = url;
+        div.title = url;
+        previewList.appendChild(div);
+    });
+
+    previewArea.classList.remove('hidden');
+}
+
 async function handleFileUpload(e) {
     e.preventDefault();
     const file = e.target.files ? e.target.files[0] : e.dataTransfer.files[0];
@@ -470,6 +492,9 @@ async function handleFileUpload(e) {
     
     // [v1.2.0] Save to Permanent Lists
     await saveListToStorage(file.name, campaignQueue);
+
+    // Show URLs Preview in UI
+    renderUrlsPreview(campaignQueue);
 
     chrome.storage.local.set({ 
         xpider_queue: campaignQueue,
@@ -530,6 +555,9 @@ async function updateSavedListsUI() {
             if (countDisplay) countDisplay.textContent = `${campaignQueue.length} URLs found`;
             document.getElementById('file-info').classList.remove('hidden');
             document.getElementById('status-box').classList.remove('hidden');
+
+            // Show URLs Preview in UI
+            renderUrlsPreview(campaignQueue);
             
             addLog(`Loaded saved list: ${list.name} (${list.urls.length} URLs)`, 'info');
             await chrome.storage.local.set({ xpider_queue: campaignQueue, xpider_success: 0, xpider_total: totalTargets });
