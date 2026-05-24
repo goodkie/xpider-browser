@@ -334,7 +334,7 @@ function bindEvents() {
     }
 
     // Persistence for Template
-    ['tpl-name', 'tpl-email', 'tpl-subject', 'tpl-message'].forEach(id => {
+    ['tpl-sender-name', 'tpl-name', 'tpl-email', 'tpl-subject', 'tpl-message'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', saveTemplate);
     });
@@ -519,6 +519,7 @@ async function saveTemplateChanges() {
     messageEl.value = message;
 
     const tpl = {
+        senderName: document.getElementById('tpl-sender-name').value,
         firstName: document.getElementById('tpl-first-name').value,
         lastName: document.getElementById('tpl-last-name').value,
         name: document.getElementById('tpl-name').value,
@@ -565,6 +566,7 @@ function downloadTemplateFile(tpl) {
     
     const content = `[XPIDER MESSAGE TEMPLATE]
 -----------------------------------------
+Sender Name:      ${tpl.senderName || 'N/A'}
 Target Full Name: ${tpl.name || 'N/A'}
 First Name:       ${tpl.firstName || 'N/A'}
 Last Name:        ${tpl.lastName || 'N/A'}
@@ -868,6 +870,7 @@ function addLog(msg, type = 'info', forcedTime = null) {
 
 function saveTemplate() {
     const tpl = {
+        senderName: document.getElementById('tpl-sender-name').value,
         firstName: document.getElementById('tpl-first-name').value,
         lastName: document.getElementById('tpl-last-name').value,
         name: document.getElementById('tpl-name').value,
@@ -958,6 +961,7 @@ function loadTemplateFromLibrary() {
         const history = data.xpider_export_history || [];
         const tpl = history[idx];
         if (tpl) {
+            document.getElementById('tpl-sender-name').value = tpl.senderName || '';
             document.getElementById('tpl-first-name').value = tpl.firstName || '';
             document.getElementById('tpl-last-name').value = tpl.lastName || '';
             document.getElementById('tpl-name').value = tpl.name || '';
@@ -1005,6 +1009,7 @@ function importMessageFromFile(event) {
                 }
 
                 // Precise Field extraction using Regex
+                const matchSenderName = line.match(/Sender Name:\s*(.*)/i);
                 const matchName = line.match(/Target Full Name:\s*(.*)/i);
                 const matchFirst = line.match(/First Name:\s*(.*)/i);
                 const matchLast = line.match(/Last Name:\s*(.*)/i);
@@ -1012,6 +1017,7 @@ function importMessageFromFile(event) {
                 const matchPhone = line.match(/Phone:\s*(.*)/i);
                 const matchSubject = line.match(/Subject:\s*(.*)/i);
 
+                if (matchSenderName) document.getElementById('tpl-sender-name').value = matchSenderName[1].trim();
                 if (matchName) document.getElementById('tpl-name').value = matchName[1].trim();
                 if (matchFirst) document.getElementById('tpl-first-name').value = matchFirst[1].trim();
                 if (matchLast) document.getElementById('tpl-last-name').value = matchLast[1].trim();
@@ -1040,6 +1046,7 @@ function importMessageFromFile(event) {
         // [v18.50.0] FIX: Do not call saveTemplateChanges here as it triggers 'Save As' again.
         // Instead, just sync the current data for the campaign.
         const tpl = {
+            senderName: document.getElementById('tpl-sender-name').value,
             firstName: document.getElementById('tpl-first-name').value,
             lastName: document.getElementById('tpl-last-name').value,
             name: document.getElementById('tpl-name').value,
@@ -1127,6 +1134,7 @@ async function loadSettings() {
 
     // Template
     if (data.xpider_tpl) {
+        if (document.getElementById('tpl-sender-name')) document.getElementById('tpl-sender-name').value = data.xpider_tpl.senderName || '';
         if (document.getElementById('tpl-first-name')) document.getElementById('tpl-first-name').value = data.xpider_tpl.firstName || '';
         if (document.getElementById('tpl-last-name')) document.getElementById('tpl-last-name').value = data.xpider_tpl.lastName || '';
         if (document.getElementById('tpl-name')) document.getElementById('tpl-name').value = data.xpider_tpl.name || '';
