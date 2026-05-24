@@ -507,11 +507,7 @@ function bindEvents() {
         clearListBtn.addEventListener('click', clearCampaignQueue);
     }
     
-    // Download Debug Logs
-    const downloadLogsBtn = document.getElementById('download-logs-btn');
-    if (downloadLogsBtn) {
-        downloadLogsBtn.addEventListener('click', downloadDebugLogs);
-    }
+
 }
 
 function toggleCaptchaApiVisibility() {
@@ -1380,43 +1376,4 @@ async function clearCampaignQueue() {
     addLog("Business URLs list cleared.", "stop");
 }
 
-async function downloadDebugLogs() {
-    try {
-        const data = await chrome.storage.local.get(['xpider_blackbox_logs', 'xpider_boot_step', 'xpider_boot_error', 'xpider_boot_ts']);
-        const logs = data.xpider_blackbox_logs || [];
-        
-        let fileContent = `==================================================\n`;
-        fileContent += `XPIDER AutoForm Sender Pro - Ultra Precision Debug Log\n`;
-        fileContent += `Exported at: ${new Date().toLocaleString()}\n`;
-        fileContent += `System version: 4.10.20\n`;
-        fileContent += `Campaign settings: Total: ${totalTargets} | Success: ${successCount} | Remaining: ${remainingTargets}\n`;
-        fileContent += `Boot step: ${data.xpider_boot_step || 'N/A'} (at ${data.xpider_boot_ts ? new Date(data.xpider_boot_ts).toLocaleString() : 'N/A'})\n`;
-        if (data.xpider_boot_error) {
-            fileContent += `Boot error: ${data.xpider_boot_error}\n`;
-        }
-        fileContent += `==================================================\n\n`;
-        
-        if (logs.length === 0) {
-            fileContent += `[System] No logs recorded in the current session yet.\n`;
-        } else {
-            logs.forEach(log => {
-                fileContent += `[${log.timestamp || 'N/A'}] [${(log.type || 'info').toUpperCase()}] ${log.message}\n`;
-            });
-        }
-        
-        const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `xpider_debug_logs_${Date.now()}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        addLog("✅ Ultra-precision debug logs exported successfully!", "success");
-    } catch (e) {
-        console.error('[Download Logs Error]', e);
-        alert(`Failed to export logs: ${e.message}`);
-    }
-}
+
