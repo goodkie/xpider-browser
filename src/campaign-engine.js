@@ -528,10 +528,15 @@ async function processTarget(targetUrl, template) {
 
         try {
             const baseUrl = new URL(targetUrl).origin;
-            sendLog(`🔍 [Step 1/4] Scanning target domain: ${baseUrl}...`, 'info');
+            sendLog(`--------------------------------------------------`, 'debug');
+            sendLog(`🚀 [START] Initiating contact flow for domain: ${baseUrl}`, 'start');
+            sendLog(`🔍 [Step 1/4] Phase: Search. Detecting contact form pages on ${baseUrl}...`, 'info');
 
             const paths = await findContactPages(baseUrl);
-            sendLog(`✅ [Step 1/4] Discovery completed. Candidates found (${paths.length}): ${paths.join(', ')}`, 'info');
+            sendLog(`📂 [Step 1/4] Discovery result: Found ${paths.length} candidate path(s) to scan.`, 'info');
+            paths.forEach((p, idx) => {
+                sendLog(`   📍 Path Candidate #${idx + 1}: ${baseUrl}${p}`, 'debug');
+            });
 
             if (state.cancelled) { done({ success: false, reason: 'CANCELLED' }); return; }
 
@@ -540,7 +545,8 @@ async function processTarget(targetUrl, template) {
             for (const path of paths) {
                 if (state.cancelled) break;
                 const contactUrl = baseUrl + path;
-                sendLog(`🔗 [Step 2/4] Navigating to page: ${contactUrl}...`, 'visit');
+                sendLog(`🔗 [Step 2/4] Phase: Web Request. Requesting XPIDER Tab creation...`, 'visit');
+                sendLog(`🌐 [Step 2/4] Target URL: ${contactUrl}`, 'visit');
 
                 let win = null; // Track BrowserWindow for cleanup
 
@@ -549,7 +555,7 @@ async function processTarget(targetUrl, template) {
 
                 if (!tabWC) {
                     // Fallback: BrowserWindow
-                    sendLog(`⚙️ [Step 2/4] XPIDER tab API unavailable. Falling back to background browser...`, 'debug');
+                    sendLog(`⚙️ [Step 2/4] Warning: XPIDER tab API returned null. Launching virtual browser fallback...`, 'debug');
                     try {
                         win = new BrowserWindow({
                             width: 1280, height: 800, show: true,
@@ -557,33 +563,35 @@ async function processTarget(targetUrl, template) {
                             webPreferences: { nodeIntegration: false, contextIsolation: true, webSecurity: false }
                         });
                         state.currentTabWC = win.webContents;
+                        sendLog(`🌐 [Step 2/4] Loading page in background virtual window...`, 'debug');
                         await win.loadURL(contactUrl, { userAgent: UA });
-                        await new Promise(r => setTimeout(r, 8000)); // Wix needs extra time
+                        sendLog(`⏳ [Step 2/4] Loading successful. Waiting 8.0s for Wix/CDN/AJAX assets to render...`, 'debug');
+                        await new Promise(r => setTimeout(r, 8000));
                         tabWC = win.webContents;
                     } catch(e) {
-                        sendLog(`⚠️ [Step 2/4] Window loading error: ${e.message}`, 'warning');
+                        sendLog(`❌ [Step 2/4] Virtual window load crashed: ${e.message}`, 'warning');
                         if (win && !win.isDestroyed()) try { win.close(); } catch(e2) {}
-                        continue; // Try next path immediately
+                        continue;
                     }
                 } else {
-                    // Wait for the XPIDER tab to finish loading (Wix needs ~6s)
-                    sendLog(`⏳ [Step 2/4] Waiting 6s for XPIDER tab scripts and frames initialization...`, 'debug');
+                    sendLog(`✅ [Step 2/4] XPIDER Tab successfully created with Native WebContents.`, 'info');
+                    sendLog(`⏳ [Step 2/4] Waiting 6.0s for browser scripts and frames to settle...`, 'debug');
                     await new Promise(r => setTimeout(r, 6000));
                     state.currentTabWC = tabWC;
                 }
 
                 if (!tabWC || tabWC.isDestroyed()) {
-                    sendLog(`⚠️ [Step 2/4] Connection lost for ${contactUrl}. Attempting next path...`, 'warning');
+                    sendLog(`⚠️ [Step 2/4] Connection dropped or tab lost during loading for ${contactUrl}. Retrying next candidate...`, 'warning');
                     if (win && !win.isDestroyed()) try { win.close(); } catch(e2) {}
                     continue;
                 }
 
-                sendLog(`✏️ [Step 3/4] Injecting Smart Form Filler Engine into all active frames...`, 'info');
+                sendLog(`✏️ [Step 3/4] Phase: Form Injection. Compiling and injecting Smart AI Form Filler Script...`, 'info');
                 try {
                     await injectIntoAllFrames(tabWC, getFormFillerScript(template));
-                    sendLog(`🚀 [Step 3/4] Smart Form Filler Engine successfully injected.`, 'info');
+                    sendLog(`🚀 [Step 3/4] Form Filler Script successfully loaded into all frame documents.`, 'info');
                 } catch(e) {
-                    sendLog(`⚠️ [Step 3/4] Injection failure: ${e.message}. Purging tab...`, 'warning');
+                    sendLog(`❌ [Step 3/4] Script Injection Error: ${e.message}. Closing current tab...`, 'warning');
                     const tempWin = win;
                     const tempTab = tabWC;
                     setTimeout(() => {
@@ -594,21 +602,28 @@ async function processTarget(targetUrl, template) {
                 }
 
                 // Poll for result in ALL frames (Wix may be in iframe, up to 25s)
-                sendLog(`🔄 [Step 4/4] Monitoring form submission & reCAPTCHA state...`, 'debug');
+                sendLog(`🔄 [Step 4/4] Phase: Process & Solve. Listening for AutoForm submission triggers...`, 'debug');
+                sendLog(`🤖 [Step 4/4] Activating CAPTCHA solving engine and form monitoring...`, 'debug');
                 let result = null;
                 for (let i = 0; i < 50; i++) {
                     await new Promise(r => setTimeout(r, 500));
                     if (tabWC.isDestroyed()) break;
                     result = await pollAllFrames(tabWC);
                     if (result) break;
+                    if (i > 0 && i % 10 === 0) {
+                        sendLog(`   ⏳ Monitoring frames activity... (${Math.round((i * 500)/1000)}s elapsed)`, 'debug');
+                    }
                 }
 
                 if (result && result.success) {
-                    sendLog(`✅ [Step 4/4] Success! Form submitted (${result.filled} fields matched & filled).`, 'success');
-                    // Keep the tab open briefly so user can see the confirmation
+                    sendLog(`🎉 [Step 4/4] SUCCESS! Message submitted! (${result.filled} form fields matched and filled).`, 'success');
+                    sendLog(`ℹ️ Submission report: ${JSON.stringify(result)}`, 'success');
+                    sendLog(`⏳ Keeping tab open for 5.0s for confirmation visual feedback...`, 'debug');
+                    
                     const tempWin = win;
                     const tempTab = tabWC;
                     setTimeout(() => {
+                        sendLog(`🧹 [Cleanup] Automatic tab close triggered for successful sender tab.`, 'debug');
                         if (tempWin && !tempWin.isDestroyed()) try { tempWin.close(); } catch(e) {}
                         if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab);
                     }, 5000);
@@ -616,8 +631,9 @@ async function processTarget(targetUrl, template) {
                     return;
                 } else {
                     const reason = result ? result.reason : 'NO_RESULT';
-                    sendLog(`⚠️ [Step 4/4] Path ${path} unsuccessful (Reason: ${reason}). Retrying next...`, 'warning');
-                    // ✅ Close tab/window immediately on failure
+                    sendLog(`⚠️ [Step 4/4] Form submission unsuccessful on path "${path}" (Reason: ${reason}).`, 'warning');
+                    sendLog(`🧹 [Cleanup] Automatic tab close triggered for unsuccessful sender tab.`, 'debug');
+                    
                     const tempWin = win;
                     const tempTab = tabWC;
                     setTimeout(() => {
@@ -627,10 +643,12 @@ async function processTarget(targetUrl, template) {
                 }
             }
 
-            sendLog(`❌ [Step 4/4] Campaign failed for ${baseUrl} (all paths exhausted).`, 'error');
+            sendLog(`❌ [END] All candidates exhausted. Form submission unsuccessful for domain: ${baseUrl}`, 'error');
+            sendLog(`--------------------------------------------------`, 'debug');
             done({ success: false, reason: 'EXHAUSTED' });
         } catch(e) {
-            sendLog(`❌ [System Error] Campaign crashed: ${e.message}`, 'error');
+            sendLog(`❌ [System Error] Campaign crashed during processTarget: ${e.message}`, 'error');
+            sendLog(`--------------------------------------------------`, 'debug');
             done({ success: false, reason: e.message });
         }
     });
@@ -668,8 +686,17 @@ async function runCampaign(urls, template, delayMs) {
         await cleanupAllCampaignTabs();
 
         if (state.queue.length > 0 && state.active) {
-            sendLog(`⏳ Waiting ${state.delayMs}ms before next target...`, 'debug');
-            await new Promise(r => setTimeout(r, state.delayMs));
+            const delaySec = Math.round(state.delayMs / 1000);
+            sendLog(`⏳ [Tempo] Cooling down for ${delaySec}s before advancing to the next business target...`, 'debug');
+            
+            // 1초 단위 실시간 카운트다운 로그 출력
+            for (let sec = delaySec; sec > 0; sec--) {
+                if (!state.active || state.cancelled) break;
+                if (sec <= 5 || sec % 5 === 0) {
+                    sendLog(`⏳ [Countdown] ${sec}s remaining...`, 'debug');
+                }
+                await new Promise(r => setTimeout(r, 1000));
+            }
         }
     }
 
