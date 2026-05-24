@@ -429,48 +429,25 @@ async function openInXpiderTab(contactUrl) {
 
     return new Promise(resolve => {
         let resolved = false;
-        const parsedUrl = new URL(contactUrl);
-        const hostname = parsedUrl.hostname;
-        const targetPath = parsedUrl.pathname.replace(/\/+$/, '') || '/';
-
-        // Domains/patterns that indicate CDN/worker frames - NOT the actual page
-        const CDN_BLOCKS = [
-            'parastorage.com', 'wixstatic.com', 'wix.com/_api',
-            'tpaWorker', 'worker?pageId', 'static.', '/_api/'
-        ];
-
-        const isRealPage = (u) => {
-            if (!u) return false;
-            try {
-                const parsed = new URL(u);
-                // Must be same hostname
-                if (!parsed.hostname.endsWith(hostname.replace(/^www\./, '')) &&
-                    !hostname.endsWith(parsed.hostname.replace(/^www\./,''))) return false;
-                // Must NOT be a CDN/worker URL
-                if (CDN_BLOCKS.some(b => u.includes(b))) return false;
-                return true;
-            } catch(e) { return false; }
-        };
 
         const timer = setTimeout(() => {
-            if (!resolved) { resolved = true; app.removeListener('web-contents-created', wcHandler); resolve(null); }
-        }, 8000);
+            if (!resolved) { 
+                resolved = true; 
+                app.removeListener('web-contents-created', wcHandler); 
+                resolve(null); 
+            }
+        }, 12000);
 
         const wcHandler = (event, wc) => {
-            const checkMatch = () => {
-                if (resolved) return;
-                try {
-                    const u = wc.getURL();
-                    if (isRealPage(u)) {
-                        resolved = true;
-                        clearTimeout(timer);
-                        app.removeListener('web-contents-created', wcHandler);
-                        resolve(wc);
-                    }
-                } catch(e) {}
-            };
-            wc.on('did-navigate', checkMatch);
-            wc.on('did-finish-load', checkMatch);
+            if (resolved) return;
+            try {
+                if (wc && !wc.isDestroyed() && wc.getType() === 'webview') {
+                    resolved = true;
+                    clearTimeout(timer);
+                    app.removeListener('web-contents-created', wcHandler);
+                    resolve(wc);
+                }
+            } catch(e) {}
         };
         app.on('web-contents-created', wcHandler);
 
@@ -559,36 +536,17 @@ async function processTarget(targetUrl, template) {
 
             if (state.cancelled) { done({ success: false, reason: 'CANCELLED' }); return; }
 
-            const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36';
-
             for (const path of paths) {
                 if (state.cancelled) break;
                 const contactUrl = baseUrl + path;
                 sendLog(`🔗 [Step 2/4] Navigating to page: ${contactUrl}...`, 'visit');
 
-                let win = null; // Track BrowserWindow for cleanup
-
-                // Try to open in XPIDER browser tab
+                // Try to open in XPIDER browser tab (100% inner tabs routing)
                 tabWC = await openInXpiderTab(contactUrl);
 
                 if (!tabWC) {
-                    // Fallback: BrowserWindow
-                    sendLog(`⚙️ [Step 2/4] XPIDER tab API unavailable. Falling back to background browser...`, 'debug');
-                    try {
-                        win = new BrowserWindow({
-                            width: 1280, height: 800, show: true,
-                            title: `XPIDER → ${baseUrl}`,
-                            webPreferences: { nodeIntegration: false, contextIsolation: true, webSecurity: false }
-                        });
-                        state.currentTabWC = win.webContents;
-                        await win.loadURL(contactUrl, { userAgent: UA });
-                        await new Promise(r => setTimeout(r, 8000)); // Wix needs extra time
-                        tabWC = win.webContents;
-                    } catch(e) {
-                        sendLog(`⚠️ [Step 2/4] Window loading error: ${e.message}`, 'warning');
-                        if (win && !win.isDestroyed()) try { win.close(); } catch(e2) {}
-                        continue; // Try next path immediately
-                    }
+                    sendLog(`⚠️ [Step 2/4] XPIDER tab creation timed out for ${contactUrl}. Trying next path...`, 'warning');
+                    continue; // 새 창을 절대 띄우지 않고 즉시 다음 path로 패스!
                 } else {
                     // Wait for the XPIDER tab to finish loading (Wix needs ~6s)
                     sendLog(`⏳ [Step 2/4] Waiting 6s for XPIDER tab scripts and frames initialization...`, 'debug');
@@ -598,7 +556,6 @@ async function processTarget(targetUrl, template) {
 
                 if (!tabWC || tabWC.isDestroyed()) {
                     sendLog(`⚠️ [Step 2/4] Connection lost for ${contactUrl}. Attempting next path...`, 'warning');
-                    if (win && !win.isDestroyed()) try { win.close(); } catch(e2) {}
                     continue;
                 }
 
@@ -610,10 +567,8 @@ async function processTarget(targetUrl, template) {
                     sendLog(`🚀 [Step 3/4] Smart Form Filler Engine successfully injected. Data population started.`, 'info');
                 } catch(e) {
                     sendLog(`⚠️ [Step 3/4] Injection failure: ${e.message}. Purging tab...`, 'warning');
-                    const tempWin = win;
                     const tempTab = tabWC;
                     setTimeout(() => {
-                        if (tempWin && !tempWin.isDestroyed()) try { tempWin.close(); } catch(e2) {}
                         if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab);
                     }, 500);
                     continue;
@@ -634,10 +589,8 @@ async function processTarget(targetUrl, template) {
                     sendLog(`✅ [Step 4/4] Success! Form submitted (${result.filled} fields matched & filled).`, 'success');
                     sendLog(`🎯 Contact action definitively completed on ${contactUrl}.`, 'debug');
                     // Keep the tab open briefly so user can see the confirmation
-                    const tempWin = win;
                     const tempTab = tabWC;
                     setTimeout(() => {
-                        if (tempWin && !tempWin.isDestroyed()) try { tempWin.close(); } catch(e) {}
                         if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab);
                     }, 5000);
                     done({ success: true });
@@ -645,11 +598,9 @@ async function processTarget(targetUrl, template) {
                 } else {
                     const reason = result ? result.reason : 'NO_RESULT';
                     sendLog(`⚠️ [Step 4/4] Path ${path} unsuccessful (Reason: ${reason}). Retrying next...`, 'warning');
-                    // ✅ Close tab/window immediately on failure
-                    const tempWin = win;
+                    // ✅ Close tab immediately on failure
                     const tempTab = tabWC;
                     setTimeout(() => {
-                        if (tempWin && !tempWin.isDestroyed()) try { tempWin.close(); } catch(e) {}
                         if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab);
                     }, 500);
                 }
