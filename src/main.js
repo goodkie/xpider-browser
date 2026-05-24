@@ -770,14 +770,9 @@ async function _isProxyClean(host, port, username, password, country) {
     
     const { session, net } = require('electron');
     
-    // Purge both default session and temp session prior to running the test
-    // to strictly avoid cookie/cache leaks or captcha persistence between tests.
-    await session.defaultSession.clearStorageData({
-      storages: ['cookies', 'localstorage', 'shadercache', 'cachestorage', 'serviceworkers', 'websql', 'indexdb'],
-      quotas: ['temporary', 'persistent', 'syncable']
-    });
-    await session.defaultSession.clearCache();
-
+    // We strictly preserve the defaultSession's cookies/localStorage during the background test check
+    // to avoid logging the user out or crashing active crawlers.
+    // Instead, we only clean the isolated temp session to avoid WAF cookie carrying.
     const tempSession = session.fromPartition(`temp-vpn-test-${Date.now()}`);
     await tempSession.clearStorageData({
       storages: ['cookies', 'localstorage', 'shadercache', 'cachestorage', 'serviceworkers', 'websql', 'indexdb'],
@@ -861,16 +856,13 @@ async function _isProxyClean(host, port, username, password, country) {
 
 async function _connectProxyInternal(server) {
   try {
-    _broadcastVPNLog('SYSTEM', 'Clearing browser cache, cookies, and local storages to avoid CAPTCHA persistence...');
+    _broadcastVPNLog('SYSTEM', 'Purging Chromium network & socket caches to prevent CAPTCHA persistence...');
     const { session: electronSession } = require('electron');
     
-    // Purge cookies, cache, localstorage to bypass persistent captcha sessions
-    await electronSession.defaultSession.clearStorageData({
-      storages: ['cookies', 'localstorage', 'shadercache', 'cachestorage', 'serviceworkers', 'websql', 'indexdb'],
-      quotas: ['temporary', 'persistent', 'syncable']
-    });
+    // Preserve the user's cookies/storage to keep crawlers and logins alive.
+    // Only clear memory/DNS socket cache.
     await electronSession.defaultSession.clearCache();
-    _broadcastVPNLog('SYSTEM', 'Browser session fully cleaned!');
+    _broadcastVPNLog('SYSTEM', 'Chromium network caches successfully purged!');
 
     await _stopLocalProxy();
     const localPort = await _startLocalProxy(server.host, server.port, server.username, server.password);
