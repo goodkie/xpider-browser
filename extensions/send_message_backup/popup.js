@@ -900,7 +900,14 @@ function addLog(msg, type = 'info', forcedTime = null) {
     const logEntry = document.createElement('div');
     logEntry.className = `log-entry ${type}`;
     
-    const time = forcedTime || new Date().toLocaleTimeString('ko-KR', { hour12: false });
+    let time = forcedTime;
+    if (!time) {
+        const now = new Date();
+        const hours = now.getHours();
+        const minutes = now.getMinutes();
+        const seconds = now.getSeconds();
+        time = `${hours}시 ${minutes}분 ${seconds}초`;
+    }
     
     // [v1.3.8] Premium Color Set for High Visibility
     let color = '#ccc';
