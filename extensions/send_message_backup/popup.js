@@ -51,6 +51,8 @@ window.onerror = function(msg, url, line) {
 document.addEventListener('DOMContentLoaded', () => {
     // ── [VITAL] Step 0: Register messaging listener IMMEDIATELY and SYNCHRONOUSLY
     // Ensures that we never miss SENDER_LOG or UPDATE_STATS events, even if translations or settings load slowly.
+    
+    // 1. Direct Chrome Runtime message listener (Custom bridge fallback)
     try {
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (!request) return;
@@ -60,8 +62,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateRealTimeStatus(request.data);
             }
         });
-        console.log("✅ [Popup] Real-time messaging listener registered.");
+        console.log("✅ [Popup] Real-time messaging listener registered via chrome.runtime.");
     } catch(e) { console.error('[Popup] Fatal: onMessage listener failed:', e); }
+
+    // 2. [VITAL 2차 방어벽] Direct window postMessage listener
+    // Electron renderer_ui가 executeJavaScript로 window.postMessage릴레이를 보낼 때 직접 가로채어 수신
+    try {
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'runtime-on-message') {
+                const request = event.data.data;
+                if (!request) return;
+                console.log("📥 [Popup postMessage Relay] Received action:", request.action);
+                if (request.action === 'SENDER_LOG') {
+                    addLog(request.message, request.logType);
+                } else if (request.action === 'UPDATE_STATS') {
+                    updateRealTimeStatus(request.data);
+                }
+            }
+        });
+        console.log("✅ [Popup] Dual-path postMessage real-time listener active.");
+    } catch(e) { console.error('[Popup] Fatal: postMessage listener failed:', e); }
 
     // ── Step 1: Bind ALL events FIRST (no async, cannot fail) ──
     try { bindEvents(); } catch(e) { console.error('[Popup] bindEvents failed:', e); }

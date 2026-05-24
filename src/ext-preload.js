@@ -245,8 +245,8 @@ const customStorageLocal = {
 try {
     Object.defineProperty(window.chrome.storage, 'local', {
         value: customStorageLocal,
-        writable: true,
-        configurable: true
+        writable: false,
+        configurable: false
     });
 } catch (e) {
     window.chrome.storage.local = customStorageLocal;
@@ -268,18 +268,32 @@ if (!window.chrome.storage.onChanged) {
 }
 
 // ─── CHROME RUNTIME BRIDGE ──────────────────────────────────
-if (!window.chrome) window.chrome = {};
-if (!window.chrome.runtime) window.chrome.runtime = {};
+if (!window.chrome) {
+    Object.defineProperty(window, 'chrome', {
+        value: {},
+        writable: true,
+        configurable: true
+    });
+}
+if (!window.chrome.runtime) {
+    Object.defineProperty(window.chrome, 'runtime', {
+        value: {},
+        writable: true,
+        configurable: true
+    });
+}
 
 // chrome.runtime.lastError support
-Object.defineProperty(window.chrome.runtime, 'lastError', {
-    get: () => window.__xpiderLastError || null,
-    set: (v) => { window.__xpiderLastError = v; },
-    configurable: true
-});
+try {
+    Object.defineProperty(window.chrome.runtime, 'lastError', {
+        get: () => window.__xpiderLastError || null,
+        set: (v) => { window.__xpiderLastError = v; },
+        configurable: false
+    });
+} catch(e) {}
 
 // 1. Direct Shim - supports BOTH callback and await
-window.chrome.runtime.sendMessage = (message, callback) => {
+const customSendMessage = (message, callback) => {
     const promise = ipcRenderer.invoke('xpider-ext-runtime-send-message', { message })
         .then(result => {
             window.__xpiderLastError = null;
@@ -295,6 +309,16 @@ window.chrome.runtime.sendMessage = (message, callback) => {
     return promise;
 };
 
+try {
+    Object.defineProperty(window.chrome.runtime, 'sendMessage', {
+        value: customSendMessage,
+        writable: false,
+        configurable: false
+    });
+} catch(e) {
+    window.chrome.runtime.sendMessage = customSendMessage;
+}
+
 // 2. PostMessage Relay (to bridge from OTHER isolated worlds, like content scripts)
 window.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'XPIDER_BRIDGE_RELAY') {
@@ -307,7 +331,7 @@ window.addEventListener('message', (event) => {
 
 // Always override onMessage to ensure our custom IPC bridge is used instead of any half-implemented native onMessage APIs
 const runtimeOnMessageCallbacks = [];
-window.chrome.runtime.onMessage = {
+const customOnMessage = {
     addListener: (callback) => {
         if (typeof callback === 'function' && !runtimeOnMessageCallbacks.includes(callback)) {
             runtimeOnMessageCallbacks.push(callback);
@@ -320,6 +344,16 @@ window.chrome.runtime.onMessage = {
         }
     }
 };
+
+try {
+    Object.defineProperty(window.chrome.runtime, 'onMessage', {
+        value: customOnMessage,
+        writable: false,
+        configurable: false
+    });
+} catch(e) {
+    window.chrome.runtime.onMessage = customOnMessage;
+}
 
 // Direct IPC listener - only registered ONCE globally
 ipcRenderer.on('xpider-ext-runtime-on-message', (event, message) => {
