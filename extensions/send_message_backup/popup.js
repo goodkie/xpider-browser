@@ -430,6 +430,16 @@ function bindEvents() {
     if (clearListBtn) {
         clearListBtn.addEventListener('click', clearCampaignQueue);
     }
+    
+    // Global Reset List Button
+    const clearAllBtn = document.getElementById('clear-all-btn');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', () => {
+            if (confirm("Are you sure you want to reset the current campaign queue?")) {
+                clearCampaignQueue();
+            }
+        });
+    }
 }
 
 function toggleCaptchaApiVisibility() {
