@@ -73,6 +73,24 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeAsyncComponents() {
+    // Restore loaded queue preview synchronously from local storage to keep user context
+    try {
+        chrome.storage.local.get(['xpider_queue', 'xpider_total'], (data) => {
+            if (data.xpider_queue && data.xpider_queue.length > 0) {
+                campaignQueue = data.xpider_queue;
+                totalTargets = data.xpider_total || campaignQueue.length;
+                
+                const countDisplay = document.getElementById('url-count-display');
+                if (countDisplay) countDisplay.textContent = `${totalTargets} URLs found`;
+                
+                const fileInfo = document.getElementById('file-info');
+                if (fileInfo) fileInfo.classList.remove('hidden');
+                
+                renderUrlsPreview(campaignQueue);
+            }
+        });
+    } catch(e) { console.error('[Popup] Queue restoration failed:', e); }
+
     // ── Step 3: Load localizer ──
     try { await initLocalizer(); } catch(e) { console.error('[Popup] initLocalizer failed:', e); }
 
@@ -465,7 +483,7 @@ function renderUrlsPreview(urls) {
 
 async function handleFileUpload(e) {
     e.preventDefault();
-    const file = e.target.files ? e.target.files[0] : e.dataTransfer.files[0];
+    const file = (e.target && e.target.files) ? e.target.files[0] : (e.dataTransfer ? e.dataTransfer.files[0] : null);
     if (!file) return;
 
     const nameDisplay = document.getElementById('filename-display');
