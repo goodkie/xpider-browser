@@ -4,7 +4,7 @@
 
 // ─── WebShare API ────────────────────────────────────────────────────────
 const WEBSHARE_API_KEY = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
-const WEBSHARE_API_URL = 'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=25';
+const WEBSHARE_API_URL = 'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=100';
 
 async function getProxyList() {
   const res = await fetch(WEBSHARE_API_URL, {
@@ -23,6 +23,25 @@ async function getProxyList() {
     city:     p.city_name || '',
     valid:    p.valid
   }));
+}
+
+function addLog(type, msg) {
+  const container = document.getElementById('logs-container');
+  if (!container) return;
+  const time = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+  const logLine = document.createElement('div');
+  logLine.style.marginBottom = '2px';
+  
+  let color = '#a5f3fc'; 
+  if (type === 'SYSTEM') color = '#38bdf8'; 
+  if (type === 'API') color = '#c084fc'; 
+  if (type === 'TEST-CLEAN') color = '#4ade80'; 
+  if (type === 'TEST-BLOCKED') color = '#f87171'; 
+  if (type === 'WARN') color = '#fbbf24'; 
+  
+  logLine.innerHTML = `<span style="color:#64748b;">[${time}]</span> <span style="color:${color};font-weight:700;">[${type}]</span> <span style="color:#e2e8f0;">${msg}</span>`;
+  container.appendChild(logLine);
+  container.scrollTop = container.scrollHeight;
 }
 
 function flag(cc) {
@@ -94,6 +113,8 @@ const flagPlaceholder = document.querySelector('.flag-placeholder');
 const resetTrigger     = $('reset-trigger');
 const refreshServersBtn = $('refresh-servers-btn');
 const autoSelectToggle = $('auto-select-toggle');
+const clearLogsBtn     = $('clear-logs-btn');
+const logsContainer    = $('logs-container');
 
 // ─── State ────────────────────────────────────────────────────────────────
 let servers     = [];
@@ -278,6 +299,11 @@ window.addEventListener('message', (evt) => {
         statusBadge.className = 'status-badge';
       }
     }
+    
+    // Add real-time log event to console
+    if (state && state.logEvent) {
+      addLog(state.logEvent.type, state.logEvent.message);
+    }
   }
 });
 
@@ -340,15 +366,28 @@ if (resetTrigger) {
     if (_busy) return;
     _busy = true;
     try {
-      await xpiderInvoke('xpider-vpn-disconnect', {});
+      addLog('SYSTEM', 'Hard reset initiated. Terminating all active proxy tunnels and resetting settings...');
+      await xpiderInvoke('xpider-vpn-hard-reset', {});
       await chrome.storage.local.remove(['connected', 'server', 'webshareApiKey']);
       await chrome.storage.local.set({ autoSelect: true });
       if (autoSelectToggle) autoSelectToggle.checked = true;
-      window.location.reload();
+      addLog('SYSTEM', 'Hard reset completed. Reloading extension settings...');
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch(e) {
+      addLog('WARN', 'Reset failed: ' + e.message);
       console.error('Reset error:', e);
-    } finally {
       _busy = false;
+    }
+  };
+}
+
+if (clearLogsBtn) {
+  clearLogsBtn.onclick = () => {
+    if (logsContainer) {
+      logsContainer.innerHTML = `<div style="color: #64748b;">[SYSTEM] Console logs cleared.</div>`;
     }
   };
 }
@@ -358,11 +397,14 @@ if (refreshServersBtn) {
     if (serverListEl) {
       serverListEl.innerHTML = `<div class="loading">Loading...</div>`;
     }
+    addLog('API', 'Refreshing proxy server list from WebShare...');
     try {
       servers = await getProxyList();
       servers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
+      addLog('API', `Loaded ${servers.length} proxies.`);
       renderServers();
     } catch (err) {
+      addLog('WARN', 'Failed to refresh server list: ' + err.message);
       console.error('[VPN] Refresh failed:', err.message);
       if (serverListEl) serverListEl.innerHTML = `<div class="loading" style="color:#ff5555">⚠️ ${err.message}</div>`;
     }
@@ -373,6 +415,7 @@ if (autoSelectToggle) {
   autoSelectToggle.onchange = async () => {
     const isAuto = autoSelectToggle.checked;
     await chrome.storage.local.set({ autoSelect: isAuto });
+    addLog('SYSTEM', `Proxy Auto-Select mode toggled: ${isAuto ? 'ON' : 'OFF'}`);
     if (connected) {
       handleConnect();
     }

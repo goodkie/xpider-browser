@@ -652,14 +652,22 @@ function _startLocalProxy(upHost, upPort, upUser, upPass) {
 
 let _vpnAutoSelectTimer = null;
 let _vpnIsAutoSelecting = false;
+const _activeTestServers = new Set();
 
 function _vpnFlag(cc) {
   if (!cc) return '🌐';
   return [...cc.toUpperCase()].map(c => String.fromCodePoint(c.charCodeAt(0) + 127397)).join('');
 }
 
+function _broadcastVPNLog(type, msg) {
+  _vpnState.logEvent = { type, message: msg };
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+  }
+}
+
 async function _getWebShareProxyList() {
-  const WEBSHARE_API_URL = 'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=25';
+  const WEBSHARE_API_URL = 'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=100';
   const DEFAULT_WEBSHARE_API_KEY = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
   const apiKey = (extStorage.webshareApiKey ? extStorage.webshareApiKey.trim() : '') || DEFAULT_WEBSHARE_API_KEY;
   
@@ -735,6 +743,7 @@ function _startLocalProxyForTest(upHost, upPort, upUser, upPass) {
     });
     
     server.listen(0, '127.0.0.1', () => {
+      _activeTestServers.add(server);
       resolve(server);
     });
     
@@ -786,6 +795,7 @@ async function _isProxyClean(host, port, username, password) {
     return false;
   } finally {
     if (serverInstance) {
+      _activeTestServers.delete(serverInstance);
       await new Promise(r => serverInstance.close(r));
     }
   }
@@ -811,6 +821,9 @@ async function _connectProxyInternal(server) {
       mainWindow.webContents.send('xpider-vpn-state', _vpnState);
     }
     
+    _broadcastVPNLog('SYSTEM', `Secure local relay tunnel established on port ${localPort} -> ${server.host}:${server.port}`);
+    _broadcastVPNLog('SYSTEM', `Connected successfully! Mode: Auto-rotation (10m). Location: ${server.country}${server.city ? ' · ' + server.city : ''}`);
+
     // Send message to extension's chrome storage sync
     const changes = {
       connected: { oldValue: undefined, newValue: true },
@@ -833,6 +846,7 @@ async function _runAutoSelectVPN() {
   if (_vpnIsAutoSelecting) return;
   _vpnIsAutoSelecting = true;
   log.info('[VPN-AUTO] Starting CAPTCHA-free background proxy search...');
+  _broadcastVPNLog('SYSTEM', 'Auto-rotation triggered. Starting background proxy check...');
   
   try {
     const servers = await _getWebShareProxyList();
@@ -840,15 +854,19 @@ async function _runAutoSelectVPN() {
     
     if (servers.length === 0) {
       log.error('[VPN-AUTO] No servers found in WebShare API list.');
+      _broadcastVPNLog('WARN', 'No servers returned from WebShare API.');
       _vpnIsAutoSelecting = false;
       return;
     }
     
+    _broadcastVPNLog('API', `Loaded ${servers.length} proxies from WebShare. Testing for captcha-free connections...`);
+
     let cleanServer = null;
     let index = 1;
     for (const server of servers) {
       if (!extStorage.autoSelect || !_vpnState.connected) {
         log.info('[VPN-AUTO] Auto-select cancelled or VPN disconnected.');
+        _broadcastVPNLog('SYSTEM', 'Auto-select cancelled or VPN disconnected.');
         _vpnIsAutoSelecting = false;
         return;
       }
@@ -857,12 +875,17 @@ async function _runAutoSelectVPN() {
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('xpider-vpn-state', _vpnState);
       }
+      
+      _broadcastVPNLog('TEST', `Testing proxy [${index}/${servers.length}] (${server.country} · ${server.host}:${server.port})...`);
       index++;
       
       const isClean = await _isProxyClean(server.host, server.port, server.username, server.password);
       if (isClean) {
         cleanServer = server;
+        _broadcastVPNLog('TEST-CLEAN', `Proxy (${server.country} · ${server.host}) is clean! No CAPTCHA detected.`);
         break;
+      } else {
+        _broadcastVPNLog('TEST-BLOCKED', `Proxy (${server.country} · ${server.host}) failed CAPTCHA check.`);
       }
     }
     
@@ -874,6 +897,7 @@ async function _runAutoSelectVPN() {
       }
     } else {
       log.warn('[VPN-AUTO] No captcha-free proxy found. Keeping current.');
+      _broadcastVPNLog('WARN', 'Checked all servers. No CAPTCHA-free proxies found. Keeping current.');
       _vpnState.statusMessage = 'Protected';
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('xpider-vpn-state', _vpnState);
@@ -881,6 +905,7 @@ async function _runAutoSelectVPN() {
     }
   } catch (err) {
     log.error('[VPN-AUTO] Error in auto-select rotation:', err.message);
+    _broadcastVPNLog('WARN', 'Error in background check: ' + err.message);
   } finally {
     _vpnIsAutoSelecting = false;
   }
@@ -921,11 +946,14 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
     _vpnIsAutoSelecting = false;
     
     log.info('[VPN] Auto-select enabled. Finding a captcha-free proxy first...');
-    
+    _broadcastVPNLog('SYSTEM', 'Auto-select enabled. Initiating captcha-free search...');
+
     try {
       const servers = await _getWebShareProxyList();
       servers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
       
+      _broadcastVPNLog('API', `Loaded ${servers.length} proxies from WebShare. Testing nodes...`);
+
       let cleanServer = null;
       let index = 1;
       for (const s of servers) {
@@ -933,12 +961,17 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
         if (mainWindow && !mainWindow.isDestroyed()) {
           mainWindow.webContents.send('xpider-vpn-state', _vpnState);
         }
+        
+        _broadcastVPNLog('TEST', `Testing proxy [${index}/${servers.length}] (${s.country} · ${s.host}:${s.port})...`);
         index++;
         
         const isClean = await _isProxyClean(s.host, s.port, s.username, s.password);
         if (isClean) {
           cleanServer = s;
+          _broadcastVPNLog('TEST-CLEAN', `Proxy (${s.country} · ${s.host}) is clean!`);
           break;
+        } else {
+          _broadcastVPNLog('TEST-BLOCKED', `Proxy (${s.country} · ${s.host}) failed CAPTCHA check.`);
         }
       }
       
@@ -951,6 +984,7 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
           return { ok: false, error: res.error };
         }
       } else {
+        _broadcastVPNLog('WARN', 'No CAPTCHA-free proxies found. Using fallback...');
         if (servers.length > 0) {
           const fallback = servers[0];
           const res = await _connectProxyInternal(fallback);
@@ -962,12 +996,50 @@ ipcMain.handle('xpider-vpn-connect', async (event, params) => {
         return { ok: false, error: 'No working proxies found' };
       }
     } catch (err) {
+      _broadcastVPNLog('WARN', 'Connection check failed: ' + err.message);
       return { ok: false, error: err.message };
     }
   } else {
     _stopAutoSelectRotation();
     const res = await _connectProxyInternal({ host, port, username, password, country, city });
     return res;
+  }
+});
+
+ipcMain.handle('xpider-vpn-hard-reset', async () => {
+  try {
+    _stopAutoSelectRotation();
+    
+    const { session: electronSession } = require('electron');
+    await electronSession.defaultSession.setProxy({ mode: 'direct' });
+    await _stopLocalProxy();
+    
+    // Force close all active test server instances
+    let closedCount = 0;
+    for (const server of _activeTestServers) {
+      try {
+        server.close();
+        closedCount++;
+      } catch(e) {}
+    }
+    _activeTestServers.clear();
+    
+    _vpnState = { connected: false, server: null, statusMessage: 'Disconnected' };
+    extStorage.connected = false;
+    extStorage.server = null;
+    saveExtStorage();
+    
+    log.info(`[VPN] Hard reset completed — closed ${closedCount} active test relays.`);
+    _broadcastVPNLog('SYSTEM', `Hard reset complete! Terminated ${closedCount} active test relay servers.`);
+    _broadcastVPNLog('SYSTEM', 'Cleaned all Chromium proxy session rules.');
+    
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+    }
+    return { ok: true };
+  } catch (e) {
+    log.error('[VPN] Hard reset error:', e.message);
+    return { ok: false, error: e.message };
   }
 });
 

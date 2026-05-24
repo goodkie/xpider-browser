@@ -109,6 +109,20 @@
           <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </div>
       </div>
+
+      <!-- Precision Logs Console Panel -->
+      <div class="logs-console-panel glass-panel" style="border-radius: 20px; padding: 14px 18px; margin-top: 12px; display: flex; flex-direction: column; max-height: 180px; box-sizing: border-box;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; color: var(--accent-color);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+            <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Precision Logs</span>
+          </div>
+          <button id="clear-logs-btn" style="background: transparent; border: none; color: var(--text-muted); font-size: 0.65rem; cursor: pointer; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; transition: var(--transition);">Clear</button>
+        </div>
+        <div id="logs-container" style="flex: 1; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 8px; font-family: 'Courier New', Courier, monospace; font-size: 0.65rem; color: #a5f3fc; line-height: 1.4; border: 1px solid rgba(255,255,255,0.04); max-height: 120px;">
+          <div style="color: #64748b;">[SYSTEM] Console ready. Logs will appear here.</div>
+        </div>
+      </div>
     </main>
 
     <!-- Server Modal -->
