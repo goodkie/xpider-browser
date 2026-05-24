@@ -117,7 +117,6 @@
         <!-- Update Modal -->
         <div id="update-modal" class="modal-overlay hidden">
             <div class="modal-card update-card">
-                <div class="modal-icon">🚀</div>
                 <h2 class="modal-title">New Version Available!</h2>
                 <div class="modal-version-row">
                     <span class="ver-badge current">Current <span id="modal-current-ver">2.1.6</span></span>
@@ -127,13 +126,8 @@
                 <p class="modal-desc" id="modal-release-notes">Loading release notes...</p>
                 <div class="modal-actions">
                     <!-- 핫 업데이트: 브라우저를 닫지 않고 백그라운드 업데이트 -->
-                    <button id="modal-hot-update-btn" class="modal-btn hot-update" title="브라우저를 닫지 않고 백그라운드에서 업데이트">⚡ 지금 업데이트 (재시작 필요)</button>
-                    <button id="modal-update-btn" class="modal-btn primary">🌐 릴리즈 페이지 열기</button>
+                    <button id="modal-hot-update-btn" class="modal-btn hot-update" title="브라우저를 닫지 않고 백그라운드에서 업데이트">지금 업데이트 (재시작 필요)</button>
                     <button id="modal-skip-btn" class="modal-btn secondary">나중에</button>
-                </div>
-                <!-- 더미 테스트 버튼 (개발/테스트용) -->
-                <div style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
-                    <button id="modal-test-update-btn" class="modal-btn" style="background:rgba(255,165,0,0.15);border:1px solid rgba(255,165,0,0.4);color:#ffa500;font-size:11px;padding:6px 14px;" title="실제 다운로드 없이 업데이트 UI를 테스트합니다">🧪 더미 업데이트 테스트</button>
                 </div>
             </div>
         </div>
@@ -141,7 +135,7 @@
         <!-- 핫 업데이트 진행률 패널 -->
         <div id="hot-update-panel" class="hot-update-panel hidden">
             <div class="hu-header">
-                <span class="hu-title">⚡ 업데이트 다운로드 중</span>
+                <span class="hu-title">업데이트 다운로드 중</span>
                 <button id="hu-close-btn" class="hu-close" title="닫기">✕</button>
             </div>
             <div class="hu-msg" id="hu-msg">준비 중...</div>
@@ -154,7 +148,7 @@
 
         <!-- Update Toast -->
         <div id="update-toast" class="toast hidden">
-            <span id="toast-msg">✅ You are on the latest version.</span>
+            <span id="toast-msg">You are on the latest version.</span>
         </div>
 
         <!-- 초기 언어 설정 -->
