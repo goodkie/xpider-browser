@@ -3337,6 +3337,15 @@ ipcMain.handle('xpider-campaign-resume', async () => {
     catch (e) { return { success: false, error: e.message }; }
 });
 
+ipcMain.handle('xpider-campaign-get-state', async () => {
+    try {
+        const engineState = campaignEngine.getState();
+        return { success: true, ...engineState };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
 // ─── Save As Dialog (Template 저장용) ──────────────────────────
 ipcMain.handle('xpider-show-save-dialog', async (event, { defaultName, content }) => {
     try {

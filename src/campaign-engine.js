@@ -13,7 +13,7 @@ let _getMainWindow = null;  // Function that returns the current mainWindow
 const state = {
     active: false, paused: false, cancelled: false,
     queue: [], template: null, delayMs: 10000,
-    successCount: 0, totalTargets: 0,
+    successCount: 0, completedCount: 0, totalTargets: 0,
     currentTabWC: null, sessionId: 0
 };
 
@@ -58,6 +58,7 @@ function sendLog(msg, type = 'info') {
 function sendStats() {
     broadcast({ action: 'UPDATE_STATS', data: {
         successCount: state.successCount,
+        completedCount: state.completedCount || 0,
         remainingCount: state.queue.length,
         totalTargets: state.totalTargets
     }});
@@ -668,7 +669,7 @@ async function runCampaign(urls, template, delayMs) {
     state.active = true; state.cancelled = false; state.paused = false;
     state.queue = [...urls]; state.template = template;
     state.delayMs = delayMs || 10000;
-    state.successCount = 0; state.totalTargets = urls.length; state.sessionId++;
+    state.successCount = 0; state.completedCount = 0; state.totalTargets = urls.length; state.sessionId++;
 
     sendLog(`🚀 Native Engine v2.0 starting: ${urls.length} target(s)`, 'start');
     sendStats();
@@ -689,6 +690,7 @@ async function runCampaign(urls, template, delayMs) {
         const targetUrl = url.startsWith('http') ? url : 'https://' + url;
         const result = await processTarget(targetUrl, template).catch(e => ({ success: false, reason: e.message }));
         if (result.success) { state.successCount++; }
+        state.completedCount++;
         sendStats();
 
         // [v4.10.13] 매 웹사이트 발송 과정이 일단락될 때마다 탭을 강제 일괄 청소
@@ -729,5 +731,15 @@ function stop() {
 function pause() { state.paused = true; sendLog('⏸️ Campaign paused.', 'info'); }
 function resume() { state.paused = false; sendLog('▶️ Campaign resumed.', 'info'); }
 function isActive() { return state.active; }
+function getState() {
+    return {
+        isActive: state.active,
+        isPaused: state.paused,
+        successCount: state.successCount,
+        completedCount: state.completedCount || 0,
+        totalTargets: state.totalTargets,
+        remainingCount: state.queue.length
+    };
+}
 
-module.exports = { init, start, stop, pause, resume, isActive };
+module.exports = { init, start, stop, pause, resume, isActive, getState };

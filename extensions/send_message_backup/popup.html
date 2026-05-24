@@ -235,7 +235,6 @@
 
             <div class="action-buttons">
                 <button id="start-btn" class="primary-btn pulse" data-i18n="btn_start">Start Sending</button>
-                <button id="clear-all-btn" class="danger-btn-small" data-i18n="btn_clear_list" style="margin-left: 10px;">Reset List</button>
                 <div class="multi-actions hidden" id="multi-actions">
                     <button id="pause-btn" class="secondary-btn" data-i18n="btn_pause">Pause</button>
                     <button id="stop-btn" class="danger-btn" data-i18n="btn_stop">Stop</button>
@@ -251,14 +250,21 @@
                 <div class="progress-bar-bg">
                     <div id="progress-bar"></div>
                 </div>
-                <!-- Stats Area: XSpider Yellow/Red Neon 3-Line Style -->
+                <!-- Stats Area: Modern Premium Neon Grid -->
                 <div class="stats-premium-box stats-yellow-neon">
-                    <div id="stats-info" class="stats-info">
-                        <div class="stats-line-1 neon-yellow-text" data-i18n="status_finished">Campaign Status:</div>
-                        <div class="stats-line-2">
-                            <span id="success-count-display">0</span>
+                    <div class="stats-grid-premium">
+                        <div class="stats-card-premium">
+                            <div class="stats-card-label neon-green-text">SUCCESS</div>
+                            <div class="stats-card-value" id="success-count-display">0</div>
                         </div>
-                        <div class="stats-line-3 status-suffix neon-yellow-text">sent</div>
+                        <div class="stats-card-premium">
+                            <div class="stats-card-label neon-blue-text">COMPLETED</div>
+                            <div class="stats-card-value" id="completed-count-display">0</div>
+                        </div>
+                        <div class="stats-card-premium">
+                            <div class="stats-card-label neon-yellow-text">REMAINING</div>
+                            <div class="stats-card-value" id="remaining-count-display">0</div>
+                        </div>
                     </div>
                 </div>
                 <div id="log-container"></div>

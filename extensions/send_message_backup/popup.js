@@ -97,42 +97,80 @@ async function initializeAsyncComponents() {
 
     console.log("✅ X PIDER Sender Pro initialized.");
 
-    // ── Step 9: State Handshake ──
+    // ── Step 9: State Handshake (Directly with Native Campaign Engine) ──
     try {
-        chrome.runtime.sendMessage({ action: 'GET_STATE' }, (response) => {
-            if (response && response.success) {
-                if (response.isActive) {
-                    campaignActive = true;
-                    totalTargets = response.totalTargets;
-                    successCount = response.successCount;
-                    remainingTargets = response.remainingCount;
-                    campaignPaused = !!response.isPaused;
-                    
-                    document.getElementById('status-box').classList.remove('hidden');
-                    document.getElementById('multi-actions').classList.remove('hidden');
-                    document.getElementById('start-btn').classList.add('hidden');
-                    
-                    updateRealTimeStatus({
-                        successCount: successCount,
-                        remainingCount: remainingTargets
-                    });
-                    
-                    const btn = document.getElementById('pause-btn');
-                    const langSelect = document.getElementById('language-select');
-                    const lang = langSelect ? langSelect.value : 'en';
-                    const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
-                    if (btn && campaignPaused) {
-                        btn.textContent = dict.btn_resume || "▶️ Resume";
-                        btn.style.backgroundColor = "#22c55e";
-                    }
-                } else {
-                    campaignActive = false;
-                    document.getElementById('start-btn').classList.remove('hidden');
-                    document.getElementById('multi-actions').classList.add('hidden');
+        xpiderInvoke('xpider-campaign-get-state', {}).then(response => {
+            if (response && response.success && response.isActive) {
+                campaignActive = true;
+                totalTargets = response.totalTargets;
+                successCount = response.successCount;
+                remainingTargets = response.remainingCount;
+                campaignPaused = !!response.isPaused;
+                
+                const completedCount = response.completedCount || 0;
+                
+                document.getElementById('status-box').classList.remove('hidden');
+                document.getElementById('multi-actions').classList.remove('hidden');
+                document.getElementById('start-btn').classList.add('hidden');
+                
+                updateRealTimeStatus({
+                    successCount: successCount,
+                    completedCount: completedCount,
+                    remainingCount: remainingTargets,
+                    totalTargets: totalTargets
+                });
+                
+                const btn = document.getElementById('pause-btn');
+                const langSelect = document.getElementById('language-select');
+                const lang = langSelect ? langSelect.value : 'en';
+                const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
+                if (btn && campaignPaused) {
+                    btn.textContent = dict.btn_resume || "▶️ Resume";
+                    btn.style.backgroundColor = "#22c55e";
                 }
+            } else {
+                campaignActive = false;
+                document.getElementById('start-btn').classList.remove('hidden');
+                document.getElementById('multi-actions').classList.add('hidden');
             }
+        }).catch(e => {
+            console.error('[Popup] Direct engine state check failed, falling back:', e);
+            // Fallback to legacy GET_STATE
+            chrome.runtime.sendMessage({ action: 'GET_STATE' }, (response) => {
+                if (response && response.success) {
+                    if (response.isActive) {
+                        campaignActive = true;
+                        totalTargets = response.totalTargets;
+                        successCount = response.successCount;
+                        remainingTargets = response.remainingCount;
+                        campaignPaused = !!response.isPaused;
+                        
+                        document.getElementById('status-box').classList.remove('hidden');
+                        document.getElementById('multi-actions').classList.remove('hidden');
+                        document.getElementById('start-btn').classList.add('hidden');
+                        
+                        updateRealTimeStatus({
+                            successCount: successCount,
+                            remainingCount: remainingTargets
+                        });
+                        
+                        const btn = document.getElementById('pause-btn');
+                        const langSelect = document.getElementById('language-select');
+                        const lang = langSelect ? langSelect.value : 'en';
+                        const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
+                        if (btn && campaignPaused) {
+                            btn.textContent = dict.btn_resume || "▶️ Resume";
+                            btn.style.backgroundColor = "#22c55e";
+                        }
+                    } else {
+                        campaignActive = false;
+                        document.getElementById('start-btn').classList.remove('hidden');
+                        document.getElementById('multi-actions').classList.add('hidden');
+                    }
+                }
+            });
         });
-    } catch(e) { console.error('[Popup] GET_STATE failed:', e); }
+    } catch(e) { console.error('[Popup] Direct state handshake failed:', e); }
 
     // ── Step 10: Hard Reset Button ──
     try {
@@ -228,6 +266,19 @@ function updateRealTimeStatus(data) {
     if (data.totalTargets !== undefined) {
         totalTargets = data.totalTargets;
     }
+    
+    let completedCount = 0;
+    if (data.completedCount !== undefined) {
+        completedCount = data.completedCount;
+    } else if (data.remainingCount !== undefined) {
+        completedCount = totalTargets - data.remainingCount;
+    }
+    if (completedCount < 0) completedCount = 0;
+    
+    // Update Completed count display
+    const completedDisplay = document.getElementById('completed-count-display');
+    if (completedDisplay) completedDisplay.textContent = completedCount;
+
     if (data.successCount !== undefined) {
         successCount = data.successCount;
         const display = document.getElementById('success-count-display');
@@ -255,8 +306,12 @@ function updateRealTimeStatus(data) {
     
     if (data.remainingCount !== undefined) {
         remainingTargets = data.remainingCount;
-        const processed = totalTargets - remainingTargets;
-        const progress = totalTargets > 0 ? Math.round((processed / totalTargets) * 100) : 0;
+        
+        // Update Remaining count display
+        const remainingDisplay = document.getElementById('remaining-count-display');
+        if (remainingDisplay) remainingDisplay.textContent = totalTargets - completedCount;
+
+        const progress = totalTargets > 0 ? Math.round((completedCount / totalTargets) * 100) : 0;
         updateProgress(progress);
         
         refreshStatusDetailUI();
@@ -431,15 +486,6 @@ function bindEvents() {
         clearListBtn.addEventListener('click', clearCampaignQueue);
     }
     
-    // Global Reset List Button
-    const clearAllBtn = document.getElementById('clear-all-btn');
-    if (clearAllBtn) {
-        clearAllBtn.addEventListener('click', () => {
-            if (confirm("Are you sure you want to reset the current campaign queue?")) {
-                clearCampaignQueue();
-            }
-        });
-    }
 }
 
 function toggleCaptchaApiVisibility() {
