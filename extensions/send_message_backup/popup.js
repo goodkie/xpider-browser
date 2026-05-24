@@ -99,7 +99,7 @@ async function initializeAsyncComponents() {
 
     // ── Step 9: State Handshake ──
     try {
-        xpiderInvoke('xpider-campaign-get-state', {}).then((response) => {
+        chrome.runtime.sendMessage({ action: 'GET_STATE' }, (response) => {
             if (response && response.success) {
                 if (response.isActive) {
                     campaignActive = true;
@@ -113,7 +113,6 @@ async function initializeAsyncComponents() {
                     document.getElementById('start-btn').classList.add('hidden');
                     
                     updateRealTimeStatus({
-                        totalTargets: totalTargets,
                         successCount: successCount,
                         remainingCount: remainingTargets
                     });
@@ -132,8 +131,8 @@ async function initializeAsyncComponents() {
                     document.getElementById('multi-actions').classList.add('hidden');
                 }
             }
-        }).catch(e => console.error('[Popup] xpider-campaign-get-state failed:', e));
-    } catch(e) { console.error('[Popup] GET_STATE handshake failed:', e); }
+        });
+    } catch(e) { console.error('[Popup] GET_STATE failed:', e); }
 
     // ── Step 10: Hard Reset Button ──
     try {

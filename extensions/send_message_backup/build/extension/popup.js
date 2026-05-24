@@ -178,6 +178,9 @@ function applyTranslations(lang) {
 }
 
 function updateRealTimeStatus(data) {
+    if (data.totalTargets !== undefined) {
+        totalTargets = data.totalTargets;
+    }
     if (data.successCount !== undefined) {
         successCount = data.successCount;
         const display = document.getElementById('success-count-display');

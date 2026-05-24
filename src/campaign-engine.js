@@ -17,28 +17,17 @@ const state = {
     currentTabWC: null, sessionId: 0
 };
 
-let _closeAllTabs = null;
-
-function init(getAllWebContentsFn, logFn, getMainWindowFn, closeAllTabsFn) {
+function init(getAllWebContentsFn, logFn, getMainWindowFn) {
     _getAllWebContents = getAllWebContentsFn;
     _log = logFn;
     _getMainWindow = getMainWindowFn;
-    _closeAllTabs = closeAllTabsFn;
 }
 
 function broadcast(message) {
-    // 1. 메인 윈도우에 직접 송신하여 사이드 패널에 100% 실시간 복구 포워딩 보장
-    const mw = _getMainWindow ? _getMainWindow() : null;
-    if (mw && !mw.isDestroyed()) {
-        try { mw.webContents.send('xpider-ext-runtime-on-message', message); } catch(e) {}
-    }
-    
-    // 2. 다른 모든 webContents에도 브로드캐스트 (기존 흐름 유지)
-    if (_getAllWebContents) {
-        _getAllWebContents().forEach(wc => {
-            try { wc.send('xpider-ext-runtime-on-message', message); } catch(e) {}
-        });
-    }
+    if (!_getAllWebContents) return;
+    _getAllWebContents().forEach(wc => {
+        try { wc.send('xpider-ext-runtime-on-message', message); } catch(e) {}
+    });
 }
 
 function sendLog(msg, type = 'info') {
@@ -382,6 +371,33 @@ async function closeXpiderTab(tabWC) {
     }
 }
 
+// ─── Cleanup All Campaign Tabs (Bulk Purge) ──────────────────────
+async function cleanupAllCampaignTabs() {
+    const mw = _getMainWindow ? _getMainWindow() : null;
+    if (!mw || mw.isDestroyed()) return;
+
+    try {
+        await mw.webContents.executeJavaScript(`
+            (async function() {
+                const allWvs = document.querySelectorAll('webview[data-xpider-campaign="true"]');
+                let closedCount = 0;
+                for (const wv of allWvs) {
+                    try {
+                        const tabUiId = wv.id ? wv.id.replace('webview-', '') : null;
+                        if (tabUiId && typeof window.closeTab === 'function') {
+                            window.closeTab(tabUiId);
+                            closedCount++;
+                        }
+                    } catch(e) {}
+                }
+                return closedCount;
+            })()
+        `).catch(() => {});
+    } catch (e) {
+        console.error('[CampaignEngine] cleanupAllCampaignTabs error:', e.message);
+    }
+}
+
 // ─── Open URL in XPIDER Browser as New Tab ────────────────────
 async function openInXpiderTab(contactUrl) {
     const mw = _getMainWindow ? _getMainWindow() : null;
@@ -438,10 +454,49 @@ async function openInXpiderTab(contactUrl) {
         mw.webContents.executeJavaScript(`
             (function(){
                 const url=${JSON.stringify(contactUrl)};
-                const fns=['openNewTab','createNewTab','newTab','addTab','createTab','openTab','_xpiderNewTab'];
-                for(const fn of fns){if(typeof window[fn]==='function'){window[fn](url);return fn;}}
+                
+                // 1. If window.createNewTab exists, call it and tag the last webview
+                if (typeof window.createNewTab === 'function') {
+                    window.createNewTab(url, true);
+                    setTimeout(() => {
+                        const wv = document.querySelector('webview:last-of-type');
+                        if (wv) {
+                            wv.setAttribute('data-xpider-campaign', 'true');
+                        }
+                    }, 100);
+                    return 'createNewTab';
+                }
+                
+                // 2. Generic function scan fallback
+                const fns=['openNewTab','newTab','addTab','createTab','openTab','_xpiderNewTab'];
+                for(const fn of fns){
+                    if(typeof window[fn]==='function'){
+                        window[fn](url);
+                        setTimeout(() => {
+                            const wv = document.querySelector('webview:last-of-type');
+                            if (wv) {
+                                wv.setAttribute('data-xpider-campaign', 'true');
+                            }
+                        }, 100);
+                        return fn;
+                    }
+                }
+                
+                // 3. Circular button click fallback
                 const btn=document.querySelector('#new-tab-btn,[data-action="new-tab"],[class*="new-tab"],[id*="new-tab"],#add-tab');
-                if(btn){btn.click();setTimeout(()=>{const wv=document.querySelector('webview:last-of-type');if(wv)wv.src=url;},300);return 'btn-click';}
+                if(btn){
+                    btn.click();
+                    setTimeout(()=>{
+                        const wv=document.querySelector('webview:last-of-type');
+                        if(wv) {
+                            wv.src=url;
+                            wv.setAttribute('data-xpider-campaign', 'true');
+                        }
+                    },300);
+                    return 'btn-click';
+                }
+                
+                // 4. Message relay fallback
                 window.postMessage({type:'XPIDER_SEND',channel:'xpider-open-new-tab',data:{url}},'*');
                 return 'postmessage';
             })()
@@ -463,7 +518,7 @@ async function processTarget(targetUrl, template) {
         };
 
         const globalTimer = setTimeout(() => {
-            sendLog(`⏱️ Timeout: ${targetUrl}`, 'warning');
+            sendLog(`⏱️ Timeout limit reached: ${targetUrl}`, 'warning');
             if (state.currentTabWC && !state.currentTabWC.isDestroyed()) {
                 const tempTabWC = state.currentTabWC;
                 closeXpiderTab(tempTabWC);
@@ -473,19 +528,19 @@ async function processTarget(targetUrl, template) {
 
         try {
             const baseUrl = new URL(targetUrl).origin;
-            sendLog(`🔍 Step 1: Searching contact page for ${baseUrl}...`, 'info');
+            sendLog(`🔍 [Step 1/4] Scanning target domain: ${baseUrl}...`, 'info');
 
             const paths = await findContactPages(baseUrl);
-            sendLog(`✅ Found ${paths.length} candidate path(s)`, 'info');
+            sendLog(`✅ [Step 1/4] Discovery completed. Candidates found (${paths.length}): ${paths.join(', ')}`, 'info');
 
             if (state.cancelled) { done({ success: false, reason: 'CANCELLED' }); return; }
 
             const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36';
 
-        for (const path of paths) {
+            for (const path of paths) {
                 if (state.cancelled) break;
                 const contactUrl = baseUrl + path;
-                sendLog(`🔗 Step 2: Opening ${contactUrl} in new tab...`, 'visit');
+                sendLog(`🔗 [Step 2/4] Navigating to page: ${contactUrl}...`, 'visit');
 
                 let win = null; // Track BrowserWindow for cleanup
 
@@ -494,7 +549,7 @@ async function processTarget(targetUrl, template) {
 
                 if (!tabWC) {
                     // Fallback: BrowserWindow
-                    sendLog(`⚙️ Using background window (tab API unavailable)`, 'debug');
+                    sendLog(`⚙️ [Step 2/4] XPIDER tab API unavailable. Falling back to background browser...`, 'debug');
                     try {
                         win = new BrowserWindow({
                             width: 1280, height: 800, show: true,
@@ -506,32 +561,40 @@ async function processTarget(targetUrl, template) {
                         await new Promise(r => setTimeout(r, 8000)); // Wix needs extra time
                         tabWC = win.webContents;
                     } catch(e) {
-                        sendLog(`⚠️ Window load error: ${e.message}`, 'warning');
+                        sendLog(`⚠️ [Step 2/4] Window loading error: ${e.message}`, 'warning');
                         if (win && !win.isDestroyed()) try { win.close(); } catch(e2) {}
                         continue; // Try next path immediately
                     }
                 } else {
                     // Wait for the XPIDER tab to finish loading (Wix needs ~6s)
+                    sendLog(`⏳ [Step 2/4] Waiting 6s for XPIDER tab scripts and frames initialization...`, 'debug');
                     await new Promise(r => setTimeout(r, 6000));
                     state.currentTabWC = tabWC;
                 }
 
                 if (!tabWC || tabWC.isDestroyed()) {
-                    sendLog(`⚠️ Tab lost for ${contactUrl}. Skipping.`, 'warning');
+                    sendLog(`⚠️ [Step 2/4] Connection lost for ${contactUrl}. Attempting next path...`, 'warning');
                     if (win && !win.isDestroyed()) try { win.close(); } catch(e2) {}
                     continue;
                 }
 
-                sendLog(`✏️ Step 3: Injecting smart form engine into all frames...`, 'info');
+                sendLog(`✏️ [Step 3/4] Injecting Smart Form Filler Engine into all active frames...`, 'info');
                 try {
                     await injectIntoAllFrames(tabWC, getFormFillerScript(template));
+                    sendLog(`🚀 [Step 3/4] Smart Form Filler Engine successfully injected.`, 'info');
                 } catch(e) {
-                    sendLog(`⚠️ Injection error: ${e.message}. Closing tab...`, 'warning');
-                    if (win && !win.isDestroyed()) setTimeout(() => { try { win.close(); } catch(e2) {} }, 500);
+                    sendLog(`⚠️ [Step 3/4] Injection failure: ${e.message}. Purging tab...`, 'warning');
+                    const tempWin = win;
+                    const tempTab = tabWC;
+                    setTimeout(() => {
+                        if (tempWin && !tempWin.isDestroyed()) try { tempWin.close(); } catch(e2) {}
+                        if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab);
+                    }, 500);
                     continue;
                 }
 
                 // Poll for result in ALL frames (Wix may be in iframe, up to 25s)
+                sendLog(`🔄 [Step 4/4] Monitoring form submission & reCAPTCHA state...`, 'debug');
                 let result = null;
                 for (let i = 0; i < 50; i++) {
                     await new Promise(r => setTimeout(r, 500));
@@ -541,7 +604,7 @@ async function processTarget(targetUrl, template) {
                 }
 
                 if (result && result.success) {
-                    sendLog(`✅ Step 4: Form submitted! (${result.filled} fields filled)`, 'success');
+                    sendLog(`✅ [Step 4/4] Success! Form submitted (${result.filled} fields matched & filled).`, 'success');
                     // Keep the tab open briefly so user can see the confirmation
                     const tempWin = win;
                     const tempTab = tabWC;
@@ -553,7 +616,7 @@ async function processTarget(targetUrl, template) {
                     return;
                 } else {
                     const reason = result ? result.reason : 'NO_RESULT';
-                    sendLog(`⚠️ Path ${path}: ${reason}. Closing tab and trying next...`, 'warning');
+                    sendLog(`⚠️ [Step 4/4] Path ${path} unsuccessful (Reason: ${reason}). Retrying next...`, 'warning');
                     // ✅ Close tab/window immediately on failure
                     const tempWin = win;
                     const tempTab = tabWC;
@@ -564,10 +627,10 @@ async function processTarget(targetUrl, template) {
                 }
             }
 
-            sendLog(`❌ No form submitted for ${baseUrl}`, 'error');
+            sendLog(`❌ [Step 4/4] Campaign failed for ${baseUrl} (all paths exhausted).`, 'error');
             done({ success: false, reason: 'EXHAUSTED' });
         } catch(e) {
-            sendLog(`❌ Error: ${e.message}`, 'error');
+            sendLog(`❌ [System Error] Campaign crashed: ${e.message}`, 'error');
             done({ success: false, reason: e.message });
         }
     });
@@ -589,13 +652,6 @@ async function runCampaign(urls, template, delayMs) {
         if (!state.active || state.cancelled) break;
 
         const url = state.queue.shift();
-        
-        // [Clean-up] 다음 타겟 웹사이트 리스트로 전이하기 전에 혹시 남아있을 수 있는 모든 캠페인 흔적 탭 일괄 자동 닫기
-        if (_closeAllTabs) {
-            sendLog('🧹 Leftover campaign tabs auto cleanup scan...', 'debug');
-            await _closeAllTabs().catch(() => {});
-            await new Promise(r => setTimeout(r, 1000)); // 탭 정리가 완료되고 브라우저가 안정화될 수 있도록 1초 대기
-        }
         let normalized;
         try { normalized = new URL(url.startsWith('http') ? url : 'https://' + url).origin; }
         catch(e) { sendLog(`⚠️ Invalid URL: ${url}`, 'warning'); continue; }
@@ -606,6 +662,10 @@ async function runCampaign(urls, template, delayMs) {
         const targetUrl = url.startsWith('http') ? url : 'https://' + url;
         const result = await processTarget(targetUrl, template).catch(e => ({ success: false, reason: e.message }));
         if (result.success) { state.successCount++; sendStats(); }
+
+        // [v4.10.13] 매 웹사이트 발송 과정이 일단락될 때마다 탭을 강제 일괄 청소
+        sendLog(`🧹 [Cleanup] Purging all residual campaign tabs for ${normalized}...`, 'debug');
+        await cleanupAllCampaignTabs();
 
         if (state.queue.length > 0 && state.active) {
             sendLog(`⏳ Waiting ${state.delayMs}ms before next target...`, 'debug');
@@ -633,6 +693,8 @@ function stop() {
         closeXpiderTab(tempTab);
         state.currentTabWC = null;
     }
+    // 사용자 수동 정지 시 열린 모든 캠페인 탭을 전수 조사하여 즉각 일괄 정리
+    cleanupAllCampaignTabs();
     sendLog('🛑 Campaign stopped by user.', 'stop');
 }
 
@@ -640,14 +702,4 @@ function pause() { state.paused = true; sendLog('⏸️ Campaign paused.', 'info
 function resume() { state.paused = false; sendLog('▶️ Campaign resumed.', 'info'); }
 function isActive() { return state.active; }
 
-function getState() {
-    return {
-        isActive: state.active,
-        isPaused: state.paused,
-        totalTargets: state.totalTargets,
-        successCount: state.successCount,
-        remainingCount: state.queue.length
-    };
-}
-
-module.exports = { init, start, stop, pause, resume, isActive, getState };
+module.exports = { init, start, stop, pause, resume, isActive };
