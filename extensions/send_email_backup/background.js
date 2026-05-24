@@ -655,11 +655,11 @@ async function sendDirectEmailViaBrevo(recipient, template) {
     }
 
     try {
-        logBg(null, `[Brevo] Sending to: ${recipient}`, 'info');
+        logBg(null, `Sending to: ${recipient}`, 'info');
         
         const payload = {
             sender: {
-                name: template.senderName || template.name || 'XPIDER Mailer Pro',
+                name: template.senderName || 'XPIDER Mailer Pro',
                 email: template.email || 'no-reply@xpider.pro'
             },
             to: [{ email: recipient }],
@@ -667,7 +667,7 @@ async function sendDirectEmailViaBrevo(recipient, template) {
             htmlContent: template.message.replace(/\r\n/g, '<br>').replace(/\n/g, '<br>')
         };
 
-        logBg(null, `[Brevo] Payload prepared. Sender: ${payload.sender.email}`, "debug");
+        logBg(null, `Payload prepared. Sender: ${payload.sender.email}`, "debug");
 
         const response = await fetch('https://api.brevo.com/v3/smtp/email', {
             method: 'POST',
@@ -683,11 +683,11 @@ async function sendDirectEmailViaBrevo(recipient, template) {
         const result = await response.json().catch(() => ({ message: "Failed to parse JSON response" }));
         
         if (response.ok) {
-            logBg(null, `✅ [Brevo] Success! (202) ID: ${result.messageId}`, 'success');
+            logBg(null, `✅ Success! (202) ID: ${result.messageId}`, 'success');
             return { success: true };
         } else {
             const errorMsg = result.message || JSON.stringify(result) || 'Unknown API Error';
-            logBg(null, `❌ [Brevo] API Error (${status}): ${errorMsg}`, 'error');
+            logBg(null, `❌ API Error (${status}): ${errorMsg}`, 'error');
             
             if (status === 401) logBg(null, "💡 Tip: API Key might be invalid or expired.", "info");
             if (status === 403) logBg(null, "💡 Tip: Your sender email might not be authenticated in Brevo.", "info");
@@ -695,7 +695,7 @@ async function sendDirectEmailViaBrevo(recipient, template) {
             return { success: false, error: errorMsg };
         }
     } catch (err) {
-        logBg(null, `❌ [Brevo] Fatal Connection Error: ${err.message}`, 'error');
+        logBg(null, `❌ Fatal Connection Error: ${err.message}`, 'error');
         return { success: false, error: err.message };
     }
 }
