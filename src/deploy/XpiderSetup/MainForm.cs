@@ -705,12 +705,12 @@ namespace XpiderSetup
             this.StartPosition   = FormStartPosition.CenterParent;
             this.BackColor       = BG;
             this.DoubleBuffered  = true;
-            this.Region          = new Region(MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 16));
+            this.Region          = new Region(MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 20));
 
-            lblTitle = new Label { Text = title.ToUpper(), Location = new Point(28, 28), Size = new Size(504, 28), Font = boldFont, ForeColor = ACCENT };
-            lblPrompt = new Label { Text = prompt, Location = new Point(28, 70), Size = new Size(504, 60), Font = regFont, ForeColor = TEXT };
+            lblTitle = new Label { Text = title.ToUpper(), Location = new Point(32, 36), Size = new Size(496, 28), Font = boldFont, ForeColor = ACCENT };
+            lblPrompt = new Label { Text = prompt, Location = new Point(32, 80), Size = new Size(496, 70), Font = regFont, ForeColor = TEXT };
             
-            txtInput = new TextBox { Location = new Point(36, 150), Size = new Size(488, 30), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font(regFont.FontFamily, 11f) };
+            txtInput = new TextBox { Location = new Point(40, 180), Size = new Size(480, 24), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font(regFont.FontFamily, 11f) };
             txtInput.Text = defaultValue;
             txtInput.KeyDown += (s, e) => {
                 if (e.KeyCode == Keys.Enter) {
@@ -722,7 +722,7 @@ namespace XpiderSetup
                 }
             };
 
-            btnOk = new RoundedButton { Text = "OK", Location = new Point(28, 338), Size = new Size(244, 52), Radius = 10 };
+            btnOk = new RoundedButton { Text = "OK", Location = new Point(32, 330), Size = new Size(240, 52), Radius = 12 };
             btnOk.Font = boldFont;
             btnOk.BackColor = ACCENT;
             btnOk.ForeColor = Color.Black;
@@ -733,7 +733,7 @@ namespace XpiderSetup
                 this.Close();
             };
 
-            btnCancel = new RoundedButton { Text = "CANCEL", Location = new Point(288, 338), Size = new Size(244, 52), Radius = 10 };
+            btnCancel = new RoundedButton { Text = "CANCEL", Location = new Point(288, 330), Size = new Size(240, 52), Radius = 12 };
             btnCancel.Font = boldFont;
             btnCancel.BackColor = INBG;
             btnCancel.ForeColor = TEXT;
@@ -766,7 +766,7 @@ namespace XpiderSetup
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            using (var path = MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 16))
+            using (var path = MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 20))
             {
                 g.SetClip(path);
                 using (var br = new LinearGradientBrush(new Rectangle(0, 0, Width, 4), Color.FromArgb(200, 0, 229, 255), Color.FromArgb(200, 123, 97, 255), 0f))
@@ -775,7 +775,7 @@ namespace XpiderSetup
             }
 
             using (var p = new Pen(Color.FromArgb(40, 40, 40), 2))
-                g.DrawPath(p, MainForm.GetRoundedPath(new Rectangle(1, 1, Width - 3, Height - 3), 15));
+                g.DrawPath(p, MainForm.GetRoundedPath(new Rectangle(1, 1, Width - 3, Height - 3), 19));
 
             using (var p = new Pen(BORDER, 1))
             using (var path = MainForm.GetRoundedPath(new Rectangle(txtInput.Left - 8, txtInput.Top - 8, txtInput.Width + 16, txtInput.Height + 16), 8))

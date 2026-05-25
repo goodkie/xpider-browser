@@ -33196,7 +33196,7 @@ FILE: extensions/_old_collect-list_v2/manifest.json
 
 {
   "name": "v2",
-  "version": "1.0.20",
+  "version": "1.0.22",
   "description": "New Extension",
   "icons": {
     "48": "icon.png"
@@ -45657,7 +45657,7 @@ FILE: extensions/bing_map_source/manifest.json
 {
   "manifest_version": 3,
   "name": "Bing Maps Business Finder",
-  "version": "1.1.22",
+  "version": "1.1.24",
   "description": "빙 맵스(Bing Maps)에서 비즈니스 정보를 추출하고 이메일 및 연락처를 발굴하는 전문가용 데이터 수집 엔진입니다.",
   "permissions": [
     "storage",
@@ -53074,7 +53074,7 @@ FILE: extensions/Email_Extractor_Source/manifest.json
   "name": "Email Extractor",
   "short_name": "EmailExt",
   "description": "방문하는 웹페이지에서 실시간으로 이메일 주소를 감지하고 수집하는 고성능 리드 추출 엔진입니다.",
-  "version": "1.0.24",
+  "version": "1.0.26",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -57579,7 +57579,7 @@ FILE: extensions/google_maps_extension_source/manifest.json
 {
   "manifest_version": 3,
   "name": "GMaps Business Finder",
-  "version": "1.1.22",
+  "version": "1.1.24",
   "description": "구글 맵스(Google Maps)에서 비즈니스 정보를 추출하고 이메일 및 연락처를 발굴하는 전문가용 데이터 수집 엔진입니다.",
   "permissions": [
     "storage",
@@ -68305,7 +68305,7 @@ FILE: extensions/LocalBusinessDataCrawlerPro/manifest.json
 {
   "manifest_version": 3,
   "name": "XPIDER Pro - Local Business Data Crawler v1.2.3 Pro",
-  "version": "1.2.22",
+  "version": "1.2.24",
   "description": "웹에서 비즈니스 정보를 수집하고 이메일, 전화번호, SNS 링크 등을 추출하는 심층 데이터 크롤러 프로 버전입니다.",
   "icons": {
     "16": "icons/icon16.png",
@@ -76132,7 +76132,7 @@ FILE: extensions/proxy/manifest.json
 {
   "manifest_version": 3,
   "name": "XPIDER VPN",
-  "version": "2.6.21",
+  "version": "2.6.23",
   "description": "안전하고 빠른 익명 서핑을 위한 전용 프록시 및 VPN 솔루션입니다. 전 세계 고속 노드를 지원합니다.",
   "icons": {
     "16": "icons/icon16.png",
@@ -78157,7 +78157,7 @@ FILE: extensions/send_email_backup/manifest.json
 {
   "manifest_version": 3,
   "name": "XPIDER SendForce Mailer Pro",
-  "version": "2.0.19",
+  "version": "2.0.21",
   "description": "대량 메일 발송 및 마케팅 캠페인을 위한 강력한 자동화 솔루션입니다. 높은 도달율과 익명 발송 기능을 지원합니다.",
   "permissions": [
     "storage",
@@ -89206,7 +89206,7 @@ FILE: extensions/send_message_backup/manifest.json
 {
   "manifest_version": 3,
   "name": "XPIDER AutoForm Sender Pro",
-  "version": "1.1.31",
+  "version": "1.1.33",
   "description": "웹사이트의 문의 양식(Contact Form)을 자동으로 감지하고 메시지를 대량 발송하는 강력한 폼 마케팅 엔진입니다.",
   "permissions": [
     "storage",
@@ -97273,7 +97273,7 @@ FILE: package.json
 
 {
   "name": "xpider-browser",
-  "version": "4.10.39",
+  "version": "4.10.41",
   "description": "Custom Chromium Browser for XPIDER",
   "main": "src/main.js",
   "scripts": {
@@ -112110,12 +112110,12 @@ namespace XpiderSetup
             this.StartPosition   = FormStartPosition.CenterParent;
             this.BackColor       = BG;
             this.DoubleBuffered  = true;
-            this.Region          = new Region(MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 16));
+            this.Region          = new Region(MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 20));
 
-            lblTitle = new Label { Text = title.ToUpper(), Location = new Point(28, 28), Size = new Size(504, 28), Font = boldFont, ForeColor = ACCENT };
-            lblPrompt = new Label { Text = prompt, Location = new Point(28, 70), Size = new Size(504, 60), Font = regFont, ForeColor = TEXT };
+            lblTitle = new Label { Text = title.ToUpper(), Location = new Point(32, 36), Size = new Size(496, 28), Font = boldFont, ForeColor = ACCENT };
+            lblPrompt = new Label { Text = prompt, Location = new Point(32, 80), Size = new Size(496, 70), Font = regFont, ForeColor = TEXT };
             
-            txtInput = new TextBox { Location = new Point(36, 150), Size = new Size(488, 30), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font(regFont.FontFamily, 11f) };
+            txtInput = new TextBox { Location = new Point(40, 180), Size = new Size(480, 24), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font(regFont.FontFamily, 11f) };
             txtInput.Text = defaultValue;
             txtInput.KeyDown += (s, e) => {
                 if (e.KeyCode == Keys.Enter) {
@@ -112127,7 +112127,7 @@ namespace XpiderSetup
                 }
             };
 
-            btnOk = new RoundedButton { Text = "OK", Location = new Point(28, 338), Size = new Size(244, 52), Radius = 10 };
+            btnOk = new RoundedButton { Text = "OK", Location = new Point(32, 330), Size = new Size(240, 52), Radius = 12 };
             btnOk.Font = boldFont;
             btnOk.BackColor = ACCENT;
             btnOk.ForeColor = Color.Black;
@@ -112138,7 +112138,7 @@ namespace XpiderSetup
                 this.Close();
             };
 
-            btnCancel = new RoundedButton { Text = "CANCEL", Location = new Point(288, 338), Size = new Size(244, 52), Radius = 10 };
+            btnCancel = new RoundedButton { Text = "CANCEL", Location = new Point(288, 330), Size = new Size(240, 52), Radius = 12 };
             btnCancel.Font = boldFont;
             btnCancel.BackColor = INBG;
             btnCancel.ForeColor = TEXT;
@@ -112171,7 +112171,7 @@ namespace XpiderSetup
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            using (var path = MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 16))
+            using (var path = MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 20))
             {
                 g.SetClip(path);
                 using (var br = new LinearGradientBrush(new Rectangle(0, 0, Width, 4), Color.FromArgb(200, 0, 229, 255), Color.FromArgb(200, 123, 97, 255), 0f))
@@ -112180,7 +112180,7 @@ namespace XpiderSetup
             }
 
             using (var p = new Pen(Color.FromArgb(40, 40, 40), 2))
-                g.DrawPath(p, MainForm.GetRoundedPath(new Rectangle(1, 1, Width - 3, Height - 3), 15));
+                g.DrawPath(p, MainForm.GetRoundedPath(new Rectangle(1, 1, Width - 3, Height - 3), 19));
 
             using (var p = new Pen(BORDER, 1))
             using (var path = MainForm.GetRoundedPath(new Rectangle(txtInput.Left - 8, txtInput.Top - 8, txtInput.Width + 16, txtInput.Height + 16), 8))
