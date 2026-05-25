@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GMaps Business Finder",
-  "version": "1.1.20",
+  "version": "1.1.21",
   "description": "구글 맵스(Google Maps)에서 비즈니스 정보를 추출하고 이메일 및 연락처를 발굴하는 전문가용 데이터 수집 엔진입니다.",
   "permissions": [
     "storage",

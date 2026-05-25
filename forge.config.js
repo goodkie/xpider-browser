@@ -54,7 +54,7 @@ module.exports = {
     },
     {
       name: '@electron-forge/maker-dmg',
-      config: {
+      config: (arch) => ({
         name: 'XPIDER-Browser',
         format: 'UDZO',
         icon: './assets/icons/mac/icon.icns',
@@ -63,7 +63,7 @@ module.exports = {
             x: 130,
             y: 220,
             type: 'file',
-            path: require('path').join(process.cwd(), 'out', `XPIDER Browser-darwin-${process.arch}`, 'XPIDER Browser.app')
+            path: require('path').join(process.cwd(), 'out', `XPIDER Browser-darwin-${arch}`, 'XPIDER Browser.app')
           },
           {
             x: 410,
@@ -78,7 +78,7 @@ module.exports = {
             path: require('path').join(process.cwd(), 'XPIDER_Installation_Guide.pdf')
           }
         ]
-      },
+      }),
     },
   ],
 
