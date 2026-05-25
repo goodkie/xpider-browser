@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>XPIDER Browser Installation & Security Bypass Guide</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --bg-main: #ffffff;
+            --bg-card: #f8fafc;
+            --border: #e2e8f0;
+            --win-blue: #0078d4;
+            --mac-dark: #1e293b;
+            --accent-orange: #ea580c;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: var(--text-main);
+            line-height: 1.6;
+            margin: 0;
+            padding: 40px;
+            background-color: var(--bg-main);
+            -webkit-print-color-adjust: exact;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 30px;
+            margin-bottom: 45px;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-bottom: 15px;
+        }
+
+        .logo-img {
+            width: 52px;
+            height: 52px;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 34px;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: var(--text-muted);
+            margin-top: 10px;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 24px;
+            font-weight: 800;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 12px;
+            margin-top: 50px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .win-title {
+            color: var(--win-blue);
+        }
+
+        .mac-title {
+            color: var(--mac-dark);
+        }
+
+        .badge {
+            font-size: 12px;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 8px;
+            text-transform: uppercase;
+        }
+
+        .win-badge {
+            background-color: #e0f2fe;
+            color: var(--win-blue);
+        }
+
+        .mac-badge {
+            background-color: #f1f5f9;
+            color: var(--mac-dark);
+        }
+
+        .step-container {
+            margin-bottom: 30px;
+        }
+
+        .step {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 26px;
+            margin-bottom: 24px;
+            page-break-inside: avoid;
+        }
+
+        .step-num {
+            display: inline-block;
+            background: var(--text-main);
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .step-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0 0 12px 0;
+            color: #0f172a;
+        }
+
+        .step p {
+            margin: 0 0 15px 0;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Image layouts */
+        .image-row {
+            display: flex;
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .image-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .img-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .img-wrapper {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .screenshot {
+            max-width: 100%;
+            max-height: 280px;
+            border-radius: 6px;
+            object-fit: contain;
+        }
+
+        .screenshot-large {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 6px;
+        }
+
+        /* Callout blocks */
+        .callout {
+            background-color: #f8fafc;
+            border-left: 4px solid #64748b;
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 20px 0;
+            font-size: 13.5px;
+            color: #334155;
+        }
+
+        .callout-title {
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: #0f172a;
+        }
+
+        .alert-warning {
+            background-color: #fffaf0;
+            border-left: 4px solid var(--accent-orange);
+            color: #7c2d12;
+        }
+
+        .info-box {
+            background-color: var(--primary-light);
+            border-left: 4px solid var(--primary);
+            border-radius: 10px;
+            padding: 24px;
+            margin-top: 45px;
+            font-size: 14px;
+            color: #1e3a8a;
+            page-break-inside: avoid;
+        }
+
+        .info-box h3 {
+            margin-top: 0;
+            font-weight: 800;
+            font-size: 17px;
+            color: #1e40af;
+        }
+
+        .info-box p {
+            margin-bottom: 0;
+            line-height: 1.6;
+        }
+
+        ol {
+            margin: 0;
+            padding-left: 20px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        .method-tag {
+            font-weight: 800;
+            color: #334155;
+            font-size: 13px;
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 8px;
+            display: inline-block;
+            margin-bottom: 15px;
+            letter-spacing: 0.5px;
+        }
+
+        code {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            background-color: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #0f172a;
+        }
+
+        pre {
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            background-color: #0f172a;
+            color: #f8fafc;
+            padding: 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 15px 0 0 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-area">
+                <img src="file:///e:/vivpr/ai/xpider-trial/src/assets/icon.png" class="logo-img" alt="XPIDER Logo" onerror="this.style.display='none'">
+                <h1>XPIDER Browser</h1>
+            </div>
+            <div class="subtitle">Complete Security Bypass & Installation Guide</div>
+        </header>
+
+        <p style="font-size: 14px; color: var(--text-muted); text-align: center; margin-bottom: 45px; max-width: 680px; margin-left: auto; margin-right: auto;">
+            XPIDER is an advanced web scraping enterprise browser. Because it is distributed directly rather than through public commercial app stores, standard OS security mechanisms (Windows Defender and macOS Gatekeeper) will show warning prompts. Please use this guide to proceed safely.
+        </p>
+
+        <!-- ==================== WINDOWS SECTION ==================== -->
+        <h2 class="win-title">
+            <span class="badge win-badge">Windows</span>
+            Microsoft Defender SmartScreen Bypass
+        </h2>
+
+        <div class="step-container">
+            <div class="step">
+                <span class="step-num">Step 1</span>
+                <h3 class="step-title">Run the Installer</h3>
+                <p>Download the latest <strong>XPIDER-Browser-Windows-Setup.exe</strong> and double-click to launch the setup wizard.</p>
+            </div>
+
+            <div class="step" style="page-break-inside: avoid;">
+                <span class="step-num">Step 2</span>
+                <h3 class="step-title">Allow Unrecognized Application</h3>
+                <p>When the blue **"Windows protected your PC"** (Windows의 PC 보호) screen appears, Windows shows this by default for any executable that does not yet have a massive worldwide download history. Simply click **"More info" (추가 정보)** ➡️ then click **"Run anyway" (실행)**.</p>
+                
+                <div class="image-row">
+                    <!-- Before click -->
+                    <div class="image-col">
+                        <div class="img-wrapper">
+                            <img src="file:///e:/vivpr/ai/xpider-trial/scratch/win-smartscreen-before.png" class="screenshot" alt="SmartScreen Initial Warning">
+                        </div>
+                        <div class="img-label">1. Click "More info"</div>
+                    </div>
+                    <!-- After click -->
+                    <div class="image-col">
+                        <div class="img-wrapper">
+                            <img src="file:///e:/vivpr/ai/xpider-trial/scratch/win-smartscreen-after.png" class="screenshot" alt="SmartScreen Option revealed">
+                        </div>
+                        <div class="img-label">2. Click "Run anyway"</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Windows Security logic callout -->
+            <div class="callout">
+                <div class="callout-title">🔍 Why does this happen?</div>
+                Microsoft Defender SmartScreen uses a reputation-based catalog system. When a new utility or a weekly-updated browser version is released, Microsoft has no historical catalog data for it yet, prompting a standard warning. Bypassing it by clicking **"Run anyway"** is fully safe and secure.
+            </div>
+
+            <!-- Smartscreen permanent disable tip -->
+            <div class="step">
+                <span class="method-tag">Alternative: Disabling SmartScreen permanently</span>
+                <p>If you build or manage business scrapers frequently and want to prevent Windows from blocking unrecognized files:</p>
+                <ol>
+                    <li>Press <code>Win</code> + <code>I</code> to open **Settings**, then navigate to **Windows Security**.</li>
+                    <li>Open **App & browser control** and click **Reputation-based protection settings**.</li>
+                    <li>Switch off **Check apps and files** and **Potentially unwanted app blocking** filters.</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- ==================== MACOS SECTION ==================== -->
+        <h2 class="mac-title" style="page-break-before: always;">
+            <span class="badge mac-badge">macOS</span>
+            macOS Gatekeeper Bypass (Malware Alert Fix)
+        </h2>
+
+        <div class="step-container">
+            <!-- Explain Gatekeeper logic first -->
+            <div class="callout alert-warning">
+                <div class="callout-title">⚠️ Understanding macOS App Store Protections</div>
+                Apple macOS includes a strict security layer called Gatekeeper. When you open a directly downloaded `.dmg` or `.app` that has not gone through automated Apple Notarization, macOS blocks it by showing: <em>"XPIDER Browser cannot be opened because the developer cannot be verified"</em> or <em>"macOS cannot verify that this app is free from malware"</em>. This does not mean the app is unsafe.
+            </div>
+
+            <!-- METHOD A -->
+            <div class="step">
+                <span class="method-tag">Method A: Bypass via Finder Right-Click (Quickest)</span>
+                <p>If you see a developer verification warning when double-clicking the app:</p>
+                
+                <div class="img-wrapper" style="margin-bottom: 20px;">
+                    <img src="file:///C:/Users/vivPR/.gemini/antigravity/brain/442f16c0-e5fb-442d-961e-38f247113b0a/media__1779687513257.png" class="screenshot-large" alt="macOS Unverified Developer Prompt">
+                </div>
+
+                <ol>
+                    <li>Click **"Cancel"** (do NOT choose "Move to Trash").</li>
+                    <li>Open **Finder** and navigate to your **Applications** folder (or the location of the app).</li>
+                    <li>**Right-click** (or hold the <code>Control</code> key and click) the **XPIDER Browser** icon.</li>
+                    <li>Choose **"Open"** from the shortcut context menu.</li>
+                    <li>A new popup dialog will appear. But this time, it will contain a visible **"Open" (열기)** button next to Cancel. Click it, and macOS will save this preference permanently.</li>
+                </ol>
+            </div>
+
+            <!-- METHOD B -->
+            <div class="step" style="page-break-before: always;">
+                <span class="method-tag">Method B: Approve in Privacy & Security Settings</span>
+                <p>If you encounter a blocked disk image warning when mounting the DMG setup file:</p>
+                
+                <div class="img-wrapper" style="margin-bottom: 20px;">
+                    <img src="file:///C:/Users/vivPR/.gemini/antigravity/brain/442f16c0-e5fb-442d-961e-38f247113b0a/media__1779687513266.png" class="screenshot-large" alt="macOS DMG Blocked Prompt">
+                </div>
+
+                <ol>
+                    <li>Click **"Cancel"** on the popup warning.</li>
+                    <li>Click the Apple logo () on the top-left menu bar and launch **System Settings (시스템 설정)**.</li>
+                    <li>Navigate to **"Privacy & Security"** on the left side list.</li>
+                    <li>Scroll down to the **"Security"** section on the right.</li>
+                    <li>You will see a notification stating: *"XPIDER Browser was blocked from use because it is not from an identified developer."*</li>
+                    <li>Click the **"Open Anyway"** button.</li>
+                    <li>Authenticate with your Mac password or Touch ID, then click **"Open"** to launch the installer.</li>
+                </ol>
+            </div>
+
+            <!-- METHOD C - POWER USERS -->
+            <div class="step" style="page-break-before: always;">
+                <span class="method-tag">Method C: Bypass via Terminal Quarantine Removal (For Power Users)</span>
+                <p>On modern macOS versions (Sonoma, Sequoia, etc.), standard context menu bypasses may occasionally fail to remove the quarantine tag. You can clear this attribute instantly via Terminal:</p>
+                <ol>
+                    <li>Open the **Terminal** app (Press <code>Cmd</code> + <code>Space</code>, type "Terminal" and hit Enter).</li>
+                    <li>Type or copy-paste the following command to completely strip the Gatekeeper quarantine attribute:</li>
+                </ol>
+                <pre>sudo xattr -rd com.apple.quarantine /Applications/XPIDER\ Browser.app</pre>
+                <ol start="3">
+                    <li>Hit **Enter**. Terminal will ask for your Mac user password. Type it (characters won't show) and press Enter.</li>
+                    <li>XPIDER Browser will now open cleanly with a simple double-click, completely bypassing Gatekeeper checks.</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Safe Info Box -->
+        <div class="info-box">
+            <h3>🛡️ Professional Security Guarantee</h3>
+            <p>
+                XPIDER Browser is built securely on the open-source Chromium project. We consistently push out weekly micro-updates to ensure the scraping and VPN proxies bypass strict anti-scraping Cloudflare/WAF blockades. This rapid distribution prevents standard App Store pre-registrations. We certify that our installer is 100% clean, telemetry-free, and safe for your production environment.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

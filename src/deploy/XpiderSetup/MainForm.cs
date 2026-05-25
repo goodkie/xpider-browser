@@ -700,17 +700,17 @@ namespace XpiderSetup
         public PromptDialog(string title, string prompt, string defaultValue, Font regFont, Font boldFont)
         {
             this.Text            = title;
-            this.Size            = new Size(460, 260);
+            this.Size            = new Size(560, 420);
             this.FormBorderStyle = FormBorderStyle.None;
             this.StartPosition   = FormStartPosition.CenterParent;
             this.BackColor       = BG;
             this.DoubleBuffered  = true;
             this.Region          = new Region(MainForm.GetRoundedPath(new Rectangle(0, 0, Width, Height), 16));
 
-            lblTitle = new Label { Text = title.ToUpper(), Location = new Point(24, 24), Size = new Size(412, 28), Font = boldFont, ForeColor = ACCENT };
-            lblPrompt = new Label { Text = prompt, Location = new Point(24, 60), Size = new Size(412, 50), Font = regFont, ForeColor = TEXT };
+            lblTitle = new Label { Text = title.ToUpper(), Location = new Point(28, 28), Size = new Size(504, 28), Font = boldFont, ForeColor = ACCENT };
+            lblPrompt = new Label { Text = prompt, Location = new Point(28, 70), Size = new Size(504, 60), Font = regFont, ForeColor = TEXT };
             
-            txtInput = new TextBox { Location = new Point(32, 128), Size = new Size(396, 24), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font(regFont.FontFamily, 11f) };
+            txtInput = new TextBox { Location = new Point(36, 150), Size = new Size(488, 30), BackColor = INBG, ForeColor = TEXT, BorderStyle = BorderStyle.None, Font = new Font(regFont.FontFamily, 11f) };
             txtInput.Text = defaultValue;
             txtInput.KeyDown += (s, e) => {
                 if (e.KeyCode == Keys.Enter) {
@@ -722,7 +722,7 @@ namespace XpiderSetup
                 }
             };
 
-            btnOk = new RoundedButton { Text = "OK", Location = new Point(24, 185), Size = new Size(200, 48), Radius = 10 };
+            btnOk = new RoundedButton { Text = "OK", Location = new Point(28, 338), Size = new Size(244, 52), Radius = 10 };
             btnOk.Font = boldFont;
             btnOk.BackColor = ACCENT;
             btnOk.ForeColor = Color.Black;
@@ -733,7 +733,7 @@ namespace XpiderSetup
                 this.Close();
             };
 
-            btnCancel = new RoundedButton { Text = "CANCEL", Location = new Point(236, 185), Size = new Size(200, 48), Radius = 10 };
+            btnCancel = new RoundedButton { Text = "CANCEL", Location = new Point(288, 338), Size = new Size(244, 52), Radius = 10 };
             btnCancel.Font = boldFont;
             btnCancel.BackColor = INBG;
             btnCancel.ForeColor = TEXT;
