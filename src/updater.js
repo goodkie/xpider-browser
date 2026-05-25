@@ -110,9 +110,24 @@ async function checkAppUpdate() {
            || assets.find(a => /windows/i.test(a.name) && a.name.endsWith('.zip'))
            || assets.find(a => a.name.endsWith('.zip'));
     } else if (process.platform === 'darwin') {
-      // macOS: DMG 우선, 없으면 ZIP
-      asset = assets.find(a => a.name.endsWith('.dmg'))
-           || assets.find(a => a.name.endsWith('.zip'));
+      // macOS: 아키텍처에 맞춰 arm64(Apple Silicon) 또는 x64(Intel) 다운로드
+      const arch = process.arch; // 'arm64' 또는 'x64'
+      const isArm = arch === 'arm64';
+      
+      asset = assets.find(a => {
+        const name = a.name.toLowerCase();
+        if (!name.endsWith('.dmg') && !name.endsWith('.zip')) return false;
+        
+        // universal 빌드인 경우 둘 다 가능
+        if (name.includes('universal')) return true;
+        
+        if (isArm) {
+          return name.includes('arm') || name.includes('silicon');
+        } else {
+          return name.includes('intel') || name.includes('x64') || name.includes('x86_64');
+        }
+      }) || assets.find(a => a.name.endsWith('.dmg'))
+         || assets.find(a => a.name.endsWith('.zip'));
     } else {
       // Linux / 기타: ZIP
       asset = assets.find(a => a.name.endsWith('.zip'));
