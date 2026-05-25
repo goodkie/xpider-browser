@@ -2,12 +2,16 @@ module.exports = {
   packagerConfig: {
     asar: true,
     name: 'XPIDER Browser',
-    executableName: 'XPIDERBrowser',
+    // macOS에서 executableName 불일치로 인한 실행 불가 버그 방지
+    executableName: process.platform === 'win32' || process.platform === 'linux' ? 'XPIDERBrowser' : undefined,
     extraResource: ['./extensions'],
     icon: './assets/icons/win/icon',
     appBundleId: 'com.xpider.browser',
     appVersion: require('./package.json').version,
     osxSign: process.env.CSC_LINK ? {} : undefined,
+    extendInfo: {
+      LSMinimumSystemVersion: '10.15.0', // 구형 macOS 호환성 보장
+    },
     ignore: [
       /^\/data($|\/)/,
       /^\/backups($|\/)/,
