@@ -57,7 +57,27 @@ module.exports = {
       config: {
         name: 'XPIDER-Browser',
         format: 'UDZO',
-        icon: './assets/icons/mac/icon.icns'
+        icon: './assets/icons/mac/icon.icns',
+        contents: [
+          {
+            x: 130,
+            y: 220,
+            type: 'file',
+            path: require('path').join(process.cwd(), 'out', `XPIDER Browser-darwin-${process.arch}`, 'XPIDER Browser.app')
+          },
+          {
+            x: 410,
+            y: 220,
+            type: 'link',
+            path: '/Applications'
+          },
+          {
+            x: 270,
+            y: 340,
+            type: 'file',
+            path: require('path').join(process.cwd(), 'XPIDER_Installation_Guide.pdf')
+          }
+        ]
       },
     },
   ],
@@ -68,4 +88,18 @@ module.exports = {
       config: {},
     },
   ],
+  hooks: {
+    postPackage: async (forgeConfig, packageResult) => {
+      const fs = require('fs');
+      const path = require('path');
+      for (const outputPath of packageResult.outputPaths) {
+        const pdfSource = path.join(process.cwd(), 'XPIDER_Installation_Guide.pdf');
+        const pdfDest = path.join(outputPath, 'XPIDER_Installation_Guide.pdf');
+        if (fs.existsSync(pdfSource)) {
+          fs.copyFileSync(pdfSource, pdfDest);
+          console.log(`[XPIDER Hook] Copied guide PDF to installer root: ${pdfDest}`);
+        }
+      }
+    }
+  }
 };
