@@ -705,6 +705,11 @@ window.electronAPI.on('app-update-result', (result) => {
             modalNotes.textContent = notes || 'A new version has been released.';
         }
         _releaseUrl = result.downloadUrl || result.releaseUrl || '';
+        
+        // 다시 보지 않기 체크박스 초기화
+        const skipCheckbox = document.getElementById('modal-skip-checkbox');
+        if (skipCheckbox) skipCheckbox.checked = false;
+        
         updateModal.classList.remove('hidden');
     } else {
         // 에러가 있으면 에러 토스트
@@ -734,7 +739,16 @@ if (modalUpdateBtn) {
 // ② 나중에 (스킵)
 modalSkipBtn.onclick = () => {
     const latestVer = modalLatestVer ? modalLatestVer.textContent : '';
-    if (latestVer) localStorage.setItem('xpider-skip-version', latestVer);
+    const skipCheckbox = document.getElementById('modal-skip-checkbox');
+    if (latestVer) {
+        if (skipCheckbox && skipCheckbox.checked) {
+            localStorage.setItem('xpider-skip-version', latestVer);
+            console.log('[Update] User chose to skip this version permanently:', latestVer);
+        } else {
+            localStorage.removeItem('xpider-skip-version');
+            console.log('[Update] User dismissed update this time, will prompt again next startup.');
+        }
+    }
     updateModal.classList.add('hidden');
 };
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "XPIDER SendForce Mailer Pro",
-  "version": "2.0.14",
+  "version": "2.0.15",
   "description": "대량 메일 발송 및 마케팅 캠페인을 위한 강력한 자동화 솔루션입니다. 높은 도달율과 익명 발송 기능을 지원합니다.",
   "permissions": [
     "storage",
