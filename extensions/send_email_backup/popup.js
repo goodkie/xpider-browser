@@ -15,16 +15,6 @@ let remainingTargets = 0;          // [v2.5.5] For 3-line monitor
 // [v1.1.1] Global error handler for debugging
 window.onerror = function(msg, url, line) {
     console.error(`[Popup Error] ${msg} at ${url}:${line}`);
-    
-    // [Protection] Handle Chrome Extension Context Invalidated Error (Auto-Recovery)
-    if (msg && (msg.includes("Extension context invalidated") || msg.includes("context invalidated"))) {
-        console.warn("[Protection] Context invalidated detected! Reloading popup to restore API context...");
-        setTimeout(() => {
-            location.reload();
-        }, 100);
-        return true;
-    }
-    
     // Optional: add to log container if it exists
     const logContainer = document.getElementById('log-container');
     if (logContainer) {
