@@ -26,6 +26,21 @@ ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS active_device_id TEXT;
 -- 2. Row Level Security 활성화
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
+-- 2.5. 어드민 여부를 무한 재귀 없이 안전하게 체크하는 SECURITY DEFINER 헬퍼 함수
+CREATE OR REPLACE FUNCTION public.is_admin(user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = user_id AND plan = 'admin'
+  );
+END;
+$$;
+
 -- 3. profiles 정책 설정 (기존 정책이 존재하면 DROP 후 새로 생성)
 DROP POLICY IF EXISTS "self_select" ON public.profiles;
 CREATE POLICY "self_select" ON public.profiles
@@ -33,15 +48,11 @@ CREATE POLICY "self_select" ON public.profiles
 
 DROP POLICY IF EXISTS "admin_select_all" ON public.profiles;
 CREATE POLICY "admin_select_all" ON public.profiles
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND plan = 'admin')
-  );
+  FOR SELECT USING (public.is_admin(auth.uid()));
 
 DROP POLICY IF EXISTS "admin_update_all" ON public.profiles;
 CREATE POLICY "admin_update_all" ON public.profiles
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND plan = 'admin')
-  );
+  FOR UPDATE USING (public.is_admin(auth.uid()));
 
 DROP POLICY IF EXISTS "self_update" ON public.profiles;
 CREATE POLICY "self_update" ON public.profiles
@@ -50,6 +61,7 @@ CREATE POLICY "self_update" ON public.profiles
 DROP POLICY IF EXISTS "self_insert" ON public.profiles;
 CREATE POLICY "self_insert" ON public.profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
+
 
 
 
@@ -70,9 +82,8 @@ ALTER TABLE public.user_logs ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "admin_select_logs" ON public.user_logs;
 CREATE POLICY "admin_select_logs" ON public.user_logs
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND plan = 'admin')
-  );
+  FOR SELECT USING (public.is_admin(auth.uid()));
+
 
 DROP POLICY IF EXISTS "self_insert_logs" ON public.user_logs;
 CREATE POLICY "self_insert_logs" ON public.user_logs
