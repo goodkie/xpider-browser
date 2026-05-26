@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         card.innerHTML = `
             <div style="font-size: 40px; margin-bottom: 16px; display: inline-block; filter: drop-shadow(0 4px 12px rgba(99, 102, 241, 0.4));">🛡️</div>
             <h2 style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0 0 12px 0; letter-spacing: -0.5px;">🔒 XPIDER VPN Recommended</h2>
-            <p style="color: #94a3b8; font-size: 13.5px; line-height: 1.6; margin: 0 0 24px 0; word-break: keep-all; font-weight: 400;">
+            <p style="color: #94a3b8; font-size: 13.5px; line-height: 1.6; margin: 0 0 20px 0; word-break: keep-all; font-weight: 400;">
                 To maximize leads deliverability, bypass target server blocks, and ensure complete data security, we highly recommend running this module through the XPIDER VPN proxy network.
             </p>
             <button id="xpider-vpn-btn-connect" style="
@@ -83,8 +83,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
                 transition: all 0.2s ease;
                 outline: none;
-                margin-bottom: 14px;
+                margin-bottom: 16px;
             ">Turn on VPN & Start</button>
+            <label style="
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                font-size: 12px;
+                color: #64748b;
+                margin-bottom: 16px;
+                cursor: pointer;
+                user-select: none;
+            " onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#64748b'">
+                <input type="checkbox" id="xpider-vpn-skip-checkbox" style="
+                    accent-color: #6366f1;
+                    cursor: pointer;
+                    width: 14px;
+                    height: 14px;
+                    margin: 0;
+                ">
+                <span>Don't show this again</span>
+            </label>
             <div id="xpider-vpn-btn-bypass" style="
                 display: inline-block;
                 font-size: 12.5px;
@@ -117,11 +137,14 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const closeModal = (choice) => {
+            const skipCheckbox = card.querySelector('#xpider-vpn-skip-checkbox');
+            const skipChecked = skipCheckbox ? skipCheckbox.checked : false;
+
             modal.style.opacity = '0';
             card.style.transform = 'scale(0.9)';
             setTimeout(() => {
                 modal.remove();
-                callback(choice);
+                callback(choice, skipChecked);
             }, 300);
         };
 
@@ -144,20 +167,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // ─── VPN 상태 검사 및 자동 구동 연동 ───────────────────────────────────────
     async function checkVpnAndStart(onStartCallback) {
         let isVpnConnected = false;
+        let shouldSkipPopup = false;
         try {
             const vpnState = await xpiderInvoke('xpider-vpn-get-state');
             isVpnConnected = !!(vpnState && vpnState.connected);
+
+            const storage = await chrome.storage.local.get(['xpider_vpn_popup_skip']).catch(() => ({}));
+            shouldSkipPopup = !!(storage && storage.xpider_vpn_popup_skip);
         } catch (e) {
-            console.error('Failed to fetch VPN state via IPC:', e);
+            console.error('Failed to fetch VPN state or skip setting via IPC:', e);
         }
 
-        if (isVpnConnected) {
+        if (isVpnConnected || shouldSkipPopup) {
             onStartCallback();
             return;
         }
 
         try {
-            showVpnRecommendationModal(async (choice) => {
+            showVpnRecommendationModal(async (choice, skipChecked) => {
+                if (skipChecked) {
+                    try {
+                        await chrome.storage.local.set({ xpider_vpn_popup_skip: true });
+                        safeLog('[VPN] "Don\'t show this again" set to true.', 'info');
+                    } catch (err) {
+                        console.error('Failed to save skip setting:', err);
+                    }
+                }
+
                 if (choice === 'connect') {
                     safeLog('[VPN] Auto-connecting XPIDER VPN for secure operation...', 'info');
                     try {
