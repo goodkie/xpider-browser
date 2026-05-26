@@ -521,6 +521,8 @@ function handleLogout() {
   if (confirm('Are you sure you want to sign out?')) {
     // 다음 구동 시 자동 로그인이 수행되지 않도록 저장된 비밀번호 정보를 철저히 제거
     localStorage.removeItem('xpider-saved-pw');
+    // 다음 기동 시 로그인 대신 초기화된 회원가입(Sign-up) 탭으로 진입하도록 마킹
+    localStorage.setItem('xpider-start-tab', 'signup');
     try { api.send('auth-logout'); } catch(e) {}
     try { window.close(); } catch(e) {}
   }

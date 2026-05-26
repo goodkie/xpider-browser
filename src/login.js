@@ -29,9 +29,43 @@
     if (pwField) pwField.value = savedPw;
   }
 
-  // ─── 자동 로그인 확인 ─────────────────────────────────
-  // 세션이 있으면 바로 진입, 없으면 저장된 이메일/패스워드로 자동 로그인 시도
+  // ─── 탭 전환 헬퍼 함수 ────────────────────────────────
+  function switchTab(t) {
+    if (t === currentTab) return;
+    currentTab = t;
+    tabs.forEach(b => {
+      if (b.dataset.tab === t) b.classList.add('active');
+      else b.classList.remove('active');
+    });
+    if (t === 'signup') {
+      slider.classList.add('right');
+      formLogin.classList.add('hidden');
+      formSignup.classList.remove('hidden');
+    } else {
+      slider.classList.remove('right');
+      formSignup.classList.add('hidden');
+      formLogin.classList.remove('hidden');
+    }
+    hideMsg();
+  }
+
+  // ─── 자동 로그인 및 시작 탭 제어 ─────────────────────────────
   (async () => {
+    const startTab = localStorage.getItem('xpider-start-tab') || 'login';
+    localStorage.removeItem('xpider-start-tab'); // 일회성 소모
+
+    if (startTab === 'signup') {
+      // 로그아웃 직후 진입 시: 회원가입 탭 강제 전환 및 입력 필드 전면 초기화
+      switchTab('signup');
+      document.getElementById('login-email').value = '';
+      document.getElementById('login-password').value = '';
+      document.getElementById('signup-username').value = '';
+      document.getElementById('signup-email').value = '';
+      document.getElementById('signup-password').value = '';
+      document.getElementById('signup-confirm').value = '';
+      return;
+    }
+
     const session = await window.authAPI.checkSession();
     if (session) {
       showMsg('Auto-logging in...', 'info');
@@ -59,21 +93,7 @@
   // ─── 탭 전환 ──────────────────────────────────────────
   tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-      const t = tab.dataset.tab;
-      if (t === currentTab) return;
-      currentTab = t;
-      tabs.forEach(b => b.classList.remove('active'));
-      tab.classList.add('active');
-      if (t === 'signup') {
-        slider.classList.add('right');
-        formLogin.classList.add('hidden');
-        formSignup.classList.remove('hidden');
-      } else {
-        slider.classList.remove('right');
-        formSignup.classList.add('hidden');
-        formLogin.classList.remove('hidden');
-      }
-      hideMsg();
+      switchTab(tab.dataset.tab);
     });
   });
 
