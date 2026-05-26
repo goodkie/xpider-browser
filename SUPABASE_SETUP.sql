@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email             TEXT,
   plan              TEXT        NOT NULL DEFAULT 'free',   -- 'free' | 'pro' | 'admin'
   is_active         BOOLEAN     NOT NULL DEFAULT true,
-  tokens_remaining  INTEGER     NOT NULL DEFAULT 5000,     -- 기본 제공 5000 토큰
+  tokens_remaining  INTEGER     NOT NULL DEFAULT 600,      -- 기본 제공 600 토큰
   last_active_at    TIMESTAMPTZ DEFAULT NOW(),
   active_device_id  TEXT,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 -- 기존 테이블이 존재할 경우를 대비하여 신규 컬럼을 안전하게 한 번 더 추가
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
-ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tokens_remaining INTEGER NOT NULL DEFAULT 5000;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tokens_remaining INTEGER NOT NULL DEFAULT 600;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS active_device_id TEXT;
 

@@ -271,6 +271,20 @@ async function signup(email, password, username) {
       options: { data: { username } }
     });
     if (error) return { success: false, error: error.message };
+
+    // [v4.10.75 강제 보강] DB 트리거에 의해 생성되는 기본 제공 토큰량(5000) 우회 강하
+    // 가입 완료 직후 profiles 테이블의 해당 유저 토큰 잔량을 600으로 즉시 덮어쓰기 업데이트
+    if (data && data.user) {
+      try {
+        await supabaseAdmin
+          .from('profiles')
+          .update({ tokens_remaining: 600 })
+          .eq('id', data.user.id);
+      } catch (err) {
+        console.error('[Signup] 기본 토큰 하향 덮어쓰기 업데이트 실패:', err.message);
+      }
+    }
+
     return { success: true, message: 'Account created successfully.' };
   } catch (e) {
     return { success: false, error: e.message };
