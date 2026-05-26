@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "XPIDER VPN",
-  "version": "2.6.41",
+  "version": "2.6.42",
   "description": "안전하고 빠른 익명 서핑을 위한 전용 프록시 및 VPN 솔루션입니다. 전 세계 고속 노드를 지원합니다.",
   "icons": {
     "16": "icons/icon16.png",

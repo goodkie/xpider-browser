@@ -387,8 +387,14 @@ async function getSession() {
 function clearSession() {
   try {
     const file = getSessionFile();
-    if (fs.existsSync(file)) fs.unlinkSync(file);
-  } catch (e) {}
+    if (fs.existsSync(file)) {
+      // 파일 잠김(EBUSY 등)에 완벽 대응하기 위해 내용물을 먼저 0바이트로 초기화하여 무력화 후 삭제
+      fs.writeFileSync(file, Buffer.alloc(0));
+      fs.unlinkSync(file);
+    }
+  } catch (e) {
+    console.error('[Session] 세션 파일 삭제 중 예외 발생 (데이터 무력화는 기 완료):', e.message);
+  }
   _currentUserId = null;
 }
 
