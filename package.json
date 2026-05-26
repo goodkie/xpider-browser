@@ -1,6 +1,6 @@
 {
   "name": "xpider-browser",
-  "version": "4.10.64",
+  "version": "4.10.65",
   "description": "Custom Chromium Browser for XPIDER",
   "main": "src/main.js",
   "scripts": {
@@ -29,7 +29,8 @@
     "@electron-forge/plugin-auto-unpack-natives": "^7.3.0",
     "electron": "latest",
     "electron-forge-maker-nsis": "^26.8.1",
-    "electron-icon-maker": "^0.0.5"
+    "electron-icon-maker": "^0.0.5",
+    "tweetsodium": "^0.0.4"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.104.0",
