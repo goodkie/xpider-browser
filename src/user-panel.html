@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,12 +15,12 @@
 </head>
 <body>
 
-  <!-- 화려한 3D 네온 조명 백글로우 -->
+  <!-- 3D Neon Backglow -->
   <div class="neon-light-orb orb-purple"></div>
   <div class="neon-light-orb orb-cyan"></div>
   <div class="neon-light-orb orb-pink"></div>
 
-  <!-- 프리미엄 헤더 -->
+  <!-- Premium Header -->
   <header>
     <div class="container nav-container">
       <a href="index.html" class="logo-area">
@@ -28,23 +28,23 @@
         <span class="logo-text">XPIDER</span>
       </a>
       <ul class="nav-menu">
-        <li><a href="#dashboard" class="nav-link">대시보드</a></li>
-        <li><a href="#history" class="nav-link">이용내역</a></li>
-        <li><a href="#showcase" class="nav-link">핵심모듈</a></li>
-        <li><a href="#pricing" class="nav-link">B2B 요금제</a></li>
+        <li><a href="#dashboard" class="nav-link">Dashboard</a></li>
+        <li><a href="#history" class="nav-link">Audit Logs</a></li>
+        <li><a href="#showcase" class="nav-link">Core Modules</a></li>
+        <li><a href="#pricing" class="nav-link">Pricing Plans</a></li>
         <li><a href="#faq" class="nav-link">FAQ</a></li>
       </ul>
       <div class="header-actions">
         <div class="user-badge" id="user-badge">
           <span class="user-avatar" id="user-avatar">?</span>
-          <span id="header-username">로딩 중...</span>
+          <span id="header-username">Loading...</span>
         </div>
-        <button class="btn-logout" onclick="handleLogout()">로그아웃</button>
+        <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
       </div>
     </div>
   </header>
 
-  <!-- 히어로 & 웰컴 섹션 -->
+  <!-- Hero & Welcome Section -->
   <section class="hero-section" id="dashboard">
     <div class="container">
       <div class="badge-promo">
@@ -52,15 +52,15 @@
         <span id="welcome-sub">Premium Account Center</span>
       </div>
       <h1 class="hero-title" id="welcome-title">
-        <span>안녕하세요! 👋</span>
+        <span>Welcome!</span>
       </h1>
       
-      <!-- 4대 핵심 계정 스탯 그리드 -->
+      <!-- 4 Core Account Stats Grid -->
       <div class="stats-grid">
-        <!-- 1. 잔여 토큰 (진행도 네온 바 포함) -->
+        <!-- 1. AI Tokens Remaining -->
         <div class="stat-card primary-stat" data-tilt data-tilt-max="4">
           <div class="stat-header-row">
-            <span class="stat-label">AI 잔여 토큰</span>
+            <span class="stat-label">AI Tokens Remaining</span>
             <span class="plan-badge-inline" id="plan-name">Free</span>
           </div>
           <div class="stat-value" id="stat-tokens">-</div>
@@ -68,57 +68,57 @@
             <div class="progress-bar">
               <div class="progress-fill" id="token-progress" style="width: 0%"></div>
             </div>
-            <div class="stat-progress-desc" id="token-pct">0% 남음</div>
+            <div class="stat-progress-desc" id="token-pct">0% Left</div>
           </div>
         </div>
 
-        <!-- 2. 가입일 -->
+        <!-- 2. Created At -->
         <div class="stat-card" data-tilt data-tilt-max="4">
-          <span class="stat-label">계정 가입일</span>
+          <span class="stat-label">Created At</span>
           <div class="stat-value small-val" id="stat-joined">-</div>
-          <span class="stat-desc">정상 이용 중인 라이선스</span>
+          <span class="stat-desc">Active License Plan</span>
         </div>
 
-        <!-- 3. 마지막 로그인 -->
+        <!-- 3. Last Activity -->
         <div class="stat-card" data-tilt data-tilt-max="4">
-          <span class="stat-label">마지막 접속</span>
+          <span class="stat-label">Last Access</span>
           <div class="stat-value small-val" id="stat-last-login">-</div>
-          <span class="stat-desc">최근 로그인 기록</span>
+          <span class="stat-desc">Recent Login Time</span>
         </div>
 
-        <!-- 4. 총 AI 사용 횟수 -->
+        <!-- 4. Total Executions -->
         <div class="stat-card" data-tilt data-tilt-max="4">
-          <span class="stat-label">누적 모듈 동작</span>
+          <span class="stat-label">Total Executions</span>
           <div class="stat-value" id="stat-total-uses">-</div>
-          <span class="stat-desc">전체 확장 모듈 실행 카운트</span>
+          <span class="stat-desc">Cumulative bot action triggers</span>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- 서비스 이용 내역 (Service History) -->
+  <!-- Transaction History (Audit Logs) -->
   <section class="history-section" id="history">
     <div class="container">
       <div class="section-header">
         <p class="section-tag">LOG AUDIT</p>
-        <h2 class="section-title">서비스 이용 내역</h2>
-        <p class="section-desc">XPIDER AI 마이닝 크롤러 및 보안 프록시 모듈의 최근 작동 트랜잭션 기록입니다.</p>
+        <h2 class="section-title">Transaction Audit Logs</h2>
+        <p class="section-desc">Real-time transactional execution logs of XPIDER AI miners, scrapers, and secure VPN node triggers.</p>
       </div>
 
       <div class="history-control-panel">
         <div class="filter-group">
           <select id="log-filter-ext" onchange="loadLogs()">
-            <option value="">모든 모듈 필터</option>
-            <option value="AI Crawler">AI 크롤러</option>
-            <option value="Email Extractor">이메일 추출</option>
+            <option value="">Filter by Module</option>
+            <option value="AI Crawler">AI Crawler</option>
+            <option value="Email Extractor">Email Extractor</option>
             <option value="VPN">VPN</option>
-            <option value="Campaign">캠페인</option>
+            <option value="Campaign">Campaigns</option>
           </select>
           <input type="date" id="log-filter-date" onchange="loadLogs()" />
         </div>
         <button class="btn-refresh" onclick="loadLogs()">
           <i class="fa-solid fa-arrows-rotate"></i>
-          <span>새로고침</span>
+          <span>Refresh</span>
         </button>
       </div>
 
@@ -126,38 +126,37 @@
         <table class="history-table">
           <thead>
             <tr>
-              <th>작동 시간</th>
-              <th>활성 모듈</th>
-              <th>수행 액션</th>
-              <th>소모 토큰</th>
-              <th>수집 사양</th>
+              <th>Timestamp</th>
+              <th>Active Module</th>
+              <th>Executed Action</th>
+              <th>Tokens Consumed</th>
+              <th>Data Specs / Metadata</th>
             </tr>
           </thead>
           <tbody id="history-tbody">
             <tr class="loading-row">
               <td colspan="5">
                 <div class="loader-ring"></div>
-                <span>이용 로그를 실시간 분석 중입니다...</span>
+                <span>Querying and auditing real-time module logs...</span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
       <div class="history-footer" id="history-footer" style="display:none">
-        현재 매칭 기록: <span id="history-count">0</span>건
+        Matches found: <span id="history-count">0</span>
       </div>
     </div>
   </section>
 
-  <!-- 3D 패키지 쇼케이스 (sales.html 콘텐츠 완벽 유지) -->
+  <!-- 3D Package Showcase -->
   <section class="showcase-section" id="showcase">
     <div class="container">
       <div class="section-header">
         <p class="section-tag">XPIDER ECOSYSTEM</p>
-        <h2 class="section-title">차세대 AI 기반 B2B 데이터 수집 및 자동화 플랫폼</h2>
+        <h2 class="section-title">Next-Gen AI B2B Leads Engine & Automation Platform</h2>
         <p class="section-desc">
-          XPIDER는 단순한 크롤링 툴이 아닙니다.<br>
-          AI 데이터 추출, 지도 기반 리드 마이닝, 자동 이메일 아웃리치, 폼 자동 전송, 프록시 보안 네트워크까지 하나의 생태계로 통합한 엔터프라이즈급 B2B 세일즈 자동화 플랫폼입니다.
+          XPIDER is not just a scraper. It is an enterprise-grade B2B automation platform integrating AI data extraction, geospatial lead mining, automated email outreach, form submission, and military-grade VPN node security.
         </p>
       </div>
 
@@ -168,14 +167,14 @@
             <span class="module-tag-badge tag-cyan">AI EXTRACTION</span>
             <h3 class="module-title-dynamic">Local Business Crawler Pro</h3>
             <p class="module-desc-dynamic">
-              총 10대 검색 엔진을 지능적으로 교차 추적하여 사업자 명칭과 도메인 연락처를 한꺼번에 대량 마이닝해옵니다. B2B 영업 DB 확보의 정점을 경험해 보세요.
+              Taps directly into 10 global search engines simultaneously to mine business directories, domain websites, contact numbers, and social linkages in bulk.
             </p>
             <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>10대 엔진 교차 자동 트래킹 엔진</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>AI 기반 도메인 연락망 뎁스 자동 정밀 파싱</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>Multi-Engine Cross Scanning Engine</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>AI-Driven Depth-Targeted Domain Parsing</span></li>
             </ul>
             <div class="action-trigger-modal">
-              <span>주요 기능 및 화면 미리보기</span>
+              <span>View Features & Visual Mockups</span>
               <i class="fa-solid fa-circle-chevron-right"></i>
             </div>
           </div>
@@ -191,14 +190,14 @@
             <span class="module-tag-badge tag-green">GOOGLE MAPS</span>
             <h3 class="module-title-dynamic">GMaps Business Finder</h3>
             <p class="module-desc-dynamic">
-              구글 지도 시스템과 긴밀히 연동하여 특정 검색 좌표계 범위 내부의 모든 오프라인 리드(매장명, 평점, 전화번호, 이메일)를 정위하여 가져옵니다.
+              Integrates directly with Google Maps to gather granular offline leads (name, rating, phone, websites, and emails) within designated geographic coordinates.
             </p>
             <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>정위 좌표 필터 기반 근거리 수집 정밀화</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>실시간 CSV/JSON 엑셀 최적화 저장 엔진</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>Geospatial Coordinate-Targeted Radius Scans</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>Real-time CSV/JSON Export Optimization</span></li>
             </ul>
             <div class="action-trigger-modal">
-              <span>주요 기능 및 화면 미리보기</span>
+              <span>View Features & Visual Mockups</span>
               <i class="fa-solid fa-circle-chevron-right"></i>
             </div>
           </div>
@@ -214,14 +213,14 @@
             <span class="module-tag-badge tag-orange">MS ECOSYSTEM</span>
             <h3 class="module-title-dynamic">Bing Maps Finder</h3>
             <p class="module-desc-dynamic">
-              마이크로소프트 Bing 지도망을 타겟 크롤링합니다. 구글 지도 수집 결과와의 유기적인 교차 검증 장치를 거쳐 데이터 결손율을 최소화합니다.
+              Mines data across Microsoft Bing Maps, featuring deep cross-validation filters against Google Maps datasets to minimize data error rates.
             </p>
             <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>오류율 제로를 위한 구글맵 연동 크로스 검증</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>결측값 자동 보충 알고리즘 탑재</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>Geographical Dual-Engine Cross Validation</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>Missing Parameter Recovery Algorithm</span></li>
             </ul>
             <div class="action-trigger-modal">
-              <span>주요 기능 및 화면 미리보기</span>
+              <span>View Features & Visual Mockups</span>
               <i class="fa-solid fa-circle-chevron-right"></i>
             </div>
           </div>
@@ -237,14 +236,14 @@
             <span class="module-tag-badge tag-purple">SECURE & ANONYMOUS</span>
             <h3 class="module-title-dynamic">XPIDER VPN</h3>
             <p class="module-desc-dynamic">
-              군사 등급의 IP 암호화 난독화 기술과 초고속 글로벌 프록시 릴레이망을 통해 로봇 탐지 및 사이트 영구 차단을 완벽 우회합니다.
+              Military-grade IP encryption and lightning-fast proxy pipelines to perfectly bypass portal blocks, scraper bans, and geolocation gates.
             </p>
             <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>글로벌 고유 프록시 대역 세션 스위칭</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>스크래퍼 차단 완전 예방 안심 터널링</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Global High-Anonymity Proxy IP Pool</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Anti-Detection Tunneling for Permanent Crawls</span></li>
             </ul>
             <div class="action-trigger-modal">
-              <span>주요 기능 및 화면 미리보기</span>
+              <span>View Features & Visual Mockups</span>
               <i class="fa-solid fa-circle-chevron-right"></i>
             </div>
           </div>
@@ -260,14 +259,14 @@
             <span class="module-tag-badge tag-pink">REAL-TIME LEAD CAPTURE</span>
             <h3 class="module-title-dynamic">Email Extractor</h3>
             <p class="module-desc-dynamic">
-              브라우저 상에서 업무 페이지 탭을 넘나들기만 해도 백그라운드 엔진이 노출된 이메일을 자동으로 긁어와 리스트로 구성해 줍니다.
+              Automatically harvests, parses, and logs visible email addresses from webpages in the background as you traverse different browser tabs.
             </p>
             <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>무효/스팸 일회용 계정 감지 제거 알고리즘</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>멀티 스레드 실시간 병렬 탭 모니터링</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>Junk & Temporary Mail Filter Sorting</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>Multi-Threaded Cross-Tab Background Parsing</span></li>
             </ul>
             <div class="action-trigger-modal">
-              <span>주요 기능 및 화면 미리보기</span>
+              <span>View Features & Visual Mockups</span>
               <i class="fa-solid fa-circle-chevron-right"></i>
             </div>
           </div>
@@ -283,14 +282,14 @@
             <span class="module-tag-badge tag-primary">AI AUTOMATION</span>
             <h3 class="module-title-dynamic">AutoForm Sender Pro</h3>
             <p class="module-desc-dynamic">
-              인공지능 필드 판별 기술을 탑재하여 타겟 기업 문의 폼 페이지의 항목 형식을 해독하고 제안 메시지를 밀리초 단위로 자동 대량 전송합니다.
+              Applies AI-driven field decoding to resolve complex target contact page forms, inputting and mass-submitting outreach copy in milliseconds.
             </p>
             <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>다국어 및 복잡한 입력창 판별 AI 해독 모듈</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>발송 성공률 분석 대시보드 리포팅 제공</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>Intelligent Multi-Language Field Mapper</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>Live Outreach Success Metrics Analytics</span></li>
             </ul>
             <div class="action-trigger-modal">
-              <span>주요 기능 및 화면 미리보기</span>
+              <span>View Features & Visual Mockups</span>
               <i class="fa-solid fa-circle-chevron-right"></i>
             </div>
           </div>
@@ -306,14 +305,14 @@
             <span class="module-tag-badge tag-purple">BULK EMAIL OUTREACH</span>
             <h3 class="module-title-dynamic">SendForce Mailer Pro</h3>
             <p class="module-desc-dynamic">
-              스팸 회피 기술이 결합된 대량 이메일 아웃리치 마케팅 메일러입니다. 정밀한 발송 타이머와 필터링으로 타겟 제안 전달률을 극한으로 유지합니다.
+              Mass bulk outreach email deployment tool equipped with spam-defense interval pacing and distributed SMTP relay rotation.
             </p>
             <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>이메일 바운스 백 회피용 스팸 차단 방어 딜레이</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>SMTP 커스텀 세팅 및 전송 로그 완전 개방</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Outbox Headers Optimization for Inbox Landing</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Dynamic Transmit Delay Scheduler</span></li>
             </ul>
             <div class="action-trigger-modal">
-              <span>주요 기능 및 화면 미리보기</span>
+              <span>View Features & Visual Mockups</span>
               <i class="fa-solid fa-circle-chevron-right"></i>
             </div>
           </div>
@@ -326,23 +325,23 @@
     </div>
   </section>
 
-  <!-- B2B 요금제 섹션 (sales.html 3단 요금제 탑재 & 단발성 토큰 충전은 사용자 지시대로 제외) -->
+  <!-- B2B Pricing Section -->
   <section class="pricing-section" id="pricing">
     <div class="container">
       <div class="section-header">
         <p class="section-tag">B2B PRICING PLANS</p>
-        <h2 class="section-title">가장 혁신적인 데이터 마이닝 플랜</h2>
-        <p class="section-desc">비즈니스 크기에 맞춤화된 전문 라이선스로 AI 파워를 극한까지 무제한 해금하세요.</p>
+        <h2 class="section-title">Innovative Data Mining Plans</h2>
+        <p class="section-desc">Scale your AI power and automate your lead generation funnel with enterprise-ready subscription plans.</p>
       </div>
 
-      <!-- 월간/연간 결제 스위치 -->
+      <!-- Monthly/Yearly Billing Toggle -->
       <div class="billing-switcher-wrap">
-        <span class="switcher-label active" id="label-monthly">월간 결제</span>
+        <span class="switcher-label active" id="label-monthly">Monthly</span>
         <div class="billing-toggle" id="billing-toggle" onclick="toggleBilling()">
           <div class="toggle-handle"></div>
         </div>
-        <span class="switcher-label" id="label-yearly">연간 결제</span>
-        <span class="yearly-discount-tag">20% 특별할인</span>
+        <span class="switcher-label" id="label-yearly">Yearly</span>
+        <span class="yearly-discount-tag">Save 20%</span>
       </div>
 
       <div class="pricing-grid">
@@ -352,17 +351,17 @@
             <h3 class="plan-name">Starter Plan</h3>
             <div class="plan-price-wrap">
               <span class="plan-price" id="price-starter">$59</span>
-              <span class="plan-period">/ 월</span>
+              <span class="plan-period">/ mo</span>
             </div>
-            <p class="plan-desc">기본 수집 도구를 사용하여 1인 크리에이터 및 소상공인 마케팅을 전개하는 초보 비즈니스용 요금제입니다.</p>
-            <button class="btn-pricing" onclick="openPurchase('starter')">Starter 시작</button>
+            <p class="plan-desc">For individual creators and local marketers getting started with basic scraping tools and localized listings.</p>
+            <button class="btn-pricing" onclick="openPurchase('starter')">Get Started</button>
             <ul class="plan-features-list">
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>600 tokens</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>10대 엔진 로컬 비즈니스 크롤러</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>구글맵 비즈니스 파인더</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>실시간 이메일 익스트랙터 내장</span></li>
-              <li class="plan-feature-item disabled"><i class="fa-solid fa-circle-xmark"></i> <span>AutoForm Sender Pro (미지원)</span></li>
-              <li class="plan-feature-item disabled"><i class="fa-solid fa-circle-xmark"></i> <span>XPIDER VPN 전용 프록시 (미지원)</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>10-Engine Local Business Crawler</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Google Maps Business Finder</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Real-time Email Extractor Support</span></li>
+              <li class="plan-feature-item disabled"><i class="fa-solid fa-circle-xmark"></i> <span>AutoForm Sender Pro (Not Supported)</span></li>
+              <li class="plan-feature-item disabled"><i class="fa-solid fa-circle-xmark"></i> <span>XPIDER VPN Dedicated Proxy (Not Supported)</span></li>
             </ul>
           </div>
         </div>
@@ -374,17 +373,17 @@
             <h3 class="plan-name">Business Pro Plan</h3>
             <div class="plan-price-wrap">
               <span class="plan-price" id="price-business">$99</span>
-              <span class="plan-period">/ 월</span>
+              <span class="plan-period">/ mo</span>
             </div>
-            <p class="plan-desc">모든 핵심 모듈을 개방하여 막힘없는 대규모 B2B 리드 생성과 지능형 발송 인프라를 구축하는 최선호도 기업 플랜입니다.</p>
-            <button class="btn-pricing" onclick="openPurchase('pro')">Business Pro 도입</button>
+            <p class="plan-desc">The ultimate plan for growing teams, opening access to high-performance mining modules and dedicated proxy networks.</p>
+            <button class="btn-pricing" onclick="openPurchase('pro')">Upgrade to Pro</button>
             <ul class="plan-features-list">
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>2,000 tokens</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>7대 핵심 프리미엄 엔진 무제한 개방</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>구글맵 & 빙맵 정밀 교차 검증 수집</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>XPIDER VPN 전용 프록시 (차단 제로 우회)</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>AI AutoForm Sender Pro /up to 600 자동 폼 발송</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>SendForce Mailer Pro up /to 2,000 메일 전송</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>All 7 Core Premium Engines Fully Unlocked</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Google & Bing Maps Cross Scans</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>XPIDER VPN Node Masking Integration</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>AI AutoForm Sender Pro Form Submitter</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>SendForce Mailer Pro Bulk Outreach Engine</span></li>
             </ul>
           </div>
         </div>
@@ -395,17 +394,17 @@
             <h3 class="plan-name">Enterprise Plan</h3>
             <div class="plan-price-wrap">
               <span class="plan-price" id="price-enterprise">$199</span>
-              <span class="plan-period">/ 월</span>
+              <span class="plan-period">/ mo</span>
             </div>
-            <p class="plan-desc">대형 에이전시, 데이터 스크래핑 전용 API 및 다중 브라우저 독립 인프라가 필요한 마케팅 전문 조직에 맞춤 설계된 요금제입니다.</p>
-            <button class="btn-pricing btn-enterprise" onclick="openPurchase('enterprise')">Enterprise Plan 도입</button>
+            <p class="plan-desc">Tailored for large agencies requiring multiple virtual scraper instances, dedicated proxy subnets, and customized flows.</p>
+            <button class="btn-pricing" onclick="openPurchase('enterprise')">Deploy Enterprise</button>
             <ul class="plan-features-list">
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>5,000 tokens</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Business Pro의 모든 기능 기본 지원</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>독립형 다중 프록시 프리미엄 서브넷 공급</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>동시 실행 다중 브라우저 프로필 무제한 빌드</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>1:1 원격 기술 전담 엔지니어 매칭</span></li>
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>비즈니스 맞춤형 핵심 커스텀 개발 제공</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>All features from Business Pro included</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Dedicated Multi-Proxy Premium Subnets</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Unlimited concurrent browser profiles</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>1:1 Dedicated Technical Engineering Support</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Custom Scraper Integration & B2B API access</span></li>
             </ul>
           </div>
         </div>
@@ -413,7 +412,7 @@
     </div>
   </section>
 
-  <!-- 신뢰성 지표 -->
+  <!-- Trust Badges -->
   <section class="trust-section" id="trust">
     <div class="container">
       <div class="trust-grid">
@@ -422,8 +421,8 @@
             <i class="fa-solid fa-fingerprint"></i>
           </div>
           <div class="trust-info">
-            <h4>B2B 강력한 결제 암호화</h4>
-            <p>보안 게이트웨이를 사용하여 결제 정보 및 계정은 최상의 무결성 구조로 완벽히 격리 보호됩니다.</p>
+            <h4>B2B Secured Gateway</h4>
+            <p>Your payment transaction data is secured with industry-leading tokenized encryption models.</p>
           </div>
         </div>
         <div class="trust-card">
@@ -431,8 +430,8 @@
             <i class="fa-solid fa-handshake-simple"></i>
           </div>
           <div class="trust-info">
-            <h4>14일 100% 미환불 시 보상</h4>
-            <p>제품 사용 및 크롤러 오류 시 가이드 라인에 맞추어 14일 이내 청구 즉시 투명하게 보증 처리해 드립니다.</p>
+            <h4>14-Day Money-Back Guarantee</h4>
+            <p>Full refund processed transparently within 14 days if modules encounter technical crawling errors.</p>
           </div>
         </div>
         <div class="trust-card">
@@ -440,81 +439,81 @@
             <i class="fa-solid fa-bolt"></i>
           </div>
           <div class="trust-info">
-            <h4>구매 즉시 정밀 라이선스 발급</h4>
-            <p>결제와 매칭하여 실시간 제품 라이선스 코드가 이메일로 1분 내 즉각 전송됩니다.</p>
+            <h4>Instant License Delivery</h4>
+            <p>Your unique API authorization and license key are dispatched immediately within 1 minute via email.</p>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- FAQ 아코디언 -->
+  <!-- FAQ Accordion -->
   <section class="faq-section" id="faq">
     <div class="container">
       <div class="section-header">
         <p class="section-tag">FAQ SUITE</p>
-        <h2 class="section-title">자주 묻는 질문</h2>
-        <p class="section-desc">XPIDER 비즈니스 소프트웨어 구매와 라이선스 조항에 대해 바이어들이 가장 빈번하게 질문하시는 핵심 정보입니다.</p>
+        <h2 class="section-title">Frequently Asked Questions</h2>
+        <p class="section-desc">Key information about XPIDER B2B license acquisition, usage rules, and configuration guidelines.</p>
       </div>
 
       <div class="faq-wrapper">
         <div class="faq-item" onclick="toggleFaq(this)">
           <div class="faq-question">
-            <span>라이선스 1개로 여러 대의 기기에서 크롤러를 돌릴 수 있나요?</span>
+            <span>Can I run scrapers on multiple devices with a single license?</span>
             <i class="fa-solid fa-chevron-down faq-arrow"></i>
           </div>
           <div class="faq-answer">
-            <p>단일 구독 제품키는 기본적으로 1대의 PC 프로필 세션에 바인딩됩니다. 동시 실행이 필요한 규모 있는 에이전시의 경우, Enterprise 요금제 가입을 통해 다중 브라우저 독립 시트 및 포트를 확장하여 운용하시는 것을 권장합니다.</p>
+            <p>A single standard license key is bound to one system profile instance. For large agencies running concurrent workflows across multiple seats, we highly recommend acquiring the Enterprise Plan which unlocks unlimited concurrent profiles and port expansions.</p>
           </div>
         </div>
 
         <div class="faq-item" onclick="toggleFaq(this)">
           <div class="faq-question">
-            <span>메일 대량 발송 시 스팸 서버 차단율을 낮추는 특별한 필터가 작동하나요?</span>
+            <span>Does the mailer bypass spam detection servers?</span>
             <i class="fa-solid fa-chevron-down faq-arrow"></i>
           </div>
           <div class="faq-answer">
-            <p>네, 그렇습니다. SendForce Mailer Pro에는 발송 딜레이 인터벌 스케줄러와 SMTP 프록시 스위칭 시스템이 함께 설계되어 있어 단일 도메인의 과부하 및 스팸 블록 유발 확률을 능동적으로 제거하고 메일 수신 성공률을 극한으로 유지합니다.</p>
+            <p>Yes. SendForce Mailer Pro features intelligent outbox delay timers and rotating SMTP headers to proactively prevent domain blacklist triggers and maximize inbox deliverability metrics.</p>
           </div>
         </div>
 
         <div class="faq-item" onclick="toggleFaq(this)">
           <div class="faq-question">
-            <span>XPIDER VPN 프록시 서버는 크롤러 외에 일반 인터넷 웹서핑 시에도 유지되나요?</span>
+            <span>Is the proxy active outside the crawler?</span>
             <i class="fa-solid fa-chevron-down faq-arrow"></i>
           </div>
           <div class="faq-answer">
-            <p>XPIDER VPN은 브라우저 통합형 릴레이를 채택하여 XPIDER 안에서 이루어지는 모든 탭 서핑과 크롤링 엔진의 아웃바운드 트래픽 전체를 실시간 암호화합니다. 타겟 웹 서버 측에는 사용자의 실제 IP가 아닌 안전한 프록시 IP로 상시 노출됩니다.</p>
+            <p>XPIDER VPN encapsulates the integrated browser pipeline, meaning all tab queries and outbound extraction packets within XPIDER are completely encrypted. External sites only perceive the proxy IP node.</p>
           </div>
         </div>
 
         <div class="faq-item" onclick="toggleFaq(this)">
           <div class="faq-question">
-            <span>구독 중간에 요금제를 Starter에서 Business Pro로 전환할 수 있나요?</span>
+            <span>Can I upgrade from Starter to Business Pro mid-subscription?</span>
             <i class="fa-solid fa-chevron-down faq-arrow"></i>
           </div>
           <div class="faq-answer">
-            <p>네, 언제든지 대시보드 계정 구독 정보 창에서 클릭 한 번으로 상위 플랜 변경이 가능합니다. 업그레이드 즉시 잔여 이용 기간만큼 일할 계산 처리된 적정 차액만 정산 청구되며, 즉석에서 하이엔드 모듈이 해금됩니다.</p>
+            <p>Yes, you can upgrade instantly through your dashboard. The billing portal will dynamically calculate the pro-rated cost difference, immediately unlocking premium capabilities.</p>
           </div>
         </div>
 
         <div class="faq-item" onclick="toggleFaq(this)">
           <div class="faq-question">
-            <span>환불 보증을 받는 조건이나 환급 절차가 궁금합니다.</span>
+            <span>How do I process a refund guarantee?</span>
             <i class="fa-solid fa-chevron-down faq-arrow"></i>
           </div>
           <div class="faq-answer">
-            <p>결제 후 14일 이내, 기능상 수집 장애나 극심한 소프트웨어 구동 불편으로 기술지원 문의 시 가이드 사용량 한도 내에 있다면 100% 무조건 보증 환불해 드립니다. 고객지원 페이지에 메일 아이디와 정기구독 영수 번호를 남겨주시면 당일 바로 처리가 완료됩니다.</p>
+            <p>If you encounter technical system defects within 14 days of purchase, submit a ticket with your order ID. Our billing department will verify the logs and execute a 100% refund on the same business day.</p>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- 7대 엔진 3D 스핀 오버레이 모달 -->
+  <!-- 3D Engine Spin Overlay Modal -->
   <div class="modal-overlay" id="module-modal" onclick="closeModuleModal(event)">
     <div class="modal-content" onclick="event.stopPropagation()">
-      <!-- 좌측 미디어 영역 -->
+      <!-- Left Media Area -->
       <div class="modal-left">
         <div class="modal-glow-back"></div>
         <div class="modal-media-viewport">
@@ -523,7 +522,7 @@
         </div>
       </div>
 
-      <!-- 우측 상세 스펙 영역 -->
+      <!-- Right Spec Details -->
       <div class="modal-right">
         <div class="modal-header">
           <div class="modal-title-wrap">
@@ -535,22 +534,22 @@
 
         <div class="modal-body">
           <div class="modal-section">
-            <h4 class="modal-section-title">모듈 성능 구조</h4>
-            <p class="modal-desc-para" id="modal-module-desc">사양을 로딩 중입니다.</p>
+            <h4 class="modal-section-title">Module Performance Design</h4>
+            <p class="modal-desc-para" id="modal-module-desc">Loading specs...</p>
           </div>
 
           <div class="modal-section">
-            <h4 class="modal-section-title">정밀 테크니컬 기능</h4>
+            <h4 class="modal-section-title">Advanced Technical Specs</h4>
             <div class="modal-feature-grid" id="modal-spec-grid">
-              <!-- JS 기반 바인딩 -->
+              <!-- Dynamically populated by JS -->
             </div>
           </div>
         </div>
 
         <div class="modal-footer">
-          <button class="btn-modal-close" onclick="closeModuleModal(event)">닫기</button>
+          <button class="btn-modal-close" onclick="closeModuleModal(event)">Close</button>
           <a href="#pricing" class="btn-modal-action" onclick="closeModuleModal(event)">
-            <span>라이선스 구독</span>
+            <span>Subscribe Plan</span>
             <i class="fa-solid fa-key"></i>
           </a>
         </div>
@@ -558,40 +557,40 @@
     </div>
   </div>
 
-  <!-- 결제 안내 팝업 모달 (user-panel의 결제 팝업 리디자인) -->
+  <!-- Gateway Notice Modal -->
   <div class="modal-overlay" id="purchase-modal" onclick="closePurchaseModal()">
     <div class="modal-content purchase-box" onclick="event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title-wrap">
           <span class="modal-tag-text">PREMIUM GATEWAY</span>
-          <h3 class="modal-title-text">💳 결제 및 구독 안내</h3>
+          <h3 class="modal-title-text">💳 Payment & Subscription</h3>
         </div>
         <button class="modal-close-btn" onclick="closePurchaseModal()">×</button>
       </div>
       <div class="modal-body">
         <div class="payment-notice">
           <i class="fa-solid fa-circle-exclamation notice-orange-icon"></i>
-          <h3>결제 시스템 오픈 대기 중</h3>
-          <p>정식 결제 게이트웨이가 현재 최종 보안 심사 중입니다.<br/>오픈 알림을 등록하시면 1분 내 할인 바우처와 함께 우선 해금 알림을 제공해 드립니다.</p>
+          <h3>Payment Gateway Under Review</h3>
+          <p>Our secure payment checkout is currently undergoing its final merchant security review.<br/>Subscribe to launch updates to receive a 20% discount voucher once unlocked.</p>
         </div>
-        <div class="modal-selected-plan" id="modal-selected-plan">선택: 로딩 중...</div>
+        <div class="modal-selected-plan" id="modal-selected-plan">Selected: Loading...</div>
       </div>
       <div class="modal-footer">
-        <button class="btn-modal-close" onclick="closePurchaseModal()">닫기</button>
+        <button class="btn-modal-close" onclick="closePurchaseModal()">Close</button>
         <button class="btn-modal-action" onclick="notifyMe()">
-          <span>알림 받기 📧</span>
+          <span>Notify Me 📧</span>
           <i class="fa-solid fa-bell"></i>
         </button>
       </div>
     </div>
   </div>
 
-  <!-- 토스트 알림 -->
+  <!-- Toast Element -->
   <div id="up-toast" class="up-toast hidden">
-    <span id="up-toast-msg">✅ 완료</span>
+    <span id="up-toast-msg">✅ Done</span>
   </div>
 
-  <!-- 푸터 영역 -->
+  <!-- Footer Area -->
   <footer>
     <div class="container">
       <div class="footer-grid">
@@ -601,29 +600,29 @@
             <span class="logo-text">XPIDER</span>
           </a>
           <p class="footer-brand-desc">
-            XPIDER는 비즈니스 타겟 정보를 신속하고 유기적으로 마이닝하는 업계 선두의 올인원 기업 특화 마케팅 브라우저 생태계입니다.
+            XPIDER is the industry-leading all-in-one corporate-focused marketing browser ecosystem designed for rapid and secured B2B leads mining.
           </p>
         </div>
         <div class="footer-col">
-          <h4>제품 정보</h4>
+          <h4>Product</h4>
           <ul class="footer-links">
-            <li><a href="index.html" class="footer-link">랜딩 홈</a></li>
-            <li><a href="#pricing" class="footer-link">B2B 요금제</a></li>
+            <li><a href="index.html" class="footer-link">Landing Home</a></li>
+            <li><a href="#pricing" class="footer-link">B2B Pricing Plans</a></li>
           </ul>
         </div>
         <div class="footer-col">
-          <h4>리소스</h4>
+          <h4>Resources</h4>
           <ul class="footer-links">
-            <li><a href="#faq" class="footer-link">자주 묻는 질문 FAQ</a></li>
-            <li><a href="#dashboard" class="footer-link">구독 대시보드</a></li>
-            <li><a href="#" class="footer-link">동적 튜토리얼</a></li>
+            <li><a href="#faq" class="footer-link">Frequently Asked Questions</a></li>
+            <li><a href="#dashboard" class="footer-link">Subscription Dashboard</a></li>
+            <li><a href="#" class="footer-link">Interactive Tutorials</a></li>
           </ul>
         </div>
         <div class="footer-col">
-          <h4>법률 및 약관</h4>
+          <h4>Legal</h4>
           <ul class="footer-links">
-            <li><a href="tos.html" class="footer-link">이용 약관</a></li>
-            <li><a href="#" class="footer-link">개인정보 처리방침</a></li>
+            <li><a href="tos.html" class="footer-link">Terms of Service</a></li>
+            <li><a href="#" class="footer-link">Privacy Policy</a></li>
           </ul>
         </div>
       </div>
@@ -637,7 +636,7 @@
     </div>
   </footer>
 
-  <!-- JS SDK 및 외부 라이브러리 로드 -->
+  <!-- JS SDKs -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.1/vanilla-tilt.min.js"></script>
   <script src="user-panel.js"></script>
