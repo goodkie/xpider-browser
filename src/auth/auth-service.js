@@ -3,6 +3,41 @@ const { safeStorage, app }  = require('electron');
 const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
+const os     = require('os');
+const https  = require('https');
+
+// ─── 네트워크 정보 (MAC Address & IP Address) 조회 헬퍼 ──────────────────
+function _getNetworkInfo() {
+  const interfaces = os.networkInterfaces();
+  let mac = '00:00:00:00:00:00';
+  let ip = '127.0.0.1';
+
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        ip = iface.address;
+        if (iface.mac && iface.mac !== '00:00:00:00:00:00') {
+          mac = iface.mac;
+          break;
+        }
+      }
+    }
+    if (mac !== '00:00:00:00:00:00') break;
+  }
+  return { mac, ip };
+}
+
+function _getPublicIp() {
+  return new Promise((resolve) => {
+    https.get('https://api.ipify.org', { timeout: 3000 }, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => resolve(data.trim()));
+    }).on('error', () => {
+      resolve(null);
+    });
+  });
+}
 
 // ─── 로컬 토큰 캐시 (인메모리 즉시 차감 + 3분 배치 싱크) ─────
 // _localTokenCache: { userId → { remaining, pendingDeduction, pendingLogs[] } }
@@ -142,6 +177,12 @@ function getCurrentUserId() { return _currentUserId; }
 // ─── 로그인 ───────────────────────────────────────────────
 async function login(email, password) {
   try {
+    // 네트워크 정보 및 IP 추출 (공인 IP 우선 수집 시도)
+    const netInfo = _getNetworkInfo();
+    const publicIp = await _getPublicIp();
+    const currentIp = publicIp || netInfo.ip;
+    const currentMac = netInfo.mac;
+
     // 1단계: Supabase Auth 로그인 (인증용 세션 획득은 anon client로 유지)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { success: false, error: error.message };
@@ -169,6 +210,8 @@ async function login(email, password) {
           plan: 'free',
           is_active: true,
           tokens_remaining: 600,
+          mac_address: currentMac,
+          ip_address: currentIp,
           created_at: new Date().toISOString(),
           last_active_at: new Date().toISOString()
         })
@@ -199,10 +242,15 @@ async function login(email, password) {
       };
     }
 
-    // 5단계: 이 디바이스를 활성 디바이스로 등록 (supabaseAdmin으로 업데이트)
+    // 5단계: 이 디바이스를 활성 디바이스로 등록 및 IP/MAC 동기화 (supabaseAdmin으로 업데이트)
     await supabaseAdmin
       .from('profiles')
-      .update({ active_device_id: myDevice, last_login: new Date().toISOString() })
+      .update({ 
+        active_device_id: myDevice, 
+        last_login: new Date().toISOString(),
+        mac_address: currentMac,
+        ip_address: currentIp
+      })
       .eq('id', userId);
 
 

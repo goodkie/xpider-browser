@@ -500,8 +500,9 @@ ipcMain.on('auth-logout', async () => {
     try { await authService.flushTokenSync(userId); } catch(e) {}
   }
   await authService.logout(userId);
-  if (mainWindow) { mainWindow.removeAllListeners('closed'); mainWindow.close(); mainWindow = null; }
-  createLoginWindow();
+  releaseProfileLock();
+  log.info('[Logout] 로그아웃 요청으로 인해 XPIDER 브라우저 프로세스 및 메모리를 강제 즉시 종료합니다.');
+  app.exit(0);
 });
 
 // ─── 앱 종료 전 잠금 해제 및 좀비 방지 2초 안전 타임아웃 ──────────────────────
