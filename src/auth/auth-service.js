@@ -31,15 +31,38 @@ async function login(email, password) {
     const myDevice = getDeviceId();
 
     // 2단계: 프로필 조회 (is_active + active_device_id 확인)
-    const { data: profile, error: pErr } = await supabase
+    let { data: profile, error: pErr } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
     if (pErr || !profile) {
-      await supabase.auth.signOut();
-      return { success: false, error: '프로필 정보를 가져올 수 없습니다.' };
+      console.log(`[AuthService] Profile not found for user ${userId}. Attempting auto-profile creation.`);
+      
+      const username = data.user.user_metadata?.username || email.split('@')[0];
+      const { data: newProfile, error: insErr } = await supabase
+        .from('profiles')
+        .insert({
+          id: userId,
+          username: username,
+          email: email,
+          plan: 'free',
+          is_active: true,
+          tokens_remaining: 5000,
+          created_at: new Date().toISOString(),
+          last_active_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (insErr) {
+        console.error('[AuthService] Auto-profile creation failed:', insErr.message);
+        await supabase.auth.signOut();
+        return { success: false, error: '프로필 정보를 가져올 수 없으며 자동 생성에 실패했습니다: ' + insErr.message };
+      }
+      
+      profile = newProfile;
     }
 
     // 3단계: 계정 활성화 여부 확인

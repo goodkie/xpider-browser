@@ -83,6 +83,17 @@
                         <!-- Activity timeline nodes populated via JS -->
                     </div>
                 </div>
+
+                <!-- Live Debugging Monitor Console -->
+                <div class="glass-card debug-monitor" style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="card-header border-bottom" style="margin-bottom: 12px; padding-bottom: 8px;">
+                        <h2>💻 Live Debugging Telemetry</h2>
+                        <span style="font-size: 11px; font-weight: 700; color: #ffb703; background: rgba(255, 183, 3, 0.1); padding: 2px 8px; border-radius: 10px; border: 1px solid rgba(255, 183, 3, 0.2);">REAL-TIME STREAM</span>
+                    </div>
+                    <div id="debug-log-screen" style="flex: 1; min-height: 180px; max-height: 240px; background: #05070c; border: 1px solid rgba(255, 255, 255, 0.04); border-radius: 10px; padding: 12px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 11.5px; line-height: 1.5; color: #39ff14;">
+                        <div style="color: #666;">[System] Telemetry initialized. Awaiting API transactions...</div>
+                    </div>
+                </div>
             </section>
         </main>
     </div>

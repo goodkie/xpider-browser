@@ -47,6 +47,11 @@ DROP POLICY IF EXISTS "self_update" ON public.profiles;
 CREATE POLICY "self_update" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "self_insert" ON public.profiles;
+CREATE POLICY "self_insert" ON public.profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+
 
 -- 4. user_logs (익스텐션별 상세 사용량 및 작업 로그 보관 테이블) 생성
 CREATE TABLE IF NOT EXISTS public.user_logs (
