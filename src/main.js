@@ -501,7 +501,11 @@ ipcMain.on('auth-logout', async () => {
   }
   await authService.logout(userId);
   releaseProfileLock();
-  log.info('[Logout] 로그아웃 요청으로 인해 XPIDER 브라우저 프로세스 및 메모리를 강제 즉시 종료합니다.');
+  log.info('[Logout] 로그아웃 요청으로 인해 XPIDER 브라우저를 자동 재기동합니다.');
+  
+  // 현재 인스턴스가 종료된 후 즉시 신규 인스턴스로 자동 실행되도록 relaunch 예약
+  app.relaunch();
+  // 현재 인스턴스를 철저히 강제 종료 및 메모리 반환
   app.exit(0);
 });
 
