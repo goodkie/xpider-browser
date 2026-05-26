@@ -361,44 +361,24 @@ async function performHotUpdate(downloadUrl, onProgress, dryRun = false) {
 
     // ── 2a단계: EXE 설치 파일 실행 (Windows) ──────────────
     if (isExe) {
-      progress('extract', 10, '🚀 Setup 파일 실행 준비 중...');
+      progress('extract', 10, '🚀 Running setup file...');
       await _sleep(500);
+      progress('extract', 50, '🔄 Setup utility is launching. The browser will quit shortly...');
 
       if (app.isPackaged) {
-        // Production: UAC runas + 포커스 확보를 위해 shell로 실행
-        progress('extract', 50, '🔄 설치 프로그램이 실행됩니다. 잠시 후 브라우저가 종료됩니다...');
+        // Windows: shell:true로 UAC 권한 상승 지원
+        spawn(filePath, [], {
+          detached: true,
+          stdio:    'ignore',
+          shell:    isWin   // Windows는 shell=true로 UAC 처리
+        }).unref();
 
-        if (isWin) {
-          // Windows: UAC 권한 상승 요청 + 별도 창으로 실행
-          const { shell: eShell } = require('electron');
-          // 파일 탐색기로 먼저 EXE 위치를 열어 사용자가 확인 가능하게 함
-          eShell.showItemInFolder(filePath);
-          await _sleep(800);
-          // shell=true + runas verb로 UAC 처리
-          spawn('cmd.exe', ['/c', 'start', '', filePath], {
-            detached: true,
-            stdio:    'ignore',
-            shell:    false,
-          }).unref();
-        } else {
-          spawn(filePath, [], {
-            detached: true,
-            stdio:    'ignore',
-          }).unref();
-        }
-
-        await _sleep(2500);
-        progress('done', 100, '✅ 설치 프로그램이 실행되었습니다. 브라우저를 종료합니다...');
-        await _sleep(1200);
+        await _sleep(2000);
+        progress('done', 100, '✅ Setup file running. Exiting browser...');
+        await _sleep(1000);
         app.quit();
-
       } else {
-        // Dev 모드: 파일 탐색기로 EXE 위치를 열어 수동 실행 가능하게 함
-        const { shell: eShell } = require('electron');
-        eShell.showItemInFolder(filePath);
-        progress('done', 100,
-          `⚠️ [Dev Mode] 자동 실행 생략됨.\n📂 설치 파일 위치: ${filePath}\n→ 파일 탐색기가 열렸습니다. EXE를 직접 실행하세요.`);
-        console.log('[Updater] Dev mode: Downloaded EXE at:', filePath);
+        progress('done', 100, '✅ [Dev Mode] EXE execution skipped. Setup will run automatically in production.');
       }
       return { ok: true };
     }
