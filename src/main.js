@@ -145,6 +145,14 @@ let userPanelWindow   = null;  // [UserPanel] 일반 사용자 패널 저
 let loadedExtensionsInfo = [];
 let lastActiveTabByWindow = {}; // Cache active tab per windowId
 
+// ─── 전역 앱 흐름 제어 플래그 ─────────────────────────────────
+// auth-success 중복 실행 방지
+let _authSuccessFired = false;
+// 로그아웃으로 인한 종료 시 before-quit 이중 처리 방지
+let _logoutExitInProgress = false;
+// --no-auto-login 플래그 여부 (로그아웃 후 재시작 시 자동 로그인 원천 차단)
+const _noAutoLogin = process.argv.includes('--no-auto-login');
+
 // ─── 전역 실시간 로그 링버퍼 ──────────────────────────────────
 // xLog 함수를 빈 함수로 두거나, 단순 native console로 대체하여 레거시 오류 방지
 function xLog(level, source, ...args) {
@@ -381,6 +389,13 @@ ipcMain.handle('auth-signup', async (_, { email, password, username }) =>
   await authService.signup(email, password, username)
 );
 ipcMain.handle('auth-check-session', async () => {
+  // --no-auto-login 플래그가 있는 경우 세션 복원 완전 차단
+  if (_noAutoLogin) {
+    log.info('[Auth] --no-auto-login 플래그 활성 — 세션 자동 복원 건너뜀');
+    // 세션 파일이 남아 있을 경우 이 시점에 완전 삭제
+    authService.clearSession();
+    return null;
+  }
   const s = await authService.getSession();
   if (s) {
     // 세션 복원 시도 캐시 초기화
@@ -393,6 +408,9 @@ ipcMain.handle('auth-check-session', async () => {
   }
   return s || null;
 });
+
+// 렌더러에서 --no-auto-login 플래그 값 조회 (login-preload에서 노출)
+ipcMain.handle('auth-get-no-auto-login', () => _noAutoLogin);
 
 // ─── 업데이트 IPC (auth-success 전에 선언해야 함) ─────────────────────────────
 const { checkAppUpdate, performHotUpdate } = require('./updater');
@@ -447,8 +465,13 @@ ipcMain.on('open-release-url', (event, url) => {
   }
 });
 
-// auth-success 중복 실행 방지 플래그
-let _authSuccessFired = false;
+// auth-success 중복 실행 방지 플래그 (상단에서 선언됨)
+// _authSuccessFired, _logoutExitInProgress, _noAutoLogin → 파일 상단 참조
+
+// --no-auto-login 감지 시 로그 출력
+if (_noAutoLogin) {
+  log.info('[Logout] --no-auto-login 플래그 감지 — 자동 로그인 및 세션 복원 차단');
+}
 
 ipcMain.on('auth-success', () => {
   if (_authSuccessFired) return;
@@ -492,21 +515,31 @@ ipcMain.handle('open-user-panel', async () => {
 
 // ─── 로그아웃 ─────────────────────────────────────────────────
 ipcMain.on('auth-logout', async () => {
+  if (_logoutExitInProgress) return; // 중복 실행 방지
+  _logoutExitInProgress = true;
+
   _stopUserHeartbeat();
   _stopTokenBatchSync();
+  
   // 로그아웃 전 마지막 토큰 차감분 즉시 DB 동기화
   const userId = authService.getCurrentUserId();
   if (userId) {
     try { await authService.flushTokenSync(userId); } catch(e) {}
   }
+  
+  // 세션 파일 삭제 및 디바이스 잠금 해제
   await authService.logout(userId);
   releaseProfileLock();
-  log.info('[Logout] 로그아웃 요청으로 인해 XPIDER 브라우저를 800ms 후 자동 재기동합니다.');
   
-  // 현재 인스턴스가 종료된 후 즉시 신규 인스턴스로 자동 실행되도록 relaunch 예약
-  app.relaunch();
+  log.info('[Logout] --no-auto-login 플래그와 함께 XPIDER 브라우저를 재기동합니다.');
   
-  // Chromium LevelDB의 디스크 동기화 시간을 확실히 확보하기 위해 800ms 지연 후 프로세스 강제 즉시 종료
+  // ★ 핵심: --no-auto-login 플래그를 신규 프로세스에 전달하여 자동 로그인 원천 차단
+  const relaunchArgs = process.argv.slice(1).filter(a => a !== '--no-auto-login');
+  relaunchArgs.push('--no-auto-login');
+  app.relaunch({ args: relaunchArgs });
+  
+  // Chromium LevelDB 디스크 동기화 대기 후 프로세스 강제 종료
+  // (before-quit 핸들러가 _logoutExitInProgress 플래그로 이중 처리를 건너뜀)
   setTimeout(() => {
     app.exit(0);
   }, 800);
@@ -514,6 +547,12 @@ ipcMain.on('auth-logout', async () => {
 
 // ─── 앱 종료 전 잠금 해제 및 좀비 방지 2초 안전 타임아웃 ──────────────────────
 app.on('before-quit', async (e) => {
+  // auth-logout IPC에서 이미 로그아웃 및 relaunch 처리 중인 경우 이중 처리 건너뜀
+  if (_logoutExitInProgress) {
+    log.info('[Quit] 로그아웃 프로세스 진행 중 — before-quit 이중 처리 건너뜀');
+    return;
+  }
+  
   const userId = authService.getCurrentUserId();
   if (userId) {
     e.preventDefault();

@@ -51,6 +51,18 @@
 
   // ─── 자동 로그인 및 시작 제어 ─────────────────────────────
   (async () => {
+    // --no-auto-login 플래그 확인: 로그아웃 후 재시작 시 자동 로그인 완전 차단
+    const isNoAutoLogin = await window.authAPI.getNoAutoLogin();
+    
+    if (isNoAutoLogin) {
+      // 로그아웃 후 재시작: 저장된 비밀번호도 완전 삭제하여 자동 로그인 방지
+      localStorage.removeItem('xpider-saved-pw');
+      // 이메일 필드 복원은 유지하되 비밀번호 필드는 비움
+      const pwField = document.getElementById('login-password');
+      if (pwField) pwField.value = '';
+      return; // 자동 로그인 시도 없이 로그인 화면만 표시
+    }
+
     const session = await window.authAPI.checkSession();
     if (session) {
       showMsg('Auto-logging in...', 'info');
