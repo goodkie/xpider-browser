@@ -521,8 +521,12 @@ function handleLogout() {
   if (confirm('Are you sure you want to sign out?')) {
     // 다음 구동 시 자동 로그인이 수행되지 않도록 저장된 비밀번호 정보를 철저히 제거
     localStorage.removeItem('xpider-saved-pw');
-    try { api.send('auth-logout'); } catch(e) {}
-    try { window.close(); } catch(e) {}
+    
+    // Chromium LevelDB 디스크 쓰기 대기 및 안전 리로드 대기 (150ms)
+    setTimeout(() => {
+      try { api.send('auth-logout'); } catch(e) {}
+      try { window.close(); } catch(e) {}
+    }, 150);
   }
 }
 

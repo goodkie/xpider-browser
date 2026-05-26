@@ -501,12 +501,15 @@ ipcMain.on('auth-logout', async () => {
   }
   await authService.logout(userId);
   releaseProfileLock();
-  log.info('[Logout] 로그아웃 요청으로 인해 XPIDER 브라우저를 자동 재기동합니다.');
+  log.info('[Logout] 로그아웃 요청으로 인해 XPIDER 브라우저를 800ms 후 자동 재기동합니다.');
   
   // 현재 인스턴스가 종료된 후 즉시 신규 인스턴스로 자동 실행되도록 relaunch 예약
   app.relaunch();
-  // 현재 인스턴스를 철저히 강제 종료 및 메모리 반환
-  app.exit(0);
+  
+  // Chromium LevelDB의 디스크 동기화 시간을 확실히 확보하기 위해 800ms 지연 후 프로세스 강제 즉시 종료
+  setTimeout(() => {
+    app.exit(0);
+  }, 800);
 });
 
 // ─── 앱 종료 전 잠금 해제 및 좀비 방지 2초 안전 타임아웃 ──────────────────────
