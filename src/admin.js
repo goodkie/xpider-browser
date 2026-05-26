@@ -2,87 +2,67 @@
    XPIDER Admin Command Center — Core Brain Logic (SaaS DB & Real-time Beacon)
    ========================================================================== */
 
-// Defensive Mock for window.electronAPI when running outside Electron (e.g. standard browsers)
-if (typeof window.electronAPI === 'undefined') {
-    console.warn("[XPIDER] Running outside Electron. Mocking window.electronAPI for safety.");
-    window.electronAPI = {
-        invoke: async (channel, data) => {
-            console.log(`[Mock ElectronAPI] Invoke called on channel "${channel}"`, data);
-            
-            // Return safe mock data for visual demonstration outside Electron
-            if (channel === 'admin-get-all-profiles') {
-                return [
-                    {
-                        id: 'mock-admin-id',
-                        username: 'System Admin (Demo)',
-                        email: 'admin@xpider.pro',
-                        plan: 'admin',
-                        is_active: true,
-                        tokens_remaining: 999999,
-                        last_active_at: new Date().toISOString(),
-                        created_at: new Date().toISOString()
-                    },
-                    {
-                        id: 'mock-user-1',
-                        username: 'John Doe',
-                        email: 'john@example.com',
-                        plan: 'free',
-                        is_active: true,
-                        tokens_remaining: 4250,
-                        last_active_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(), // 2 mins ago (Active Beacon)
-                        created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-                    },
-                    {
-                        id: 'mock-user-2',
-                        username: 'Jane Smith',
-                        email: 'jane@demo.com',
-                        plan: 'pro',
-                        is_active: false,
-                        tokens_remaining: 12000,
-                        last_active_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-                        created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-                    }
-                ];
-            }
-            if (channel === 'admin-get-user-logs') {
-                return [
-                    {
-                        id: 'log-1',
-                        email: 'john@example.com',
-                        extension_name: 'Local Crawler',
-                        action: 'Extract Leads',
-                        tokens_consumed: 10,
-                        created_at: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-                        details: 'Successfully extracted 50 business leads from web listing.'
-                    },
-                    {
-                        id: 'log-2',
-                        email: 'jane@demo.com',
-                        extension_name: 'VPN Extractor',
-                        action: 'Switch Location',
-                        tokens_consumed: 25,
-                        created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-                        details: 'Tunnel routed through Oregon premium node.'
-                    }
-                ];
-            }
-            if (channel === 'admin-set-active') return true;
-            if (channel === 'admin-force-logout') return true;
-            if (channel === 'admin-update-user-tokens') return true;
-            
-            return [];
-        },
-        on: (channel, callback) => {
-            console.log(`[Mock ElectronAPI] Listener registered on channel "${channel}"`);
-        }
-    };
-    
-    // UI에 경고성 로그 출력
-    setTimeout(() => {
-        appendDebugLog("Running in Standard Browser mode. Real-time telemetry is running on local Mock API.", "warning");
-        appendDebugLog("To connect with actual live Electron backend, launch XPIDER Browser application.", "info");
-    }, 100);
+// ─── Supabase Direct 연결 (Electron 외부 브라우저용) ────────────
+const SUPABASE_URL  = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Njc5NzM3NiwiZXhwIjoyMDkyMzczMzc2fQ.ifTar2cFr_PwTPYc4dv4AegXC_g5sSn3zm9kHUwQJmo';
+
+let _sbAdmin = null;
+function getSbAdmin() {
+    if (!_sbAdmin && window.supabase) {
+        _sbAdmin = window.supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    }
+    return _sbAdmin;
 }
+
+// 브라우저 직접 Supabase 호출 함수
+async function sbInvoke(channel, data = {}) {
+    const sb = getSbAdmin();
+    if (!sb) { console.error('[XPIDER] Supabase SDK not loaded'); return null; }
+
+    if (channel === 'admin-get-all-profiles') {
+        const { data: rows } = await sb.from('profiles')
+            .select('id, username, email, plan, is_active, created_at, last_login, active_device_id, tokens_remaining, last_active_at')
+            .order('created_at', { ascending: false });
+        return rows || [];
+    }
+    if (channel === 'admin-get-user-logs') {
+        let q = sb.from('user_logs').select('*').order('created_at', { ascending: false }).limit(500);
+        if (data.filterUserId) q = q.eq('user_id', data.filterUserId);
+        if (data.filterDate) {
+            q = q.gte('created_at', data.filterDate + 'T00:00:00Z')
+                 .lte('created_at', data.filterDate + 'T23:59:59Z');
+        }
+        const { data: rows } = await q;
+        return rows || [];
+    }
+    if (channel === 'admin-set-active') {
+        const { error } = await sb.from('profiles').update({ is_active: data.isActive }).eq('id', data.userId);
+        return !error;
+    }
+    if (channel === 'admin-force-logout') {
+        const { error } = await sb.from('profiles').update({ active_device_id: null }).eq('id', data.userId);
+        return !error;
+    }
+    if (channel === 'admin-update-user-tokens') {
+        const { error } = await sb.from('profiles').update({ tokens_remaining: data.tokens }).eq('id', data.userId);
+        return !error;
+    }
+    return null;
+}
+
+// electronAPI가 없으면 Supabase 직접 연결, 있으면 IPC 사용
+if (typeof window.electronAPI === 'undefined') {
+    console.info('[XPIDER] Running in Browser mode → Connecting directly to Supabase...');
+    window.electronAPI = {
+        invoke: async (channel, data) => sbInvoke(channel, data),
+        on: () => {}
+    };
+    setTimeout(() => {
+        appendDebugLog('🌐 Browser mode: Supabase 직접 연결 활성화됨. 실제 데이터를 사용합니다.', 'system');
+        appendDebugLog('🔑 Service Role 키로 RLS 우회 — 모든 계정 데이터에 접근 가능.', 'info');
+    }, 200);
+}
+
 
 let usersCached = [];
 let logsCached = [];
@@ -142,6 +122,7 @@ const closeModalBtn = document.getElementById('close-modal-btn');
 document.addEventListener('DOMContentLoaded', () => {
     appendDebugLog('Command Center Telemetry Console Activated. Auto-polling interval: 5000ms.', 'info');
     loadAllData();
+    loadStats('day'); // 통계 초기 로드
     
     // 5초 간격으로 실시간 DB 자동 동기화 (Green Beacon 및 로그 실시간 갱신)
     setInterval(loadAllData, 5000);
@@ -326,6 +307,9 @@ function renderUsersTable() {
                     ${u.active_device_id ? `<button class="btn-action kick" onclick="forceUserLogout('${u.id}', '${email}')">Kick</button>` : ''}
                 </div>
             </td>
+            <td>
+                <button class="btn-detail" onclick="openUserDetail('${u.id}')">🔍 상세보기</button>
+            </td>
         `;
         userTableBody.appendChild(tr);
     });
@@ -445,3 +429,259 @@ async function saveTokensRecharge() {
 // Expose switch/kick handlers globally for inline triggers
 window.toggleUserActiveState = toggleUserActiveState;
 window.forceUserLogout = forceUserLogout;
+window.openUserDetail = openUserDetail;
+window.closeDetailModal = closeDetailModal;
+window.switchDetailTab = switchDetailTab;
+window.loadDetailLogs = loadDetailLogs;
+window.saveUserEdit = saveUserEdit;
+window.deleteUser = deleteUser;
+window.setStatPeriod = setStatPeriod;
+
+// ══════════════════════════════════════════════════════════════
+// 📊 DASHBOARD STATISTICS
+// ══════════════════════════════════════════════════════════════
+let currentStatPeriod = 'day';
+
+function getPeriodStart(period) {
+    const now = new Date();
+    switch(period) {
+        case 'day':   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        case 'week':  { const d = new Date(now); d.setDate(d.getDate() - 6); d.setHours(0,0,0,0); return d; }
+        case 'month': return new Date(now.getFullYear(), now.getMonth(), 1);
+        case 'year':  return new Date(now.getFullYear(), 0, 1);
+        default:      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+}
+
+function getPeriodLabel(period) {
+    const labels = { day: 'Today', week: 'This Week', month: 'This Month', year: 'This Year' };
+    return labels[period] || 'Today';
+}
+
+async function loadStats(period) {
+    currentStatPeriod = period;
+    const startDate = getPeriodStart(period);
+    const startISO  = startDate.toISOString();
+
+    // UI 로딩 상태
+    ['stat-downloads','stat-subscriptions','stat-issued','stat-usage'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '<span class="loader-dot">...</span>';
+    });
+    const periodLabel = document.getElementById('stat-period-label');
+    if (periodLabel) periodLabel.textContent = getPeriodLabel(period);
+
+    try {
+        const sb = getSbAdmin();
+        if (!sb) { appendDebugLog('Stats: Supabase not available', 'warning'); return; }
+
+        // 1. New Downloads = 기간 내 신규 가입 (profiles.created_at)
+        const { data: newUsers, error: e1 } = await sb
+            .from('profiles')
+            .select('id, plan, tokens_remaining', { count: 'exact' })
+            .gte('created_at', startISO);
+
+        const downloads = newUsers ? newUsers.length : 0;
+
+        // 2. New Subscriptions = 기간 내 유료 플랜 가입
+        const subscriptions = newUsers
+            ? newUsers.filter(u => u.plan && u.plan !== 'free' && u.plan !== 'admin').length
+            : 0;
+
+        // 3. Tokens Issued = 기간 내 신규 유저들의 초기 토큰 합산
+        const tokensIssued = newUsers
+            ? newUsers.reduce((sum, u) => sum + (u.tokens_remaining || 0), 0)
+            : 0;
+
+        // 4. Token Usage = 기간 내 user_logs의 tokens_consumed 합산
+        const { data: usageLogs, error: e2 } = await sb
+            .from('user_logs')
+            .select('tokens_consumed')
+            .gte('created_at', startISO);
+
+        const tokenUsage = usageLogs
+            ? usageLogs.reduce((sum, l) => sum + (l.tokens_consumed || 0), 0)
+            : 0;
+
+        // UI 업데이트
+        const el = (id) => document.getElementById(id);
+        if (el('stat-downloads'))     el('stat-downloads').textContent     = downloads.toLocaleString();
+        if (el('stat-subscriptions')) el('stat-subscriptions').textContent = subscriptions.toLocaleString();
+        if (el('stat-issued'))        el('stat-issued').textContent        = tokensIssued.toLocaleString();
+        if (el('stat-usage'))         el('stat-usage').textContent         = tokenUsage.toLocaleString();
+
+        appendDebugLog(`Stats loaded [${getPeriodLabel(period)}]: ${downloads} downloads, ${subscriptions} subs, ${tokensIssued} issued, ${tokenUsage} used`, 'success');
+    } catch(e) {
+        appendDebugLog(`Stats load failed: ${e.message}`, 'error');
+        console.error('Stats error:', e);
+    }
+}
+
+function setStatPeriod(period) {
+    // 버튼 active 상태 전환
+    document.querySelectorAll('.time-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === period);
+    });
+    loadStats(period);
+}
+
+// ══════════════════════════════════════════════════════════════
+// 🔍 USER DETAIL MODAL
+// ══════════════════════════════════════════════════════════════
+let detailUserId = null;
+
+function openUserDetail(userId) {
+    const user = usersCached.find(u => u.id === userId);
+    if (!user) return;
+    detailUserId = userId;
+
+    // 헤더 정보 채우기
+    const name = user.username || user.email?.split('@')[0] || 'User';
+    const el = (id) => document.getElementById(id);
+    el('detail-avatar').textContent = name.charAt(0).toUpperCase();
+    el('detail-title').textContent  = name;
+    el('detail-email-sub').textContent = user.email || '';
+
+    // Profile Info 탭 채우기
+    const fields = [
+        { label: 'User ID',         value: user.id },
+        { label: 'Username',        value: user.username || '-' },
+        { label: 'Email',           value: user.email || '-' },
+        { label: 'Plan',            value: (user.plan || 'free').toUpperCase() },
+        { label: 'Status',          value: user.is_active ? '✅ Active' : '🚫 Inactive' },
+        { label: 'Tokens Remaining',value: Number(user.tokens_remaining || 0).toLocaleString() },
+        { label: 'Joined',          value: user.created_at ? new Date(user.created_at).toLocaleString('ko-KR') : '-' },
+        { label: 'Last Login',      value: user.last_login ? new Date(user.last_login).toLocaleString('ko-KR') : '-' },
+        { label: 'Last Active',     value: user.last_active_at ? new Date(user.last_active_at).toLocaleString('ko-KR') : '-' },
+        { label: 'Device ID',       value: user.active_device_id || 'Not logged in' },
+    ];
+    const grid = el('detail-info-grid');
+    grid.innerHTML = fields.map(f => `
+        <div class="info-item">
+            <div class="info-item-label">${f.label}</div>
+            <div class="info-item-value">${f.value}</div>
+        </div>
+    `).join('');
+
+    // Edit 탭 기본값 채우기
+    el('edit-username').value = user.username || '';
+    el('edit-email').value    = user.email || '';
+    el('edit-plan').value     = user.plan || 'free';
+    el('edit-tokens').value   = user.tokens_remaining || 0;
+    el('edit-active').value   = String(user.is_active !== false);
+
+    // 첫 탭으로 초기화
+    switchDetailTab('info', document.querySelector('.detail-tab'));
+
+    // 모달 열기
+    document.getElementById('user-detail-modal').classList.remove('hidden');
+
+    // 로그 자동 로드
+    loadDetailLogs();
+}
+
+function closeDetailModal() {
+    document.getElementById('user-detail-modal').classList.add('hidden');
+    detailUserId = null;
+}
+
+function switchDetailTab(tab, btn) {
+    // 탭 버튼 active 상태
+    document.querySelectorAll('.detail-tab').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    // 탭 컨텐츠 표시
+    ['info','logs','edit'].forEach(t => {
+        const el = document.getElementById(`detail-tab-${t}`);
+        if (el) el.classList.toggle('hidden', t !== tab);
+    });
+}
+
+async function loadDetailLogs() {
+    if (!detailUserId) return;
+    const tbody = document.getElementById('detail-log-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#7f90a6">로딩 중...</td></tr>';
+
+    try {
+        const sb = getSbAdmin();
+        const dateFilter = document.getElementById('detail-log-date')?.value;
+        let q = sb.from('user_logs').select('*').eq('user_id', detailUserId)
+            .order('created_at', { ascending: false }).limit(500);
+        if (dateFilter) {
+            q = q.gte('created_at', dateFilter + 'T00:00:00Z')
+                 .lte('created_at', dateFilter + 'T23:59:59Z');
+        }
+        const { data: logs } = await q;
+        if (!logs || logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#7f90a6">이용 내역이 없습니다</td></tr>';
+            return;
+        }
+        tbody.innerHTML = logs.map(l => `
+            <tr>
+                <td>${new Date(l.created_at).toLocaleString('ko-KR')}</td>
+                <td><span class="badge free">${l.extension_name || '-'}</span></td>
+                <td>${l.action || '-'}</td>
+                <td style="color:#ffd700;font-weight:700">-${(l.tokens_consumed||0).toLocaleString()}</td>
+                <td style="color:#7f90a6;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.details||''}">${l.details || '-'}</td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#ff3366">${e.message}</td></tr>`;
+    }
+}
+
+async function saveUserEdit() {
+    if (!detailUserId) return;
+    const username = document.getElementById('edit-username').value.trim();
+    const email    = document.getElementById('edit-email').value.trim();
+    const plan     = document.getElementById('edit-plan').value;
+    const tokens   = parseInt(document.getElementById('edit-tokens').value);
+    const isActive = document.getElementById('edit-active').value === 'true';
+
+    if (!username || !email) { alert('Username과 Email은 필수입니다.'); return; }
+    if (isNaN(tokens) || tokens < 0) { alert('유효한 토큰 값을 입력하세요.'); return; }
+
+    try {
+        const sb = getSbAdmin();
+        const { error } = await sb.from('profiles').update({
+            username, email, plan,
+            tokens_remaining: tokens,
+            is_active: isActive
+        }).eq('id', detailUserId);
+
+        if (error) throw error;
+
+        appendDebugLog(`User ${email} 정보 업데이트 완료.`, 'success');
+        alert('✅ 저장되었습니다.');
+        closeDetailModal();
+        loadAllData();
+    } catch(e) {
+        appendDebugLog(`User edit failed: ${e.message}`, 'error');
+        alert('❌ 저장 실패: ' + e.message);
+    }
+}
+
+async function deleteUser() {
+    if (!detailUserId) return;
+    const user = usersCached.find(u => u.id === detailUserId);
+    const email = user?.email || detailUserId;
+    if (!confirm(`⚠️ 경고: ${email} 계정을 완전히 삭제합니다.\n\n이 작업은 되돌릴 수 없습니다. 계속하시겠습니까?`)) return;
+
+    try {
+        const sb = getSbAdmin();
+        // 1. 로그 먼저 삭제
+        await sb.from('user_logs').delete().eq('user_id', detailUserId);
+        // 2. 프로필 삭제
+        const { error } = await sb.from('profiles').delete().eq('id', detailUserId);
+        if (error) throw error;
+
+        appendDebugLog(`User ${email} 계정 및 로그 삭제 완료.`, 'success');
+        alert(`✅ ${email} 계정이 삭제되었습니다.`);
+        closeDetailModal();
+        loadAllData();
+        loadStats(currentStatPeriod);
+    } catch(e) {
+        appendDebugLog(`Delete failed: ${e.message}`, 'error');
+        alert('❌ 삭제 실패: ' + e.message);
+    }
+}

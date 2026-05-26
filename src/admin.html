@@ -24,6 +24,58 @@
             </div>
         </header>
 
+        <!-- ═══ Dashboard Statistics ═══ -->
+        <section class="stats-section">
+            <div class="stats-header">
+                <h2>📊 Dashboard Overview</h2>
+                <div class="time-filter-group">
+                    <button class="time-btn active" data-period="day" onclick="setStatPeriod('day')">Day</button>
+                    <button class="time-btn" data-period="week" onclick="setStatPeriod('week')">Week</button>
+                    <button class="time-btn" data-period="month" onclick="setStatPeriod('month')">Month</button>
+                    <button class="time-btn" data-period="year" onclick="setStatPeriod('year')">Year</button>
+                </div>
+                <span class="stat-period-label" id="stat-period-label">Today</span>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card downloads">
+                    <div class="stat-icon-wrap">📥</div>
+                    <div class="stat-body">
+                        <div class="stat-label">New Downloads</div>
+                        <div class="stat-value" id="stat-downloads"><span class="loader-dot">...</span></div>
+                        <div class="stat-sub" id="stat-downloads-sub">신규 가입자 수</div>
+                    </div>
+                    <div class="stat-trend-icon" id="trend-downloads">↑</div>
+                </div>
+                <div class="stat-card subscriptions">
+                    <div class="stat-icon-wrap">⭐</div>
+                    <div class="stat-body">
+                        <div class="stat-label">New Subscriptions</div>
+                        <div class="stat-value" id="stat-subscriptions"><span class="loader-dot">...</span></div>
+                        <div class="stat-sub">유료 플랜 가입</div>
+                    </div>
+                    <div class="stat-trend-icon" id="trend-subscriptions">↑</div>
+                </div>
+                <div class="stat-card tokens-issued">
+                    <div class="stat-icon-wrap">🪙</div>
+                    <div class="stat-body">
+                        <div class="stat-label">Tokens Issued</div>
+                        <div class="stat-value" id="stat-issued"><span class="loader-dot">...</span></div>
+                        <div class="stat-sub">신규 발행 토큰</div>
+                    </div>
+                    <div class="stat-trend-icon" id="trend-issued">↑</div>
+                </div>
+                <div class="stat-card tokens-used">
+                    <div class="stat-icon-wrap">⚡</div>
+                    <div class="stat-body">
+                        <div class="stat-label">Token Usage</div>
+                        <div class="stat-value" id="stat-usage"><span class="loader-dot">...</span></div>
+                        <div class="stat-sub">소모된 토큰</div>
+                    </div>
+                    <div class="stat-trend-icon" id="trend-usage">↑</div>
+                </div>
+            </div>
+        </section>
+
         <!-- Dynamic Dashboard Grid -->
         <main class="dashboard-grid">
             <!-- Left Side: Control & Monitoring -->
@@ -53,11 +105,12 @@
                         <table class="premium-table">
                             <thead>
                                 <tr>
-                                    <th>User Info</th>
+                    <th>User Info</th>
                                     <th>Role / Plan</th>
                                     <th>Tokens</th>
                                     <th>Live Device</th>
                                     <th>Actions</th>
+                                    <th>Detail</th>
                                 </tr>
                             </thead>
                             <tbody id="user-table-body">
@@ -114,6 +167,91 @@
         </div>
     </div>
 
+    <!-- User Detail / Edit Modal -->
+    <div id="user-detail-modal" class="modal-overlay hidden">
+        <div class="modal-card detail-modal-card">
+            <div class="detail-modal-header">
+                <div class="detail-user-avatar" id="detail-avatar">U</div>
+                <div>
+                    <h2 class="modal-title" id="detail-title">User Detail</h2>
+                    <p class="modal-desc" id="detail-email-sub">user@example.com</p>
+                </div>
+                <button class="detail-close-btn" onclick="closeDetailModal()">✕</button>
+            </div>
+
+            <!-- Tab Navigation -->
+            <div class="detail-tabs">
+                <button class="detail-tab active" onclick="switchDetailTab('info', this)">👤 Profile</button>
+                <button class="detail-tab" onclick="switchDetailTab('logs', this)">📋 Logs</button>
+                <button class="detail-tab" onclick="switchDetailTab('edit', this)">✏️ Edit</button>
+            </div>
+
+            <!-- Profile Info Tab -->
+            <div id="detail-tab-info" class="detail-tab-content">
+                <div class="detail-info-grid" id="detail-info-grid"></div>
+            </div>
+
+            <!-- Logs Tab -->
+            <div id="detail-tab-logs" class="detail-tab-content hidden">
+                <div class="detail-log-filters">
+                    <input type="date" id="detail-log-date" class="dark-input" onchange="loadDetailLogs()" />
+                    <button class="glow-btn" style="font-size:12px;padding:6px 14px" onclick="loadDetailLogs()">🔄 새로고침</button>
+                </div>
+                <div class="detail-log-table-wrap">
+                    <table class="premium-table" style="font-size:12px">
+                        <thead>
+                            <tr>
+                                <th>날짜</th><th>익스텐션</th><th>액션</th><th>토큰</th><th>상세</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detail-log-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Edit Tab -->
+            <div id="detail-tab-edit" class="detail-tab-content hidden">
+                <div class="edit-form">
+                    <div class="edit-row">
+                        <label>Username</label>
+                        <input type="text" id="edit-username" class="modal-input" />
+                    </div>
+                    <div class="edit-row">
+                        <label>Email</label>
+                        <input type="email" id="edit-email" class="modal-input" />
+                    </div>
+                    <div class="edit-row">
+                        <label>Plan</label>
+                        <select id="edit-plan" class="modal-input">
+                            <option value="free">Free</option>
+                            <option value="starter">Starter</option>
+                            <option value="pro">Pro</option>
+                            <option value="enterprise">Enterprise</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="edit-row">
+                        <label>Tokens</label>
+                        <input type="number" id="edit-tokens" class="modal-input" />
+                    </div>
+                    <div class="edit-row">
+                        <label>Active</label>
+                        <select id="edit-active" class="modal-input">
+                            <option value="true">✅ Active</option>
+                            <option value="false">🚫 Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="edit-actions">
+                    <button class="glow-btn" style="flex:1" onclick="saveUserEdit()">💾 저장</button>
+                    <button class="cancel-btn delete-btn" onclick="deleteUser()">🗑️ 계정 삭제</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase JS SDK (브라우저 직접 연결용) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="admin.js"></script>
 </body>
 </html>

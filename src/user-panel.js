@@ -1,24 +1,98 @@
-// ═══════════════════════════════════════════════════════
-// XPIDER User Panel — Frontend Logic
-// ═══════════════════════════════════════════════════════
+// ─── Supabase Direct 연결 설정 ────────────────────────────────
+const SUPABASE_URL = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
+const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Njc5NzM3NiwiZXhwIjoyMDkyMzczMzc2fQ.ifTar2cFr_PwTPYc4dv4AegXC_g5sSn3zm9kHUwQJmo';
 
-// Mock API for browser-based development
-const api = window.electronAPI || {
-  invoke: async (ch, data) => {
-    console.warn('[UserPanel] electronAPI not available, using mock for:', ch);
-    if (ch === 'user-get-profile') return {
-      id: 'mock-id', username: 'Demo User', email: 'demo@xpider.io',
-      plan: 'free', tokens_remaining: 3200, created_at: new Date().toISOString(),
-      last_login: new Date().toISOString(), is_active: true
-    };
-    if (ch === 'user-get-logs') return [
-      { created_at: new Date().toISOString(), extension_name: 'AI Crawler', action: 'Page Crawl', tokens_consumed: 50, details: 'https://example.com' },
-      { created_at: new Date(Date.now() - 86400000).toISOString(), extension_name: 'Email Extractor', action: 'Extract', tokens_consumed: 20, details: '12 emails found' }
-    ];
+// 브라우저 테스트용: 조회할 유저 이메일 지정 (URL ?email=xxx 또는 아래 직접 입력)
+const urlParams = new URLSearchParams(window.location.search);
+const TEST_EMAIL = urlParams.get('email') || '';
+
+let _sb = null;
+function getSb() {
+    if (!_sb && window.supabase) {
+        _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    }
+    return _sb;
+}
+
+// Supabase 직접 호출 함수
+async function sbInvoke(channel, data = {}) {
+    const sb = getSb();
+    if (!sb) return null;
+
+    if (channel === 'user-get-profile') {
+        if (!TEST_EMAIL) return null;
+        const { data: row } = await sb.from('profiles').select('*').eq('email', TEST_EMAIL).single();
+        return row || null;
+    }
+    if (channel === 'user-get-logs') {
+        if (!TEST_EMAIL) return [];
+        // 먼저 해당 유저 id 조회
+        const { data: profile } = await sb.from('profiles').select('id').eq('email', TEST_EMAIL).single();
+        if (!profile) return [];
+        let q = sb.from('user_logs').select('*').eq('user_id', profile.id)
+            .order('created_at', { ascending: false }).limit(200);
+        if (data.extFilter) q = q.ilike('extension_name', '%' + data.extFilter + '%');
+        if (data.dateFilter) {
+            q = q.gte('created_at', data.dateFilter + 'T00:00:00Z')
+                 .lte('created_at', data.dateFilter + 'T23:59:59Z');
+        }
+        const { data: rows } = await q;
+        return rows || [];
+    }
     return null;
-  },
-  send: (ch, data) => { console.warn('[UserPanel] send not available:', ch); }
-};
+}
+
+// electronAPI: Electron이면 IPC, 브라우저면 Supabase 직접
+const api = (typeof window.electronAPI !== 'undefined')
+    ? window.electronAPI
+    : { invoke: sbInvoke, send: () => {} };
+
+// 브라우저 모드일 때 이메일 입력 UI 표시
+if (typeof window.electronAPI === 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!TEST_EMAIL) {
+            showEmailPrompt();
+        }
+    });
+}
+
+function showEmailPrompt() {
+    const banner = document.createElement('div');
+    banner.id = 'email-prompt-banner';
+    banner.style.cssText = `
+        position:fixed; top:0; left:0; right:0; z-index:500;
+        background:linear-gradient(135deg,rgba(108,99,255,0.95),rgba(0,242,254,0.9));
+        padding:16px 24px; display:flex; align-items:center; gap:12px;
+        backdrop-filter:blur(20px); box-shadow:0 4px 24px rgba(0,0,0,0.4);
+    `;
+    banner.innerHTML = `
+        <span style="font-size:20px;">🔍</span>
+        <span style="font-weight:700;color:#fff;font-size:14px;">테스트할 유저 이메일을 입력하세요:</span>
+        <input id="test-email-input" type="email" placeholder="user@example.com"
+            style="flex:1;max-width:300px;padding:8px 14px;border-radius:8px;border:none;
+            background:rgba(255,255,255,0.15);color:#fff;font-size:14px;outline:none;"
+        />
+        <button onclick="applyTestEmail()"
+            style="padding:8px 20px;border-radius:8px;border:none;cursor:pointer;
+            background:#fff;color:#6c63ff;font-weight:700;font-size:14px;">
+            조회하기
+        </button>
+        <span style="font-size:12px;color:rgba(255,255,255,0.7);">
+            또는 URL에 ?email=xxx 추가
+        </span>
+    `;
+    document.body.prepend(banner);
+    document.body.style.paddingTop = '64px';
+}
+
+function applyTestEmail() {
+    const email = document.getElementById('test-email-input')?.value?.trim();
+    if (!email) return;
+    const url = new URL(window.location.href);
+    url.searchParams.set('email', email);
+    window.location.href = url.toString();
+}
+
 
 // ─── State ─────────────────────────────────────────────
 let currentProfile = null;
