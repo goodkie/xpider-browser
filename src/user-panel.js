@@ -114,6 +114,27 @@ window.addEventListener('DOMContentLoaded', async () => {
       "max-glare": 0.1
     });
   }
+
+  // ─── 실시간 토큰 잔액 갱신 (30초 간격) ────────────────
+  // xpider-token-get-remaining → 로컬 캐시 우선 반환 (DB 미조회)
+  setInterval(async () => {
+    try {
+      const remaining = await api.invoke('xpider-token-get-remaining');
+      if (remaining !== undefined && remaining !== null) {
+        const tokenDisplay = document.getElementById('stat-tokens');
+        if (tokenDisplay) tokenDisplay.textContent = remaining.toLocaleString() + ' 🪙';
+
+        const pct = Math.min(100, Math.round((remaining / MAX_TOKENS) * 100));
+        const fill    = document.getElementById('token-progress');
+        const pctLabel = document.getElementById('token-pct');
+        if (fill) fill.style.width = pct + '%';
+        if (pctLabel) pctLabel.textContent = `${pct}% 남음 (${remaining.toLocaleString()} / ${MAX_TOKENS.toLocaleString()})`;
+
+        // currentProfile 동기화
+        if (currentProfile) currentProfile.tokens_remaining = remaining;
+      }
+    } catch (e) { /* 패널 닫힘 등 무시 */ }
+  }, 30000);
 });
 
 // ─── Load Profile ───────────────────────────────────────

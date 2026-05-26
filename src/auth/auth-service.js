@@ -4,6 +4,125 @@ const fs     = require('fs');
 const path   = require('path');
 const crypto = require('crypto');
 
+// ─── 로컬 토큰 캐시 (인메모리 즉시 차감 + 3분 배치 싱크) ─────
+// _localTokenCache: { userId → { remaining, pendingDeduction, pendingLogs[] } }
+const _localTokenCache = new Map();
+
+/**
+ * 로컬 캐시 초기화 (로그인 성공 후 또는 첫 조회 시 호출)
+ */
+function _initLocalCache(userId, tokensRemaining) {
+  if (!_localTokenCache.has(userId)) {
+    _localTokenCache.set(userId, {
+      remaining:        tokensRemaining,
+      pendingDeduction: 0,
+      pendingLogs:      []
+    });
+  } else {
+    // 이미 존재하면 잔액만 갱신 (미전송 차감분 보존)
+    const cache = _localTokenCache.get(userId);
+    cache.remaining = tokensRemaining;
+  }
+}
+
+/**
+ * 로컬 캐시에서 즉시 차감 (Supabase 호출 없음)
+ * 반환: { success, tokensRemaining, error? }
+ */
+function _localDeduct(userId, count, extName, action, details) {
+  const cache = _localTokenCache.get(userId);
+  if (!cache) return { success: false, error: '토큰 캐시가 초기화되지 않았습니다.' };
+
+  if (cache.remaining < count) {
+    return { success: false, error: '토큰이 부족합니다. 토큰을 충전해 주세요.', tokensRemaining: cache.remaining };
+  }
+
+  cache.remaining       -= count;
+  cache.pendingDeduction += count;
+  cache.pendingLogs.push({
+    extName, action, details,
+    count,
+    timestamp: new Date().toISOString()
+  });
+
+  return { success: true, tokensRemaining: cache.remaining };
+}
+
+/**
+ * 누적 차감분을 Supabase에 배치 업로드 (3분마다 호출)
+ * 반환: { flushed: number } — 플러시된 로그 개수
+ */
+async function flushTokenSync(userId) {
+  const uid = userId || _currentUserId;
+  if (!uid) return { flushed: 0 };
+
+  const cache = _localTokenCache.get(uid);
+  if (!cache || (cache.pendingDeduction === 0 && cache.pendingLogs.length === 0)) {
+    return { flushed: 0 };
+  }
+
+  const deduction = cache.pendingDeduction;
+  const logs      = [...cache.pendingLogs];
+
+  // 낙관적 클리어 (싱크 중 추가 차감이 생겨도 유실 방지)
+  cache.pendingDeduction = 0;
+  cache.pendingLogs      = [];
+
+  try {
+    // 1. 프로필 토큰 업데이트
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('tokens_remaining, email, username')
+      .eq('id', uid)
+      .single();
+
+    if (profile) {
+      // DB 기준 잔액에서 pendingDeduction만큼 차감 (복수 인스턴스 안전)
+      const newRemaining = Math.max(0, profile.tokens_remaining - deduction);
+      await supabaseAdmin
+        .from('profiles')
+        .update({ tokens_remaining: newRemaining, last_active_at: new Date().toISOString() })
+        .eq('id', uid);
+
+      // 인메모리 캐시도 DB 기준으로 동기화
+      cache.remaining = newRemaining;
+
+      // 2. 활동 로그 배치 인서트
+      const email = profile.email || profile.username || 'unknown';
+      if (logs.length > 0) {
+        const logRows = logs.map(l => ({
+          user_id:          uid,
+          email:            email,
+          extension_name:   l.extName,
+          action:           l.action,
+          tokens_consumed:  l.count,
+          details:          l.details || ''
+        }));
+        const { error: lErr } = await supabaseAdmin
+          .from('user_logs')
+          .insert(logRows);
+        if (lErr) console.error('[TokenSync] 로그 배치 인서트 실패:', lErr.message);
+      }
+    }
+
+    return { flushed: logs.length };
+  } catch (e) {
+    // 실패 시 차감분 복원 (다음 싱크에서 재시도)
+    cache.pendingDeduction += deduction;
+    cache.pendingLogs.unshift(...logs);
+    console.error('[TokenSync] 배치 싱크 실패:', e.message);
+    return { flushed: 0 };
+  }
+}
+
+/**
+ * 캐시의 현재 잔여 토큰 반환 (DB 조회 없음)
+ */
+function getLocalTokensRemaining(userId) {
+  const cache = _localTokenCache.get(userId);
+  return cache ? cache.remaining : null;
+}
+
 const getSessionFile = () => path.join(app.getPath('userData'), 'xpider-session.enc');
 const getDeviceFile  = () => path.join(app.getPath('userData'), 'device-id.txt');
 
@@ -387,6 +506,10 @@ module.exports = {
   login, signup, logout, getSession, saveSession, clearSession,
   getUserProfile, getAllProfiles, setUserActive, forceLogout,
   getCurrentUserId, getDeviceId, deductToken, getTokensRemaining,
-  updateUserActive, adminUpdateUserTokens, adminGetUserLogs
+  updateUserActive, adminUpdateUserTokens, adminGetUserLogs,
+  // 로컬 캐시 API
+  initLocalCache: _initLocalCache,
+  flushTokenSync,
+  getLocalTokensRemaining
 };
 

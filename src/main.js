@@ -345,14 +345,29 @@ ipcMain.on('window-control', (_, action) => {
 // ─── 인증 IPC ─────────────────────────────────────────────────
 const authService = require('./auth/auth-service');
 
-ipcMain.handle('auth-login', async (_, { email, password }) =>
-  await authService.login(email, password)
-);
+ipcMain.handle('auth-login', async (_, { email, password }) => {
+  const result = await authService.login(email, password);
+  // 로그인 성공 시 로컬 토큰 캐시 초기화
+  if (result.success && result.profile) {
+    authService.initLocalCache(result.user.id, result.profile.tokens_remaining);
+    _startTokenBatchSync(result.user.id);
+  }
+  return result;
+});
 ipcMain.handle('auth-signup', async (_, { email, password, username }) =>
   await authService.signup(email, password, username)
 );
 ipcMain.handle('auth-check-session', async () => {
   const s = await authService.getSession();
+  if (s) {
+    // 세션 복원 시도 캐시 초기화
+    const uid = authService.getCurrentUserId();
+    if (uid) {
+      const remaining = await authService.getTokensRemaining(uid);
+      authService.initLocalCache(uid, remaining);
+      _startTokenBatchSync(uid);
+    }
+  }
   return s || null;
 });
 
@@ -455,7 +470,12 @@ ipcMain.handle('open-user-panel', async () => {
 // ─── 로그아웃 ─────────────────────────────────────────────────
 ipcMain.on('auth-logout', async () => {
   _stopUserHeartbeat();
+  _stopTokenBatchSync();
+  // 로그아웃 전 마지막 토큰 차감분 즉시 DB 동기화
   const userId = authService.getCurrentUserId();
+  if (userId) {
+    try { await authService.flushTokenSync(userId); } catch(e) {}
+  }
   await authService.logout(userId);
   if (mainWindow) { mainWindow.removeAllListeners('closed'); mainWindow.close(); mainWindow = null; }
   createLoginWindow();
@@ -469,13 +489,17 @@ app.on('before-quit', async (e) => {
     log.info(`[Quit] 종료 이벤트 수신 -> 비동기 안전 로그아웃 처리 개시 (UID: ${userId})`);
     
     releaseProfileLock();
-    
-    const logoutPromise = authService.logout(userId);
-    const timeoutPromise = new Promise(r => setTimeout(r, 2000));
+    _stopTokenBatchSync();
+
+    const logoutPromise = Promise.all([
+      authService.flushTokenSync(userId).catch(() => {}),
+      authService.logout(userId)
+    ]);
+    const timeoutPromise = new Promise(r => setTimeout(r, 3000));
     
     try {
       await Promise.race([logoutPromise, timeoutPromise]);
-      log.info('[Quit] 안전 로그아웃 처리 혹은 2초 안전 대기 시간 종료. 프로세스 정상 폭파.');
+      log.info('[Quit] 안전 로그아웃 처리 혹은 3초 안전 대기 시간 종료. 프로세스 정상 폭파.');
     } catch (err) {
       log.error('[Quit] 로그아웃 중 예외 발생:', err.message);
     } finally {
@@ -664,6 +688,32 @@ ipcMain.on('reload-extensions', async () => {
 });
 
 
+// ─── [TokenSync] 3분 배치 싱크 타이머 ──────────────────────────────────────────
+let _tokenBatchSyncTimer = null;
+
+function _startTokenBatchSync(userId) {
+  _stopTokenBatchSync();
+  const SYNC_INTERVAL_MS = 3 * 60 * 1000; // 3분
+  _tokenBatchSyncTimer = setInterval(async () => {
+    const uid = userId || authService.getCurrentUserId();
+    if (!uid) { _stopTokenBatchSync(); return; }
+    try {
+      const { flushed } = await authService.flushTokenSync(uid);
+      if (flushed > 0) log.info(`[TokenSync] ${flushed}건 활동 로그 Supabase 동기화 완료.`);
+    } catch(e) {
+      log.error('[TokenSync] 배치 싱크 오류:', e.message);
+    }
+  }, SYNC_INTERVAL_MS);
+  log.info('[TokenSync] 3분 배치 토큰 싱크 타이머 시작');
+}
+
+function _stopTokenBatchSync() {
+  if (_tokenBatchSyncTimer) {
+    clearInterval(_tokenBatchSyncTimer);
+    _tokenBatchSyncTimer = null;
+  }
+}
+
 // ─── [VPN] XPIDER VPN IPC 핸들러 ─────────────────────────────────────────────
 // 구조: popup.js → XPIDER_INVOKE → ext-preload → ipcMain.handle('xpider-vpn-*')
 // 해결책: Electron app.on('login') 이벤트가 webview CONNECT 터널에서
@@ -712,8 +762,8 @@ function _startVPNTokenBilling() {
       _disconnectVPNForce('로그인이 필요한 서비스입니다.');
       return;
     }
-    // VPN 연결 활성 유지 ➡️ 1분당 1 토큰 소진
-    const result = await authService.deductToken(userId, 1, 'XPIDER VPN', 'Keep Connection Alive', 'Active VPN relay tunnel');
+    // VPN 연결 활성 유지 ➡️ 1분당 3 토큰 소진
+    const result = await authService.deductToken(userId, 3, 'XPIDER VPN', 'Keep Connection Alive', 'Active VPN relay tunnel');
     if (!result.success) {
       _stopVPNTokenBilling();
       _disconnectVPNForce(result.error || '토큰이 부족하여 VPN 연결이 중단되었습니다.');
@@ -2940,10 +2990,12 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
             
             if (senderUrl.includes('google') || senderUrl.includes('gmap')) {
                 extName = 'GMaps Business Finder';
-                tokenCount = 2;
+                tokenCount = 15;  // 15 토큰/리드
             } else if (senderUrl.includes('bing')) {
                 extName = 'Bing Maps Business Finder';
-                tokenCount = 2;
+                tokenCount = 15;  // 15 토큰/리드
+            } else {
+                tokenCount = 30;  // XPIDER Local Business Data Crawler: 30 토큰/리드
             }
             
             // 토큰 잔여량 체크 및 차감

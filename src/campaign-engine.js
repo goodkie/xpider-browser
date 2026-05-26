@@ -587,10 +587,10 @@ async function processTarget(targetUrl, template) {
                 }
 
                 if (result && result.success) {
-                    // 폼 발송 1회 성공 시 ➡️ 5 토큰 소진
+                    // 폼 발송 1회 성공 시 ➡️ 30 토큰 소진
                     const userId = authService.getCurrentUserId();
                     if (userId) {
-                        const deductResult = await authService.deductToken(userId, 5, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl}`);
+                        const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl}`);
                         if (!deductResult.success) {
                             sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
                             // 렌더러로 토큰 부족 모달 브로드캐스트
