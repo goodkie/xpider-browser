@@ -1,4 +1,4 @@
-const { supabase } = require('./supabase');
+const { supabase, supabaseAdmin } = require('./supabase');
 const { safeStorage, app }  = require('electron');
 const fs     = require('fs');
 const path   = require('path');
@@ -23,25 +23,25 @@ function getCurrentUserId() { return _currentUserId; }
 // ─── 로그인 ───────────────────────────────────────────────
 async function login(email, password) {
   try {
-    // 1단계: Supabase Auth 로그인
+    // 1단계: Supabase Auth 로그인 (인증용 세션 획득은 anon client로 유지)
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { success: false, error: error.message };
 
     const userId   = data.user.id;
     const myDevice = getDeviceId();
 
-    // 2단계: 프로필 조회 (is_active + active_device_id 확인)
-    let { data: profile, error: pErr } = await supabase
+    // 2단계: 프로필 조회 (supabaseAdmin으로 RLS 우회하여 무한 재귀 및 프로필 생성 실패 완벽 방지)
+    let { data: profile, error: pErr } = await supabaseAdmin
       .from('profiles')
       .select('*')
       .eq('id', userId)
       .single();
 
     if (pErr || !profile) {
-      console.log(`[AuthService] Profile not found for user ${userId}. Attempting auto-profile creation.`);
+      console.log(`[AuthService] Profile not found for user ${userId}. Attempting auto-profile creation via Admin client.`);
       
       const username = data.user.user_metadata?.username || email.split('@')[0];
-      const { data: newProfile, error: insErr } = await supabase
+      const { data: newProfile, error: insErr } = await supabaseAdmin
         .from('profiles')
         .insert({
           id: userId,
@@ -80,11 +80,12 @@ async function login(email, password) {
       };
     }
 
-    // 5단계: 이 디바이스를 활성 디바이스로 등록
-    await supabase
+    // 5단계: 이 디바이스를 활성 디바이스로 등록 (supabaseAdmin으로 업데이트)
+    await supabaseAdmin
       .from('profiles')
       .update({ active_device_id: myDevice, last_login: new Date().toISOString() })
       .eq('id', userId);
+
 
     saveSession(data.session);
     _currentUserId = userId;
@@ -114,16 +115,16 @@ async function logout(userId) {
   try {
     const uid = userId || _currentUserId;
     if (uid) {
-      // 내 디바이스가 현재 등록된 경우에만 해제
+      // 내 디바이스가 현재 등록된 경우에만 해제 (supabaseAdmin 활용)
       const myDevice = getDeviceId();
-      const { data: profile } = await supabase
+      const { data: profile } = await supabaseAdmin
         .from('profiles')
         .select('active_device_id')
         .eq('id', uid)
         .single();
 
       if (profile && profile.active_device_id === myDevice) {
-        await supabase
+        await supabaseAdmin
           .from('profiles')
           .update({ active_device_id: null })
           .eq('id', uid);
@@ -184,8 +185,8 @@ async function getSession() {
     const userId   = data.session.user.id;
     const myDevice = getDeviceId();
 
-    // 세션 복원 시에도 중복 체크
-    const { data: profile } = await supabase
+    // 세션 복원 시에도 중복 체크 (supabaseAdmin 활용)
+    const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('active_device_id, is_active')
       .eq('id', userId)
@@ -200,8 +201,8 @@ async function getSession() {
       return null;
     }
 
-    // 디바이스 갱신
-    await supabase
+    // 디바이스 갱신 (supabaseAdmin 활용)
+    await supabaseAdmin
       .from('profiles')
       .update({ active_device_id: myDevice })
       .eq('id', userId);
@@ -226,13 +227,13 @@ function clearSession() {
 
 // ─── 프로필 조회 ──────────────────────────────────────────
 async function getUserProfile(userId) {
-  const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+  const { data } = await supabaseAdmin.from('profiles').select('*').eq('id', userId).single();
   return data;
 }
 
 // ─── 전체 회원 목록 (어드민 전용) ────────────────────────
 async function getAllProfiles() {
-  const { data } = await supabase
+  const { data } = await supabaseAdmin
     .from('profiles')
     .select('id, username, email, plan, is_active, created_at, last_login, active_device_id, tokens_remaining, last_active_at')
     .order('created_at', { ascending: false });
@@ -241,7 +242,7 @@ async function getAllProfiles() {
 
 // ─── 회원 활성화/비활성화 (어드민 전용) ──────────────────
 async function setUserActive(userId, isActive) {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('profiles')
     .update({ is_active: isActive })
     .eq('id', userId);
@@ -250,7 +251,7 @@ async function setUserActive(userId, isActive) {
 
 // ─── 강제 로그아웃 (어드민 전용) ─────────────────────────
 async function forceLogout(userId) {
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('profiles')
     .update({ active_device_id: null })
     .eq('id', userId);
@@ -260,8 +261,8 @@ async function forceLogout(userId) {
 // ─── 토큰 차감 메서드 ──────────────────────────────────────
 async function deductToken(userId, count, extName, action, details) {
   try {
-    // 1. 현재 잔여 토큰 조회
-    const { data: profile, error: pErr } = await supabase
+    // 1. 현재 잔여 토큰 조회 (Admin 클라이언트로 조회하여 RLS 우회)
+    const { data: profile, error: pErr } = await supabaseAdmin
       .from('profiles')
       .select('tokens_remaining, username, email')
       .eq('id', userId)
@@ -278,8 +279,8 @@ async function deductToken(userId, count, extName, action, details) {
 
     const nextTokens = currentTokens - count;
 
-    // 2. 토큰 차감 업데이트
-    const { error: uErr } = await supabase
+    // 2. 토큰 차감 업데이트 (Admin 클라이언트로 안전 업데이트)
+    const { error: uErr } = await supabaseAdmin
       .from('profiles')
       .update({ tokens_remaining: nextTokens, last_active_at: new Date().toISOString() })
       .eq('id', userId);
@@ -288,9 +289,9 @@ async function deductToken(userId, count, extName, action, details) {
       return { success: false, error: '토큰 차감에 실패했습니다: ' + uErr.message };
     }
 
-    // 3. 활동 로그 기록
+    // 3. 활동 로그 기록 (Admin 클라이언트로 RLS 우회 인서트)
     const email = profile.email || profile.username || 'unknown';
-    const { error: lErr } = await supabase
+    const { error: lErr } = await supabaseAdmin
       .from('user_logs')
       .insert({
         user_id: userId,
@@ -315,7 +316,7 @@ async function deductToken(userId, count, extName, action, details) {
 // ─── 잔여 토큰 조회 메서드 ────────────────────────────────
 async function getTokensRemaining(userId) {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from('profiles')
       .select('tokens_remaining')
       .eq('id', userId)
@@ -331,7 +332,7 @@ async function getTokensRemaining(userId) {
 // ─── 하트비트 실시간 활동 갱신 메서드 ───────────────────────
 async function updateUserActive(userId) {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('profiles')
       .update({ last_active_at: new Date().toISOString() })
       .eq('id', userId);
@@ -344,7 +345,7 @@ async function updateUserActive(userId) {
 // ─── 사용자 토큰 수정 (어드민 전용) ─────────────────────────
 async function adminUpdateUserTokens(userId, tokens) {
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from('profiles')
       .update({ tokens_remaining: tokens })
       .eq('id', userId);
@@ -357,7 +358,7 @@ async function adminUpdateUserTokens(userId, tokens) {
 // ─── 사용자 상세 로그 조회 (어드민 전용) ───────────────────
 async function adminGetUserLogs(filterUserId, filterDate) {
   try {
-    let query = supabase
+    let query = supabaseAdmin
       .from('user_logs')
       .select('*')
       .order('created_at', { ascending: false });
@@ -388,3 +389,4 @@ module.exports = {
   getCurrentUserId, getDeviceId, deductToken, getTokensRemaining,
   updateUserActive, adminUpdateUserTokens, adminGetUserLogs
 };
+
