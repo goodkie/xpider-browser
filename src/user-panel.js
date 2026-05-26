@@ -122,7 +122,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       const remaining = await api.invoke('xpider-token-get-remaining');
       if (remaining !== undefined && remaining !== null) {
         const tokenDisplay = document.getElementById('stat-tokens');
-        if (tokenDisplay) tokenDisplay.textContent = remaining.toLocaleString() + ' 🪙';
+        if (tokenDisplay) tokenDisplay.textContent = remaining.toLocaleString() + ' Tokens';
 
         const pct = Math.min(100, Math.round((remaining / MAX_TOKENS) * 100));
         const fill    = document.getElementById('token-progress');
@@ -179,7 +179,7 @@ function renderProfile(profile) {
   // 잔여 토큰 표시 및 네온 게이지 바 갱신
   const tokens = profile.tokens_remaining ?? 0;
   const tokenDisplay = document.getElementById('stat-tokens');
-  if (tokenDisplay) tokenDisplay.textContent = tokens.toLocaleString() + ' 🪙';
+  if (tokenDisplay) tokenDisplay.textContent = tokens.toLocaleString() + ' Tokens';
 
   const pct = Math.min(100, Math.round((tokens / MAX_TOKENS) * 100));
   const fill = document.getElementById('token-progress');
@@ -232,7 +232,7 @@ async function loadLogs() {
         <td>${formatDateTime(log.created_at)}</td>
         <td><span class="ext-badge">${escHtml(log.extension_name || '-')}</span></td>
         <td style="font-weight:600; color:#fff;">${escHtml(log.action || '-')}</td>
-        <td class="token-consumed">−${(log.tokens_consumed || 0).toLocaleString()} 🪙</td>
+        <td class="token-consumed">−${(log.tokens_consumed || 0).toLocaleString()} T</td>
         <td style="color:var(--text-muted); max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escHtml(log.details || '')}">
           ${escHtml(log.details || '-')}
         </td>

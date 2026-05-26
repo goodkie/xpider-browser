@@ -109,10 +109,23 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('message', (e) => {
     if (!e.data) return;
     if (e.data.type === 'XPIDER_EVENT' && e.data.name === 'tab-updated') {
-        const url = e.data.data && e.data.data.tab && e.data.data.tab.url;
-        console.log('[SIDEPANEL.JS] XPIDER tab-updated event, url:', url);
+        const tab = e.data.data && e.data.data.tab;
+        const changeInfo = e.data.data && e.data.data.changeInfo;
+        const url = tab && tab.url;
+        console.log('[SIDEPANEL.JS] XPIDER tab-updated event, url:', url, 'status:', changeInfo && changeInfo.status);
         if (url) {
             updateUIForTab(url);
+
+            // ── [v4.10.55 추가] Google Maps 완전히 로드되자마자 1회 강제 리프레시 수행 ──
+            if (isMapPage(url) && changeInfo && changeInfo.status === 'complete') {
+                if (window.shouldRefreshGoogleMaps) {
+                    window.shouldRefreshGoogleMaps = false; // 즉시 플래그 해제 (무한 루프 방지)
+                    console.log('[SIDEPANEL.JS] Google Maps completely loaded! Triggering 1-time refresh...');
+                    setTimeout(() => {
+                        xpiderUpdateTab({ url: url });
+                    }, 500); // 0.5초 딜레이 후 강제 리프레시
+                }
+            }
         } else {
             checkCurrentTab();
         }
@@ -219,6 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
           const mapsUrl = kw
               ? `https://www.google.com/maps/search/${encodeURIComponent(kw)}`
               : 'https://www.google.com/maps';
+
+          // ★ 1회 리프레시 플래그 설정 (완전히 로드 시 새로고침 동작 트리거용)
+          window.shouldRefreshGoogleMaps = true;
 
           xpiderUpdateTab({ url: mapsUrl });
 
