@@ -24,7 +24,7 @@
   <header>
     <div class="container nav-container">
       <a href="index.html" class="logo-area">
-        <div class="logo-icon">🕷️</div>
+        <img src="logo.png" alt="XPIDER" style="width: 32px; height: 32px; object-fit: contain; margin-right: 8px;">
         <span class="logo-text">XPIDER</span>
       </a>
       <ul class="nav-menu">
@@ -114,7 +114,7 @@
             <option value="VPN">VPN</option>
             <option value="Campaign">Campaigns</option>
           </select>
-          <input type="date" id="log-filter-date" onchange="loadLogs()" />
+          <input type="text" id="log-filter-date" placeholder="YYYY-MM-DD" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'" onchange="loadLogs()" />
         </div>
         <button class="btn-refresh" onclick="loadLogs()">
           <i class="fa-solid fa-arrows-rotate"></i>
@@ -145,182 +145,6 @@
       </div>
       <div class="history-footer" id="history-footer" style="display:none">
         Matches found: <span id="history-count">0</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- 3D Package Showcase -->
-  <section class="showcase-section" id="showcase">
-    <div class="container">
-      <div class="section-header">
-        <p class="section-tag">XPIDER ECOSYSTEM</p>
-        <h2 class="section-title">Next-Gen AI B2B Leads Engine & Automation Platform</h2>
-        <p class="section-desc">
-          XPIDER is not just a scraper. It is an enterprise-grade B2B automation platform integrating AI data extraction, geospatial lead mining, automated email outreach, form submission, and military-grade VPN node security.
-        </p>
-      </div>
-
-      <div class="dynamic-showcase-grid">
-        <!-- 1. Local Business Crawler Pro -->
-        <div class="dynamic-module-row" onclick="openModuleModal(0)">
-          <div class="module-info-panel">
-            <span class="module-tag-badge tag-cyan">AI EXTRACTION</span>
-            <h3 class="module-title-dynamic">Local Business Crawler Pro</h3>
-            <p class="module-desc-dynamic">
-              Taps directly into 10 global search engines simultaneously to mine business directories, domain websites, contact numbers, and social linkages in bulk.
-            </p>
-            <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>Multi-Engine Cross Scanning Engine</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>AI-Driven Depth-Targeted Domain Parsing</span></li>
-            </ul>
-            <div class="action-trigger-modal">
-              <span>View Features & Visual Mockups</span>
-              <i class="fa-solid fa-circle-chevron-right"></i>
-            </div>
-          </div>
-          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
-            <div class="module-visual-glow glow-cyan"></div>
-            <img src="mockup-t/local_business_crawler2.png" alt="Local Business Crawler Mockup" class="floating-mockup-3d">
-          </div>
-        </div>
-
-        <!-- 2. GMaps Business Finder -->
-        <div class="dynamic-module-row" onclick="openModuleModal(1)">
-          <div class="module-info-panel">
-            <span class="module-tag-badge tag-green">GOOGLE MAPS</span>
-            <h3 class="module-title-dynamic">GMaps Business Finder</h3>
-            <p class="module-desc-dynamic">
-              Integrates directly with Google Maps to gather granular offline leads (name, rating, phone, websites, and emails) within designated geographic coordinates.
-            </p>
-            <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>Geospatial Coordinate-Targeted Radius Scans</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>Real-time CSV/JSON Export Optimization</span></li>
-            </ul>
-            <div class="action-trigger-modal">
-              <span>View Features & Visual Mockups</span>
-              <i class="fa-solid fa-circle-chevron-right"></i>
-            </div>
-          </div>
-          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
-            <div class="module-visual-glow glow-green"></div>
-            <img src="mockup-t/gmaps_business_finder2.png" alt="GMaps Finder Mockup" class="floating-mockup-3d">
-          </div>
-        </div>
-
-        <!-- 3. Bing Maps Business Finder -->
-        <div class="dynamic-module-row" onclick="openModuleModal(2)">
-          <div class="module-info-panel">
-            <span class="module-tag-badge tag-orange">MS ECOSYSTEM</span>
-            <h3 class="module-title-dynamic">Bing Maps Finder</h3>
-            <p class="module-desc-dynamic">
-              Mines data across Microsoft Bing Maps, featuring deep cross-validation filters against Google Maps datasets to minimize data error rates.
-            </p>
-            <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>Geographical Dual-Engine Cross Validation</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>Missing Parameter Recovery Algorithm</span></li>
-            </ul>
-            <div class="action-trigger-modal">
-              <span>View Features & Visual Mockups</span>
-              <i class="fa-solid fa-circle-chevron-right"></i>
-            </div>
-          </div>
-          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
-            <div class="module-visual-glow glow-orange"></div>
-            <img src="mockup-t/bing_maps_finder2.png" alt="Bing Maps Finder Mockup" class="floating-mockup-3d">
-          </div>
-        </div>
-
-        <!-- 4. XPIDER VPN -->
-        <div class="dynamic-module-row" onclick="openModuleModal(3)">
-          <div class="module-info-panel">
-            <span class="module-tag-badge tag-purple">SECURE & ANONYMOUS</span>
-            <h3 class="module-title-dynamic">XPIDER VPN</h3>
-            <p class="module-desc-dynamic">
-              Military-grade IP encryption and lightning-fast proxy pipelines to perfectly bypass portal blocks, scraper bans, and geolocation gates.
-            </p>
-            <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Global High-Anonymity Proxy IP Pool</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Anti-Detection Tunneling for Permanent Crawls</span></li>
-            </ul>
-            <div class="action-trigger-modal">
-              <span>View Features & Visual Mockups</span>
-              <i class="fa-solid fa-circle-chevron-right"></i>
-            </div>
-          </div>
-          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
-            <div class="module-visual-glow glow-purple"></div>
-            <img src="mockup-t/xpider_vpn2.png" alt="XPIDER VPN Mockup" class="floating-mockup-3d">
-          </div>
-        </div>
-
-        <!-- 5. Email Extractor -->
-        <div class="dynamic-module-row" onclick="openModuleModal(4)">
-          <div class="module-info-panel">
-            <span class="module-tag-badge tag-pink">REAL-TIME LEAD CAPTURE</span>
-            <h3 class="module-title-dynamic">Email Extractor</h3>
-            <p class="module-desc-dynamic">
-              Automatically harvests, parses, and logs visible email addresses from webpages in the background as you traverse different browser tabs.
-            </p>
-            <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>Junk & Temporary Mail Filter Sorting</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>Multi-Threaded Cross-Tab Background Parsing</span></li>
-            </ul>
-            <div class="action-trigger-modal">
-              <span>View Features & Visual Mockups</span>
-              <i class="fa-solid fa-circle-chevron-right"></i>
-            </div>
-          </div>
-          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
-            <div class="module-visual-glow glow-pink"></div>
-            <img src="mockup-t/email2.png" alt="Email Extractor Mockup" class="floating-mockup-3d">
-          </div>
-        </div>
-
-        <!-- 6. AutoForm Sender Pro -->
-        <div class="dynamic-module-row" onclick="openModuleModal(5)">
-          <div class="module-info-panel">
-            <span class="module-tag-badge tag-primary">AI AUTOMATION</span>
-            <h3 class="module-title-dynamic">AutoForm Sender Pro</h3>
-            <p class="module-desc-dynamic">
-              Applies AI-driven field decoding to resolve complex target contact page forms, inputting and mass-submitting outreach copy in milliseconds.
-            </p>
-            <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>Intelligent Multi-Language Field Mapper</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>Live Outreach Success Metrics Analytics</span></li>
-            </ul>
-            <div class="action-trigger-modal">
-              <span>View Features & Visual Mockups</span>
-              <i class="fa-solid fa-circle-chevron-right"></i>
-            </div>
-          </div>
-          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
-            <div class="module-visual-glow glow-primary"></div>
-            <img src="mockup-t/autoform_sender2.png" alt="AutoForm Sender Pro Mockup" class="floating-mockup-3d">
-          </div>
-        </div>
-
-        <!-- 7. SendForce Mailer Pro -->
-        <div class="dynamic-module-row" onclick="openModuleModal(6)">
-          <div class="module-info-panel">
-            <span class="module-tag-badge tag-purple">BULK EMAIL OUTREACH</span>
-            <h3 class="module-title-dynamic">SendForce Mailer Pro</h3>
-            <p class="module-desc-dynamic">
-              Mass bulk outreach email deployment tool equipped with spam-defense interval pacing and distributed SMTP relay rotation.
-            </p>
-            <ul class="spec-bullets-dynamic">
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Outbox Headers Optimization for Inbox Landing</span></li>
-              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Dynamic Transmit Delay Scheduler</span></li>
-            </ul>
-            <div class="action-trigger-modal">
-              <span>View Features & Visual Mockups</span>
-              <i class="fa-solid fa-circle-chevron-right"></i>
-            </div>
-          </div>
-          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
-            <div class="module-visual-glow glow-purple"></div>
-            <img src="mockup-t/sendforce_mailer2.png" alt="SendForce Mailer Mockup" class="floating-mockup-3d">
-          </div>
-        </div>
       </div>
     </div>
   </section>
@@ -406,6 +230,182 @@
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>1:1 Dedicated Technical Engineering Support</span></li>
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Custom Scraper Integration & B2B API access</span></li>
             </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3D Package Showcase -->
+  <section class="showcase-section" id="showcase">
+    <div class="container">
+      <div class="section-header">
+        <p class="section-tag">XPIDER ECOSYSTEM</p>
+        <h2 class="section-title">Next-Gen AI B2B Leads Engine & Automation Platform</h2>
+        <p class="section-desc">
+          XPIDER is not just a scraper. It is an enterprise-grade B2B automation platform integrating AI data extraction, geospatial lead mining, automated email outreach, form submission, and military-grade VPN node security.
+        </p>
+      </div>
+
+      <div class="dynamic-showcase-grid">
+        <!-- 1. Local Business Crawler Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(0)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-cyan">AI EXTRACTION</span>
+            <h3 class="module-title-dynamic">Local Business Crawler Pro</h3>
+            <p class="module-desc-dynamic">
+              Taps directly into 10 global search engines simultaneously to mine business directories, domain websites, contact numbers, and social linkages in bulk.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>Multi-Engine Cross Scanning Engine</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>AI-Driven Depth-Targeted Domain Parsing</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-cyan"></div>
+            <img src="assets/ext_crawler.png" alt="Local Business Crawler Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 2. GMaps Business Finder -->
+        <div class="dynamic-module-row" onclick="openModuleModal(1)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-green">GOOGLE MAPS</span>
+            <h3 class="module-title-dynamic">GMaps Business Finder</h3>
+            <p class="module-desc-dynamic">
+              Integrates directly with Google Maps to gather granular offline leads (name, rating, phone, websites, and emails) within designated geographic coordinates.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>Geospatial Coordinate-Targeted Radius Scans</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>Real-time CSV/JSON Export Optimization</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-green"></div>
+            <img src="assets/ext_gmaps.png" alt="GMaps Finder Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 3. Bing Maps Business Finder -->
+        <div class="dynamic-module-row" onclick="openModuleModal(2)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-orange">MS ECOSYSTEM</span>
+            <h3 class="module-title-dynamic">Bing Maps Finder</h3>
+            <p class="module-desc-dynamic">
+              Mines data across Microsoft Bing Maps, featuring deep cross-validation filters against Google Maps datasets to minimize data error rates.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>Geographical Dual-Engine Cross Validation</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>Missing Parameter Recovery Algorithm</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-orange"></div>
+            <img src="assets/ext_bing.png" alt="Bing Maps Finder Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 4. XPIDER VPN -->
+        <div class="dynamic-module-row" onclick="openModuleModal(3)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-purple">SECURE & ANONYMOUS</span>
+            <h3 class="module-title-dynamic">XPIDER VPN</h3>
+            <p class="module-desc-dynamic">
+              Military-grade IP encryption and lightning-fast proxy pipelines to perfectly bypass portal blocks, scraper bans, and geolocation gates.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Global High-Anonymity Proxy IP Pool</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Anti-Detection Tunneling for Permanent Crawls</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-purple"></div>
+            <img src="assets/ext_proxy.png" alt="XPIDER VPN Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 5. Email Extractor -->
+        <div class="dynamic-module-row" onclick="openModuleModal(4)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-pink">REAL-TIME LEAD CAPTURE</span>
+            <h3 class="module-title-dynamic">Email Extractor</h3>
+            <p class="module-desc-dynamic">
+              Automatically harvests, parses, and logs visible email addresses from webpages in the background as you traverse different browser tabs.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>Junk & Temporary Mail Filter Sorting</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>Multi-Threaded Cross-Tab Background Parsing</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-pink"></div>
+            <img src="assets/ext_extractor.png" alt="Email Extractor Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 6. AutoForm Sender Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(5)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-primary">AI AUTOMATION</span>
+            <h3 class="module-title-dynamic">AutoForm Sender Pro</h3>
+            <p class="module-desc-dynamic">
+              Applies AI-driven field decoding to resolve complex target contact page forms, inputting and mass-submitting outreach copy in milliseconds.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>Intelligent Multi-Language Field Mapper</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>Live Outreach Success Metrics Analytics</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-primary"></div>
+            <img src="assets/ext_sender.png" alt="AutoForm Sender Pro Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 7. SendForce Mailer Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(6)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-purple">BULK EMAIL OUTREACH</span>
+            <h3 class="module-title-dynamic">SendForce Mailer Pro</h3>
+            <p class="module-desc-dynamic">
+              Mass bulk outreach email deployment tool equipped with spam-defense interval pacing and distributed SMTP relay rotation.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Outbox Headers Optimization for Inbox Landing</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Dynamic Transmit Delay Scheduler</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-purple"></div>
+            <img src="assets/ext_mailer.png" alt="SendForce Mailer Mockup" class="floating-mockup-3d">
           </div>
         </div>
       </div>
@@ -617,7 +617,7 @@
       <div class="footer-grid">
         <div class="footer-brand">
           <a href="index.html" class="logo-area">
-            <div class="logo-icon">🕷️</div>
+            <img src="logo.png" alt="XPIDER" style="width: 32px; height: 32px; object-fit: contain; margin-right: 8px;">
             <span class="logo-text">XPIDER</span>
           </a>
           <p class="footer-brand-desc">
@@ -648,7 +648,7 @@
         </div>
       </div>
       <div class="footer-bottom">
-        <span class="footer-copy">&copy; 2026 XPIDER Suite. All rights reserved. Designed by Antigravity.</span>
+        <span class="footer-copy">&copy; 2026 XPIDER Suite. All rights reserved.</span>
         <div class="footer-bottom-links">
           <a href="#" class="footer-bottom-link">Sitemap</a>
           <a href="#" class="footer-bottom-link">B2B Compliance</a>
