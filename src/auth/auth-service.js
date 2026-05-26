@@ -211,7 +211,8 @@ async function getUserProfile(userId) {
 async function getAllProfiles() {
   const { data } = await supabase
     .from('profiles')
-    .select('id, username, plan, is_active, created_at, last_login, active_device_id');
+    .select('id, username, email, plan, is_active, created_at, last_login, active_device_id, tokens_remaining, last_active_at')
+    .order('created_at', { ascending: false });
   return data || [];
 }
 
@@ -233,8 +234,134 @@ async function forceLogout(userId) {
   return !error;
 }
 
+// ─── 토큰 차감 메서드 ──────────────────────────────────────
+async function deductToken(userId, count, extName, action, details) {
+  try {
+    // 1. 현재 잔여 토큰 조회
+    const { data: profile, error: pErr } = await supabase
+      .from('profiles')
+      .select('tokens_remaining, username, email')
+      .eq('id', userId)
+      .single();
+    
+    if (pErr || !profile) {
+      return { success: false, error: '사용자를 찾을 수 없습니다.' };
+    }
+
+    const currentTokens = profile.tokens_remaining;
+    if (currentTokens < count) {
+      return { success: false, error: '토큰이 부족합니다. 토큰을 충전해 주세요.', tokensRemaining: currentTokens };
+    }
+
+    const nextTokens = currentTokens - count;
+
+    // 2. 토큰 차감 업데이트
+    const { error: uErr } = await supabase
+      .from('profiles')
+      .update({ tokens_remaining: nextTokens, last_active_at: new Date().toISOString() })
+      .eq('id', userId);
+
+    if (uErr) {
+      return { success: false, error: '토큰 차감에 실패했습니다: ' + uErr.message };
+    }
+
+    // 3. 활동 로그 기록
+    const email = profile.email || profile.username || 'unknown';
+    const { error: lErr } = await supabase
+      .from('user_logs')
+      .insert({
+        user_id: userId,
+        email: email,
+        extension_name: extName,
+        action: action,
+        tokens_consumed: count,
+        details: details || ''
+      });
+
+    if (lErr) {
+      console.error('Failed to write user log:', lErr.message);
+      // 로그 실패하더라도 토큰 차감은 완료된 상태이므로 성공 반환
+    }
+
+    return { success: true, tokensRemaining: nextTokens };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ─── 잔여 토큰 조회 메서드 ────────────────────────────────
+async function getTokensRemaining(userId) {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('tokens_remaining')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data) return 0;
+    return data.tokens_remaining;
+  } catch (e) {
+    return 0;
+  }
+}
+
+// ─── 하트비트 실시간 활동 갱신 메서드 ───────────────────────
+async function updateUserActive(userId) {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ last_active_at: new Date().toISOString() })
+      .eq('id', userId);
+    return !error;
+  } catch (e) {
+    return false;
+  }
+}
+
+// ─── 사용자 토큰 수정 (어드민 전용) ─────────────────────────
+async function adminUpdateUserTokens(userId, tokens) {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ tokens_remaining: tokens })
+      .eq('id', userId);
+    return !error;
+  } catch (e) {
+    return false;
+  }
+}
+
+// ─── 사용자 상세 로그 조회 (어드민 전용) ───────────────────
+async function adminGetUserLogs(filterUserId, filterDate) {
+  try {
+    let query = supabase
+      .from('user_logs')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (filterUserId) {
+      query = query.eq('user_id', filterUserId);
+    }
+    
+    if (filterDate) {
+      // filterDate 포맷: 'YYYY-MM-DD'
+      const start = `${filterDate}T00:00:00.000Z`;
+      const end = `${filterDate}T23:59:59.999Z`;
+      query = query.gte('created_at', start).lte('created_at', end);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.error('Failed to get user logs:', e.message);
+    return [];
+  }
+}
+
 module.exports = {
   login, signup, logout, getSession, saveSession, clearSession,
   getUserProfile, getAllProfiles, setUserActive, forceLogout,
-  getCurrentUserId, getDeviceId
+  getCurrentUserId, getDeviceId, deductToken, getTokensRemaining,
+  updateUserActive, adminUpdateUserTokens, adminGetUserLogs
 };

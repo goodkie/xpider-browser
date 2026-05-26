@@ -277,7 +277,10 @@ function createWindow() {
     });
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    _startUserHeartbeat();
+  });
 
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.send('extensions_loaded', loadedExtensionsInfo);
@@ -292,7 +295,10 @@ function createWindow() {
     }, 2000);
   });
 
-  mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    _stopUserHeartbeat();
+  });
 }
 
 // ─── 윈도우 컨트롤 IPC ────────────────────────────────────────
@@ -410,6 +416,7 @@ ipcMain.handle('open-xpider-vpn-panel', async (event) => {
 
 // ─── 로그아웃 ─────────────────────────────────────────────────
 ipcMain.on('auth-logout', async () => {
+  _stopUserHeartbeat();
   const userId = authService.getCurrentUserId();
   await authService.logout(userId);
   if (mainWindow) { mainWindow.removeAllListeners('closed'); mainWindow.close(); mainWindow = null; }
@@ -449,6 +456,31 @@ ipcMain.handle('admin-set-active', async (_, { userId, isActive }) =>
 ipcMain.handle('admin-force-logout', async (_, { userId }) =>
   authService.forceLogout(userId)
 );
+
+// ─── 신규 토큰 및 활동 로그 IPC ────────────────────────────────
+ipcMain.handle('xpider-token-deduct', async (_, { count, extName, action, details }) => {
+  const userId = authService.getCurrentUserId();
+  if (!userId) return { success: false, error: '로그인이 필요합니다.' };
+  return authService.deductToken(userId, count, extName, action, details);
+});
+
+ipcMain.handle('xpider-token-get-remaining', async () => {
+  const userId = authService.getCurrentUserId();
+  if (!userId) return 0;
+  return authService.getTokensRemaining(userId);
+});
+
+ipcMain.handle('xpider-update-user-active', async (_, { userId }) => {
+  return authService.updateUserActive(userId);
+});
+
+ipcMain.handle('admin-update-user-tokens', async (_, { userId, tokens }) => {
+  return authService.adminUpdateUserTokens(userId, tokens);
+});
+
+ipcMain.handle('admin-get-user-logs', async (_, { filterUserId, filterDate }) => {
+  return authService.adminGetUserLogs(filterUserId, filterDate);
+});
 
 
 // ─── [Stealth/Session] 강력한 차단 우회 시스템 ─────────────────────────────────
@@ -564,11 +596,89 @@ ipcMain.on('reload-extensions', async () => {
 const net  = require('net');
 const http = require('http');
 
+let _heartbeatTimer = null;
+
+function _startUserHeartbeat() {
+  _stopUserHeartbeat();
+  // 3분 간격으로 하트비트 작동
+  _heartbeatTimer = setInterval(async () => {
+    const userId = authService.getCurrentUserId();
+    if (userId) {
+      await authService.updateUserActive(userId);
+    } else {
+      _stopUserHeartbeat();
+    }
+  }, 180000);
+  
+  // 시작 시 즉시 1회 실행
+  const userId = authService.getCurrentUserId();
+  if (userId) {
+    authService.updateUserActive(userId);
+  }
+}
+
+function _stopUserHeartbeat() {
+  if (_heartbeatTimer) {
+    clearInterval(_heartbeatTimer);
+    _heartbeatTimer = null;
+  }
+}
+
+let _vpnTokenTimer = null;
+
+function _startVPNTokenBilling() {
+  _stopVPNTokenBilling();
+  _vpnTokenTimer = setInterval(async () => {
+    const userId = authService.getCurrentUserId();
+    if (!userId) {
+      _stopVPNTokenBilling();
+      _disconnectVPNForce('로그인이 필요한 서비스입니다.');
+      return;
+    }
+    // VPN 연결 활성 유지 ➡️ 1분당 1 토큰 소진
+    const result = await authService.deductToken(userId, 1, 'XPIDER VPN', 'Keep Connection Alive', 'Active VPN relay tunnel');
+    if (!result.success) {
+      _stopVPNTokenBilling();
+      _disconnectVPNForce(result.error || '토큰이 부족하여 VPN 연결이 중단되었습니다.');
+    }
+  }, 60000);
+}
+
+function _stopVPNTokenBilling() {
+  if (_vpnTokenTimer) {
+    clearInterval(_vpnTokenTimer);
+    _vpnTokenTimer = null;
+  }
+}
+
+async function _disconnectVPNForce(depletedReason) {
+  try {
+    const { session: electronSession } = require('electron');
+    await electronSession.defaultSession.setProxy({ mode: 'direct' });
+    await _stopLocalProxy();
+    
+    _vpnState = { connected: false, server: null, statusMessage: 'Disconnected' };
+    extStorage.connected = false;
+    extStorage.server = null;
+    saveExtStorage();
+    
+    _broadcastVPNLog('SYSTEM', 'VPN Connection force-terminated: Tokens depleted.');
+    
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('xpider-vpn-state', _vpnState);
+      mainWindow.webContents.send('xpider-token-depleted', { error: depletedReason || '토큰이 소진되어 VPN 연결을 안전하게 종료합니다.' });
+    }
+  } catch(e) {
+    log.error('[VPN-Force-Disconnect] Error:', e.message);
+  }
+}
+
 let _vpnState       = { connected: false, server: null };
 let _vpnLocalServer = null;   // http.Server 인스턴스
 let _vpnLocalPort   = 0;      // 실제 바인딩된 포트
 
 function _stopLocalProxy() {
+  _stopVPNTokenBilling();
   return new Promise((resolve) => {
     if (_vpnLocalServer) {
       _vpnLocalServer.closeAllConnections?.();
@@ -878,6 +988,9 @@ async function _connectProxyInternal(server) {
     extStorage.connected = true;
     extStorage.server = server;
     saveExtStorage();
+    
+    // VPN 과금 타이머 가동
+    _startVPNTokenBilling();
     
     // Broadcast states
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1441,8 +1554,33 @@ function _broadcastEmailEvent(eventName, data) {
 }
 
 // 이메일 수집 수신 (content.js → ext-preload.js → ipcMain)
-ipcMain.on('xpider-email-collected', (event, data) => {
+ipcMain.on('xpider-email-collected', async (event, data) => {
     if (!data || !Array.isArray(data.emails) || data.emails.length === 0) return;
+    
+    let newlyAdded = 0;
+    data.emails.forEach(e => {
+        const em = e.toLowerCase().trim();
+        if (em && !_allEmails.has(em)) {
+            newlyAdded++;
+        }
+    });
+
+    if (newlyAdded > 0) {
+        const userId = authService.getCurrentUserId();
+        if (userId) {
+            // 이메일 수집 단가: 1개당 1토큰
+            const deductResult = await authService.deductToken(userId, newlyAdded, 'Email Extractor', 'Extract Email Address', `Extracted ${newlyAdded} new email(s)`);
+            if (!deductResult.success) {
+                // 토큰 고갈! 수집하지 않고 중단 모달 팝업
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send('xpider-token-depleted', { error: deductResult.error });
+                }
+                return;
+            }
+        } else {
+            return;
+        }
+    }
     
     // URL 정규화 (캐싱 및 매칭용)
     const rawUrl = data.url || 'unknown';
@@ -2690,6 +2828,22 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
     if (!message) return { success: false };
     log.info(`[ExtBridge] Received runtime message: action=${message.action}`);
     
+    // ── 토큰 자동 감산 브릿지 ──
+    if (message.action === 'xpider-deduct-token') {
+        const userId = authService.getCurrentUserId();
+        if (!userId) {
+            return { success: false, error: '로그인이 필요합니다.' };
+        }
+        const result = await authService.deductToken(userId, message.count || 1, message.extName || 'Unknown', message.activity || 'Activity', message.details || '');
+        if (!result.success) {
+            // 렌더러로 토큰 고갈 알림 전송 (중앙 경고 및 구매 모달 팝업용)
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('xpider-token-depleted', { error: result.error });
+            }
+        }
+        return result;
+    }
+    
     // 1. Handle Business Data
     if (message.action === 'foundBusiness' && message.data) {
         const biz = message.data;
@@ -2702,6 +2856,34 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
         );
 
         if (!exists) {
+            // 어떤 익스텐션에서 수집되었는지 감지하여 토큰 차등 과금
+            let extName = 'Local Business Crawler Pro';
+            let tokenCount = 1;
+            const senderUrl = (event.sender && typeof event.sender.getURL === 'function') ? event.sender.getURL().toLowerCase() : '';
+            
+            if (senderUrl.includes('google') || senderUrl.includes('gmap')) {
+                extName = 'GMaps Business Finder';
+                tokenCount = 2;
+            } else if (senderUrl.includes('bing')) {
+                extName = 'Bing Maps Business Finder';
+                tokenCount = 2;
+            }
+            
+            // 토큰 잔여량 체크 및 차감
+            const userId = authService.getCurrentUserId();
+            if (userId) {
+                const deductResult = await authService.deductToken(userId, tokenCount, extName, 'Extract Business Lead', `Scraped: ${biz.name || 'Unknown'}`);
+                if (!deductResult.success) {
+                    // 토큰이 부족함! 중단 알림 송신하고 추가 수집 중단
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('xpider-token-depleted', { error: deductResult.error });
+                    }
+                    return { success: false, error: deductResult.error };
+                }
+            } else {
+                return { success: false, error: '로그인이 필요합니다.' };
+            }
+
             const lead = {
                 ...biz,
                 id: Date.now() + Math.random().toString(36).substring(2, 9),

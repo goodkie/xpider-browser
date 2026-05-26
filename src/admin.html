@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XPIDER — Premium Admin Command Center</title>
+    <!-- Google Font Integration -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <div class="admin-app">
+        <!-- Top Glow Navigation -->
+        <header class="admin-header">
+            <div class="logo-area">
+                <span class="logo-badge">👑</span>
+                <div class="logo-text">
+                    <h1>XPIDER Command Center</h1>
+                    <p>SaaS Management & Real-time Live Monitor</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="refresh-all-btn" class="glow-btn">🔄 Sync Database</button>
+            </div>
+        </header>
+
+        <!-- Dynamic Dashboard Grid -->
+        <main class="dashboard-grid">
+            <!-- Left Side: Control & Monitoring -->
+            <section class="left-column">
+                <!-- Live Beacon Overview -->
+                <div class="glass-card live-monitor">
+                    <div class="card-header">
+                        <h2>🟢 Live Monitoring Beacon</h2>
+                        <span class="live-count" id="online-count">0 Active Now</span>
+                    </div>
+                    <div class="online-grid" id="online-users-container">
+                        <!-- Live active users will pulse here -->
+                        <div class="no-data-msg">No active sessions detected in the last 5 minutes.</div>
+                    </div>
+                </div>
+
+                <!-- Database Directory -->
+                <div class="glass-card user-directory">
+                    <div class="card-header border-bottom">
+                        <h2>👥 SaaS User Database</h2>
+                        <div class="search-box">
+                            <input type="text" id="user-search-input" placeholder="Search by email or username...">
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>User Info</th>
+                                    <th>Role / Plan</th>
+                                    <th>Tokens</th>
+                                    <th>Live Device</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="user-table-body">
+                                <!-- Users list populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Side: Detailed Activity Log Timeline -->
+            <section class="right-column">
+                <div class="glass-card activity-monitor">
+                    <div class="card-header border-bottom">
+                        <h2>⏳ Real-time Activity Timeline</h2>
+                        <div class="filter-group">
+                            <input type="date" id="log-date-filter" class="dark-input">
+                            <button id="clear-filters-btn" class="icon-btn" title="Reset Filters">❌</button>
+                        </div>
+                    </div>
+
+                    <div class="timeline-container" id="timeline-container">
+                        <!-- Activity timeline nodes populated via JS -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Premium Token Manual Recharge Modal -->
+    <div id="token-edit-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <h2 class="modal-title">🪙 Adjust Token Balance</h2>
+            <p class="modal-desc" id="modal-user-email">Adjusting tokens for: test@example.com</p>
+            <div class="input-group">
+                <label for="new-token-amount">New Token Amount</label>
+                <input type="number" id="new-token-amount" value="5000" class="modal-input">
+            </div>
+            <div class="modal-actions">
+                <button id="save-token-btn" class="glow-btn">Recharge & Save</button>
+                <button id="close-modal-btn" class="cancel-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

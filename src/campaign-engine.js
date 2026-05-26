@@ -5,6 +5,7 @@
  */
 
 const { app, BrowserWindow } = require('electron');
+const authService = require('./auth/auth-service');
 
 let _getAllWebContents = null;
 let _log = null;
@@ -586,6 +587,26 @@ async function processTarget(targetUrl, template) {
                 }
 
                 if (result && result.success) {
+                    // 폼 발송 1회 성공 시 ➡️ 5 토큰 소진
+                    const userId = authService.getCurrentUserId();
+                    if (userId) {
+                        const deductResult = await authService.deductToken(userId, 5, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl}`);
+                        if (!deductResult.success) {
+                            sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
+                            // 렌더러로 토큰 부족 모달 브로드캐스트
+                            const mw = _getMainWindow ? _getMainWindow() : null;
+                            if (mw && !mw.isDestroyed()) {
+                                mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
+                            }
+                            done({ success: false, reason: 'TOKEN_DEPLETED' });
+                            return;
+                        }
+                    } else {
+                        sendLog(`❌ 로그인이 필요합니다.`, 'error');
+                        done({ success: false, reason: 'LOGIN_REQUIRED' });
+                        return;
+                    }
+
                     sendLog(`✅ [Step 4/4] Success! Form submitted (${result.filled} fields matched & filled).`, 'success');
                     sendLog(`🎯 Contact action definitively completed on ${contactUrl}.`, 'debug');
                     // Keep the tab open briefly so user can see the confirmation

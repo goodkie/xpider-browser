@@ -151,7 +151,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-ext-get-script',
       'xpider-email-get-all', 'xpider-email-get-page', 'xpider-download-file',
       'xpider-vpn-connect', 'xpider-vpn-disconnect', 'xpider-vpn-get-state',
-      'hot-update-start'                // [HotUpdate] 핫 업데이트 시작
+      'hot-update-start',                // [HotUpdate] 핫 업데이트 시작
+      'xpider-token-deduct', 'xpider-token-get-remaining', 'xpider-update-user-active',
+      'admin-update-user-tokens', 'admin-get-user-logs'
     ];
     if (allowed.includes(channel)) {
       return ipcRenderer.invoke(channel, data);

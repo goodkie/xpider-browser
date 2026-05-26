@@ -60,6 +60,17 @@
                             <button id="clear-history-btn" data-i18n="clear_all">Clear All</button>
                         </div>
                     </div>
+                    <!-- Token Indicator & Admin Panel Trigger -->
+                    <div class="user-status-widgets" style="display:flex; align-items:center; margin-right:12px; gap:8px;">
+                        <div id="admin-panel-widget" class="hidden" style="display:flex; align-items:center; font-size:12px; font-weight:700; color:#00f2fe; background:rgba(0,242,254,0.1); padding:4px 10px; border-radius:12px; border:1px solid rgba(0,242,254,0.25); cursor:pointer; transition:all 0.2s;" onclick="openAdminPanel()">
+                            <span style="margin-right:4px;">👑</span>
+                            <span>Admin Panel</span>
+                        </div>
+                        <div class="token-container" style="display:flex; align-items:center; font-size:12px; font-weight:600; color:#ffd700; background:rgba(255,215,0,0.1); padding:4px 10px; border-radius:12px; border:1px solid rgba(255,215,0,0.2);">
+                            <span style="margin-right:4px;">🪙</span>
+                            <span id="token-count-display">...</span>
+                        </div>
+                    </div>
                     <div class="settings-container">
                         <button id="settings-btn" title="Settings">⚙</button>
                         <div id="settings-menu" class="hidden">
@@ -301,6 +312,18 @@
                 <!-- Floating Scroll Indicator -->
                 <div id="ob-scroll-indicator" class="ob-scroll-indicator">
                     <span class="arrow-down">↓</span>
+                </div>
+            </div>
+        </div>
+        <!-- Token Depleted Alert Modal -->
+        <div id="token-depleted-modal" class="modal-overlay hidden" style="z-index: 100000; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+            <div class="modal-card" style="background: #11141a; border: 1px solid rgba(255,64,129,0.3); border-radius: 16px; padding: 32px; width: 420px; text-align: center; box-shadow: 0 10px 30px rgba(255,64,129,0.2); animation: scaleUp 0.3s ease;">
+                <div style="font-size: 64px; margin-bottom: 16px;">🚨</div>
+                <h2 style="color: #ff4081; font-size: 24px; font-weight: 700; margin-bottom: 12px; letter-spacing: -0.5px;">Tokens Fully Depleted</h2>
+                <p id="token-depleted-msg" style="color: #9eabbc; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">Your token balance is exhausted. Please purchase more tokens to continue using premium extensions.</p>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button id="buy-tokens-btn" style="background: linear-gradient(135deg, #ff4081 0%, #9c27b0 100%); color: #fff; font-weight: 700; border: none; padding: 12px; border-radius: 12px; font-size: 14px; cursor: pointer; box-shadow: 0 4px 15px rgba(255,64,129,0.4); transition: transform 0.2s; outline: none;" onclick="window.open('https://xpider.pro/pricing', '_blank')">🚀 Buy More Tokens</button>
+                    <button style="background: transparent; color: #7f8fa4; border: 1px solid rgba(255,255,255,0.1); padding: 10px; border-radius: 12px; font-size: 13px; cursor: pointer; outline: none;" onclick="document.getElementById('token-depleted-modal').classList.add('hidden')">Close</button>
                 </div>
             </div>
         </div>

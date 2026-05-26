@@ -12,9 +12,64 @@ const sidePanelTitle   = document.getElementById('side-panel-title');
 const closeSidePanelBtn = document.getElementById('close-side-panel-btn');
 const extensionWebview = document.getElementById('extension-webview');
 
+// ─── 토큰 실시간 연동 및 모니터링 ──────────────────────────────
+async function updateTokenDisplay() {
+    try {
+        const remaining = await window.electronAPI.invoke('xpider-token-get-remaining');
+        const tokenDisplay = document.getElementById('token-count-display');
+        if (tokenDisplay) {
+            tokenDisplay.textContent = Number(remaining).toLocaleString() + ' Tokens';
+        }
+    } catch(e) {
+        console.error('Failed to update token display:', e);
+    }
+}
+
+// 10초마다 자동으로 토큰 잔액 갱신
+setInterval(updateTokenDisplay, 10000);
+
+// 페이지 로드 및 로그인 시 토큰 및 어드민 위젯 연동
+async function initUserStatusWidgets() {
+    updateTokenDisplay();
+    try {
+        // 본인의 프로필 plan이 'admin' 인지 확인 (어드민 API가 호출 가능하면 노출)
+        const profiles = await window.electronAPI.invoke('admin-get-all-profiles');
+        const adminWidget = document.getElementById('admin-panel-widget');
+        if (adminWidget && Array.isArray(profiles) && profiles.length > 0) {
+            adminWidget.classList.remove('hidden');
+        }
+    } catch(e) {
+        // 어드민 권한이 없으면 RLS로 인해 예외 발생 -> 위젯 숨김
+        const adminWidget = document.getElementById('admin-panel-widget');
+        if (adminWidget) adminWidget.classList.add('hidden');
+    }
+}
+
+// Admin Panel 새 탭으로 열기
+function openAdminPanel() {
+    if (typeof createNewTab === 'function') {
+        createNewTab('admin.html', true);
+    }
+}
+
+// 토큰 고갈 모달 리스너
+window.electronAPI.on('xpider-token-depleted', ({ error }) => {
+    const modal = document.getElementById('token-depleted-modal');
+    const msg = document.getElementById('token-depleted-msg');
+    if (modal) {
+        if (msg && error) msg.textContent = error;
+        modal.classList.remove('hidden');
+    }
+});
+
+// 초기 로딩 후 즉시 실행
+setTimeout(initUserStatusWidgets, 1000);
+
 window.electronAPI.on('open-new-tab', (url) => {
     console.log('[IPC] Opening new tab from main process:', url);
     createNewTab(url);
+    // 탭이 열리거나 활동이 생길 때마다 실시간 토큰 갱신
+    updateTokenDisplay();
 });
 const settingsBtn      = document.getElementById('settings-btn');
 const settingsMenu     = document.getElementById('settings-menu');

@@ -461,6 +461,23 @@ async function processNextCampaignTarget(loopSessionId) {
         });
         
         if (result && result.success) {
+            // 이메일 1통 성공 시 ➡️ 3 토큰 차감
+            const tokenRes = await new Promise(res => {
+                chrome.runtime.sendMessage({
+                    action: 'xpider-deduct-token',
+                    count: 3,
+                    extName: 'XPIDER SendForce Mailer Pro',
+                    activity: 'Send Bulk Direct Mail',
+                    details: `Sent to: ${currentRecipient}`
+                }, res);
+            });
+
+            if (tokenRes && !tokenRes.success) {
+                logBg(null, `❌ 토큰이 부족하여 메일 발송이 중단되었습니다. (${tokenRes.error})`, "error");
+                stopCampaignOrchestrator();
+                return;
+            }
+
             campaignState.successCount++;
             broadcastStats();
         }
