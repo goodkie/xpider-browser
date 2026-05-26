@@ -1,3 +1,6 @@
+// ─── 환경변수 로드 (.env 파일) ─────────────────────────────────────────────────
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
+
 const { app, BrowserWindow, session, ipcMain, shell, webContents, dialog, Menu, MenuItem, clipboard } = require('electron');
 const path = require('path');
 const fs   = require('fs');
@@ -581,6 +584,48 @@ ipcMain.handle('admin-update-user-tokens', async (_, { userId, tokens }) => {
 
 ipcMain.handle('admin-get-user-logs', async (_, { filterUserId, filterDate }) => {
   return authService.adminGetUserLogs(filterUserId, filterDate);
+});
+
+// ─── [Stripe] 결제 서비스 초기화 ─────────────────────────────────────────────
+// Secret Key: 환경변수 STRIPE_SECRET_KEY 또는 직접 입력
+// IMPORTANT: 절대 클라이언트(렌더러)에 Secret Key를 노출하지 마세요.
+const stripeService = require('./auth/stripe-service');
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+stripeService.initStripe(STRIPE_SECRET_KEY);
+
+// ─── [Stripe] Checkout Session 생성 IPC ─────────────────────────────────────
+ipcMain.handle('stripe-create-checkout', async (_, { planId, billingCycle, userId, email }) => {
+  try {
+    log.info(`[Stripe] Creating checkout: plan=${planId}, cycle=${billingCycle}, user=${userId}`);
+    const result = await stripeService.createCheckoutSession(planId, billingCycle, userId, email);
+    return result;
+  } catch (e) {
+    log.error('[Stripe] checkout IPC error:', e.message);
+    return { error: e.message };
+  }
+});
+
+// ─── [Stripe] 구독 관리 포털 열기 IPC ────────────────────────────────────────
+ipcMain.handle('stripe-open-portal', async (_, { customerId }) => {
+  try {
+    const result = await stripeService.createPortalSession(customerId);
+    if (result?.url) {
+      shell.openExternal(result.url);
+      return { ok: true };
+    }
+    return { ok: false, error: result?.error || 'Failed to create portal session' };
+  } catch (e) {
+    log.error('[Stripe] portal IPC error:', e.message);
+    return { ok: false, error: e.message };
+  }
+});
+
+// ─── [Shell] 외부 브라우저로 URL 열기 ─────────────────────────────────────────
+ipcMain.on('open-external-url', (_, url) => {
+  if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
+    log.info('[Shell] Opening external URL:', url);
+    shell.openExternal(url);
+  }
 });
 
 

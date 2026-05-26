@@ -168,7 +168,7 @@ async function login(email, password) {
           email: email,
           plan: 'free',
           is_active: true,
-          tokens_remaining: 5000,
+          tokens_remaining: 600,
           created_at: new Date().toISOString(),
           last_active_at: new Date().toISOString()
         })

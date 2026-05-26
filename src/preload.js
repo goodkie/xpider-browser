@@ -117,7 +117,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-captcha-tab-resolved',   // [v3.1] 캡챠 해결 후 탭 네비게이션 감지 신호
       'xpider-captcha-tab-detected',   // [v3.2] 탭이 CAPTCHA로 리다이렉트된 감지 신호
       'xpider-vpn-state-forward',       // [VPN] VPN 상태 포워딩
-      'set-extension-lang'             // [Lang] 브라우저 언어 변경 → 익스텐션 동기화
+      'set-extension-lang',            // [Lang] 브라우저 언어 변경 → 익스텐션 동기화
+      'open-external-url'               // [Stripe] 외부 브라우저로 URL 열기
     ];
     if (allowed.includes(channel)) ipcRenderer.send(channel, data);
   },
@@ -156,7 +157,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'admin-update-user-tokens', 'admin-get-user-logs',
       'user-get-profile',               // [UserPanel] 현재 유저 프로필 조회
       'user-get-logs',                  // [UserPanel] 현재 유저 이용 내역 조회
-      'open-user-panel'                 // [UserPanel] User Panel 창 열기
+      'open-user-panel',                // [UserPanel] User Panel 창 열기
+      'stripe-create-checkout',         // [Stripe] Checkout Session 생성
+      'stripe-open-portal'              // [Stripe] 구독 관리 포털 열기
     ];
     if (allowed.includes(channel)) {
       return ipcRenderer.invoke(channel, data);

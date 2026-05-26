@@ -1,6 +1,18 @@
 // user-panel.js - Logic & Core Integrations for XPIDER Premium Account Center
 let currentProfile = null;
-const MAX_TOKENS = 5000; // Enterprise max default reference
+
+// ─── Plan Token Map ─────────────────────────────────────
+const PLAN_TOKENS = {
+  free:       600,
+  starter:    6000,
+  pro:        12000,
+  enterprise: 30000,
+  admin:      99999
+};
+// Helper: get max tokens for current profile's plan
+function getPlanMaxTokens(plan) {
+  return PLAN_TOKENS[plan] || PLAN_TOKENS.free;
+}
 
 // Electron API bridge
 const api = window.electronAPI || {
@@ -56,11 +68,12 @@ window.addEventListener('DOMContentLoaded', async () => {
         const tokenDisplay = document.getElementById('stat-tokens');
         if (tokenDisplay) tokenDisplay.textContent = remaining.toLocaleString() + ' Tokens';
 
-        const pct = Math.min(100, Math.round((remaining / MAX_TOKENS) * 100));
+        const maxTokens = getPlanMaxTokens(currentProfile?.plan || 'free');
+        const pct = Math.min(100, Math.round((remaining / maxTokens) * 100));
         const fill    = document.getElementById('token-progress');
         const pctLabel = document.getElementById('token-pct');
         if (fill) fill.style.width = pct + '%';
-        if (pctLabel) pctLabel.textContent = `${pct}% Left (${remaining.toLocaleString()} / ${MAX_TOKENS.toLocaleString()})`;
+        if (pctLabel) pctLabel.textContent = `${pct}% Left (${remaining.toLocaleString()} / ${maxTokens.toLocaleString()})`;
 
         // Sync local profile data state
         if (currentProfile) currentProfile.tokens_remaining = remaining;
@@ -113,11 +126,12 @@ function renderProfile(profile) {
   const tokenDisplay = document.getElementById('stat-tokens');
   if (tokenDisplay) tokenDisplay.textContent = tokens.toLocaleString() + ' Tokens';
 
-  const pct = Math.min(100, Math.round((tokens / MAX_TOKENS) * 100));
+  const maxTokens = getPlanMaxTokens(profile.plan || 'free');
+  const pct = Math.min(100, Math.round((tokens / maxTokens) * 100));
   const fill = document.getElementById('token-progress');
   const pctLabel = document.getElementById('token-pct');
   if (fill) fill.style.width = pct + '%';
-  if (pctLabel) pctLabel.textContent = `${pct}% Left (${tokens.toLocaleString()} / ${MAX_TOKENS.toLocaleString()})`;
+  if (pctLabel) pctLabel.textContent = `${pct}% Left (${tokens.toLocaleString()} / ${maxTokens.toLocaleString()})`;
 
   // Map Registration Date
   const joined = document.getElementById('stat-joined');
@@ -394,18 +408,70 @@ function toggleFaq(element) {
   }
 }
 
-// ─── Pricing Plan Modals ────────────────────────────────────
-const PLAN_LABELS = {
-  starter: 'Starter Plan — $59/mo (Basic Crawler + GMaps + Real-time Email)',
-  pro: 'Business Pro Plan — $99/mo (7 Core Modules + Secure VPN + AI Form Sender)',
-  enterprise: 'Enterprise Plan — $199/mo (Multi Proxy Subnets + Custom Dev + 1:1 Engineering support)'
+// ─── Pricing Plan Config ────────────────────────────────────
+const PLAN_CONFIG = {
+  starter: {
+    label: 'Starter Plan',
+    monthly: { price: '$59', period: 'month', tokens: '6,000' },
+    yearly:  { price: '$47', period: 'month', tokens: '6,000' }
+  },
+  pro: {
+    label: 'Business Pro Plan',
+    monthly: { price: '$99', period: 'month', tokens: '12,000' },
+    yearly:  { price: '$79', period: 'month', tokens: '12,000' }
+  },
+  enterprise: {
+    label: 'Enterprise Plan',
+    monthly: { price: '$199', period: 'month', tokens: '30,000' },
+    yearly:  { price: '$159', period: 'month', tokens: '30,000' }
+  }
 };
 
+let _currentCheckoutPlan = 'starter';
+let _modalIsYearly = false;
+
 function openPurchase(planId) {
+  _currentCheckoutPlan = planId;
+  _modalIsYearly = false;
   const modal = document.getElementById('purchase-modal');
-  const planEl = document.getElementById('modal-selected-plan');
-  if (planEl) planEl.textContent = 'Selected: ' + (PLAN_LABELS[planId] || planId);
   if (modal) modal.classList.add('active');
+  _updateModalPlanInfo();
+}
+
+function _updateModalPlanInfo() {
+  const cfg = PLAN_CONFIG[_currentCheckoutPlan];
+  if (!cfg) return;
+  const billing = _modalIsYearly ? cfg.yearly : cfg.monthly;
+
+  const nameEl   = document.getElementById('stripe-plan-name');
+  const priceEl  = document.getElementById('stripe-plan-price');
+  const tokenEl  = document.getElementById('stripe-plan-tokens');
+  const mLabel   = document.getElementById('modal-billing-monthly');
+  const yLabel   = document.getElementById('modal-billing-yearly');
+  const toggle   = document.getElementById('modal-billing-toggle');
+
+  if (nameEl)  nameEl.textContent  = cfg.label;
+  if (priceEl) priceEl.textContent = `${billing.price} / ${billing.period}`;
+  if (tokenEl) tokenEl.textContent = `${billing.tokens} tokens per month`;
+
+  if (_modalIsYearly) {
+    toggle?.classList.add('yearly');
+    mLabel?.classList.remove('active-label');
+    yLabel?.classList.add('active-label');
+    mLabel && (mLabel.style.fontWeight = '400'); mLabel && (mLabel.style.color = 'var(--text-muted)');
+    yLabel && (yLabel.style.fontWeight = '700'); yLabel && (yLabel.style.color = '#fff');
+  } else {
+    toggle?.classList.remove('yearly');
+    mLabel?.classList.add('active-label');
+    yLabel?.classList.remove('active-label');
+    mLabel && (mLabel.style.fontWeight = '700'); mLabel && (mLabel.style.color = '#fff');
+    yLabel && (yLabel.style.fontWeight = '400'); yLabel && (yLabel.style.color = 'var(--text-muted)');
+  }
+}
+
+function toggleModalBilling() {
+  _modalIsYearly = !_modalIsYearly;
+  _updateModalPlanInfo();
 }
 
 function closePurchaseModal() {
@@ -413,9 +479,41 @@ function closePurchaseModal() {
   if (modal) modal.classList.remove('active');
 }
 
-function notifyMe() {
-  closePurchaseModal();
-  showToast('📧 B2B Priority Notification Registered Successfully!');
+// ─── Stripe Checkout ─────────────────────────────────────────
+async function startStripeCheckout() {
+  const btn = document.getElementById('btn-stripe-checkout');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Redirecting...</span>';
+  }
+
+  try {
+    const billingCycle = _modalIsYearly ? 'yearly' : 'monthly';
+    const result = await api.invoke('stripe-create-checkout', {
+      planId:       _currentCheckoutPlan,
+      billingCycle: billingCycle,
+      userId:       currentProfile?.id || '',
+      email:        currentProfile?.email || ''
+    });
+
+    if (result?.url) {
+      // Electron: external browser opens Stripe
+      api.send('open-external-url', result.url);
+      closePurchaseModal();
+      showToast('✅ Stripe checkout opened in your browser');
+    } else if (result?.error) {
+      showToast('❌ ' + result.error);
+    } else {
+      showToast('❌ Failed to create checkout session');
+    }
+  } catch (e) {
+    showToast('❌ Checkout error: ' + e.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-brands fa-stripe-s"></i> <span>Pay with Stripe</span> <i class="fa-solid fa-arrow-right"></i>';
+    }
+  }
 }
 
 // ─── Sign Out ────────────────────────────────────────────────

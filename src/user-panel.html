@@ -356,7 +356,7 @@
             <p class="plan-desc">For individual creators and local marketers getting started with basic scraping tools and localized listings.</p>
             <button class="btn-pricing" onclick="openPurchase('starter')">Get Started</button>
             <ul class="plan-features-list">
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>600 tokens</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>6,000 tokens / mo</span></li>
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>10-Engine Local Business Crawler</span></li>
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Google Maps Business Finder</span></li>
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Real-time Email Extractor Support</span></li>
@@ -378,7 +378,7 @@
             <p class="plan-desc">The ultimate plan for growing teams, opening access to high-performance mining modules and dedicated proxy networks.</p>
             <button class="btn-pricing" onclick="openPurchase('pro')">Upgrade to Pro</button>
             <ul class="plan-features-list">
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>2,000 tokens</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>12,000 tokens / mo</span></li>
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>All 7 Core Premium Engines Fully Unlocked</span></li>
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Google & Bing Maps Cross Scans</span></li>
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>XPIDER VPN Node Masking Integration</span></li>
@@ -399,7 +399,7 @@
             <p class="plan-desc">Tailored for large agencies requiring multiple virtual scraper instances, dedicated proxy subnets, and customized flows.</p>
             <button class="btn-pricing" onclick="openPurchase('enterprise')">Deploy Enterprise</button>
             <ul class="plan-features-list">
-              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>5,000 tokens</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>30,000 tokens / mo</span></li>
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>All features from Business Pro included</span></li>
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Dedicated Multi-Proxy Premium Subnets</span></li>
               <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Unlimited concurrent browser profiles</span></li>
@@ -557,29 +557,50 @@
     </div>
   </div>
 
-  <!-- Gateway Notice Modal -->
+  <!-- Stripe Checkout Modal -->
   <div class="modal-overlay" id="purchase-modal" onclick="closePurchaseModal()">
     <div class="modal-content purchase-box" onclick="event.stopPropagation()">
       <div class="modal-header">
         <div class="modal-title-wrap">
-          <span class="modal-tag-text">PREMIUM GATEWAY</span>
-          <h3 class="modal-title-text">💳 Payment & Subscription</h3>
+          <span class="modal-tag-text">SECURE CHECKOUT</span>
+          <h3 class="modal-title-text">Subscribe Plan</h3>
         </div>
         <button class="modal-close-btn" onclick="closePurchaseModal()">×</button>
       </div>
       <div class="modal-body">
-        <div class="payment-notice">
-          <i class="fa-solid fa-circle-exclamation notice-orange-icon"></i>
-          <h3>Payment Gateway Under Review</h3>
-          <p>Our secure payment checkout is currently undergoing its final merchant security review.<br/>Subscribe to launch updates to receive a 20% discount voucher once unlocked.</p>
+        <!-- Plan Summary -->
+        <div class="stripe-plan-summary" id="stripe-plan-summary">
+          <div class="stripe-plan-icon"><i class="fa-solid fa-layer-group"></i></div>
+          <div class="stripe-plan-details">
+            <div class="stripe-plan-name" id="stripe-plan-name">Starter Plan</div>
+            <div class="stripe-plan-price" id="stripe-plan-price">$59 / month</div>
+            <div class="stripe-plan-tokens" id="stripe-plan-tokens">6,000 tokens per month</div>
+          </div>
         </div>
-        <div class="modal-selected-plan" id="modal-selected-plan">Selected: Loading...</div>
+
+        <!-- Billing Toggle -->
+        <div class="stripe-billing-row">
+          <span class="stripe-billing-label" id="modal-billing-monthly" style="font-weight:700; color:#fff;">Monthly</span>
+          <div class="stripe-billing-toggle" id="modal-billing-toggle" onclick="toggleModalBilling()">
+            <div class="stripe-toggle-handle"></div>
+          </div>
+          <span class="stripe-billing-label" id="modal-billing-yearly">Yearly</span>
+          <span class="stripe-save-badge">Save 20%</span>
+        </div>
+
+        <!-- Trust badges -->
+        <div class="stripe-trust-row">
+          <span class="stripe-trust-item"><i class="fa-brands fa-stripe"></i> Powered by Stripe</span>
+          <span class="stripe-trust-item"><i class="fa-solid fa-lock"></i> 256-bit SSL</span>
+          <span class="stripe-trust-item"><i class="fa-solid fa-rotate-left"></i> 14-Day Guarantee</span>
+        </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-modal-close" onclick="closePurchaseModal()">Close</button>
-        <button class="btn-modal-action" onclick="notifyMe()">
-          <span>Notify Me 📧</span>
-          <i class="fa-solid fa-bell"></i>
+        <button class="btn-modal-close" onclick="closePurchaseModal()">Cancel</button>
+        <button class="btn-modal-action" id="btn-stripe-checkout" onclick="startStripeCheckout()">
+          <i class="fa-brands fa-stripe-s"></i>
+          <span>Pay with Stripe</span>
+          <i class="fa-solid fa-arrow-right"></i>
         </button>
       </div>
     </div>

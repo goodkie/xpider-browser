@@ -13,7 +13,9 @@ add-device-column.js
 
 # 민감 정보
 *.env
+.env
 .env.*
+.env.local
 
 # 빌드 임시 파일
 *.nupkg
@@ -32,6 +34,7 @@ add-device-column.js
 setup-supabase.js
 test-supabase.js
 create-storage-bucket.js
+setup-stripe-products.js
 
 # 대용량 바이너리 파일
 *.crx

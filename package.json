@@ -1,6 +1,6 @@
 {
   "name": "xpider-browser",
-  "version": "4.10.59",
+  "version": "4.10.60",
   "description": "Custom Chromium Browser for XPIDER",
   "main": "src/main.js",
   "scripts": {
@@ -34,7 +34,9 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.104.0",
     "adm-zip": "^0.5.17",
+    "dotenv": "^17.4.2",
     "electron-log": "^5.0.0",
-    "electron-updater": "^6.1.7"
+    "electron-updater": "^6.1.7",
+    "stripe": "^22.1.1"
   }
 }

@@ -1265,15 +1265,150 @@ footer {
 /* 결제안내 팝업 튜닝 */
 .modal-content.purchase-box {
   grid-template-columns: 1fr;
-  max-width: 440px;
+  max-width: 480px;
   height: auto;
-  max-height: 520px;
+  max-height: 620px;
   padding: 10px;
   transform: perspective(1200px) translate3d(0, 80px, -100px);
 }
 
 .modal-overlay.active .modal-content.purchase-box {
   transform: perspective(1200px) translate3d(0, 0, 0);
+}
+
+/* ─── Stripe Plan Summary Card ─── */
+.stripe-plan-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.stripe-plan-icon {
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+}
+
+.stripe-plan-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stripe-plan-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.stripe-plan-price {
+  font-size: 22px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stripe-plan-tokens {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ─── Billing Toggle Row ─── */
+.stripe-billing-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.stripe-billing-label {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+  transition: color 0.2s, font-weight 0.2s;
+}
+
+.stripe-billing-toggle {
+  width: 48px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.stripe-billing-toggle.yearly {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-color: transparent;
+}
+
+.stripe-toggle-handle {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.stripe-billing-toggle.yearly .stripe-toggle-handle {
+  transform: translateX(22px);
+}
+
+.stripe-save-badge {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 50px;
+  letter-spacing: 0.4px;
+}
+
+/* ─── Trust Row ─── */
+.stripe-trust-row {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stripe-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.stripe-trust-item i {
+  color: var(--color-green);
+}
+
+.stripe-trust-item .fa-stripe {
+  color: #635bff;
 }
 
 .modal-left {
