@@ -129,36 +129,59 @@ document.addEventListener('DOMContentLoaded', () => {
         bypassBtn.onclick = () => closeModal('bypass');
     }
 
+    // ─── 안전 로그 출력 헬퍼 (UI 에러 방지) ──────────────────────────────────
+    function safeLog(msg, type = 'info') {
+        console.log(`[XPIDER-VPN-BRIDGE] ${msg}`);
+        try {
+            if (typeof addLog === 'function') {
+                addLog(msg, type);
+            }
+        } catch (e) {
+            console.warn('safeLog failed to render in UI:', e.message);
+        }
+    }
+
     // ─── VPN 상태 검사 및 자동 구동 연동 ───────────────────────────────────────
     async function checkVpnAndStart(onStartCallback) {
+        let isVpnConnected = false;
         try {
             const vpnState = await xpiderInvoke('xpider-vpn-get-state');
-            const isVpnConnected = vpnState && vpnState.connected;
+            isVpnConnected = !!(vpnState && vpnState.connected);
+        } catch (e) {
+            console.error('Failed to fetch VPN state via IPC:', e);
+        }
 
-            if (isVpnConnected) {
-                onStartCallback();
-                return;
-            }
+        if (isVpnConnected) {
+            onStartCallback();
+            return;
+        }
 
+        try {
             showVpnRecommendationModal(async (choice) => {
                 if (choice === 'connect') {
-                    addLog('[VPN] Auto-connecting XPIDER VPN for secure operation...');
-                    const connRes = await xpiderInvoke('xpider-vpn-connect', { autoSelect: true });
-                    if (connRes && connRes.ok) {
-                        addLog('✅ [VPN] Securely connected to XPIDER VPN proxy!');
-                        await new Promise(r => setTimeout(r, 1500));
-                        onStartCallback();
-                    } else {
-                        addLog('⚠️ [VPN] Connection failed. Starting unprotected...');
+                    safeLog('[VPN] Auto-connecting XPIDER VPN for secure operation...', 'info');
+                    try {
+                        const connRes = await xpiderInvoke('xpider-vpn-connect', { autoSelect: true });
+                        if (connRes && connRes.ok) {
+                            safeLog('✅ [VPN] Securely connected to XPIDER VPN proxy!', 'success');
+                            await new Promise(r => setTimeout(r, 1500));
+                            onStartCallback();
+                        } else {
+                            safeLog('⚠️ [VPN] Connection failed. Starting unprotected...', 'warning');
+                            onStartCallback();
+                        }
+                    } catch (err) {
+                        safeLog('⚠️ [VPN] Connection failed with error. Starting unprotected...', 'warning');
+                        console.error('VPN auto-connect failed:', err);
                         onStartCallback();
                     }
                 } else if (choice === 'bypass') {
-                    addLog('⚠️ [Security] Running operation without VPN protection.');
+                    safeLog('⚠️ [Security] Running operation without VPN protection.', 'warning');
                     onStartCallback();
                 }
             });
         } catch (e) {
-            console.error('VPN check failed:', e);
+            console.error('Failed to show VPN recommendation modal:', e);
             onStartCallback();
         }
     }
