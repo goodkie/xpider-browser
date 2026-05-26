@@ -33,6 +33,144 @@ function xpiderInvoke(channel, args) {
     });
 }
 
+// ─── VPN 권장 팝업 모달 (버튼 내 이모지/아이콘 제외) ───────────────────────
+function showVpnRecommendationModal(callback) {
+    const existing = document.getElementById('xpider-vpn-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'xpider-vpn-modal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(8, 8, 12, 0.85);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 999999;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    `;
+
+    const card = document.createElement('div');
+    card.style.cssText = `
+        background: linear-gradient(145deg, rgba(26, 27, 38, 0.95), rgba(17, 18, 26, 0.95));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 30px 24px;
+        width: 90%;
+        max-width: 380px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(99, 102, 241, 0.1);
+        text-align: center;
+        transform: scale(0.9);
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-sizing: border-box;
+    `;
+
+    card.innerHTML = `
+        <div style="font-size: 40px; margin-bottom: 16px; display: inline-block; filter: drop-shadow(0 4px 12px rgba(99, 102, 241, 0.4));">🛡️</div>
+        <h2 style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0 0 12px 0; letter-spacing: -0.5px;">🔒 XPIDER VPN Recommended</h2>
+        <p style="color: #94a3b8; font-size: 13.5px; line-height: 1.6; margin: 0 0 24px 0; word-break: keep-all; font-weight: 400;">
+            To maximize leads deliverability, bypass target server blocks, and ensure complete data security, we highly recommend running this module through the XPIDER VPN proxy network.
+        </p>
+        <button id="xpider-vpn-btn-connect" style="
+            width: 100%;
+            padding: 13px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+            transition: all 0.2s ease;
+            outline: none;
+            margin-bottom: 14px;
+        ">Turn on VPN & Start</button>
+        <div id="xpider-vpn-btn-bypass" style="
+            display: inline-block;
+            font-size: 12.5px;
+            color: #64748b;
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.2s ease;
+            font-weight: 500;
+        " onmouseover="this.style.color='#cbd5e1'" onmouseout="this.style.color='#64748b'">Continue unprotected</div>
+    `;
+
+    modal.appendChild(card);
+    document.body.appendChild(modal);
+
+    requestAnimationFrame(() => {
+        modal.style.opacity = '1';
+        card.style.transform = 'scale(1)';
+    });
+
+    const connectBtn = card.querySelector('#xpider-vpn-btn-connect');
+    const bypassBtn = card.querySelector('#xpider-vpn-btn-bypass');
+
+    connectBtn.onmouseover = () => {
+        connectBtn.style.transform = 'translateY(-1px)';
+        connectBtn.style.boxShadow = '0 6px 20px rgba(168, 85, 247, 0.45)';
+    };
+    connectBtn.onmouseout = () => {
+        connectBtn.style.transform = 'translateY(0)';
+        connectBtn.style.boxShadow = '0 4px 15px rgba(168, 85, 247, 0.3)';
+    };
+
+    const closeModal = (choice) => {
+        modal.style.opacity = '0';
+        card.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+            modal.remove();
+            callback(choice);
+        }, 300);
+    };
+
+    connectBtn.onclick = () => closeModal('connect');
+    bypassBtn.onclick = () => closeModal('bypass');
+}
+
+// ─── VPN 상태 검사 및 자동 구동 연동 ───────────────────────────────────────
+async function checkVpnAndStart(onStartCallback) {
+    try {
+        const vpnState = await xpiderInvoke('xpider-vpn-get-state').catch(() => null);
+        const isVpnConnected = vpnState && vpnState.connected;
+
+        if (isVpnConnected) {
+            onStartCallback();
+            return;
+        }
+
+        showVpnRecommendationModal(async (choice) => {
+            if (choice === 'connect') {
+                addLog('[VPN] Auto-connecting XPIDER VPN for secure operation...', 'info');
+                const connRes = await xpiderInvoke('xpider-vpn-connect', { autoSelect: true }).catch(() => null);
+                if (connRes && connRes.ok) {
+                    addLog('✅ [VPN] Securely connected to XPIDER VPN proxy!', 'success');
+                    await new Promise(r => setTimeout(r, 1500));
+                    onStartCallback();
+                } else {
+                    addLog('⚠️ [VPN] Connection failed. Starting unprotected...', 'warning');
+                    onStartCallback();
+                }
+            } else if (choice === 'bypass') {
+                addLog('⚠️ [Security] Running operation without VPN protection.', 'warning');
+                onStartCallback();
+            }
+        });
+    } catch (e) {
+        console.error('VPN check failed:', e);
+        onStartCallback();
+    }
+}
 
 // [v1.1.1] Global error handler for debugging
 window.onerror = function(msg, url, line) {
@@ -407,7 +545,13 @@ function bindEvents() {
 
     // Campaign Buttons
     const startBtn = document.getElementById('start-btn');
-    if (startBtn) startBtn.addEventListener('click', startCampaign);
+    if (startBtn) {
+        startBtn.addEventListener('click', () => {
+            checkVpnAndStart(() => {
+                startCampaign();
+            });
+        });
+    }
     
     const pauseBtn = document.getElementById('pause-btn');
     if (pauseBtn) pauseBtn.addEventListener('click', togglePause);
