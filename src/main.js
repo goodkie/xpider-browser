@@ -1,9 +1,27 @@
-// ─── 환경변수 로드 (.env 파일) ─────────────────────────────────────────────────
-require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
-
-const { app, BrowserWindow, session, ipcMain, shell, webContents, dialog, Menu, MenuItem, clipboard } = require('electron');
 const path = require('path');
 const fs   = require('fs');
+const electron = require('electron');
+const app = electron.app;
+
+// ─── 환경변수 로드 (.env 파일) ─────────────────────────────────────────────────
+let envPath = path.join(__dirname, '..', '.env');
+
+if (app && app.isPackaged) {
+  const prodEnvPath = path.join(process.resourcesPath, '.env');
+  const userDataEnvPath = path.join(app.getPath('userData'), '.env');
+  
+  if (fs.existsSync(prodEnvPath)) {
+    envPath = prodEnvPath;
+  } else if (fs.existsSync(userDataEnvPath)) {
+    envPath = userDataEnvPath;
+  } else {
+    envPath = path.join(__dirname, '..', '.env');
+  }
+}
+
+require('dotenv').config({ path: envPath });
+
+const { BrowserWindow, session, ipcMain, shell, webContents, dialog, Menu, MenuItem, clipboard } = electron;
 const log  = require('electron-log');
 
 // ─── Campaign Engine (AutoForm Sender Pro) ────────────────────
