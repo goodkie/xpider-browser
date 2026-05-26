@@ -28,6 +28,21 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - run: npm ci
+      - name: Create .env from GitHub Secrets
+        shell: bash
+        run: |
+          cat > .env << 'ENVEOF'
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PRICE_STARTER_MONTHLY=${{ secrets.STRIPE_PRICE_STARTER_MONTHLY }}
+          STRIPE_PRICE_STARTER_YEARLY=${{ secrets.STRIPE_PRICE_STARTER_YEARLY }}
+          STRIPE_PRICE_PRO_MONTHLY=${{ secrets.STRIPE_PRICE_PRO_MONTHLY }}
+          STRIPE_PRICE_PRO_YEARLY=${{ secrets.STRIPE_PRICE_PRO_YEARLY }}
+          STRIPE_PRICE_ENTERPRISE_MONTHLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_MONTHLY }}
+          STRIPE_PRICE_ENTERPRISE_YEARLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_YEARLY }}
+          STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          ENVEOF
+          sed -i 's/^[[:space:]]*//' .env
       - name: Build Windows ZIP
         run: npm run make:win-zip
         env:
@@ -61,6 +76,20 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - name: Create .env from GitHub Secrets
+        run: |
+          cat > .env << 'ENVEOF'
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PRICE_STARTER_MONTHLY=${{ secrets.STRIPE_PRICE_STARTER_MONTHLY }}
+          STRIPE_PRICE_STARTER_YEARLY=${{ secrets.STRIPE_PRICE_STARTER_YEARLY }}
+          STRIPE_PRICE_PRO_MONTHLY=${{ secrets.STRIPE_PRICE_PRO_MONTHLY }}
+          STRIPE_PRICE_PRO_YEARLY=${{ secrets.STRIPE_PRICE_PRO_YEARLY }}
+          STRIPE_PRICE_ENTERPRISE_MONTHLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_MONTHLY }}
+          STRIPE_PRICE_ENTERPRISE_YEARLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_YEARLY }}
+          STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          ENVEOF
+          sed -i '' 's/^[[:space:]]*//' .env || sed -i 's/^[[:space:]]*//' .env
       - name: Build macOS Intel DMG
         run: npm run make:mac
         env:
@@ -89,6 +118,20 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci
+      - name: Create .env from GitHub Secrets
+        run: |
+          cat > .env << 'ENVEOF'
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PRICE_STARTER_MONTHLY=${{ secrets.STRIPE_PRICE_STARTER_MONTHLY }}
+          STRIPE_PRICE_STARTER_YEARLY=${{ secrets.STRIPE_PRICE_STARTER_YEARLY }}
+          STRIPE_PRICE_PRO_MONTHLY=${{ secrets.STRIPE_PRICE_PRO_MONTHLY }}
+          STRIPE_PRICE_PRO_YEARLY=${{ secrets.STRIPE_PRICE_PRO_YEARLY }}
+          STRIPE_PRICE_ENTERPRISE_MONTHLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_MONTHLY }}
+          STRIPE_PRICE_ENTERPRISE_YEARLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_YEARLY }}
+          STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          ENVEOF
+          sed -i '' 's/^[[:space:]]*//' .env || sed -i 's/^[[:space:]]*//' .env
       - name: Build macOS ARM64 DMG
         run: npm run make:mac-arm
         env:

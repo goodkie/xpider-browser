@@ -4,22 +4,24 @@ const electron = require('electron');
 const app = electron.app;
 
 // ─── 환경변수 로드 (.env 파일) ─────────────────────────────────────────────────
-let envPath = path.join(__dirname, '..', '.env');
+// app.isPackaged는 모듈 로드 시점에 아직 초기화 전이므로,
+// process.resourcesPath 존재 여부로 패키징 환경을 판단합니다.
+const _envCandidates = [
+  // 1순위: 패키징 환경 — 실행파일 옆 resources 폴더
+  process.resourcesPath && path.join(process.resourcesPath, '.env'),
+  // 2순위: 개발 환경 — 프로젝트 루트
+  path.join(__dirname, '..', '.env'),
+  // 3순위: 실행파일과 같은 폴더 (Squirrel 설치 방식)
+  process.execPath && path.join(path.dirname(process.execPath), '.env'),
+].filter(Boolean);
 
-if (app && app.isPackaged) {
-  const prodEnvPath = path.join(process.resourcesPath, '.env');
-  const userDataEnvPath = path.join(app.getPath('userData'), '.env');
-  
-  if (fs.existsSync(prodEnvPath)) {
-    envPath = prodEnvPath;
-  } else if (fs.existsSync(userDataEnvPath)) {
-    envPath = userDataEnvPath;
-  } else {
-    envPath = path.join(__dirname, '..', '.env');
-  }
+const _envPath = _envCandidates.find(p => { try { return fs.existsSync(p); } catch(_) { return false; } });
+if (_envPath) {
+  require('dotenv').config({ path: _envPath });
+} else {
+  // .env 파일이 없어도 계속 실행 (환경변수는 코드 내 fallback 값 사용)
+  require('dotenv').config();
 }
-
-require('dotenv').config({ path: envPath });
 
 const { BrowserWindow, session, ipcMain, shell, webContents, dialog, Menu, MenuItem, clipboard } = electron;
 const log  = require('electron-log');
@@ -605,10 +607,13 @@ ipcMain.handle('admin-get-user-logs', async (_, { filterUserId, filterDate }) =>
 });
 
 // ─── [Stripe] 결제 서비스 초기화 ─────────────────────────────────────────────
-// Secret Key: 환경변수 STRIPE_SECRET_KEY 또는 직접 입력
-// IMPORTANT: 절대 클라이언트(렌더러)에 Secret Key를 노출하지 마세요.
+// Secret Key는 환경변수 STRIPE_SECRET_KEY에서 주입됩니다.
+// 개발: .env 파일, 배포(CI): GitHub Actions Secrets → 빌드 시 .env 자동 생성
 const stripeService = require('./auth/stripe-service');
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+if (!STRIPE_SECRET_KEY) {
+  log.warn('[Stripe] STRIPE_SECRET_KEY not set — check .env or CI secrets');
+}
 stripeService.initStripe(STRIPE_SECRET_KEY);
 
 // ─── [Stripe] Checkout Session 생성 IPC ─────────────────────────────────────
