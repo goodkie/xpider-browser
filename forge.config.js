@@ -1,9 +1,16 @@
+const fs = require('fs');
+
+const extraResources = ['./extensions', './XPIDER_Installation_Guide.pdf'];
+if (fs.existsSync('./.env')) {
+  extraResources.push('./.env');
+}
+
 module.exports = {
   packagerConfig: {
     asar: true,
     name: 'XPIDER Browser',
     executableName: 'XPIDERBrowser',
-    extraResource: ['./extensions', './XPIDER_Installation_Guide.pdf', './.env'],
+    extraResource: extraResources,
     icon: './assets/icons/win/icon',
     appBundleId: 'com.xpider.browser',
     appVersion: require('./package.json').version,
