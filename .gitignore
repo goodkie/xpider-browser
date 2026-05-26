@@ -35,6 +35,11 @@ setup-supabase.js
 test-supabase.js
 create-storage-bucket.js
 setup-stripe-products.js
+run-migration.js
+deploy-edge-function.js
+deploy-to-supabase.js
+set-edge-secrets.js
+register-stripe-webhook.js
 
 # 대용량 바이너리 파일
 *.crx
