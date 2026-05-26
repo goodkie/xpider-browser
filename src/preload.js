@@ -153,7 +153,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-vpn-connect', 'xpider-vpn-disconnect', 'xpider-vpn-get-state',
       'hot-update-start',                // [HotUpdate] 핫 업데이트 시작
       'xpider-token-deduct', 'xpider-token-get-remaining', 'xpider-update-user-active',
-      'admin-update-user-tokens', 'admin-get-user-logs'
+      'admin-update-user-tokens', 'admin-get-user-logs',
+      'user-get-profile',               // [UserPanel] 현재 유저 프로필 조회
+      'user-get-logs',                  // [UserPanel] 현재 유저 이용 내역 조회
+      'open-user-panel'                 // [UserPanel] User Panel 창 열기
     ];
     if (allowed.includes(channel)) {
       return ipcRenderer.invoke(channel, data);

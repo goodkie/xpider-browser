@@ -28,18 +28,26 @@ async function updateTokenDisplay() {
 // 10초마다 자동으로 토큰 잔액 갱신
 setInterval(updateTokenDisplay, 10000);
 
-// 페이지 로드 및 로그인 시 토큰 및 어드민 위젯 연동
+// 페이지 로드 및 로그인 시 토큰 및 위젯 연동
 async function initUserStatusWidgets() {
     updateTokenDisplay();
     try {
-        // 본인의 프로필 plan이 'admin' 인지 확인 (어드민 API가 호출 가능하면 노출)
-        const profiles = await window.electronAPI.invoke('admin-get-all-profiles');
-        const adminWidget = document.getElementById('admin-panel-widget');
-        if (adminWidget && Array.isArray(profiles) && profiles.length > 0) {
-            adminWidget.classList.remove('hidden');
+        // 현재 유저의 프로필을 가져와 plan 확인
+        const profile = await window.electronAPI.invoke('user-get-profile');
+        const adminWidget  = document.getElementById('admin-panel-widget');
+        const userWidget   = document.getElementById('user-panel-widget');
+
+        if (profile && profile.plan === 'admin') {
+            // 어드민: Admin Panel 버튼 노출
+            if (adminWidget) adminWidget.classList.remove('hidden');
+            // My Account 버튼도 유지 (어드민도 자신 계정 확인 가능)
+        } else {
+            // 일반 사용자: Admin Panel 숨김
+            if (adminWidget) adminWidget.classList.add('hidden');
         }
+        // User Panel 버튼은 로그인한 모든 유저에게 표시
+        if (userWidget) userWidget.style.display = 'flex';
     } catch(e) {
-        // 어드민 권한이 없으면 RLS로 인해 예외 발생 -> 위젯 숨김
         const adminWidget = document.getElementById('admin-panel-widget');
         if (adminWidget) adminWidget.classList.add('hidden');
     }
@@ -50,6 +58,13 @@ function openAdminPanel() {
     if (typeof createNewTab === 'function') {
         createNewTab('admin.html', true);
     }
+}
+
+// User Panel (내 계정) — 별도 BrowserWindow로 열기 (electronAPI 정상 사용 위해)
+function openUserPanel() {
+    window.electronAPI.invoke('open-user-panel').catch(e => {
+        console.error('[UserPanel] Failed to open user panel:', e);
+    });
 }
 
 // 토큰 고갈 모달 리스너

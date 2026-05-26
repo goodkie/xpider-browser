@@ -60,11 +60,17 @@
                             <button id="clear-history-btn" data-i18n="clear_all">Clear All</button>
                         </div>
                     </div>
-                    <!-- Token Indicator & Admin Panel Trigger -->
+                    <!-- Token Indicator, User Panel & Admin Panel Trigger -->
                     <div class="user-status-widgets" style="display:flex; align-items:center; margin-right:12px; gap:8px;">
+                        <!-- 어드민 전용 버튼 (기본 숨김 — JS가 admin 플랜 확인 후 노출) -->
                         <div id="admin-panel-widget" class="hidden" style="display:flex; align-items:center; font-size:12px; font-weight:700; color:#00f2fe; background:rgba(0,242,254,0.1); padding:4px 10px; border-radius:12px; border:1px solid rgba(0,242,254,0.25); cursor:pointer; transition:all 0.2s;" onclick="openAdminPanel()">
                             <span style="margin-right:4px;">👑</span>
                             <span>Admin Panel</span>
+                        </div>
+                        <!-- 일반 사용자 My Account 버튼 -->
+                        <div id="user-panel-widget" style="display:flex; align-items:center; font-size:12px; font-weight:700; color:#a78bfa; background:rgba(108,99,255,0.12); padding:4px 10px; border-radius:12px; border:1px solid rgba(108,99,255,0.28); cursor:pointer; transition:all 0.2s;" onclick="openUserPanel()" title="내 계정 보기">
+                            <span style="margin-right:4px;">👤</span>
+                            <span>My Account</span>
                         </div>
                         <div class="token-container" style="display:flex; align-items:center; font-size:12px; font-weight:600; color:#ffd700; background:rgba(255,215,0,0.1); padding:4px 10px; border-radius:12px; border:1px solid rgba(255,215,0,0.2);">
                             <span style="margin-right:4px;">🪙</span>

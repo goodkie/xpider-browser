@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>XPIDER — My Account</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="user-panel.css"/>
+</head>
+<body>
+  <!-- Animated Background -->
+  <div class="bg-mesh"></div>
+  <div class="bg-orb orb1"></div>
+  <div class="bg-orb orb2"></div>
+  <div class="bg-orb orb3"></div>
+
+  <!-- Header -->
+  <header class="up-header">
+    <div class="logo-area">
+      <div class="logo-icon">
+        <span>🕷️</span>
+      </div>
+      <div>
+        <div class="logo-title">XPIDER</div>
+        <div class="logo-sub">My Account</div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <div class="user-badge" id="user-badge">
+        <span class="user-avatar" id="user-avatar">?</span>
+        <span id="header-username">로딩 중...</span>
+      </div>
+      <button class="btn-outline" onclick="handleLogout()">로그아웃</button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="up-main">
+    <!-- Welcome Banner -->
+    <section class="welcome-section">
+      <div class="welcome-text">
+        <h1 id="welcome-title">안녕하세요! 👋</h1>
+        <p id="welcome-sub">XPIDER 서비스를 이용해 주셔서 감사합니다.</p>
+      </div>
+      <div class="plan-badge" id="plan-badge">
+        <span class="plan-icon">⭐</span>
+        <span id="plan-name">Free</span>
+      </div>
+    </section>
+
+    <!-- Stats Grid -->
+    <section class="stats-grid">
+      <div class="stat-card primary">
+        <div class="stat-icon">🪙</div>
+        <div class="stat-info">
+          <div class="stat-label">잔여 토큰</div>
+          <div class="stat-value" id="stat-tokens">-</div>
+          <div class="stat-desc">AI 작업에 사용 가능한 토큰</div>
+        </div>
+        <div class="stat-trend" id="stat-token-bar">
+          <div class="progress-bar">
+            <div class="progress-fill" id="token-progress" style="width:0%"></div>
+          </div>
+          <span id="token-pct">0%</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">📅</div>
+        <div class="stat-info">
+          <div class="stat-label">가입일</div>
+          <div class="stat-value" id="stat-joined">-</div>
+          <div class="stat-desc">계정 생성 날짜</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">⏱️</div>
+        <div class="stat-info">
+          <div class="stat-label">마지막 로그인</div>
+          <div class="stat-value" id="stat-last-login">-</div>
+          <div class="stat-desc">최근 접속 시간</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon">🔥</div>
+        <div class="stat-info">
+          <div class="stat-label">총 AI 사용 횟수</div>
+          <div class="stat-value" id="stat-total-uses">-</div>
+          <div class="stat-desc">모든 익스텐션 합산</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Token Purchase Plans -->
+    <section class="plans-section">
+      <div class="section-header">
+        <h2>🚀 토큰 충전 플랜</h2>
+        <p>더 강력한 AI 기능을 위해 토큰을 충전하세요</p>
+      </div>
+      <div class="plans-grid">
+        <div class="plan-card starter">
+          <div class="plan-header">
+            <div class="plan-tag">스타터</div>
+            <div class="plan-price"><span class="currency">$</span>9<span class="period">/mo</span></div>
+          </div>
+          <div class="plan-tokens">50,000 토큰</div>
+          <ul class="plan-features">
+            <li>✅ 기본 AI 크롤링</li>
+            <li>✅ 이메일 추출 (월 500건)</li>
+            <li>✅ VPN 기본 (10개 서버)</li>
+            <li>❌ 캠페인 자동화</li>
+          </ul>
+          <button class="btn-plan" onclick="openPurchase('starter')">선택하기</button>
+        </div>
+
+        <div class="plan-card pro popular">
+          <div class="popular-badge">🔥 인기</div>
+          <div class="plan-header">
+            <div class="plan-tag">프로</div>
+            <div class="plan-price"><span class="currency">$</span>29<span class="period">/mo</span></div>
+          </div>
+          <div class="plan-tokens">200,000 토큰</div>
+          <ul class="plan-features">
+            <li>✅ 고급 AI 크롤링</li>
+            <li>✅ 이메일 추출 (무제한)</li>
+            <li>✅ VPN 프리미엄 (50개 서버)</li>
+            <li>✅ 캠페인 자동화</li>
+          </ul>
+          <button class="btn-plan primary" onclick="openPurchase('pro')">선택하기</button>
+        </div>
+
+        <div class="plan-card enterprise">
+          <div class="plan-header">
+            <div class="plan-tag">엔터프라이즈</div>
+            <div class="plan-price"><span class="currency">$</span>99<span class="period">/mo</span></div>
+          </div>
+          <div class="plan-tokens">1,000,000 토큰</div>
+          <ul class="plan-features">
+            <li>✅ 무제한 AI 크롤링</li>
+            <li>✅ 이메일 추출 (무제한)</li>
+            <li>✅ 전용 VPN (100개 서버)</li>
+            <li>✅ 캠페인 자동화 + 우선 지원</li>
+          </ul>
+          <button class="btn-plan" onclick="openPurchase('enterprise')">선택하기</button>
+        </div>
+      </div>
+
+      <!-- Token Top-up (one-time) -->
+      <div class="topup-section">
+        <h3>⚡ 단발성 토큰 충전</h3>
+        <div class="topup-grid">
+          <button class="topup-btn" onclick="openPurchase('topup_10k')">
+            <span class="topup-amount">10,000</span>
+            <span class="topup-label">토큰</span>
+            <span class="topup-price">$2</span>
+          </button>
+          <button class="topup-btn" onclick="openPurchase('topup_50k')">
+            <span class="topup-amount">50,000</span>
+            <span class="topup-label">토큰</span>
+            <span class="topup-price">$8</span>
+          </button>
+          <button class="topup-btn featured" onclick="openPurchase('topup_100k')">
+            <span class="topup-amount">100,000</span>
+            <span class="topup-label">토큰</span>
+            <span class="topup-price">$14</span>
+            <span class="topup-badge">Best Value</span>
+          </button>
+          <button class="topup-btn" onclick="openPurchase('topup_500k')">
+            <span class="topup-amount">500,000</span>
+            <span class="topup-label">토큰</span>
+            <span class="topup-price">$59</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Service History -->
+    <section class="history-section">
+      <div class="section-header">
+        <h2>📋 서비스 이용 내역</h2>
+        <div class="history-filters">
+          <select id="log-filter-ext" onchange="loadLogs()">
+            <option value="">전체 익스텐션</option>
+            <option value="AI Crawler">AI 크롤러</option>
+            <option value="Email Extractor">이메일 추출</option>
+            <option value="VPN">VPN</option>
+            <option value="Campaign">캠페인</option>
+          </select>
+          <input type="date" id="log-filter-date" onchange="loadLogs()" />
+          <button class="btn-refresh" onclick="loadLogs()">🔄 새로고침</button>
+        </div>
+      </div>
+
+      <div class="history-table-wrap">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>날짜 / 시간</th>
+              <th>익스텐션</th>
+              <th>작업</th>
+              <th>소모 토큰</th>
+              <th>상세</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <tr class="loading-row">
+              <td colspan="5">
+                <div class="loader-ring"></div>
+                <span>이용 내역을 불러오는 중...</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="history-footer" id="history-footer" style="display:none">
+        <span id="history-count">0건</span>의 이용 내역
+      </div>
+    </section>
+  </main>
+
+  <!-- Purchase Modal -->
+  <div id="purchase-modal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closePurchaseModal()"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2>💳 결제 안내</h2>
+        <button class="modal-close" onclick="closePurchaseModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="payment-notice">
+          <div class="notice-icon">🚧</div>
+          <h3>준비 중입니다</h3>
+          <p>결제 시스템이 곧 오픈됩니다.<br/>관심에 감사드립니다! 오픈 시 이메일로 알림을 받으시겠습니까?</p>
+        </div>
+        <div class="modal-selected-plan" id="modal-selected-plan"></div>
+        <div style="display:flex; gap:12px; margin-top:20px;">
+          <button class="btn-plan primary" style="flex:1" onclick="notifyMe()">알림 받기 📧</button>
+          <button class="btn-outline" style="flex:1" onclick="closePurchaseModal()">닫기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="up-toast" class="up-toast hidden">
+    <span id="up-toast-msg">✅ 완료</span>
+  </div>
+
+  <script src="user-panel.js"></script>
+</body>
+</html>

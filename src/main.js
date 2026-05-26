@@ -118,6 +118,7 @@ app.on('quit', releaseProfileLock);
 let splashWindow = null;
 let loginWindow  = null;
 let witSettingsWindow = null;
+let userPanelWindow   = null;  // [UserPanel] 일반 사용자 패널 저
 let loadedExtensionsInfo = [];
 let lastActiveTabByWindow = {}; // Cache active tab per windowId
 
@@ -157,7 +158,38 @@ function createSplashWindow() {
   splashWindow.on('closed', () => { splashWindow = null; });
 }
 
-// ─── 로그인 창 ───────────────────────────────────────────────
+// ─── User Panel 새 옵션 새구재 ───────────────────────────────
+function createUserPanelWindow() {
+  // 이미 열려 있으면 포커스
+  if (userPanelWindow && !userPanelWindow.isDestroyed()) {
+    userPanelWindow.focus();
+    return;
+  }
+  userPanelWindow = new BrowserWindow({
+    width: 1100,
+    height: 760,
+    minWidth: 800,
+    minHeight: 600,
+    center: true,
+    title: 'XPIDER — My Account',
+    icon: ICON_PNG,
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),  // 실제 electronAPI 사용
+      contextIsolation: true,
+      nodeIntegration: false,
+      webviewTag: false,
+    },
+    show: false,
+    backgroundColor: '#0a0c14',
+  });
+  userPanelWindow.loadFile(path.join(__dirname, 'user-panel.html'));
+  userPanelWindow.once('ready-to-show', () => { userPanelWindow.show(); });
+  userPanelWindow.on('closed', () => { userPanelWindow = null; });
+  // 개발중: DevTools 열기 (prod에서 제거)
+  // userPanelWindow.webContents.openDevTools();
+}
+
+// ─── 로그인 새 ───────────────────────────────────────────────
 function createLoginWindow() {
   loginWindow = new BrowserWindow({
     width: 480,
@@ -414,6 +446,12 @@ ipcMain.handle('open-xpider-vpn-panel', async (event) => {
   return { success: true };
 });
 
+// ─── User Panel 창 열기 ───────────────────────────────────────
+ipcMain.handle('open-user-panel', async () => {
+  createUserPanelWindow();
+  return { success: true };
+});
+
 // ─── 로그아웃 ─────────────────────────────────────────────────
 ipcMain.on('auth-logout', async () => {
   _stopUserHeartbeat();
@@ -449,13 +487,52 @@ app.on('before-quit', async (e) => {
 });
 
 // ─── 어드민 IPC ───────────────────────────────────────────────
-ipcMain.handle('admin-get-all-profiles', async () => authService.getAllProfiles());
+ipcMain.handle('admin-get-all-profiles', async () => {
+  // 현재 로그인 유저가 admin 플랜인지 확인
+  const userId = authService.getCurrentUserId();
+  if (!userId) return null;
+  const profile = await authService.getUserProfile(userId);
+  if (!profile || profile.plan !== 'admin') return null;
+  return authService.getAllProfiles();
+});
 ipcMain.handle('admin-set-active', async (_, { userId, isActive }) =>
   authService.setUserActive(userId, isActive)
 );
 ipcMain.handle('admin-force-logout', async (_, { userId }) =>
   authService.forceLogout(userId)
 );
+
+// ─── 일반 사용자 IPC ──────────────────────────────────────────
+ipcMain.handle('user-get-profile', async () => {
+  const userId = authService.getCurrentUserId();
+  if (!userId) return null;
+  return authService.getUserProfile(userId);
+});
+
+ipcMain.handle('user-get-logs', async (_, { extFilter, dateFilter } = {}) => {
+  const userId = authService.getCurrentUserId();
+  if (!userId) return [];
+  try {
+    let query = require('./auth/supabase').supabaseAdmin
+      .from('user_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (extFilter) query = query.ilike('extension_name', `%${extFilter}%`);
+    if (dateFilter) {
+      const start = `${dateFilter}T00:00:00.000Z`;
+      const end   = `${dateFilter}T23:59:59.999Z`;
+      query = query.gte('created_at', start).lte('created_at', end);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.error('[IPC] user-get-logs error:', e.message);
+    return [];
+  }
+});
 
 // ─── 신규 토큰 및 활동 로그 IPC ────────────────────────────────
 ipcMain.handle('xpider-token-deduct', async (_, { count, extName, action, details }) => {
