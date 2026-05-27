@@ -3291,6 +3291,33 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
     if (!message) return { success: false };
     log.info(`[ExtBridge] Received runtime message: action=${message.action}`);
     
+    // ── 여분의 브라우저 새 탭 일괄 닫기 브릿지 ──
+    if (message.action === 'CLOSE_ALL_EXTRA_TABS') {
+        if (!mainWindow || mainWindow.isDestroyed()) return { success: false };
+        try {
+            const result = await mainWindow.webContents.executeJavaScript(`
+                (async function() {
+                    if (typeof window.tabs === 'undefined' || !Array.isArray(window.tabs)) return { success: false, error: 'tabs not found' };
+                    if (window.tabs.length <= 1) return { success: true, count: 0 };
+                    
+                    const tabsToClose = window.tabs.slice(1).map(t => t.id);
+                    let closedCount = 0;
+                    for (const tabId of tabsToClose) {
+                        if (typeof window.closeTab === 'function') {
+                            window.closeTab(tabId);
+                            closedCount++;
+                        }
+                    }
+                    return { success: true, closedCount };
+                })()
+            `);
+            return result;
+        } catch(e) {
+            log.error('[ExtBridge] close-all-extra-tabs error:', e);
+            return { success: false, error: e.message };
+        }
+    }
+    
     // ── 토큰 자동 감산 브릿지 ──
     if (message.action === 'xpider-deduct-token') {
         const userId = authService.getCurrentUserId();

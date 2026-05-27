@@ -358,6 +358,9 @@ function normalizeUrl(url) {
 async function startCampaignOrchestrator(queue, template, delayMs) {
     // [v18.17.0] Emergency Diagnostic Sequence
     logBg(null, "[Boot] Orchestrator entered.", "debug");
+    
+    // [URL 세션 시작] 여분의 브라우저 새 탭 일괄 닫기 트리거
+    chrome.runtime.sendMessage({ action: 'CLOSE_ALL_EXTRA_TABS' }).catch(() => {});
 
     try {
         // [v18.18.5] Deep Sanitization: Re-initialize the registry to avoid cross-session pollution
@@ -411,6 +414,9 @@ async function startCampaignOrchestrator(queue, template, delayMs) {
 
 function stopCampaignOrchestrator() {
     campaignState.isActive = false;
+    
+    // [URL 세션 중단] 여분의 브라우저 새 탭 일괄 닫기 트리거
+    chrome.runtime.sendMessage({ action: 'CLOSE_ALL_EXTRA_TABS' }).catch(() => {});
     
     // [v18.8.0] Persistence: Clear stored active state
     chrome.storage.local.set({ xpider_isActive: false });
@@ -473,6 +479,8 @@ async function processNextCampaignTarget(loopSessionId) {
             if (campaignState.isActive) {
                 logBg(null, "Campaign finished!", "complete");
                 campaignState.isActive = false;
+                // [URL 세션 성공 완료] 여분의 브라우저 새 탭 일괄 닫기 트리거
+                chrome.runtime.sendMessage({ action: 'CLOSE_ALL_EXTRA_TABS' }).catch(() => {});
             }
             campaignState.isLoopRunning = false;
             return;
