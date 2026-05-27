@@ -4,224 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // [v18.1] STRICT Persistent Port Connection to detect popup closure instantly
     chrome.runtime.connect({ name: 'popup-ctrl' });
 
-    // ─── XPIDER IPC 브릿지 ────────────────────────────────────────────────────
-    function xpiderInvoke(channel, args) {
-        return new Promise((resolve) => {
-            const id = `vpn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-            const handler = (event) => {
-                if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === id) {
-                    window.removeEventListener('message', handler);
-                    clearTimeout(timer);
-                    resolve(event.data.result || null);
-                }
-            };
-            const timer = setTimeout(() => {
-                window.removeEventListener('message', handler);
-                resolve(null);
-            }, 10000);
-            window.addEventListener('message', handler);
-            window.postMessage({ type: 'XPIDER_INVOKE', channel, args: args || {}, id }, '*');
-        });
-    }
-
-    // ─── VPN 권장 팝업 모달 ──────────────────────────────────────────────────
-    function showVpnRecommendationModal(callback) {
-        const existing = document.getElementById('xpider-vpn-modal');
-        if (existing) existing.remove();
-
-        const modal = document.createElement('div');
-        modal.id = 'xpider-vpn-modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(8, 8, 12, 0.85);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 999999;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        `;
-
-        const card = document.createElement('div');
-        card.style.cssText = `
-            background: linear-gradient(145deg, rgba(26, 27, 38, 0.95), rgba(17, 18, 26, 0.95));
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 16px;
-            padding: 30px 24px;
-            width: 90%;
-            max-width: 380px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(99, 102, 241, 0.1);
-            text-align: center;
-            transform: scale(0.9);
-            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            box-sizing: border-box;
-        `;
-
-        card.innerHTML = `
-            <div style="font-size: 40px; margin-bottom: 16px; display: inline-block; filter: drop-shadow(0 4px 12px rgba(99, 102, 241, 0.4));">🛡️</div>
-            <h2 style="color: #ffffff; font-size: 20px; font-weight: 700; margin: 0 0 12px 0; letter-spacing: -0.5px;">🔒 XPIDER VPN Recommended</h2>
-            <p style="color: #94a3b8; font-size: 13.5px; line-height: 1.6; margin: 0 0 20px 0; word-break: keep-all; font-weight: 400;">
-                To maximize leads deliverability, bypass target server blocks, and ensure complete data security, we highly recommend running this module through the XPIDER VPN proxy network.
-            </p>
-            <button id="xpider-vpn-btn-connect" style="
-                width: 100%;
-                padding: 13px 20px;
-                font-size: 14px;
-                font-weight: 600;
-                color: #ffffff;
-                background: linear-gradient(135deg, #6366f1, #a855f7);
-                border: none;
-                border-radius: 10px;
-                cursor: pointer;
-                box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
-                transition: all 0.2s ease;
-                outline: none;
-                margin-bottom: 16px;
-            ">Turn on VPN & Start</button>
-            <label style="
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 6px;
-                font-size: 12px;
-                color: #64748b;
-                margin-bottom: 16px;
-                cursor: pointer;
-                user-select: none;
-            " onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#64748b'">
-                <input type="checkbox" id="xpider-vpn-skip-checkbox" style="
-                    accent-color: #6366f1;
-                    cursor: pointer;
-                    width: 14px;
-                    height: 14px;
-                    margin: 0;
-                ">
-                <span>Don't show this again</span>
-            </label>
-            <div id="xpider-vpn-btn-bypass" style="
-                display: inline-block;
-                font-size: 12.5px;
-                color: #64748b;
-                cursor: pointer;
-                text-decoration: none;
-                transition: color 0.2s ease;
-                font-weight: 500;
-            " onmouseover="this.style.color='#cbd5e1'" onmouseout="this.style.color='#64748b'">Continue unprotected</div>
-        `;
-
-        modal.appendChild(card);
-        document.body.appendChild(modal);
-
-        requestAnimationFrame(() => {
-            modal.style.opacity = '1';
-            card.style.transform = 'scale(1)';
-        });
-
-        const connectBtn = card.querySelector('#xpider-vpn-btn-connect');
-        const bypassBtn = card.querySelector('#xpider-vpn-btn-bypass');
-
-        connectBtn.onmouseover = () => {
-            connectBtn.style.transform = 'translateY(-1px)';
-            connectBtn.style.boxShadow = '0 6px 20px rgba(168, 85, 247, 0.45)';
-        };
-        connectBtn.onmouseout = () => {
-            connectBtn.style.transform = 'translateY(0)';
-            connectBtn.style.boxShadow = '0 4px 15px rgba(168, 85, 247, 0.3)';
-        };
-
-        const closeModal = (choice) => {
-            const skipCheckbox = card.querySelector('#xpider-vpn-skip-checkbox');
-            const skipChecked = skipCheckbox ? skipCheckbox.checked : false;
-
-            modal.style.opacity = '0';
-            card.style.transform = 'scale(0.9)';
-            setTimeout(() => {
-                modal.remove();
-                callback(choice, skipChecked);
-            }, 300);
-        };
-
-        connectBtn.onclick = () => closeModal('connect');
-        bypassBtn.onclick = () => closeModal('bypass');
-    }
-
-    // ─── 안전 로그 출력 헬퍼 (UI 에러 방지) ──────────────────────────────────
-    function safeLog(msg, type = 'info') {
-        console.log(`[XPIDER-VPN-BRIDGE] ${msg}`);
-        try {
-            if (typeof addLog === 'function') {
-                addLog(msg, type);
-            }
-        } catch (e) {
-            console.warn('safeLog failed to render in UI:', e.message);
-        }
-    }
-
-    // ─── VPN 상태 검사 및 자동 구동 연동 ───────────────────────────────────────
-    async function checkVpnAndStart(onStartCallback) {
-        let isVpnConnected = false;
-        let shouldSkipPopup = false;
-        try {
-            const vpnState = await xpiderInvoke('xpider-vpn-get-state');
-            isVpnConnected = !!(vpnState && vpnState.connected);
-
-            const storage = await chrome.storage.local.get(['xpider_vpn_popup_skip']).catch(() => ({}));
-            shouldSkipPopup = !!(storage && storage.xpider_vpn_popup_skip);
-        } catch (e) {
-            console.error('Failed to fetch VPN state or skip setting via IPC:', e);
-        }
-
-        if (isVpnConnected || shouldSkipPopup) {
-            onStartCallback();
-            return;
-        }
-
-        try {
-            showVpnRecommendationModal(async (choice, skipChecked) => {
-                if (skipChecked) {
-                    try {
-                        await chrome.storage.local.set({ xpider_vpn_popup_skip: true });
-                        safeLog('[VPN] "Don\'t show this again" set to true.', 'info');
-                    } catch (err) {
-                        console.error('Failed to save skip setting:', err);
-                    }
-                }
-
-                if (choice === 'connect') {
-                    safeLog('[VPN] Auto-connecting XPIDER VPN for secure operation...', 'info');
-                    try {
-                        const connRes = await xpiderInvoke('xpider-vpn-connect', { autoSelect: true });
-                        if (connRes && connRes.ok) {
-                            safeLog('✅ [VPN] Securely connected to XPIDER VPN proxy!', 'success');
-                            await new Promise(r => setTimeout(r, 1500));
-                            onStartCallback();
-                        } else {
-                            safeLog('⚠️ [VPN] Connection failed. Starting unprotected...', 'warning');
-                            onStartCallback();
-                        }
-                    } catch (err) {
-                        safeLog('⚠️ [VPN] Connection failed with error. Starting unprotected...', 'warning');
-                        console.error('VPN auto-connect failed:', err);
-                        onStartCallback();
-                    }
-                } else if (choice === 'bypass') {
-                    safeLog('⚠️ [Security] Running operation without VPN protection.', 'warning');
-                    onStartCallback();
-                }
-            });
-        } catch (e) {
-            console.error('Failed to show VPN recommendation modal:', e);
-            onStartCallback();
-        }
-    }
-
     // UI Elements Reference
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -973,168 +755,166 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Start Collection
-    startBtn.addEventListener('click', () => {
-        checkVpnAndStart(async () => {
-            // ─── [Stealth] 수집 시작 시 세션(쿠키, 캐시, 스토리지) 자동 초기화 연동 ───
-            const autoClear = autoClearSessionToggle ? autoClearSessionToggle.checked : true;
-            if (autoClear) {
-                addLog('🧹 [System] Clearing session data (cookies, caches, storage) to prevent Google detection...');
-                window.postMessage({
-                    type: 'XPIDER_SEND',
-                    channel: 'xpider-ext-clear-session'
-                }, '*');
-                
-                // 초기화 비동기 처리가 완료될 수 있도록 0.8초의 짧은 안전 대기 지연 적용
-                await new Promise(r => setTimeout(r, 800));
-                addLog('✅ [System] Initialization complete! Starting collection safely under high stealth.');
-            }
-
-            const lang = languageSelect.value;
-            const reg = regionSelect.value;
-            const dictionary = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData ? i18nData['en'] : null);
-
-            let content = '';
-            if (currentTab === 'text') content = textInput.value;
-            else if (currentTab === 'url') content = urlInput.value;
-            else if (currentTab === 'search') content = keywordInput.value;
-
-            if (!content.trim()) {
-                return alert(dictionary ? dictionary.alert_empty : 'Please enter content.');
-            }
-
-            startBtn.disabled = true;
-            pauseBtn.classList.remove('hidden');
-            cancelBtn.classList.remove('hidden');
-            cancelBtn.disabled = false;
-            statusBox.classList.remove('hidden');
-            resultBox.classList.add('hidden');
-            logContainer.innerHTML = '';
-            resultTableBody.innerHTML = '';
-            progressBar.style.width = '0%';
-            progressText.textContent = '0%';
-            linkCountSpan.textContent = '0';
-            results = [];
-
-            addLog(dictionary ? dictionary.btn_start : 'Starting collection...');
-
-            setTimeout(() => {
-                statusBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 300);
-
-            if (content.length === 0) {
-                return alert(dictionary ? dictionary.alert_empty : 'Please enter content.');
-            }
-
-            results = [];
-            resultTableBody.innerHTML = '';
-            logContainer.innerHTML = ''; 
-            progressBar.style.width = '0%';
-            progressText.textContent = '0%';
-            linkCountSpan.textContent = '0';
-            resultBox.classList.add('hidden');
-
-            // [v66.11] Reset stats area UI
-            const statsPrefix = document.getElementById('stats-prefix-span');
-            const linkCount = document.getElementById('link-count');
-            const statsSuffix = document.querySelector('[data-i18n="stats_suffix"]');
-            const dict = (typeof I18N_DATA !== 'undefined' && I18N_DATA[lang]) ? I18N_DATA[lang] : (typeof I18N_DATA !== 'undefined' ? I18N_DATA['en'] : (dictionary || {}));
-
-            // [v67.0] Initialize with 'Collection Status: 0 extracted' format immediately
-            updateRealTimeStatus(0);
-
-            startBtn.disabled = true;
-            pauseBtn.disabled = false;
-            cancelBtn.disabled = false;
-            statusBox.classList.remove('hidden'); 
+    startBtn.addEventListener('click', async () => {
+        // ─── [Stealth] 수집 시작 시 세션(쿠키, 캐시, 스토리지) 자동 초기화 연동 ───
+        const autoClear = autoClearSessionToggle ? autoClearSessionToggle.checked : true;
+        if (autoClear) {
+            addLog('🧹 [System] Clearing session data (cookies, caches, storage) to prevent Google detection...');
+            window.postMessage({
+                type: 'XPIDER_SEND',
+                channel: 'xpider-ext-clear-session'
+            }, '*');
             
-            try {
-                const time = new Date().toLocaleTimeString();
-                const startLog = `[${time}] [System] Starting Search... (Waiting for background)`;
-                const logEl = document.createElement('div');
-                logEl.className = 'log-entry';
-                logEl.textContent = startLog;
-                logContainer.appendChild(logEl);
-                logContainer.scrollTop = logContainer.scrollHeight;
+            // 초기화 비동기 처리가 완료될 수 있도록 0.8초의 짧은 안전 대기 지연 적용
+            await new Promise(r => setTimeout(r, 800));
+            addLog('✅ [System] Initialization complete! Starting collection safely under high stealth.');
+        }
 
-                const collectionTarget = document.getElementById('collection-target');
-                const targetOption = collectionTarget ? collectionTarget.value : 'all';
-                
-                // [v21.0] Fixed potential TypeError if selectedIndex is -1
-                let targetText = 'All';
-                if (collectionTarget && collectionTarget.selectedIndex >= 0) {
-                    targetText = collectionTarget.options[collectionTarget.selectedIndex].text;
-                }
-                
-                const cleanTargetText = targetText.replace(/^[\u0000-\u1F9FF\u2600-\u26FF\s]+/, '');
-                document.body.className = "target-mode-" + targetOption;
-                
-                const targetNameSpan = document.getElementById('current-target-name');
-                if (targetNameSpan) {
-                    targetNameSpan.textContent = cleanTargetText;
-                }
-                
-                chrome.storage.local.set({ savedTargetOption: targetOption, savedTargetText: cleanTargetText });
-                
-                if (currentTab === 'text') {
-                    console.log('[v21.0][Popup] Dispatching startSearch...');
-                    chrome.runtime.sendMessage({
-                        action: 'startSearch',
-                        text: content,
-                        collectEmails: true,
-                        targetOption: targetOption,
-                        language: lang,
-                        region: reg
-                    }, (response) => {
-                        if (chrome.runtime.lastError) console.error('[v21.0][Popup] startSearch error:', chrome.runtime.lastError);
-                        else console.log('[v21.0][Popup] startSearch response:', response);
-                    });
-                } else if (currentTab === 'url') {
-                    if (!content.startsWith('http')) {
-                        throw new Error(dictionary ? 'Invalid URL' : 'Invalid URL');
-                    }
-                    console.log('[v21.0][Popup] Dispatching startCrawl...');
-                    chrome.runtime.sendMessage({
-                        action: 'startCrawl',
-                        url: content,
-                        depth: parseInt(depthRange.value),
-                        collectEmails: true,
-                        targetOption: targetOption,
-                        language: lang,
-                        region: reg
-                    }, (response) => {
-                        if (chrome.runtime.lastError) console.error('[v21.0][Popup] startCrawl error:', chrome.runtime.lastError);
-                        else console.log('[v21.0][Popup] startCrawl response:', response);
-                    });
-                }
-                else if (currentTab === 'search') {
-                    const checkedEngines = [...document.querySelectorAll('.engine-checkbox:checked')].map(cb => cb.value);
-                    if (checkedEngines.length === 0) {
-                        startBtn.disabled = false;
-                        statusBox.classList.add('hidden'); 
-                        return alert(dictionary ? dictionary.alert_empty : 'Please select at least one engine.');
-                    }
-                    console.log('[v21.0][Popup] Dispatching startEngineSearch...');
-                    chrome.runtime.sendMessage({
-                        action: 'startEngineSearch',
-                        engines: checkedEngines, 
-                        keyword: content,
-                        startPage: parseInt(startPageRange.value),
-                        maxPages: parseInt(endPageRange.value),
-                        depth: parseInt(depthRange.value),
-                        collectEmails: true,
-                        mapAuto: false,
-                        targetOption: targetOption,
-                        language: lang,
-                        region: reg
-                    }, (response) => {
-                        if (chrome.runtime.lastError) console.error('[v21.0][Popup] startEngineSearch error:', chrome.runtime.lastError);
-                        else console.log('[v21.0][Popup] startEngineSearch response:', response);
-                    });
-                }
-            } catch (err) {
-                startBtn.disabled = false;
+        const lang = languageSelect.value;
+        const reg = regionSelect.value;
+        const dictionary = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData ? i18nData['en'] : null);
+
+        let content = '';
+        if (currentTab === 'text') content = textInput.value;
+        else if (currentTab === 'url') content = urlInput.value;
+        else if (currentTab === 'search') content = keywordInput.value;
+
+        if (!content.trim()) {
+            return alert(dictionary ? dictionary.alert_empty : 'Please enter content.');
+        }
+
+        startBtn.disabled = true;
+        pauseBtn.classList.remove('hidden');
+        cancelBtn.classList.remove('hidden');
+        cancelBtn.disabled = false;
+        statusBox.classList.remove('hidden');
+        resultBox.classList.add('hidden');
+        logContainer.innerHTML = '';
+        resultTableBody.innerHTML = '';
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
+        linkCountSpan.textContent = '0';
+        results = [];
+
+        addLog(dictionary ? dictionary.btn_start : 'Starting collection...');
+
+        setTimeout(() => {
+            statusBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 300);
+
+        if (content.length === 0) {
+            return alert(dictionary ? dictionary.alert_empty : 'Please enter content.');
+        }
+
+        results = [];
+        resultTableBody.innerHTML = '';
+        logContainer.innerHTML = ''; 
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
+        linkCountSpan.textContent = '0';
+        resultBox.classList.add('hidden');
+
+        // [v66.11] Reset stats area UI
+        const statsPrefix = document.getElementById('stats-prefix-span');
+        const linkCount = document.getElementById('link-count');
+        const statsSuffix = document.querySelector('[data-i18n="stats_suffix"]');
+        const dict = (typeof I18N_DATA !== 'undefined' && I18N_DATA[lang]) ? I18N_DATA[lang] : (typeof I18N_DATA !== 'undefined' ? I18N_DATA['en'] : (dictionary || {}));
+
+        // [v67.0] Initialize with 'Collection Status: 0 extracted' format immediately
+        updateRealTimeStatus(0);
+
+        startBtn.disabled = true;
+        pauseBtn.disabled = false;
+        cancelBtn.disabled = false;
+        statusBox.classList.remove('hidden'); 
+        
+        try {
+            const time = new Date().toLocaleTimeString();
+            const startLog = `[${time}] [System] Starting Search... (Waiting for background)`;
+            const logEl = document.createElement('div');
+            logEl.className = 'log-entry';
+            logEl.textContent = startLog;
+            logContainer.appendChild(logEl);
+            logContainer.scrollTop = logContainer.scrollHeight;
+
+            const collectionTarget = document.getElementById('collection-target');
+            const targetOption = collectionTarget ? collectionTarget.value : 'all';
+            
+            // [v21.0] Fixed potential TypeError if selectedIndex is -1
+            let targetText = 'All';
+            if (collectionTarget && collectionTarget.selectedIndex >= 0) {
+                targetText = collectionTarget.options[collectionTarget.selectedIndex].text;
             }
-        });
+            
+            const cleanTargetText = targetText.replace(/^[\u0000-\u1F9FF\u2600-\u26FF\s]+/, '');
+            document.body.className = "target-mode-" + targetOption;
+            
+            const targetNameSpan = document.getElementById('current-target-name');
+            if (targetNameSpan) {
+                targetNameSpan.textContent = cleanTargetText;
+            }
+            
+            chrome.storage.local.set({ savedTargetOption: targetOption, savedTargetText: cleanTargetText });
+            
+            if (currentTab === 'text') {
+                console.log('[v21.0][Popup] Dispatching startSearch...');
+                chrome.runtime.sendMessage({
+                    action: 'startSearch',
+                    text: content,
+                    collectEmails: true,
+                    targetOption: targetOption,
+                    language: lang,
+                    region: reg
+                }, (response) => {
+                    if (chrome.runtime.lastError) console.error('[v21.0][Popup] startSearch error:', chrome.runtime.lastError);
+                    else console.log('[v21.0][Popup] startSearch response:', response);
+                });
+            } else if (currentTab === 'url') {
+                if (!content.startsWith('http')) {
+                    throw new Error(dictionary ? 'Invalid URL' : 'Invalid URL');
+                }
+                console.log('[v21.0][Popup] Dispatching startCrawl...');
+                chrome.runtime.sendMessage({
+                    action: 'startCrawl',
+                    url: content,
+                    depth: parseInt(depthRange.value),
+                    collectEmails: true,
+                    targetOption: targetOption,
+                    language: lang,
+                    region: reg
+                }, (response) => {
+                    if (chrome.runtime.lastError) console.error('[v21.0][Popup] startCrawl error:', chrome.runtime.lastError);
+                    else console.log('[v21.0][Popup] startCrawl response:', response);
+                });
+            }
+            else if (currentTab === 'search') {
+                const checkedEngines = [...document.querySelectorAll('.engine-checkbox:checked')].map(cb => cb.value);
+                if (checkedEngines.length === 0) {
+                    startBtn.disabled = false;
+                    statusBox.classList.add('hidden'); 
+                    return alert(dictionary ? dictionary.alert_empty : 'Please select at least one engine.');
+                }
+                console.log('[v21.0][Popup] Dispatching startEngineSearch...');
+                chrome.runtime.sendMessage({
+                    action: 'startEngineSearch',
+                    engines: checkedEngines, 
+                    keyword: content,
+                    startPage: parseInt(startPageRange.value),
+                    maxPages: parseInt(endPageRange.value),
+                    depth: parseInt(depthRange.value),
+                    collectEmails: true,
+                    mapAuto: false,
+                    targetOption: targetOption,
+                    language: lang,
+                    region: reg
+                }, (response) => {
+                    if (chrome.runtime.lastError) console.error('[v21.0][Popup] startEngineSearch error:', chrome.runtime.lastError);
+                    else console.log('[v21.0][Popup] startEngineSearch response:', response);
+                });
+            }
+        } catch (err) {
+            startBtn.disabled = false;
+        }
     });
 
     // [v18.6] Optimized Pause/Resume Toggle for immediate feedback
