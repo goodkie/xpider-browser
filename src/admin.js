@@ -126,7 +126,7 @@ async function sha256(message) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-const SECURE_PW_HASH = '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'; // 'password'
+const SECURE_PW_HASH = 'de34ddf5af5bcbda0219a7280880a0b7c6ae7b12885160996fe3effaa67733a3'; // 'koko'
 const SESSION_VAL_HASH = 'c028a4be8544d65a8df2f8b54e69e855c3c19e855a024c7ad44cbad762a5da0a4'; // 고유 세션 키
 
 let autoPollInterval = null;
@@ -157,7 +157,7 @@ async function handleSecureLogin() {
     
     const pwHash = await sha256(passwordInput);
     
-    if (usernameInput === 'admin' && pwHash === SECURE_PW_HASH) {
+    if (usernameInput === 'Annie' && pwHash === SECURE_PW_HASH) {
         errorMsg.textContent = '';
         localStorage.setItem('xpider_admin_session', SESSION_VAL_HASH);
         const overlay = document.getElementById('admin-login-overlay');
