@@ -244,7 +244,7 @@ namespace XpiderSetup
             chkToS.CheckedChanged += (s, e) => btnExtract.Enabled = chkToS.Checked;
 
             lblToSLink = new Label { Location = new Point(130, 97), AutoSize = true, Font = new Font(regFont.FontFamily, 8.5f, FontStyle.Underline), ForeColor = ACCENT, Cursor = Cursors.Hand };
-            lblToSLink.Click += (s, e) => LaunchChromeAppMode($"https://goodkie.github.io/xpider-browser/landing/tos.html?lang={currentLang}");
+            lblToSLink.Click += (s, e) => LaunchChromeAppMode("http://xpider.pro/standalone-tos.html");
 
             lblStatus = new Label { Location = new Point(0, 140), Size = new Size(510, 18), Font = regFont, ForeColor = DIM };
             pbExtract = new RoundedProgressBar { Location = new Point(0, 164), Size = new Size(510, 8), Maximum = 100, Value = 0, BarColor = ACCENT, BackColor = Color.FromArgb(30, 30, 30), Radius = 4 };
