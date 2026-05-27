@@ -16,7 +16,8 @@ const pkgPath = 'e:/vivpr/ai/xpider-trial/package.json';
 if (fs.existsSync(pkgPath)) {
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
   const oldVer = pkg.version;
-  pkg.version = '4.10.35'; // 신규 브라우저 버전 지정
+  const newVer = bumpPatchVersion(oldVer);
+  pkg.version = newVer; // 자동으로 패치 버전 1 증가
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2), 'utf8');
   console.log(`[App] package.json version bumped: ${oldVer} -> ${pkg.version}`);
 } else {
