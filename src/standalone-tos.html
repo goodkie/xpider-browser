@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XPIDER PRO — Terms of Service</title>
+    <!-- Google Font Integration -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #050811;
+            --bg-glass: rgba(13, 22, 42, 0.7);
+            --border-color: rgba(0, 242, 254, 0.12);
+            --border-glow: rgba(0, 242, 254, 0.25);
+            --color-text-main: #f1f5f9;
+            --color-text-muted: #64748b;
+            --color-text-slate: #94a3b8;
+            --accent-cyan: #00f2fe;
+            --accent-purple: #6c63ff;
+            --accent-red: #ff3366;
+            --accent-gold: #ffd700;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--color-text-main);
+            font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
+            line-height: 1.7;
+            overflow-x: hidden;
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 3D 네온 앰비언트 글로우 백그라운드 */
+        body::before, body::after {
+            content: '';
+            position: absolute;
+            width: 450px;
+            height: 450px;
+            border-radius: 50%;
+            filter: blur(140px);
+            z-index: -1;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        body::before {
+            top: 5%;
+            left: -10%;
+            background: radial-gradient(circle, var(--accent-cyan) 0%, transparent 70%);
+        }
+        body::after {
+            bottom: 10%;
+            right: -10%;
+            background: radial-gradient(circle, var(--accent-purple) 0%, transparent 70%);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 50px 20px 80px;
+            width: 100%;
+        }
+
+        /* 헤더 스타일링 */
+        .tos-header {
+            text-align: center;
+            margin-bottom: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .tos-logo-wrap {
+            margin-bottom: 16px;
+            position: relative;
+        }
+
+        .tos-logo-img {
+            width: 78px;
+            height: 78px;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 242, 254, 0.4);
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.25);
+            object-fit: cover;
+            background: #0d162a;
+        }
+
+        .tos-header h1 {
+            font-size: 34px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 40%, var(--accent-cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+            letter-spacing: -0.5px;
+        }
+
+        .tos-header p {
+            color: var(--color-text-slate);
+            font-size: 13.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* 약관 카드 스타일링 */
+        .tos-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-color);
+            border-radius: 28px;
+            padding: 52px 44px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.03);
+            position: relative;
+            z-index: 1;
+        }
+
+        .tos-section {
+            margin-bottom: 38px;
+        }
+
+        .tos-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .tos-section h2 {
+            font-size: 19px;
+            font-weight: 800;
+            color: var(--accent-cyan);
+            margin-bottom: 14px;
+            border-left: 3px solid var(--accent-purple);
+            padding-left: 12px;
+            letter-spacing: -0.3px;
+            text-shadow: 0 0 8px rgba(0, 242, 254, 0.2);
+        }
+
+        .tos-section p {
+            font-size: 14.5px;
+            color: #cbd5e1;
+            margin-bottom: 14px;
+            text-align: justify;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .tos-section ul {
+            margin-left: 20px;
+            margin-bottom: 16px;
+            color: #cbd5e1;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .tos-section li {
+            margin-bottom: 8px;
+        }
+
+        .tos-section strong {
+            color: #fff;
+            font-weight: 700;
+        }
+
+        /* Prohibited Actions Grid Box (Crimson / Soft Red Accent) */
+        .danger-box-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+            background: rgba(255, 51, 102, 0.05);
+            border: 1px solid rgba(255, 51, 102, 0.18);
+            padding: 20px;
+            border-radius: 16px;
+        }
+
+        .danger-item {
+            font-size: 13px;
+            color: #fca5a5;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .danger-item::before {
+            content: '❌';
+            font-size: 11px;
+        }
+
+        /* Information / Tip Alert Box */
+        .info-alert-box {
+            background: rgba(0, 242, 254, 0.04);
+            border: 1px solid rgba(0, 242, 254, 0.15);
+            padding: 16px;
+            border-radius: 14px;
+            margin-bottom: 18px;
+            color: #e0f2fe;
+            font-size: 13.5px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Footer styling */
+        .tos-footer {
+            text-align: center;
+            margin-top: 38px;
+            color: var(--color-text-slate);
+            font-size: 12px;
+            z-index: 1;
+        }
+
+        .tos-footer a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+            font-weight: 700;
+            transition: all 0.2s ease;
+        }
+
+        .tos-footer a:hover {
+            text-decoration: underline;
+            text-shadow: 0 0 6px rgba(0, 242, 254, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .tos-card {
+                padding: 32px 24px;
+                border-radius: 22px;
+            }
+            .tos-header h1 {
+                font-size: 27px;
+            }
+            .danger-box-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <!-- 👑 HEADER LOGO & TITLE -->
+        <header class="tos-header">
+            <div class="tos-logo-wrap">
+                <img src="logo_icon.png" class="tos-logo-img" alt="XPIDER Logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 24 24\' fill=\'%2300f2fe\'><circle cx=\'12\' cy=\'12\' r=\'10\' fill-opacity=\'0.1\' stroke=\'%2300f2fe\' stroke-width=\'2\'/><path d=\'M12 2L2 22h20L12 2zm0 4l7.5 13.5h-15L12 6z\'/></svg>'">
+            </div>
+            <h1>XPIDER PRO Terms of Service</h1>
+            <p>Effective Date: March 27, 2025</p>
+        </header>
+
+        <!-- 📄 MAIN ENGLISH TERMS CONTENT -->
+        <main class="tos-card">
+
+            <!-- 1. Agreement -->
+            <section class="tos-section">
+                <h2>1. Agreement</h2>
+                <p>
+                    This is the Terms of Service Agreement (“Agreement”) between **XPIDER B.V.** (“XPIDER PRO”, "we", "us", or "our") and you (“User”, “Customer”, or “your”), which goes into effect as of the date of your use of this software, browser application, or electronic acceptance of this Agreement.
+                </p>
+                <p>
+                    These Terms of Service govern your use of the custom Chromium browser client, automated mining extensions, and the Admin Command Center web service (collectively, the "Services") provided by XPIDER PRO. By exploring this Site or subscribing to our Services, you acknowledge that you have fully understood, accepted, and agreed to be bound by this Agreement.
+                </p>
+            </section>
+
+            <!-- 2. Eligibility & Account Security -->
+            <section class="tos-section">
+                <h2>2. Eligibility & Account Security</h2>
+                <p>
+                    By accessing or purchasing our Services, you affirm and warrant that you are at least **eighteen (18) years of age** and are fully capable of forming legally binding contractual obligations under applicable law.
+                </p>
+                <p>
+                    To access certain features of our Services, you are required to register and create a user Account. You must ensure that all registered information remains truthful, current, and complete at all times. If you voluntarily grant access or share your Account (Account Sharing) with any third party, you assume full legal and financial responsibility for all activities, transactions, and liabilities incurred under your Account.
+                </p>
+            </section>
+
+            <!-- 3. Resource & Token System Policy -->
+            <section class="tos-section">
+                <h2>3. Resource & Token Deduction Policy</h2>
+                <div class="info-alert-box">
+                    💡 **Token-Based Billing System**: XPIDER PRO dynamically deducts your remaining tokens in real time based on the execution counts of extensions and the volume of lead extractions.
+                </div>
+                <p>
+                    Customers are entitled to utilize system resources within the specific allocations designated under their subscribed B2B Pricing Plans (Starter, Pro, or Enterprise).
+                </p>
+                <ul>
+                    <li>**Token Reset**: Upon monthly or annual subscription renewal, the remaining token balance will be reset and recharged to the default amount of your plan.</li>
+                    <li>**Automated Feature Restriction**: Once your token balance is fully depleted (0 tokens), the operation of all extensions and browser mining tasks will immediately suspend in real time, and you will be automatically redirected to the recharge page.</li>
+                    <li>**Default Welcome Tokens**: New accounts are credited with a default welcome balance of exactly 600 tokens.</li>
+                </ul>
+            </section>
+
+            <!-- 4. Acceptable Use -->
+            <section class="tos-section">
+                <h2>4. Acceptable Use & Strict Restrictions</h2>
+                <p>
+                    You acknowledge and agree that our Services are intended strictly for commercial, business-to-business (B2B) marketing, and lead mining purposes. Any unauthorized usage that infringes upon the intellectual property of others or negatively impacts our server and network stability is strictly prohibited. Violation of these policies will result in immediate suspension or permanent termination of your account, along with the permanent destruction of all associated data.
+                </p>
+                <div class="danger-box-grid">
+                    <div class="danger-item">Spam & Mass Mailing</div>
+                    <div class="danger-item">Phishing & Impersonation</div>
+                    <div class="danger-item">DDoS Scripts & Packet Floods</div>
+                    <div class="danger-item">SIP Scanning & Exploitation</div>
+                    <div class="danger-item">Viruses & Trojans Distribution</div>
+                    <div class="danger-item">Virtual Currency Generators</div>
+                    <div class="danger-item">Reverse Proxies & Botnet C&C</div>
+                    <div class="danger-item">Forex & Unlawful Banking Schemes</div>
+                </div>
+            </section>
+
+            <!-- 5. Refund & Crypto Disclaimers -->
+            <section class="tos-section">
+                <h2>5. Refund, Chargebacks & Cryptocurrencies</h2>
+                <p>
+                    **Shared Hosting & Subscription**: A 30-day money-back guarantee is offered for valid subscriptions and shared plans, provided that a refund request is made **within fourteen (14) days of purchase** and the user has not violated any acceptable use terms.
+                </p>
+                <p>
+                    **Cryptocurrency Non-Refundable**: You explicitly acknowledge and agree that all transactions processed via cryptocurrencies of any kind are strictly non-refundable under all circumstances, and no full or prorated refunds will be issued.
+                </p>
+                <p>
+                    **Dispute & Chargeback**: Initiating a chargeback or payment dispute through PayPal or card issuers without first contacting XPIDER PRO and making a good-faith effort to resolve the issue will be considered a fraudulent act. XPIDER PRO reserves the complete right to terminate the account immediately and permanently destroy all database records without prior notice.
+                </p>
+            </section>
+
+            <!-- 6. Backup, Restoration & Telemetry -->
+            <section class="tos-section">
+                <h2>6. Backup, Restoration & Telemetry</h2>
+                <p>
+                    XPIDER PRO operates the following system monitors and failsafes to maintain the reliability of services and reinforce user security.
+                </p>
+                <ul>
+                    <li>**Real-time Activity Tracking**: The user's public IP address and hardware physical address (MAC Address) at the time of login are captured and recorded in the Admin Command Center to facilitate active device verification and prevent unauthorized multi-device sharing.</li>
+                    <li>**Periodic Remote Backups**: The main application process automatically captures full database snapshots hourly and commits them to our secure remote GitHub repository (`goodkie/xpider-browser`) in encrypted JSON format.</li>
+                    <li>**Restoration & Recovery**: In the event of system instability or user error, XPIDER PRO reserves the unilateral right—subject to authorized administrator approval—to restore profiles and user_logs tables immediately from the remote GitHub backups.</li>
+                </ul>
+            </section>
+
+            <!-- 7. Disclaimer of Warranties -->
+            <section class="tos-section">
+                <h2>7. Limited Warranties & Disclaimer</h2>
+                <p>
+                    YOU EXPRESSLY ACKNOWLEDGE AND AGREE THAT YOUR USE OF THE XPIDER PRO SERVICES IS ENTIRELY AT YOUR OWN RISK. ALL SERVICES AND BROWSER CLIENTS ARE PROVIDED STRICTLY ON AN “AS IS,” “AS AVAILABLE,” AND “WITH ALL FAULTS” BASIS.
+                </p>
+                <p>
+                    XPIDER PRO and its officers, directors, and employees make no warranties regarding the uninterrupted availability, merchantability, or fitness for a particular purpose of the Services. No advice or instructions provided through our guides or customer support shall be construed as professional, financial, or legal counsel.
+                </p>
+                <p>
+                    **Users are solely responsible for any data loss, system accidents, or failures that occur during the installation process. All responsibilities regarding the collection, handling, and management of data gathered through this software lie entirely and exclusively with the user.**
+                </p>
+            </section>
+
+        </main>
+
+        <!-- 📧 FOOTER -->
+        <footer class="tos-footer">
+            <p>&copy; 2025 XPIDER B.V. All rights reserved. | <a href="index.html">Back to Home</a></p>
+        </footer>
+    </div>
+</body>
+</html>
