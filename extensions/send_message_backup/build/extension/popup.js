@@ -82,9 +82,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const langSelect = document.getElementById('language-select');
                     const lang = langSelect ? langSelect.value : 'en';
                     const dict = i18nData[lang] || i18nData['en'] || {};
-                    if (btn && campaignPaused) {
-                        btn.textContent = dict.btn_resume || "▶️ Resume";
-                        btn.style.backgroundColor = "#22c55e";
+                    if (btn) {
+                        if (campaignPaused) {
+                            btn.textContent = dict.btn_resume || "▶️ Resume";
+                            btn.style.backgroundColor = "#22c55e";
+                        } else {
+                            btn.textContent = dict.btn_pause || "⏸️ Pause";
+                            btn.style.backgroundColor = "#f59e0b";
+                        }
                     }
                 } else {
                     // Reset to clean start state
