@@ -15,10 +15,29 @@ const extensionWebview = document.getElementById('extension-webview');
 // ─── 토큰 실시간 연동 및 모니터링 ──────────────────────────────
 async function updateTokenDisplay() {
     try {
+        // 1. 유저 프로필 조회하여 로그인 상태 확인 (비로그인 상태에서 락 걸림 방지)
+        const profile = await window.electronAPI.invoke('user-get-profile');
+        if (!profile) {
+            return;
+        }
+
         const remaining = await window.electronAPI.invoke('xpider-token-get-remaining');
         const tokenDisplay = document.getElementById('token-count-display');
         if (tokenDisplay) {
             tokenDisplay.textContent = Number(remaining).toLocaleString() + ' Tokens';
+        }
+
+        // 2. 토큰 잔량에 따른 실시간 화면 사용 제한(Lock) 처리
+        const modal = document.getElementById('token-depleted-modal');
+        if (modal) {
+            if (Number(remaining) <= 0) {
+                modal.classList.remove('hidden');
+            } else {
+                // 업그레이드 또는 충전 완료 시 락 자동 해제
+                if (!modal.classList.contains('hidden')) {
+                    modal.classList.add('hidden');
+                }
+            }
         }
     } catch(e) {
         console.error('Failed to update token display:', e);
