@@ -7,5 +7,6 @@ contextBridge.exposeInMainWorld('authAPI', {
   getNoAutoLogin: ()                => ipcRenderer.invoke('auth-get-no-auto-login'),
   success:        ()                => ipcRenderer.send('auth-success'),
   closeApp:       ()                => ipcRenderer.send('auth-close-app'),
+  openExternal:   (url)             => ipcRenderer.send('auth-open-external', url),
 });
 

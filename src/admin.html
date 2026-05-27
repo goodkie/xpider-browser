@@ -9,6 +9,29 @@
     <link rel="stylesheet" href="admin.css">
 </head>
 <body>
+    <!-- 🔑 어드민 강력한 암호화 로그인 오버레이 -->
+    <div id="admin-login-overlay" class="admin-login-overlay">
+        <div class="login-card">
+            <div class="login-logo">🔒</div>
+            <h2 class="login-title">XPIDER Command Center</h2>
+            <p class="login-desc">강력한 암호화 기반 어드민 로그인 보안</p>
+            
+            <div class="login-input-group">
+                <label for="login-username">Admin ID</label>
+                <input type="text" id="login-username" class="login-input" placeholder="Enter admin id..." autofocus>
+            </div>
+            
+            <div class="login-input-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" class="login-input" placeholder="Enter password...">
+            </div>
+            
+            <div id="login-error-msg" class="login-error"></div>
+            
+            <button id="login-btn" class="login-btn" onclick="handleSecureLogin()">Secure Login</button>
+        </div>
+    </div>
+
     <div class="admin-app">
         <!-- Top Glow Navigation -->
         <header class="admin-header">
@@ -19,8 +42,11 @@
                     <p>SaaS Management & Real-time Live Monitor</p>
                 </div>
             </div>
-            <div class="header-actions">
+            <div class="header-actions" style="display:flex; gap:10px; align-items:center;">
+                <button id="github-backup-btn" class="glow-btn" style="background: linear-gradient(135deg, #ffd700 0%, #ff8c00 100%); color: #03070d; box-shadow: 0 4px 15px rgba(255, 215, 0, 0.25);" onclick="triggerGithubBackup()">📦 GitHub Backup</button>
+                <button id="github-restore-btn" class="glow-btn" style="background: linear-gradient(135deg, #ae75ff 0%, #6c63ff 100%); color: #fff; box-shadow: 0 4px 15px rgba(108, 99, 255, 0.25);" onclick="triggerGithubRestore()">🔄 GitHub Restore</button>
                 <button id="refresh-all-btn" class="glow-btn">🔄 Sync Database</button>
+                <button id="admin-logout-btn" class="btn-action logout" onclick="handleAdminLogout()">🔓 Logout</button>
             </div>
         </header>
 

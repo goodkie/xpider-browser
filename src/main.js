@@ -388,6 +388,9 @@ ipcMain.handle('auth-login', async (_, { email, password }) => {
 ipcMain.handle('auth-signup', async (_, { email, password, username }) =>
   await authService.signup(email, password, username)
 );
+ipcMain.on('auth-open-external', (_, url) => {
+  shell.openExternal(url);
+});
 ipcMain.handle('auth-check-session', async () => {
   // --no-auto-login 플래그가 있는 경우 세션 복원 완전 차단
   if (_noAutoLogin) {
@@ -595,6 +598,224 @@ ipcMain.handle('admin-set-active', async (_, { userId, isActive }) =>
 ipcMain.handle('admin-force-logout', async (_, { userId }) =>
   authService.forceLogout(userId)
 );
+
+// ─── 📦 GitHub 자동/수동 백업 및 복원 API 연동 (Engine) ──────────────────
+const https = require('https');
+
+// GitHub Contents API 공통 요청 처리 함수
+function _githubApiRequest(method, apiPath, body, token) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = body ? JSON.stringify(body) : undefined;
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'User-Agent': 'XPIDER-Backup-Daemon',
+      'X-GitHub-Api-Version': '2022-11-28'
+    };
+    if (bodyStr) {
+      headers['Content-Type'] = 'application/json';
+      headers['Content-Length'] = Buffer.byteLength(bodyStr);
+    }
+    const req = https.request({
+      hostname: 'api.github.com',
+      path: apiPath,
+      method,
+      headers
+    }, res => {
+      let d = '';
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        if (res.statusCode >= 400 && res.statusCode !== 404) {
+          reject(new Error(`GitHub API Error: ${res.statusCode} ${d}`));
+          return;
+        }
+        try { resolve(JSON.parse(d)); }
+        catch { resolve(d); }
+      });
+    });
+    req.on('error', reject);
+    if (bodyStr) req.write(bodyStr);
+    req.end();
+  });
+}
+
+// GitHub Contents API로 파일 업로드
+function _uploadToGithub(pathStr, contentStr, message) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const token = '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';
+      const owner = 'goodkie';
+      const repo = 'xpider-browser';
+      
+      let sha = null;
+      try {
+        const getRes = await _githubApiRequest('GET', `/repos/${owner}/${repo}/contents/${pathStr}`, null, token);
+        if (getRes && getRes.sha) {
+          sha = getRes.sha;
+        }
+      } catch (err) {
+        // 파일이 없으면 sha = null
+      }
+
+      const body = {
+        message: message || `Database snapshot backup: ${pathStr}`,
+        content: Buffer.from(contentStr).toString('base64')
+      };
+      if (sha) body.sha = sha;
+
+      const putRes = await _githubApiRequest('PUT', `/repos/${owner}/${repo}/contents/${pathStr}`, body, token);
+      resolve(putRes);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+// GitHub 백업 코어 실행기
+async function executeDatabaseBackup(isAuto = false) {
+  const { supabaseAdmin } = require('./auth/supabase');
+  
+  // 1. Supabase profiles 조회
+  const { data: profiles, error: pErr } = await supabaseAdmin
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (pErr) throw new Error(`Profiles fetch failed: ${pErr.message}`);
+
+  // 2. Supabase user_logs 조회
+  const { data: logs, error: lErr } = await supabaseAdmin
+    .from('user_logs')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (lErr) throw new Error(`User logs fetch failed: ${lErr.message}`);
+
+  // 3. 백업 데이터 결합
+  const now = new Date();
+  const timestamp = now.getFullYear() +
+    String(now.getMonth() + 1).padStart(2, '0') +
+    String(now.getDate()).padStart(2, '0') + '_' +
+    String(now.getHours()).padStart(2, '0') +
+    String(now.getMinutes()).padStart(2, '0');
+
+  const backupPayload = {
+    timestamp: now.toISOString(),
+    profiles: profiles || [],
+    user_logs: logs || []
+  };
+  const jsonContent = JSON.stringify(backupPayload, null, 2);
+
+  // 4. GitHub 업로드 (latest + timestamp)
+  const prefix = isAuto ? 'db_backup_auto' : 'db_backup_manual';
+  const latestPath = `snapshots/db_backup_latest.json`;
+  const timePath = `snapshots/${prefix}_${timestamp}.json`;
+
+  log.info(`[Backup] Uploading backup JSON to GitHub contents API...`);
+  
+  await _uploadToGithub(latestPath, jsonContent, `Latest database snapshot backup [${isAuto ? 'Auto' : 'Manual'}]`);
+  await _uploadToGithub(timePath, jsonContent, `Database snapshot backup [${isAuto ? 'Auto' : 'Manual'}] at ${timestamp}`);
+
+  return { latestPath, timePath };
+}
+
+// 백업 스케줄러 가동 (1시간 주기)
+function startBackupScheduler() {
+  log.info('[Scheduler] XPIDER Database Auto-Backup Scheduler initialized.');
+  // 1시간 주기: 3,600,000 ms
+  setInterval(async () => {
+    try {
+      log.info('[Scheduler] Running hourly automatic database backup...');
+      const res = await executeDatabaseBackup(true);
+      log.info(`[Scheduler] Hourly backup completed successfully: ${res.timePath}`);
+    } catch (err) {
+      log.error(`[Scheduler] Automatic backup failed: ${err.message}`);
+    }
+  }, 3600000);
+}
+
+// 앱 시작 시 백업 스케줄러 실행 트리거 연결
+app.whenReady().then(() => {
+  startBackupScheduler();
+});
+
+ipcMain.handle('admin-github-backup', async () => {
+  try {
+    const res = await executeDatabaseBackup(false);
+    return { success: true, path: res.timePath };
+  } catch (err) {
+    log.error(`[Backup IPC] Manual backup failed: ${err.message}`);
+    return { success: false, error: err.message };
+  }
+});
+
+ipcMain.handle('admin-github-restore', async () => {
+  const { supabaseAdmin } = require('./auth/supabase');
+  try {
+    const token = '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';
+    const owner = 'goodkie';
+    const repo = 'xpider-browser';
+
+    // 1. GitHub에서 최신 백업 데이터 fetch
+    log.info('[Restore] Fetching latest database backup from GitHub...');
+    const getRes = await _githubApiRequest('GET', `/repos/${owner}/${repo}/contents/snapshots/db_backup_latest.json`, null, token);
+    if (!getRes || !getRes.content) {
+      throw new Error('최신 백업 파일(db_backup_latest.json)을 GitHub에서 찾을 수 없습니다.');
+    }
+
+    // Base64 디코딩
+    const jsonStr = Buffer.from(getRes.content, 'base64').toString('utf8');
+    const backupData = JSON.parse(jsonStr);
+
+    if (!backupData || !Array.isArray(backupData.profiles)) {
+      throw new Error('백업 데이터 포맷이 올바르지 않습니다.');
+    }
+
+    log.info(`[Restore] Restoring ${backupData.profiles.length} profiles and ${backupData.user_logs.length} logs...`);
+
+    // 2. DB 초기화 (user_logs 먼저 비우고, 그 다음 profiles 비우기)
+    log.info('[Restore] Cleaning up existing Supabase data...');
+    
+    const { error: delLogsErr } = await supabaseAdmin
+      .from('user_logs')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+    if (delLogsErr) throw new Error(`로그 비우기 실패: ${delLogsErr.message}`);
+
+    const { error: delProfilesErr } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000');
+    if (delProfilesErr) throw new Error(`회원 프로필 비우기 실패: ${delProfilesErr.message}`);
+
+    // 3. 프로필 복원 이식
+    log.info('[Restore] Restoring profiles records into database...');
+    if (backupData.profiles.length > 0) {
+      const { error: insProfErr } = await supabaseAdmin
+        .from('profiles')
+        .insert(backupData.profiles);
+      if (insProfErr) throw new Error(`회원 프로필 복구 입력 실패: ${insProfErr.message}`);
+    }
+
+    // 4. 로그 복원 이식
+    log.info('[Restore] Restoring user_logs records into database...');
+    if (backupData.user_logs.length > 0) {
+      const logsToInsert = backupData.user_logs;
+      const CHUNK_SIZE = 100;
+      for (let i = 0; i < logsToInsert.length; i += CHUNK_SIZE) {
+        const chunk = logsToInsert.slice(i, i + CHUNK_SIZE);
+        const { error: insLogsErr } = await supabaseAdmin
+          .from('user_logs')
+          .insert(chunk);
+        if (insLogsErr) throw new Error(`로그 복구 입력 실패 (Index ${i}): ${insLogsErr.message}`);
+      }
+    }
+
+    log.info('[Restore] Database snapshot restoration completed successfully!');
+    return { success: true, count: backupData.profiles.length };
+  } catch (err) {
+    log.error(`[Restore IPC] Database restore failed: ${err.message}`);
+    return { success: false, error: err.message };
+  }
+});
 
 // ─── 일반 사용자 IPC ──────────────────────────────────────────
 ipcMain.handle('user-get-profile', async () => {

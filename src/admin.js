@@ -21,7 +21,7 @@ async function sbInvoke(channel, data = {}) {
 
     if (channel === 'admin-get-all-profiles') {
         const { data: rows } = await sb.from('profiles')
-            .select('id, username, email, plan, is_active, created_at, last_login, active_device_id, tokens_remaining, last_active_at')
+            .select('id, username, email, plan, is_active, created_at, last_login, active_device_id, tokens_remaining, last_active_at, ip_address, mac_address')
             .order('created_at', { ascending: false });
         return rows || [];
     }
@@ -118,14 +118,87 @@ const newTokenAmount = document.getElementById('new-token-amount');
 const saveTokenBtn = document.getElementById('save-token-btn');
 const closeModalBtn = document.getElementById('close-modal-btn');
 
-// Initial Load & Heartbeat Setup
-document.addEventListener('DOMContentLoaded', () => {
-    appendDebugLog('Command Center Telemetry Console Activated. Auto-polling interval: 5000ms.', 'info');
+// ─── 🔑 강력한 암호화 로그인 보안 시스템 (SHA-256) ──────────────────
+async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+const SECURE_PW_HASH = '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'; // 'password'
+const SESSION_VAL_HASH = 'c028a4be8544d65a8df2f8b54e69e855c3c19e855a024c7ad44cbad762a5da0a4'; // 고유 세션 키
+
+let autoPollInterval = null;
+
+async function checkAdminSession() {
+    const overlay = document.getElementById('admin-login-overlay');
+    const session = localStorage.getItem('xpider_admin_session');
+    
+    if (session === SESSION_VAL_HASH) {
+        overlay.classList.add('fade-out');
+        appendDebugLog('🔑 [보안] 기존 유효한 어드민 세션이 감지되어 자동 로그인 완료.', 'success');
+        startAdminConsole();
+    } else {
+        appendDebugLog('🔒 [보안] 미인증 접근 감지. 계정 로그인을 대기 중입니다.', 'warning');
+        document.getElementById('login-username').focus();
+    }
+}
+
+async function handleSecureLogin() {
+    const usernameInput = document.getElementById('login-username').value.trim();
+    const passwordInput = document.getElementById('login-password').value;
+    const errorMsg = document.getElementById('login-error-msg');
+    
+    if (!usernameInput || !passwordInput) {
+        errorMsg.textContent = '아이디와 비밀번호를 모두 입력하세요.';
+        return;
+    }
+    
+    const pwHash = await sha256(passwordInput);
+    
+    if (usernameInput === 'admin' && pwHash === SECURE_PW_HASH) {
+        errorMsg.textContent = '';
+        localStorage.setItem('xpider_admin_session', SESSION_VAL_HASH);
+        const overlay = document.getElementById('admin-login-overlay');
+        overlay.classList.add('fade-out');
+        appendDebugLog('🔓 [보안] 해시 암호화 검증 통과! 어드민 로그인에 성공했습니다.', 'success');
+        startAdminConsole();
+    } else {
+        errorMsg.textContent = '❌ 아이디 또는 비밀번호가 올바르지 않습니다.';
+        appendDebugLog('🚨 [보안 경고] 잘못된 어드민 인증 시도가 거부되었습니다.', 'error');
+    }
+}
+
+function handleAdminLogout() {
+    localStorage.removeItem('xpider_admin_session');
+    appendDebugLog('🔒 [보안] 세션을 정상 종료하고 안전하게 로그아웃했습니다.', 'info');
+    setTimeout(() => {
+        window.location.reload();
+    }, 500);
+}
+
+function startAdminConsole() {
     loadAllData();
     loadStats('day'); // 통계 초기 로드
     
-    // 5초 간격으로 실시간 DB 자동 동기화 (Green Beacon 및 로그 실시간 갱신)
-    setInterval(loadAllData, 5000);
+    if (!autoPollInterval) {
+        autoPollInterval = setInterval(loadAllData, 5000);
+    }
+}
+
+// Initial Load & Heartbeat Setup
+document.addEventListener('DOMContentLoaded', () => {
+    appendDebugLog('Command Center Telemetry Console Activated. Session gate checking...', 'info');
+    checkAdminSession();
+    
+    // 엔터키 로그인 이벤트 바인딩
+    document.getElementById('login-password').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSecureLogin();
+    });
+    document.getElementById('login-username').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSecureLogin();
+    });
     
     // Event Listeners
     userSearchInput.addEventListener('input', renderUsersTable);
@@ -553,6 +626,8 @@ function openUserDetail(userId) {
         { label: 'Joined',          value: user.created_at ? new Date(user.created_at).toLocaleString('ko-KR') : '-' },
         { label: 'Last Login',      value: user.last_login ? new Date(user.last_login).toLocaleString('ko-KR') : '-' },
         { label: 'Last Active',     value: user.last_active_at ? new Date(user.last_active_at).toLocaleString('ko-KR') : '-' },
+        { label: 'IP Address',      value: user.ip_address || '-' },
+        { label: 'MAC Address',     value: user.mac_address || '-' },
         { label: 'Device ID',       value: user.active_device_id || 'Not logged in' },
     ];
     const grid = el('detail-info-grid');
@@ -685,3 +760,63 @@ async function deleteUser() {
         alert('❌ 삭제 실패: ' + e.message);
     }
 }
+
+// ─── 📦 GitHub 자동/수동 백업 및 복원 API 연동 ──────────────────
+async function triggerGithubBackup() {
+    const btn = document.getElementById('github-backup-btn');
+    const originalText = btn.textContent;
+    btn.textContent = '📦 백업 생성 중...';
+    btn.disabled = true;
+    
+    appendDebugLog('🚀 [백업] GitHub 원격 백업 스냅샷 생성을 시작합니다...', 'api');
+    
+    try {
+        const result = await window.electronAPI.invoke('admin-github-backup');
+        if (result && result.success) {
+            appendDebugLog(`✅ [백업 성공] 깃허브 커밋 성공! 경로: ${result.path}`, 'success');
+            alert(`🎉 데이터 백업이 깃허브에 성공적으로 저장되었습니다!\n\n경로: ${result.path}`);
+        } else {
+            throw new Error(result ? result.error : '알 수 없는 오류');
+        }
+    } catch (err) {
+        appendDebugLog(`❌ [백업 실패] ${err.message}`, 'error');
+        alert(`❌ 백업 실패: ${err.message}`);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function triggerGithubRestore() {
+    if (!confirm('⚠️ 정말로 깃허브의 가장 최신 백업본에서 데이터베이스를 복원하시겠습니까?\n\n이 작업을 수행하면 현재의 profiles 및 user_logs 데이터가 백업 시점으로 강제 덮어쓰기 복원됩니다.')) return;
+    
+    const btn = document.getElementById('github-restore-btn');
+    const originalText = btn.textContent;
+    btn.textContent = '🔄 데이터 복원 중...';
+    btn.disabled = true;
+    
+    appendDebugLog('🚀 [복원] GitHub로부터 최신 스냅샷 다운로드 및 복원 작업 시작...', 'api');
+    
+    try {
+        const result = await window.electronAPI.invoke('admin-github-restore');
+        if (result && result.success) {
+            appendDebugLog(`✅ [복원 성공] 총 ${result.count}개의 회원 프로필 정보가 완벽 복원되었습니다!`, 'success');
+            alert(`🎉 데이터베이스 복원이 성공적으로 완료되었습니다!\n\n복원 유저 수: ${result.count}명`);
+            loadAllData(true);
+        } else {
+            throw new Error(result ? result.error : '알 수 없는 오류');
+        }
+    } catch (err) {
+        appendDebugLog(`❌ [복원 실패] ${err.message}`, 'error');
+        alert(`❌ 복원 실패: ${err.message}`);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+// 윈도우 글로벌 바인딩 등록
+window.handleSecureLogin = handleSecureLogin;
+window.handleAdminLogout = handleAdminLogout;
+window.triggerGithubBackup = triggerGithubBackup;
+window.triggerGithubRestore = triggerGithubRestore;

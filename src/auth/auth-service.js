@@ -266,6 +266,42 @@ async function login(email, password) {
 // ─── 사인업 ──────────────────────────────────────────────
 async function signup(email, password, username) {
   try {
+    // 1. 기기 정보 및 IP 수집
+    const netInfo = _getNetworkInfo();
+    const publicIp = await _getPublicIp();
+    const currentIp = publicIp || netInfo.ip;
+    const currentMac = netInfo.mac;
+
+    const isMacValid = currentMac && currentMac !== '00:00:00:00:00:00';
+    const isIpValid = currentIp && currentIp !== '127.0.0.1';
+
+    // 2. 이미 존재하는 IP 또는 MAC인지 DB 조회하여 중복 가입 체크
+    if (isMacValid || isIpValid) {
+      let query = supabaseAdmin.from('profiles').select('id');
+      
+      if (isMacValid && isIpValid) {
+        query = query.or(`mac_address.eq.${currentMac},ip_address.eq.${currentIp}`);
+      } else if (isMacValid) {
+        query = query.eq('mac_address', currentMac);
+      } else if (isIpValid) {
+        query = query.eq('ip_address', currentIp);
+      }
+
+      const { data: dupProfiles, error: dupError } = await query;
+      
+      if (dupError) {
+        console.error('[Signup] 중복 기기 체크 쿼리 실패:', dupError.message);
+      } else if (dupProfiles && dupProfiles.length > 0) {
+        // 이미 기기나 IP가 DB에 존재함! 가입 제한.
+        return { 
+          success: false, 
+          code: 'DUPLICATE_DEVICE', 
+          error: '이 기기 또는 네트워크에서 이미 생성된 계정이 존재합니다.\n추가 계정 생성이 제한되며, 요금제 페이지로 이동합니다.'
+        };
+      }
+    }
+
+    // 3. 중복되지 않은 경우 가입 진행
     const { data, error } = await supabase.auth.signUp({
       email, password,
       options: { data: { username } }
@@ -422,7 +458,7 @@ async function getUserProfile(userId) {
 async function getAllProfiles() {
   const { data } = await supabaseAdmin
     .from('profiles')
-    .select('id, username, email, plan, is_active, created_at, last_login, active_device_id, tokens_remaining, last_active_at')
+    .select('id, username, email, plan, is_active, created_at, last_login, active_device_id, tokens_remaining, last_active_at, ip_address, mac_address')
     .order('created_at', { ascending: false });
   return data || [];
 }

@@ -171,6 +171,13 @@
       showMsg(res.message || 'Signup successful! Please check your email.', 'success');
     } else {
       showMsg(`Error: ${res.error}`, 'error');
+      
+      // 기기 중복 가입 제한 케이스 감지 시 외부 브라우저를 띄워 요금제 세일즈 페이지 오픈
+      if (res.code === 'DUPLICATE_DEVICE') {
+        setTimeout(() => {
+          window.authAPI.openExternal('https://xpider.pro/pricing');
+        }, 1500); // 1.5초 후 브라우저 오픈
+      }
     }
   }
 
