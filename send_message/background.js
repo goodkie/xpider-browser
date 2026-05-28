@@ -63,13 +63,23 @@ try {
         }
 
         async transcribeAudio(audioData, audioUrl = null) {
-            if (!this.config.witAiKey) throw new Error("Wit.ai API Key missing in configuration.");
+            // [v18.46.0] 동적으로 최신 Wit.ai API Key 로드
+            const storage = await new Promise(resolve => {
+                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                    chrome.storage.local.get(['xpider_stt_api_key'], resolve);
+                } else {
+                    resolve({});
+                }
+            });
+            const activeKey = storage.xpider_stt_api_key || this.config.witAiKey;
+            
+            if (!activeKey) throw new Error("Wit.ai API Key missing in configuration.");
             try {
                 const audioBlob = this._dataURLtoBlob(audioData);
                 const apiRes = await fetch("https://api.wit.ai/speech", {
                     method: "POST",
                     headers: {
-                        "Authorization": `Bearer ${this.config.witAiKey}`,
+                        "Authorization": `Bearer ${activeKey}`,
                         "Content-Type": "audio/mpeg3"
                     },
                     body: audioBlob

@@ -124,6 +124,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             span.textContent = "Checking...";
             footer.appendChild(span);
         }
+
+        // [v18.46.0] Audio STT API Key (Wit.ai) 최초 설정 여부 체크
+        chrome.storage.local.get(['xpider_stt_api_key'], (res) => {
+            if (!res.xpider_stt_api_key || res.xpider_stt_api_key.trim() === '') {
+                const setupModal = document.getElementById('stt-setup-modal-overlay');
+                if (setupModal) {
+                    setupModal.classList.remove('hidden');
+                }
+            }
+        });
     } catch (e) {
         console.error("Initialization failed:", e);
     }
@@ -288,6 +298,31 @@ function bindEvents() {
     
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', saveSettings);
+
+    // [v18.46.0] Wit.ai STT Key Setup Modal Save Button
+    const saveSetupSttBtn = document.getElementById('save-setup-stt-btn');
+    if (saveSetupSttBtn) {
+        saveSetupSttBtn.addEventListener('click', async () => {
+            const input = document.getElementById('setup-stt-key-input');
+            const key = input ? input.value.trim() : '';
+            if (key === '') {
+                alert("Please enter a valid Wit.ai Key.");
+                return;
+            }
+            
+            await chrome.storage.local.set({ xpider_stt_api_key: key });
+            const settingsInput = document.getElementById('audio-stt-key');
+            if (settingsInput) settingsInput.value = key;
+            
+            const setupModal = document.getElementById('stt-setup-modal-overlay');
+            if (setupModal) setupModal.classList.add('hidden');
+            
+            const langSelect = document.getElementById('language-select');
+            const lang = langSelect ? langSelect.value : 'en';
+            const dict = i18nData[lang] || i18nData['en'] || {};
+            alert(dict.msg_saved || "Saved!");
+        });
+    }
 
     // [v2.4.0] Template Save Buttons - Combined
     ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {

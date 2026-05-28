@@ -828,6 +828,19 @@
             }
         };
 
+        // 템플릿의 실존 유효 값들 수집
+        const templateVals = [
+            tpl.firstName, tpl.lastName, tpl.name, tpl.email, 
+            tpl.phone, tpl.subject, tpl.message
+        ].filter(v => typeof v === 'string' && v.trim() !== '');
+
+        const getRandomTemplateVal = () => {
+            if (templateVals.length > 0) {
+                return templateVals[Math.floor(Math.random() * templateVals.length)];
+            }
+            return "Inquiry";
+        };
+
         for (const el of inputs) {
             if (isHoneypot(el)) continue;
 
@@ -847,13 +860,18 @@
 
             if (el.tagName === 'SELECT') {
                 if (el.options.length > 1 && (el.selectedIndex <= 0)) {
+                    const validOptions = [];
                     for (let i = 1; i < el.options.length; i++) {
-                        if (el.options[i].value && !el.options[i].disabled) {
-                            el.selectedIndex = i;
-                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                            logDev(`   - [Select] Selected option: ${el.options[i].text}`);
-                            break;
+                        const opt = el.options[i];
+                        if (opt.value && !opt.disabled) {
+                            validOptions.push({ opt, idx: i });
                         }
+                    }
+                    if (validOptions.length > 0) {
+                        const chosen = validOptions[Math.floor(Math.random() * validOptions.length)];
+                        el.selectedIndex = chosen.idx;
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        logDev(`   - [Select-Random] Picked option: ${chosen.opt.text}`);
                     }
                 }
                 continue;
@@ -868,21 +886,58 @@
             if (await matchField(FIELD_PATTERNS.message, tpl.message, el)) continue;
         }
 
-        const messageChunks = tpl.message.split(/[.!?\n]+/).map(s => s.trim()).filter(s => s.length > 5);
-        let chunkIdx = 0;
-
+        // [Fallback] 일반 입력란 무작위 대답을 템플릿 중 한 입력값으로 대체
         for (const el of inputs) {
             if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
                 if (!el.value && !isHoneypot(el) && el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'submit') {
                     if (el.tagName === 'TEXTAREA') {
-                        await applyVal(el, tpl.message, "DynamicFill-Message");
+                        const val = tpl.message || getRandomTemplateVal();
+                        await applyVal(el, val, "Fallback-MessageVal");
                     } else {
-                        const chunk = messageChunks[chunkIdx % messageChunks.length] || tpl.subject || "Inquiry";
-                        await applyVal(el, chunk.substring(0, 100), "DynamicFill-Fragment");
-                        chunkIdx++;
+                        const val = getRandomTemplateVal();
+                        await applyVal(el, val.substring(0, 100), "Fallback-RandomTemplateVal");
                     }
                 }
             }
+        }
+
+        // [Fallback] 라디오 버튼 중 아무것도 선택되지 않은 그룹 무작위 자동 체크
+        try {
+            const radioGroups = {};
+            form.querySelectorAll('input[type="radio"]').forEach(radio => {
+                if (isHoneypot(radio)) return;
+                const name = radio.name || 'unnamed-radio';
+                if (!radioGroups[name]) radioGroups[name] = [];
+                radioGroups[name].push(radio);
+            });
+            
+            for (const name in radioGroups) {
+                const group = radioGroups[name];
+                const isChecked = group.some(r => r.checked);
+                if (!isChecked && group.length > 0) {
+                    const randomRadio = group[Math.floor(Math.random() * group.length)];
+                    randomRadio.click();
+                    randomRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                    logDev(`   - [Fallback-Radio] Randomly checked radio in group "${name}"`);
+                }
+            }
+        } catch (e) {
+            logDev(`⚠️ [Fallback-Radio] Error: ${e.message}`, "warning");
+        }
+
+        // [Fallback] 체크박스 중 체크되지 않은 빈 항목 무작위 자동 체크 (70%의 높은 확률)
+        try {
+            form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                if (!cb.checked && !isHoneypot(cb)) {
+                    if (Math.random() > 0.3) {
+                        cb.click();
+                        cb.dispatchEvent(new Event('change', { bubbles: true }));
+                        logDev(`   - [Fallback-Checkbox] Checked checkbox "${cb.name || cb.id || ''}"`);
+                    }
+                }
+            });
+        } catch (e) {
+            logDev(`⚠️ [Fallback-Checkbox] Error: ${e.message}`, "warning");
         }
 
         if (filledFields < 2) {
@@ -895,14 +950,14 @@
                 const isText = inp.tagName === 'TEXTAREA' || role === 'textbox' || inp.contentEditable === 'true';
                 
                 if (isText) {
-                    await applyVal(inp, tpl.message, "BruteForce-Message");
+                    await applyVal(inp, tpl.message || getRandomTemplateVal(), "BruteForce-Message");
                 } else {
                     const ph = (inp.placeholder || '').toLowerCase();
                     const n = (inp.name || '').toLowerCase();
                     const combined = `${ph} ${n}`;
                     
                     if (combined.includes('email')) await applyVal(inp, tpl.email, "BruteForce-Email");
-                    else if (combined.includes('name')) await applyVal(inp, (tpl.firstName || tpl.name), "BruteForce-Name");
+                    else if (combined.includes('name')) await applyVal(inp, (tpl.firstName || tpl.name || getRandomTemplateVal()), "BruteForce-Name");
                 }
             }
         }
