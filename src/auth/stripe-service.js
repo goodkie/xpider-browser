@@ -82,7 +82,7 @@ async function createCheckoutSession(planId, billingCycle, userId, email) {
       
       // 결제 완료/취소 후 리다이렉트 URL
       // Electron에서는 커스텀 딥링크(xpider://) 또는 thank-you 페이지 URL 사용
-      success_url: 'https://xpider.ai/payment/success?session_id={CHECKOUT_SESSION_ID}',
+      success_url: 'http://xpider.pro/thanks.html?session_id={CHECKOUT_SESSION_ID}',
       cancel_url:  'https://xpider.ai/payment/cancel',
 
       // 고객 이메일 prefill
