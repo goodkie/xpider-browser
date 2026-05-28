@@ -145,6 +145,108 @@ const P={
   message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/text/i,/detail/i,/note/i,/mensaje/i,/nachricht/i]
 };
 
+let virtualCursor = null;
+let curX = window.innerWidth / 2;
+let curY = window.innerHeight / 2;
+
+function initVirtualCursor() {
+  if (virtualCursor && document.getElementById('xpider-virtual-cursor')) return;
+  const old = document.getElementById('xpider-virtual-cursor');
+  if (old) old.remove();
+
+  virtualCursor = document.createElement('div');
+  virtualCursor.id = 'xpider-virtual-cursor';
+  virtualCursor.style.position = 'fixed';
+  virtualCursor.style.width = '24px';
+  virtualCursor.style.height = '24px';
+  virtualCursor.style.borderRadius = '50%';
+  virtualCursor.style.background = 'radial-gradient(circle, rgba(255,40,90,0.95) 0%, rgba(255,120,40,0.6) 50%, rgba(255,0,0,0) 100%)';
+  virtualCursor.style.boxShadow = '0 0 12px rgba(255,40,90,0.9)';
+  virtualCursor.style.pointerEvents = 'none';
+  virtualCursor.style.zIndex = '2147483647';
+  virtualCursor.style.left = curX + 'px';
+  virtualCursor.style.top = curY + 'px';
+  virtualCursor.style.transform = 'translate(-50%, -50%)';
+  virtualCursor.style.transition = 'width 0.15s, height 0.15s, background 0.15s';
+  
+  const ripple = document.createElement('div');
+  ripple.style.position = 'absolute';
+  ripple.style.width = '100%';
+  ripple.style.height = '100%';
+  ripple.style.border = '2px solid rgba(255,40,90,0.85)';
+  ripple.style.borderRadius = '50%';
+  ripple.style.animation = 'xpider-cursor-pulse 1.6s infinite';
+  virtualCursor.appendChild(ripple);
+
+  const styleId = 'xpider-virtual-cursor-style';
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.innerHTML = '@keyframes xpider-cursor-pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(2.3); opacity: 0; } }';
+    document.head.appendChild(style);
+  }
+  document.body.appendChild(virtualCursor);
+}
+
+async function moveVirtualCursorTo(targetX, targetY) {
+  initVirtualCursor();
+  const steps = 14;
+  const startX = curX;
+  const startY = curY;
+  const diffX = targetX - startX;
+  const diffY = targetY - startY;
+
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
+    const ease = 1 - Math.pow(1 - t, 3);
+    curX = startX + diffX * ease;
+    curY = startY + diffY * ease;
+
+    if (virtualCursor) {
+      virtualCursor.style.left = curX + 'px';
+      virtualCursor.style.top = curY + 'px';
+    }
+
+    const targetEl = document.elementFromPoint(curX, curY);
+    if (targetEl) {
+      const opts = { bubbles: true, cancelable: true, clientX: curX, clientY: curY };
+      targetEl.dispatchEvent(new MouseEvent('mousemove', opts));
+    }
+    await new Promise(r => setTimeout(r, 10));
+  }
+}
+
+async function humanTyping(el, val) {
+  if (!el) return;
+  el.focus && el.focus();
+  let currentVal = "";
+  
+  for (let i = 0; i < val.length; i++) {
+    const char = val[i];
+    currentVal += char;
+    
+    const opts = { bubbles: true, cancelable: true, key: char };
+    el.dispatchEvent(new KeyboardEvent('keydown', opts));
+    el.dispatchEvent(new KeyboardEvent('keypress', opts));
+    
+    let setOk = false;
+    try {
+      setOk = document.execCommand('insertText', false, char);
+    } catch(e) {}
+    
+    if (!setOk) {
+      el.value = currentVal;
+    }
+    
+    el.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, data: char }));
+    el.dispatchEvent(new KeyboardEvent('keyup', opts));
+    
+    await new Promise(r => setTimeout(r, 12 + Math.random() * 15));
+  }
+  el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+  el.dispatchEvent(new Event('blur', { bubbles: true, cancelable: true }));
+}
+
 // Human-like value setter — execCommand first (best reCAPTCHA score)
 async function tv(el,v){
   if(!v||!el||el.disabled||el.readOnly)return false;
@@ -159,41 +261,17 @@ async function tv(el,v){
       }
     }
   } else {
+    // 가상 커서 이동 및 포커싱
+    const rect = el.getBoundingClientRect();
+    const targetX = rect.left + (rect.width / 2);
+    const targetY = rect.top + (rect.height / 2);
+    await moveVirtualCursorTo(targetX, targetY);
+
     el.click&&el.click();
     el.focus&&el.focus();
-    await new Promise(r=>setTimeout(r,120));
     
-    // Method 1: execCommand (most human-like — Wix reCAPTCHA friendly)
-    let setOk = false;
-    try{
-      el.select&&el.select();
-      document.execCommand('selectAll',false,null);
-      setOk = document.execCommand('insertText',false,v);
-    }catch(e){}
-    
-    // Method 2: Native value setter + React fiber
-    if (!setOk || el.value !== v) {
-      try{
-        const proto=el.tagName==='TEXTAREA'?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;
-        const d=Object.getOwnPropertyDescriptor(proto,'value');
-        if(d&&d.set)d.set.call(el,v);else el.value=v;
-      }catch(e){el.value=v;}
-    }
-    
-    // Method 3: 7-stage event dispatch for Wix & Deep DOM sync
-    const events = [
-      new Event('focus', { bubbles: true, cancelable: true }),
-      new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: v.slice(-1) }),
-      new KeyboardEvent('keypress', { bubbles: true, cancelable: true, key: v.slice(-1) }),
-      new InputEvent('input', { bubbles: true, cancelable: true, data: v }),
-      new KeyboardEvent('keyup', { bubbles: true, cancelable: true, key: v.slice(-1) }),
-      new Event('change', { bubbles: true, cancelable: true }),
-      new Event('blur', { bubbles: true, cancelable: true })
-    ];
-    
-    events.forEach(evt => {
-      try { el.dispatchEvent(evt); } catch(e) {}
-    });
+    // 인간답게 타이핑
+    await humanTyping(el, v);
     
     // React fiber
     try{
@@ -316,27 +394,48 @@ async function fill(c){
     async function simulateHumanClick(el) {
         if (!el) return;
         try {
-            const rect = el.getBoundingClientRect();
-            const x = rect.left + (rect.width / 2);
-            const y = rect.top + (rect.height / 2);
-            const opts = { bubbles: true, cancelable: true, clientX: x, clientY: y };
-            
             if (el.scrollIntoView) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                await new Promise(r => setTimeout(r, 100));
+                await new Promise(r => setTimeout(r, 120));
             }
             
-            el.dispatchEvent(new MouseEvent('mousemove', opts));
-            await new Promise(r => setTimeout(r, 50));
+            const rect = el.getBoundingClientRect();
+            const targetX = rect.left + (rect.width / 2);
+            const targetY = rect.top + (rect.height / 2);
+
+            await moveVirtualCursorTo(targetX, targetY);
+
+            if (virtualCursor) {
+                virtualCursor.style.width = '10px';
+                virtualCursor.style.height = '10px';
+                virtualCursor.style.background = 'radial-gradient(circle, rgba(0,255,120,1) 0%, rgba(0,180,255,0.95) 100%)';
+            }
+            
+            const opts = { bubbles: true, cancelable: true, clientX: targetX, clientY: targetY };
             el.dispatchEvent(new MouseEvent('mouseover', opts));
             el.dispatchEvent(new MouseEvent('mouseenter', opts));
+            el.dispatchEvent(new PointerEvent('pointerover', opts));
+            
             await new Promise(r => setTimeout(r, 50));
+            
             el.dispatchEvent(new MouseEvent('mousedown', opts));
+            el.dispatchEvent(new PointerEvent('pointerdown', opts));
+            el.focus && el.focus();
+            
             await new Promise(r => setTimeout(r, 50));
+            
             el.dispatchEvent(new MouseEvent('mouseup', opts));
+            el.dispatchEvent(new PointerEvent('pointerup', opts));
             el.click && el.click();
             el.dispatchEvent(new MouseEvent('click', opts));
-            await new Promise(r => setTimeout(r, 50));
+            
+            await new Promise(r => setTimeout(r, 60));
+            
+            if (virtualCursor) {
+                virtualCursor.style.width = '24px';
+                virtualCursor.style.height = '24px';
+                virtualCursor.style.background = 'radial-gradient(circle, rgba(255,40,90,0.95) 0%, rgba(255,120,40,0.6) 50%, rgba(255,0,0,0) 100%)';
+            }
         } catch (e) {
             try { el.click(); } catch(err) {}
         }

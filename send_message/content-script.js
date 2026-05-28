@@ -799,34 +799,167 @@
         };
 
         
-    // [v6.0 초지능 마우스 시뮬레이터]
+    let virtualCursor = null;
+    let curX = window.innerWidth / 2;
+    let curY = window.innerHeight / 2;
+
+    function initVirtualCursor() {
+        if (virtualCursor && document.getElementById('xpider-virtual-cursor')) return;
+        
+        // 기존 엘리먼트 파괴
+        const old = document.getElementById('xpider-virtual-cursor');
+        if (old) old.remove();
+
+        virtualCursor = document.createElement('div');
+        virtualCursor.id = 'xpider-virtual-cursor';
+        virtualCursor.style.position = 'fixed';
+        virtualCursor.style.width = '24px';
+        virtualCursor.style.height = '24px';
+        virtualCursor.style.borderRadius = '50%';
+        virtualCursor.style.background = 'radial-gradient(circle, rgba(255,40,90,0.95) 0%, rgba(255,120,40,0.6) 50%, rgba(255,0,0,0) 100%)';
+        virtualCursor.style.boxShadow = '0 0 12px rgba(255,40,90,0.9)';
+        virtualCursor.style.pointerEvents = 'none';
+        virtualCursor.style.zIndex = '2147483647';
+        virtualCursor.style.left = `${curX}px`;
+        virtualCursor.style.top = `${curY}px`;
+        virtualCursor.style.transform = 'translate(-50%, -50%)';
+        virtualCursor.style.transition = 'width 0.15s, height 0.15s, background 0.15s';
+        
+        // Ripple 효과용 서클
+        const ripple = document.createElement('div');
+        ripple.style.position = 'absolute';
+        ripple.style.width = '100%';
+        ripple.style.height = '100%';
+        ripple.style.border = '2px solid rgba(255,40,90,0.85)';
+        ripple.style.borderRadius = '50%';
+        ripple.style.animation = 'xpider-cursor-pulse 1.6s infinite';
+        virtualCursor.appendChild(ripple);
+
+        // 스타일 동적 삽입
+        const styleId = 'xpider-virtual-cursor-style';
+        if (!document.getElementById(styleId)) {
+            const style = document.createElement('style');
+            style.id = styleId;
+            style.innerHTML = `
+                @keyframes xpider-cursor-pulse {
+                    0% { transform: scale(1); opacity: 1; }
+                    100% { transform: scale(2.3); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        document.body.appendChild(virtualCursor);
+    }
+
+    async function moveVirtualCursorTo(targetX, targetY) {
+        initVirtualCursor();
+        const steps = 14;
+        const startX = curX;
+        const startY = curY;
+        const diffX = targetX - startX;
+        const diffY = targetY - startY;
+
+        for (let i = 1; i <= steps; i++) {
+            const t = i / steps;
+            // cubic-bezier easeOutCubic
+            const ease = 1 - Math.pow(1 - t, 3);
+            
+            curX = startX + diffX * ease;
+            curY = startY + diffY * ease;
+
+            if (virtualCursor) {
+                virtualCursor.style.left = `${curX}px`;
+                virtualCursor.style.top = `${curY}px`;
+            }
+
+            const targetEl = document.elementFromPoint(curX, curY);
+            if (targetEl) {
+                const opts = { bubbles: true, cancelable: true, clientX: curX, clientY: curY };
+                targetEl.dispatchEvent(new MouseEvent('mousemove', opts));
+            }
+            await new Promise(r => setTimeout(r, 10));
+        }
+    }
+
     async function simulateHumanClick(el) {
         if (!el) return;
         try {
-            const rect = el.getBoundingClientRect();
-            const x = rect.left + (rect.width / 2);
-            const y = rect.top + (rect.height / 2);
-            const opts = { bubbles: true, cancelable: true, clientX: x, clientY: y };
-            
             if (el.scrollIntoView) {
                 el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                await new Promise(r => setTimeout(r, 100));
+                await new Promise(r => setTimeout(r, 120));
             }
             
-            el.dispatchEvent(new MouseEvent('mousemove', opts));
-            await new Promise(r => setTimeout(r, 50));
+            const rect = el.getBoundingClientRect();
+            const targetX = rect.left + (rect.width / 2);
+            const targetY = rect.top + (rect.height / 2);
+
+            await moveVirtualCursorTo(targetX, targetY);
+
+            // Click visual effect
+            if (virtualCursor) {
+                virtualCursor.style.width = '10px';
+                virtualCursor.style.height = '10px';
+                virtualCursor.style.background = 'radial-gradient(circle, rgba(0,255,120,1) 0%, rgba(0,180,255,0.95) 100%)';
+            }
+            
+            const opts = { bubbles: true, cancelable: true, clientX: targetX, clientY: targetY };
             el.dispatchEvent(new MouseEvent('mouseover', opts));
             el.dispatchEvent(new MouseEvent('mouseenter', opts));
+            el.dispatchEvent(new PointerEvent('pointerover', opts));
+            
             await new Promise(r => setTimeout(r, 50));
+            
             el.dispatchEvent(new MouseEvent('mousedown', opts));
+            el.dispatchEvent(new PointerEvent('pointerdown', opts));
+            el.focus && el.focus();
+            
             await new Promise(r => setTimeout(r, 50));
+            
             el.dispatchEvent(new MouseEvent('mouseup', opts));
+            el.dispatchEvent(new PointerEvent('pointerup', opts));
             el.click && el.click();
             el.dispatchEvent(new MouseEvent('click', opts));
-            await new Promise(r => setTimeout(r, 50));
+            await new Promise(r => setTimeout(r, 60));
+            
+            if (virtualCursor) {
+                virtualCursor.style.width = '24px';
+                virtualCursor.style.height = '24px';
+                virtualCursor.style.background = 'radial-gradient(circle, rgba(255,40,90,0.95) 0%, rgba(255,120,40,0.6) 50%, rgba(255,0,0,0) 100%)';
+            }
         } catch (e) {
             try { el.click(); } catch(err) {}
         }
+    }
+
+    async function humanTyping(el, val) {
+        if (!el) return;
+        el.focus && el.focus();
+        let currentVal = "";
+        
+        for (let i = 0; i < val.length; i++) {
+            const char = val[i];
+            currentVal += char;
+            
+            const opts = { bubbles: true, cancelable: true, key: char };
+            el.dispatchEvent(new KeyboardEvent('keydown', opts));
+            el.dispatchEvent(new KeyboardEvent('keypress', opts));
+            
+            let setOk = false;
+            try {
+                setOk = document.execCommand('insertText', false, char);
+            } catch(e) {}
+            
+            if (!setOk) {
+                el.value = currentVal;
+            }
+            
+            el.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, data: char }));
+            el.dispatchEvent(new KeyboardEvent('keyup', opts));
+            
+            await new Promise(r => setTimeout(r, 12 + Math.random() * 15));
+        }
+        el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true, cancelable: true }));
     }
 
 // [Auto-Name Synthesis] 이름 필드 상호 보완 자가 합성
@@ -919,47 +1052,18 @@
                 // Intelligent Pacing
                 await new Promise(r => setTimeout(r, speed.field || 150));
                 
+                // 가상 커서 이동 및 포커싱
+                const rect = el.getBoundingClientRect();
+                const targetX = rect.left + (rect.width / 2);
+                const targetY = rect.top + (rect.height / 2);
+                await moveVirtualCursorTo(targetX, targetY);
+
                 // 1. Focus
                 el.click && el.click();
                 el.focus && el.focus();
                 
-                // 2. Insert text via execCommand (Highest trust, best for reCAPTCHA/Wix)
-                let setOk = false;
-                try {
-                    el.select && el.select();
-                    document.execCommand('selectAll', false, null);
-                    setOk = document.execCommand('insertText', false, val);
-                } catch(e) {}
-                
-                // 3. Fallback direct setter + descriptor bypass for framework tracking
-                if (!setOk || el.value !== val) {
-                    try {
-                        const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
-                        const d = Object.getOwnPropertyDescriptor(proto, 'value');
-                        if (d && d.set) {
-                            d.set.call(el, val);
-                        } else {
-                            el.value = val;
-                        }
-                    } catch(e) {
-                        el.value = val;
-                    }
-                }
-                
-                // 4. 7-Stage event dispatch for Wix & deep DOM syncing
-                const events = [
-                    new Event('focus', { bubbles: true, cancelable: true }),
-                    new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: val.slice(-1) }),
-                    new KeyboardEvent('keypress', { bubbles: true, cancelable: true, key: val.slice(-1) }),
-                    new InputEvent('input', { bubbles: true, cancelable: true, data: val }),
-                    new KeyboardEvent('keyup', { bubbles: true, cancelable: true, key: val.slice(-1) }),
-                    new Event('change', { bubbles: true, cancelable: true }),
-                    new Event('blur', { bubbles: true, cancelable: true })
-                ];
-                
-                events.forEach(evt => {
-                    try { el.dispatchEvent(evt); } catch(e) {}
-                });
+                // 2. 인간답게 1글자씩 타이핑 적용!
+                await humanTyping(el, val);
                 
                 // React Fiber Sync
                 try {

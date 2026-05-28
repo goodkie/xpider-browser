@@ -324,22 +324,15 @@ function bindEvents() {
         });
     }
 
-    // [v6.0.0] Wit.ai setup link fix to open in a new tab with fallback
-    const witAiLink = document.getElementById('wit-ai-link');
-    if (witAiLink) {
-        witAiLink.addEventListener('click', (e) => {
+    // [v5.0.0] Wit.ai setup link fix to open in a new tab
+    // [v5.1.0] 이벤트 위임 기반의 견고한 Wit.ai 링크 새창 강제 패치
+    document.addEventListener('click', (e) => {
+        const target = e.target.closest('#wit-ai-link') || (e.target.tagName === 'A' && e.target.href && e.target.href.includes('wit.ai'));
+        if (target) {
             e.preventDefault();
-            try {
-                if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
-                    chrome.tabs.create({ url: 'https://wit.ai/apps' });
-                } else {
-                    window.open('https://wit.ai/apps', '_blank');
-                }
-            } catch (err) {
-                window.open('https://wit.ai/apps', '_blank');
-            }
-        });
-    }
+            chrome.tabs.create({ url: 'https://wit.ai/apps' });
+        }
+    });
 
     // [v2.4.0] Template Save Buttons - Combined
     ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
