@@ -291,79 +291,189 @@ function bestForm(){
 }
 
 async function fill(c){
-  const els=Array.from(c.querySelectorAll(
-    'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]):not([type=checkbox]):not([type=radio]),textarea,select'
-  ));
-  const used=new Set();
   let n=0;
   
-  // Pass 1: Primary matches
-  for(const el of els){
-    if(el.tagName==='SELECT')continue;
-    for(const k of['firstName','lastName','name','email','phone','subject','message']){
-      if(used.has(k)&&k!=='message')continue;
-      const c2=getFieldId(el);
-      if(processedTpl[k]&&P[k].some(r=>r.test(c2))){
-        if(await tv(el,processedTpl[k])){used.add(k);n++;await new Promise(r=>setTimeout(r,150));break;}
-      }
-    }
-  }
-  
-  // Pass 2: Fallbacks
-  if(!used.has('message')&&processedTpl.message){
-    const ta=c.querySelectorAll('textarea');
-    if(ta.length>0){await tv(ta[ta.length-1],processedTpl.message);n++;used.add('message');await new Promise(r=>setTimeout(r,150));}
-  }
-  if(!used.has('name')&&processedTpl.name){
-    const ti=c.querySelector('input[type=text],input:not([type])');
-    if(ti&&!ti.value){await tv(ti,processedTpl.name);n++;used.add('name');}
-  }
-  
-  // Pass 3: Smart inference for unmatched/empty fields
-  for(const el of els){
-    if(el.value||el.tagName==='SELECT')continue;
-    const inferred=inferValue(el);
-    if(inferred){await tv(el,inferred);n++;await new Promise(r=>setTimeout(r,100));}
-  }
+  // [Helper] 난수 데이터 생성기 (v5.0)
+  const generateRandomEmail = () => {
+    const domains = ['gmail.com', 'naver.com', 'daum.net', 'outlook.com', 'yahoo.com'];
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    return 'user_' + randomStr + '@' + domains[Math.floor(Math.random() * domains.length)];
+  };
+  const generateRandomPhone = () => {
+    const prefix = ['010', '011', '016', '017', '019'];
+    const mid = Math.floor(1000 + Math.random() * 9000);
+    const end = Math.floor(1000 + Math.random() * 9000);
+    return prefix[Math.floor(Math.random() * prefix.length)] + '-' + mid + '-' + end;
+  };
+  const generateRandomText = () => {
+    const words = ['inquiry', 'support', 'business', 'request', 'details', 'general', 'message'];
+    const randomWord = words[Math.floor(Math.random() * words.length)];
+    return randomWord + '_' + Math.floor(100 + Math.random() * 900);
+  };
 
-  // Pass 4: Radio and Checkbox Safe Handling
-  try {
-    c.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-      if (!cb.checked) {
-        const lblText = lbl(cb);
-        if (/agree|terms|policy|동의|규정|약관/i.test(lblText)) {
-          cb.click();
-          cb.dispatchEvent(new Event('change', { bubbles: true }));
-        } else if (Math.random() > 0.3) {
-          cb.click();
-          cb.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      }
-    });
-  } catch(e) {}
-
-  // Pass 5: Ultimate Required Fields Guard
   const templateVals = [
     processedTpl.firstName, processedTpl.lastName, processedTpl.name, processedTpl.email, 
     processedTpl.phone, processedTpl.subject, processedTpl.message
   ].filter(v => typeof v === 'string' && v.trim() !== '');
   const getRandomTplVal = () => templateVals.length > 0 ? templateVals[Math.floor(Math.random() * templateVals.length)] : "Inquiry";
 
-  for (const el of els) {
-    if (el.disabled || el.readOnly) continue;
-    const isReq = el.hasAttribute('required') || 
-                  el.getAttribute('aria-required') === 'true' ||
-                  /required|essential|star|\\*/i.test(el.className || '') ||
-                  /required|essential|star/i.test(el.id || '');
+  // 3-Pass Multi-Stage Loop (v5.0)
+  for (let pass = 1; pass <= 3; pass++) {
+    const els = Array.from(c.querySelectorAll(
+      'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]):not([type=checkbox]):not([type=radio]),textarea,select'
+    ));
+    const used = new Set();
     
-    if (isReq && !el.value) {
-      let fbVal = getRandomTplVal();
-      const fid = getFieldId(el);
-      if (fid.includes('email')) fbVal = processedTpl.email || "info@domain.com";
-      else if (fid.includes('phone') || fid.includes('tel')) fbVal = processedTpl.phone || "010-0000-0000";
-      else if (fid.includes('subject') || fid.includes('title')) fbVal = processedTpl.subject || "Inquiry";
+    // (1) 가상 DOM / ARIA 커스텀 컨트롤 스캔 & 채우기
+    try {
+      // 가상 드롭다운 (role="combobox", select/dropdown 유사 클래스)
+      const virtualDropdowns = Array.from(c.querySelectorAll('[role="combobox"], [class*="select"i], [class*="dropdown"i]')).filter(el => {
+        return el.tagName !== 'SELECT' && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA';
+      });
+      for (const dropdown of virtualDropdowns) {
+        const selectedText = (dropdown.textContent || '').trim();
+        if (selectedText && selectedText.length > 0 && !/select|choose|dropdown|click/i.test(selectedText)) continue;
+        
+        dropdown.click();
+        dropdown.dispatchEvent(new Event('click', { bubbles: true }));
+        dropdown.dispatchEvent(new Event('mousedown', { bubbles: true }));
+        dropdown.focus && dropdown.focus();
+        
+        await new Promise(r => setTimeout(r, 120));
+        
+        const options = Array.from(document.querySelectorAll('[role="option"], li, [class*="option"i], [class*="item"i]')).filter(opt => {
+          return opt.offsetParent !== null; 
+        });
+        if (options.length > 0) {
+          const chosen = options[Math.floor(Math.random() * options.length)];
+          chosen.click();
+          chosen.dispatchEvent(new Event('click', { bubbles: true }));
+          chosen.dispatchEvent(new Event('mousedown', { bubbles: true }));
+          chosen.dispatchEvent(new Event('change', { bubbles: true }));
+          n++;
+        }
+        dropdown.dispatchEvent(new Event('blur', { bubbles: true }));
+      }
       
-      await tv(el, fbVal);
+      // 가상 체크박스 (role="checkbox")
+      const virtualCheckboxes = Array.from(c.querySelectorAll('[role="checkbox"]')).filter(el => el.tagName !== 'INPUT');
+      for (const cb of virtualCheckboxes) {
+        const ariaChecked = cb.getAttribute('aria-checked') === 'true' || cb.classList.contains('checked') || cb.classList.contains('active');
+        const text = (cb.textContent || cb.parentElement?.textContent || '').toLowerCase();
+        const termsKeywords = ['agree', 'terms', 'policy', 'consento', '동의', '규정', '약관'];
+        
+        if (termsKeywords.some(k => text.includes(k))) {
+          if (!ariaChecked) {
+            cb.click();
+            cb.dispatchEvent(new Event('click', { bubbles: true }));
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+            n++;
+          }
+        } else if (!ariaChecked && Math.random() > 0.2) {
+          cb.click();
+          cb.dispatchEvent(new Event('click', { bubbles: true }));
+          cb.dispatchEvent(new Event('change', { bubbles: true }));
+          n++;
+        }
+      }
+      
+      // 가상 라디오 (role="radio")
+      const virtualRadios = Array.from(c.querySelectorAll('[role="radio"]')).filter(el => el.tagName !== 'INPUT');
+      for (const rd of virtualRadios) {
+        const ariaChecked = rd.getAttribute('aria-checked') === 'true' || rd.classList.contains('checked') || rd.classList.contains('active');
+        if (!ariaChecked) {
+          rd.click();
+          rd.dispatchEvent(new Event('click', { bubbles: true }));
+          rd.dispatchEvent(new Event('change', { bubbles: true }));
+          n++;
+        }
+      }
+    } catch(e) {}
+
+    // (2) Pass 1: Primary matches
+    for (const el of els) {
+      if (el.value || el.tagName === 'SELECT') continue;
+      for (const k of ['firstName', 'lastName', 'name', 'email', 'phone', 'subject', 'message']) {
+        if (used.has(k) && k !== 'message') continue;
+        const c2 = getFieldId(el);
+        if (processedTpl[k] && P[k].some(r => r.test(c2))) {
+          if (await tv(el, processedTpl[k])) { used.add(k); n++; await new Promise(r => setTimeout(r, 150)); break; }
+        }
+      }
+    }
+    
+    // (3) Pass 2: Fallbacks
+    if (!used.has('message') && processedTpl.message) {
+      const ta = c.querySelectorAll('textarea');
+      if (ta.length > 0 && !ta[ta.length - 1].value) { await tv(ta[ta.length - 1], processedTpl.message); n++; used.add('message'); await new Promise(r => setTimeout(r, 150)); }
+    }
+    if (!used.has('name') && processedTpl.name) {
+      const ti = c.querySelector('input[type=text],input:not([type])');
+      if (ti && !ti.value) { await tv(ti, processedTpl.name); n++; used.add('name'); }
+    }
+    
+    // (4) Pass 3: Smart inference for unmatched/empty fields
+    for (const el of els) {
+      if (el.value || el.tagName === 'SELECT') continue;
+      const inferred = inferValue(el);
+      if (inferred) { await tv(el, inferred); n++; await new Promise(r => setTimeout(r, 100)); }
+    }
+
+    // (5) Pass 4: Radio and Checkbox Safe Handling
+    try {
+      c.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        if (!cb.checked && !cb.disabled) {
+          const lblText = lbl(cb);
+          if (/agree|terms|policy|동의|규정|약관/i.test(lblText)) {
+            cb.click();
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+          } else if (Math.random() > 0.2) {
+            cb.click();
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+      });
+    } catch(e) {}
+
+    // (6) Pass 5: Ultimate Required Fields Guard (100% 무결성 무작위 난수 보완 시스템 탑재)
+    for (const el of els) {
+      if (el.disabled || el.readOnly) continue;
+      const isReq = el.hasAttribute('required') || 
+                    el.getAttribute('aria-required') === 'true' ||
+                    /required|essential|star|\\*/i.test(el.className || '') ||
+                    /required|essential|star/i.test(el.id || '');
+      
+      if (isReq && !el.value) {
+        let fbVal = "";
+        const fid = getFieldId(el);
+        if (fid.includes('email')) fbVal = processedTpl.email || generateRandomEmail();
+        else if (fid.includes('phone') || fid.includes('tel') || fid.includes('mobile')) fbVal = processedTpl.phone || generateRandomPhone();
+        else if (fid.includes('subject') || fid.includes('title')) fbVal = processedTpl.subject || generateRandomText();
+        else if (fid.includes('name')) fbVal = processedTpl.name || processedTpl.firstName || "User";
+        else fbVal = getRandomTplVal() !== 'Inquiry' ? getRandomTplVal() : generateRandomText();
+        
+        await tv(el, fbVal);
+        n++;
+      }
+    }
+    
+    // (7) Select fallback
+    for (const el of els) {
+      if (el.tagName === 'SELECT' && el.selectedIndex <= 0 && el.options.length > 1) {
+        const validOptions = [];
+        for (let i = 1; i < el.options.length; i++) {
+          const opt = el.options[i];
+          if (opt.value && !opt.disabled) validOptions.push(i);
+        }
+        const finalIdx = validOptions.length > 0 ? validOptions[Math.floor(Math.random() * validOptions.length)] : 1;
+        el.selectedIndex = finalIdx;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        n++;
+      }
+    }
+
+    if (pass < 3) {
+      await new Promise(r => setTimeout(r, 200));
     }
   }
   

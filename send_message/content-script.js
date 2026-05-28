@@ -777,9 +777,26 @@
     }
 
     async function fillFormIntelligent(form, tpl, speed) {
-        logDev("🛠️ [Supreme-X 4.0] Profiling fields for intelligent mapping...");
+        logDev("🛠️ [Supreme-X 5.0] Initiating Multi-Stage 3-Pass Loop for maximum coverage...");
         let filledFields = 0;
-        const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), textarea, select'));
+
+        // [Helper] 난수 데이터 생성기 (v5.0)
+        const generateRandomEmail = () => {
+            const domains = ['gmail.com', 'naver.com', 'daum.net', 'outlook.com', 'yahoo.com'];
+            const randomStr = Math.random().toString(36).substring(2, 8);
+            return `user_${randomStr}@${domains[Math.floor(Math.random() * domains.length)]}`;
+        };
+        const generateRandomPhone = () => {
+            const prefix = ['010', '011', '016', '017', '019'];
+            const mid = Math.floor(1000 + Math.random() * 9000);
+            const end = Math.floor(1000 + Math.random() * 9000);
+            return `${prefix[Math.floor(Math.random() * prefix.length)]}-${mid}-${end}`;
+        };
+        const generateRandomText = (labelOrId) => {
+            const words = ['inquiry', 'support', 'business', 'request', 'details', 'general', 'message'];
+            const randomWord = words[Math.floor(Math.random() * words.length)];
+            return `${randomWord}_${Math.floor(100 + Math.random() * 900)}`;
+        };
 
         // [Auto-Name Synthesis] 이름 필드 상호 보완 자가 합성
         const processedTpl = { ...tpl };
@@ -788,7 +805,6 @@
         const rawLast = (processedTpl.lastName || '').trim();
 
         if (rawName && !rawFirst && !rawLast) {
-            // 이름만 있고 성/이름이 분할된 경우
             if (rawName.includes(' ')) {
                 const parts = rawName.split(/\s+/);
                 processedTpl.firstName = parts.slice(1).join(' ');
@@ -804,7 +820,6 @@
                 processedTpl.lastName = rawName;
             }
         } else if (!rawName && (rawFirst || rawLast)) {
-            // 성/이름은 있지만 전체 이름이 비어 있는 경우
             if (/[a-zA-Z]/.test(rawFirst || rawLast)) {
                 processedTpl.name = [rawFirst, rawLast].filter(Boolean).join(' ');
             } else {
@@ -815,6 +830,19 @@
         } else if (rawLast && !rawFirst) {
             processedTpl.firstName = rawLast;
         }
+
+        // 템플릿의 실존 유효 값들 수집
+        const templateVals = [
+            processedTpl.firstName, processedTpl.lastName, processedTpl.name, processedTpl.email, 
+            processedTpl.phone, processedTpl.subject, processedTpl.message
+        ].filter(v => typeof v === 'string' && v.trim() !== '');
+
+        const getRandomTemplateVal = () => {
+            if (templateVals.length > 0) {
+                return templateVals[Math.floor(Math.random() * templateVals.length)];
+            }
+            return "Inquiry";
+        };
 
         const matchField = async (patterns, val, el) => {
             if (!val) return false;
@@ -857,7 +885,7 @@
                     }
                 }
             } else {
-                // [v18.7.5] Intelligent Pacing
+                // Intelligent Pacing
                 await new Promise(r => setTimeout(r, speed.field || 150));
                 
                 // 1. Focus
@@ -921,183 +949,262 @@
             return false;
         };
 
-        // 템플릿의 실존 유효 값들 수집
-        const templateVals = [
-            processedTpl.firstName, processedTpl.lastName, processedTpl.name, processedTpl.email, 
-            processedTpl.phone, processedTpl.subject, processedTpl.message
-        ].filter(v => typeof v === 'string' && v.trim() !== '');
-
-        const getRandomTemplateVal = () => {
-            if (templateVals.length > 0) {
-                return templateVals[Math.floor(Math.random() * templateVals.length)];
-            }
-            return "Inquiry";
-        };
-
-        // Pass 1: Primary matches
-        for (const el of inputs) {
-            if (isHoneypot(el)) continue;
-
-            if (el.type === 'checkbox' || el.type === 'radio') {
-                const labelText = getLabelFor(el).toLowerCase();
-                const containerText = (el.parentElement?.textContent || '').toLowerCase();
-                const termsKeywords = ['agree', 'terms', 'policy', 'consento', '동의', '규정', '약관'];
-                
-                if (termsKeywords.some(k => labelText.includes(k) || containerText.includes(k))) {
-                    if (!el.checked) {
-                        el.click();
-                        el.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
-                }
-                continue;
-            }
-
-            if (el.tagName === 'SELECT') {
-                if (el.options.length > 1 && (el.selectedIndex <= 0)) {
-                    const validOptions = [];
-                    for (let i = 1; i < el.options.length; i++) {
-                        const opt = el.options[i];
-                        if (opt.value && !opt.disabled) {
-                            validOptions.push({ opt, idx: i });
-                        }
-                    }
-                    if (validOptions.length > 0) {
-                        const chosen = validOptions[Math.floor(Math.random() * validOptions.length)];
-                        el.selectedIndex = chosen.idx;
-                        el.dispatchEvent(new Event('change', { bubbles: true }));
-                        logDev(`   - [Select-Random] Picked option: ${chosen.opt.text}`);
-                    }
-                }
-                continue;
-            }
-
-            if (await matchField(FIELD_PATTERNS.firstName, processedTpl.firstName || processedTpl.name, el)) continue;
-            if (await matchField(FIELD_PATTERNS.lastName, processedTpl.lastName, el)) continue;
-            if (await matchField(FIELD_PATTERNS.name, processedTpl.name, el)) continue;
-            if (await matchField(FIELD_PATTERNS.email, processedTpl.email, el)) continue;
-            if (await matchField(FIELD_PATTERNS.phone, processedTpl.phone, el)) continue;
-            if (await matchField(FIELD_PATTERNS.subject, processedTpl.subject, el)) continue;
-            if (await matchField(FIELD_PATTERNS.message, processedTpl.message, el)) continue;
-        }
-
-        // [Fallback] 일반 입력란 무작위 대답을 템플릿 중 한 입력값으로 대체
-        for (const el of inputs) {
-            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                if (!el.value && !isHoneypot(el) && el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'submit') {
-                    if (el.tagName === 'TEXTAREA') {
-                        const val = processedTpl.message || getRandomTemplateVal();
-                        await applyVal(el, val, "Fallback-MessageVal");
-                    } else {
-                        const val = getRandomTemplateVal();
-                        await applyVal(el, val.substring(0, 100), "Fallback-RandomTemplateVal");
-                    }
-                }
-            }
-        }
-
-        // [Fallback] 라디오 버튼 중 아무것도 선택되지 않은 그룹 무작위 자동 체크
-        try {
-            const radioGroups = {};
-            form.querySelectorAll('input[type="radio"]').forEach(radio => {
-                if (isHoneypot(radio)) return;
-                const name = radio.name || 'unnamed-radio';
-                if (!radioGroups[name]) radioGroups[name] = [];
-                radioGroups[name].push(radio);
-            });
+        // 3-Pass Multi-Stage Loop (v5.0)
+        for (let pass = 1; pass <= 3; pass++) {
+            logDev(`🔄 [Supreme-X 5.0] Executing Fill Pass ${pass}/3...`, "info");
             
-            for (const name in radioGroups) {
-                const group = radioGroups[name];
-                const isChecked = group.some(r => r.checked);
-                if (!isChecked && group.length > 0) {
-                    const randomRadio = group[Math.floor(Math.random() * group.length)];
-                    randomRadio.click();
-                    randomRadio.dispatchEvent(new Event('change', { bubbles: true }));
-                    logDev(`   - [Fallback-Radio] Randomly checked radio in group "${name}"`);
-                }
-            }
-        } catch (e) {
-            logDev(`⚠️ [Fallback-Radio] Error: ${e.message}`, "warning");
-        }
-
-        // [Fallback] 체크박스 중 체크되지 않은 빈 항목 무작위 자동 체크 (70%의 높은 확률)
-        try {
-            form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                if (!cb.checked && !isHoneypot(cb)) {
-                    if (Math.random() > 0.3) {
-                        cb.click();
-                        cb.dispatchEvent(new Event('change', { bubbles: true }));
-                        logDev(`   - [Fallback-Checkbox] Checked checkbox "${cb.name || cb.id || ''}"`);
-                    }
-                }
-            });
-        } catch (e) {
-            logDev(`⚠️ [Fallback-Checkbox] Error: ${e.message}`, "warning");
-        }
-
-        if (filledFields < 2) {
-            logDev("🛠️ [Supreme-X 4.0] High-confidence matching limited. Engaging Brute-Force Injector...");
-            const allFieldTypes = queryAllInputs(form); 
-            for (const inp of allFieldTypes) {
-                if (inp.value) continue;
+            // 1. 실시간 입력 필드 스캔 (매 패스마다 최신 DOM 스캔)
+            const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), textarea, select'));
+            
+            // 2. 가상 DOM / ARIA 커스텀 컨트롤 스캔 & 채우기
+            try {
+                // (1) 가상 드롭다운 (role="combobox", select/dropdown 유사 클래스)
+                const virtualDropdowns = Array.from(form.querySelectorAll('[role="combobox"], [class*="select"i], [class*="dropdown"i]')).filter(el => {
+                    return el.tagName !== 'SELECT' && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA';
+                });
                 
-                const role = inp.getAttribute('role') || '';
-                const isText = inp.tagName === 'TEXTAREA' || role === 'textbox' || inp.contentEditable === 'true';
-                
-                if (isText) {
-                    await applyVal(inp, processedTpl.message || getRandomTemplateVal(), "BruteForce-Message");
-                } else {
-                    const ph = (inp.placeholder || '').toLowerCase();
-                    const n = (inp.name || '').toLowerCase();
-                    const combined = `${ph} ${n}`;
+                for (const dropdown of virtualDropdowns) {
+                    const selectedText = (dropdown.textContent || '').trim();
+                    // 이미 선택되어 있는 것으로 보이면 스킵
+                    if (selectedText && selectedText.length > 0 && !/select|choose|dropdown|click/i.test(selectedText)) continue;
                     
-                    if (combined.includes('email')) await applyVal(inp, processedTpl.email, "BruteForce-Email");
-                    else if (combined.includes('name')) await applyVal(inp, (processedTpl.firstName || processedTpl.name || getRandomTemplateVal()), "BruteForce-Name");
-                }
-            }
-        }
-
-        // [Ultimate Required Fields Guard] 필수 필드 철벽 방어선
-        logDev("🛡️ [Guard] Final checking for empty required fields before submission...");
-        for (const el of inputs) {
-            if (isHoneypot(el) || el.type === 'hidden' || el.disabled || el.readOnly) continue;
-            
-            const isRequired = el.hasAttribute('required') || 
-                               el.getAttribute('aria-required') === 'true' ||
-                               /required|essential|star|\*/i.test(el.className || '') ||
-                               /required|essential|star/i.test(el.id || '');
-            
-            if (isRequired) {
-                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                    if (!el.value) {
-                        logDev(`⚠️ [Guard] Empty required input detected! name: ${el.name || el.id || 'unnamed'}. Injecting fallback...`, "warning");
-                        let fallbackVal = getRandomTemplateVal();
-                        
-                        const fieldId = [el.name || '', el.id || '', getLabelFor(el)].join(' ').toLowerCase();
-                        if (fieldId.includes('email')) {
-                            fallbackVal = processedTpl.email || "info@domain.com";
-                        } else if (fieldId.includes('phone') || fieldId.includes('tel')) {
-                            fallbackVal = processedTpl.phone || "010-0000-0000";
-                        } else if (fieldId.includes('subject') || fieldId.includes('title')) {
-                            fallbackVal = processedTpl.subject || "Inquiry";
-                        }
-                        
-                        await applyVal(el, fallbackVal, "Guard-RequiredFallback");
+                    logDev(`   - [Virtual Dropdown] Detected dropdown: ${dropdown.className}. Triggering options...`);
+                    dropdown.click();
+                    dropdown.dispatchEvent(new Event('click', { bubbles: true }));
+                    dropdown.dispatchEvent(new Event('mousedown', { bubbles: true }));
+                    dropdown.focus && dropdown.focus();
+                    
+                    await new Promise(r => setTimeout(r, 120)); // 옵션 렌더링 시간 지연
+                    
+                    const options = Array.from(document.querySelectorAll('[role="option"], li, [class*="option"i], [class*="item"i]')).filter(opt => {
+                        return opt.offsetParent !== null; 
+                    });
+                    
+                    if (options.length > 0) {
+                        const chosen = options[Math.floor(Math.random() * options.length)];
+                        chosen.click();
+                        chosen.dispatchEvent(new Event('click', { bubbles: true }));
+                        chosen.dispatchEvent(new Event('mousedown', { bubbles: true }));
+                        chosen.dispatchEvent(new Event('change', { bubbles: true }));
+                        logDev(`   - [Virtual Dropdown] Selected option text: "${chosen.textContent.trim()}"`);
+                        filledFields++;
                     }
-                } else if (el.tagName === 'SELECT') {
-                    if (el.selectedIndex <= 0 && el.options.length > 1) {
-                        logDev(`⚠️ [Guard] Empty required select detected! name: ${el.name || el.id || 'unnamed'}. Picking option...`, "warning");
+                    dropdown.dispatchEvent(new Event('blur', { bubbles: true }));
+                }
+                
+                // (2) 가상 체크박스 (role="checkbox")
+                const virtualCheckboxes = Array.from(form.querySelectorAll('[role="checkbox"]')).filter(el => el.tagName !== 'INPUT');
+                for (const cb of virtualCheckboxes) {
+                    const ariaChecked = cb.getAttribute('aria-checked') === 'true' || cb.classList.contains('checked') || cb.classList.contains('active');
+                    const text = (cb.textContent || cb.parentElement?.textContent || '').toLowerCase();
+                    const termsKeywords = ['agree', 'terms', 'policy', 'consento', '동의', '규정', '약관'];
+                    
+                    if (termsKeywords.some(k => text.includes(k))) {
+                        if (!ariaChecked) {
+                            cb.click();
+                            cb.dispatchEvent(new Event('click', { bubbles: true }));
+                            cb.dispatchEvent(new Event('change', { bubbles: true }));
+                            logDev(`   - [Virtual Checkbox] Checked required terms.`);
+                            filledFields++;
+                        }
+                    } else if (!ariaChecked && Math.random() > 0.2) { // 80% 확률로 무작위 체크
+                        cb.click();
+                        cb.dispatchEvent(new Event('click', { bubbles: true }));
+                        cb.dispatchEvent(new Event('change', { bubbles: true }));
+                        logDev(`   - [Virtual Checkbox] Randomly checked.`);
+                        filledFields++;
+                    }
+                }
+                
+                // (3) 가상 라디오 (role="radio")
+                const virtualRadios = Array.from(form.querySelectorAll('[role="radio"]')).filter(el => el.tagName !== 'INPUT');
+                for (const rd of virtualRadios) {
+                    const ariaChecked = rd.getAttribute('aria-checked') === 'true' || rd.classList.contains('checked') || rd.classList.contains('active');
+                    if (!ariaChecked) {
+                        rd.click();
+                        rd.dispatchEvent(new Event('click', { bubbles: true }));
+                        rd.dispatchEvent(new Event('change', { bubbles: true }));
+                        logDev(`   - [Virtual Radio] Checked.`);
+                        filledFields++;
+                    }
+                }
+            } catch (err) {
+                logDev(`⚠️ [Virtual Control Scanner] Error: ${err.message}`, "warning");
+            }
+
+            // 3. Primary matches
+            for (const el of inputs) {
+                if (isHoneypot(el) || el.disabled || el.readOnly) continue;
+                if (el.value && el.value.trim() !== '') continue; // 이미 값이 들어있다면 스킵
+
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    const labelText = getLabelFor(el).toLowerCase();
+                    const containerText = (el.parentElement?.textContent || '').toLowerCase();
+                    const termsKeywords = ['agree', 'terms', 'policy', 'consento', '동의', '규정', '약관'];
+                    
+                    if (termsKeywords.some(k => labelText.includes(k) || containerText.includes(k))) {
+                        if (!el.checked) {
+                            el.click();
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                    continue;
+                }
+
+                if (el.tagName === 'SELECT') {
+                    if (el.options.length > 1 && (el.selectedIndex <= 0)) {
                         const validOptions = [];
                         for (let i = 1; i < el.options.length; i++) {
                             const opt = el.options[i];
                             if (opt.value && !opt.disabled) {
-                                validOptions.push(i);
+                                validOptions.push({ opt, idx: i });
                             }
                         }
-                        const finalIdx = validOptions.length > 0 ? validOptions[Math.floor(Math.random() * validOptions.length)] : 1;
-                        el.selectedIndex = finalIdx;
-                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                        if (validOptions.length > 0) {
+                            const chosen = validOptions[Math.floor(Math.random() * validOptions.length)];
+                            el.selectedIndex = chosen.idx;
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                            logDev(`   - [Select-Random] Picked option: ${chosen.opt.text}`);
+                            filledFields++;
+                        }
+                    }
+                    continue;
+                }
+
+                if (await matchField(FIELD_PATTERNS.firstName, processedTpl.firstName || processedTpl.name, el)) continue;
+                if (await matchField(FIELD_PATTERNS.lastName, processedTpl.lastName, el)) continue;
+                if (await matchField(FIELD_PATTERNS.name, processedTpl.name, el)) continue;
+                if (await matchField(FIELD_PATTERNS.email, processedTpl.email, el)) continue;
+                if (await matchField(FIELD_PATTERNS.phone, processedTpl.phone, el)) continue;
+                if (await matchField(FIELD_PATTERNS.subject, processedTpl.subject, el)) continue;
+                if (await matchField(FIELD_PATTERNS.message, processedTpl.message, el)) continue;
+            }
+
+            // 4. Fallback 일반 입력란 무작위 대답을 템플릿 중 한 입력값으로 대체
+            for (const el of inputs) {
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    if (!el.value && !isHoneypot(el) && el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'submit') {
+                        if (el.tagName === 'TEXTAREA') {
+                            const val = processedTpl.message || getRandomTemplateVal();
+                            await applyVal(el, val, "Fallback-MessageVal");
+                        } else {
+                            const val = getRandomTemplateVal();
+                            await applyVal(el, val.substring(0, 100), "Fallback-RandomTemplateVal");
+                        }
                     }
                 }
+            }
+
+            // 5. Fallback 라디오 버튼 그룹 무작위 자동 체크
+            try {
+                const radioGroups = {};
+                form.querySelectorAll('input[type="radio"]').forEach(radio => {
+                    if (isHoneypot(radio) || radio.disabled) return;
+                    const name = radio.name || 'unnamed-radio';
+                    if (!radioGroups[name]) radioGroups[name] = [];
+                    radioGroups[name].push(radio);
+                });
+                
+                for (const name in radioGroups) {
+                    const group = radioGroups[name];
+                    const isChecked = group.some(r => r.checked);
+                    if (!isChecked && group.length > 0) {
+                        const randomRadio = group[Math.floor(Math.random() * group.length)];
+                        randomRadio.click();
+                        randomRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                        logDev(`   - [Fallback-Radio] Randomly checked radio in group "${name}"`);
+                    }
+                }
+            } catch (e) {}
+
+            // 6. Fallback 체크박스 중 체크되지 않은 빈 항목 무작위 자동 체크 (80%의 높은 확률)
+            try {
+                form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    if (!cb.checked && !isHoneypot(cb) && !cb.disabled) {
+                        if (Math.random() > 0.2) {
+                            cb.click();
+                            cb.dispatchEvent(new Event('change', { bubbles: true }));
+                            logDev(`   - [Fallback-Checkbox] Checked checkbox "${cb.name || cb.id || ''}"`);
+                        }
+                    }
+                });
+            } catch (e) {}
+
+            // 7. Brute-force Injector
+            if (filledFields < 2) {
+                logDev("🛠️ [Supreme-X 5.0] High-confidence matching limited. Engaging Brute-Force Injector...");
+                const allFieldTypes = queryAllInputs(form); 
+                for (const inp of allFieldTypes) {
+                    if (inp.value || inp.disabled || inp.readOnly) continue;
+                    
+                    const role = inp.getAttribute('role') || '';
+                    const isText = inp.tagName === 'TEXTAREA' || role === 'textbox' || inp.contentEditable === 'true';
+                    
+                    if (isText) {
+                        await applyVal(inp, processedTpl.message || getRandomTemplateVal(), "BruteForce-Message");
+                    } else {
+                        const ph = (inp.placeholder || '').toLowerCase();
+                        const n = (inp.name || '').toLowerCase();
+                        const combined = `${ph} ${n}`;
+                        
+                        if (combined.includes('email')) await applyVal(inp, processedTpl.email || generateRandomEmail(), "BruteForce-Email");
+                        else if (combined.includes('name')) await applyVal(inp, (processedTpl.firstName || processedTpl.name || getRandomTemplateVal()), "BruteForce-Name");
+                    }
+                }
+            }
+
+            // 8. Ultimate Required Fields Guard (100% 무결성 무작위 난수 보완 시스템 탑재)
+            logDev("🛡️ [Guard] Final checking for empty required fields before submission...");
+            for (const el of inputs) {
+                if (isHoneypot(el) || el.type === 'hidden' || el.disabled || el.readOnly) continue;
+                
+                const isRequired = el.hasAttribute('required') || 
+                                   el.getAttribute('aria-required') === 'true' ||
+                                   /required|essential|star|\*/i.test(el.className || '') ||
+                                   /required|essential|star/i.test(el.id || '');
+                
+                if (isRequired) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        if (!el.value) {
+                            logDev(`⚠️ [Guard] Empty required input detected! name: ${el.name || el.id || 'unnamed'}. Injecting fallback/random...`, "warning");
+                            
+                            const fieldId = [el.name || '', el.id || '', getLabelFor(el)].join(' ').toLowerCase();
+                            let fallbackVal = "";
+                            
+                            if (fieldId.includes('email')) {
+                                fallbackVal = processedTpl.email || generateRandomEmail();
+                            } else if (fieldId.includes('phone') || fieldId.includes('tel') || fieldId.includes('mobile')) {
+                                fallbackVal = processedTpl.phone || generateRandomPhone();
+                            } else if (fieldId.includes('subject') || fieldId.includes('title')) {
+                                fallbackVal = processedTpl.subject || generateRandomText('subject');
+                            } else if (fieldId.includes('name')) {
+                                fallbackVal = processedTpl.name || processedTpl.firstName || "User";
+                            } else {
+                                fallbackVal = getRandomTemplateVal() !== 'Inquiry' ? getRandomTemplateVal() : generateRandomText('general');
+                            }
+                            
+                            await applyVal(el, fallbackVal, "Guard-RequiredFallback");
+                        }
+                    } else if (el.tagName === 'SELECT') {
+                        if (el.selectedIndex <= 0 && el.options.length > 1) {
+                            logDev(`⚠️ [Guard] Empty required select detected! name: ${el.name || el.id || 'unnamed'}. Picking option...`, "warning");
+                            const validOptions = [];
+                            for (let i = 1; i < el.options.length; i++) {
+                                const opt = el.options[i];
+                                if (opt.value && !opt.disabled) {
+                                    validOptions.push(i);
+                                }
+                            }
+                            const finalIdx = validOptions.length > 0 ? validOptions[Math.floor(Math.random() * validOptions.length)] : 1;
+                            el.selectedIndex = finalIdx;
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                }
+            }
+
+            if (pass < 3) {
+                await new Promise(r => setTimeout(r, 200));
             }
         }
 

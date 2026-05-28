@@ -324,6 +324,15 @@ function bindEvents() {
         });
     }
 
+    // [v5.0.0] Wit.ai setup link fix to open in a new tab
+    const witAiLink = document.getElementById('wit-ai-link');
+    if (witAiLink) {
+        witAiLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            chrome.tabs.create({ url: 'https://wit.ai/apps' });
+        });
+    }
+
     // [v2.4.0] Template Save Buttons - Combined
     ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
         const btn = document.getElementById(id);
