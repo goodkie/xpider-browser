@@ -777,9 +777,44 @@
     }
 
     async function fillFormIntelligent(form, tpl, speed) {
-        logDev("🛠️ [Action] Profiling fields for intelligent mapping...");
+        logDev("🛠️ [Supreme-X 4.0] Profiling fields for intelligent mapping...");
         let filledFields = 0;
         const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), textarea, select'));
+
+        // [Auto-Name Synthesis] 이름 필드 상호 보완 자가 합성
+        const processedTpl = { ...tpl };
+        const rawName = (processedTpl.name || '').trim();
+        const rawFirst = (processedTpl.firstName || '').trim();
+        const rawLast = (processedTpl.lastName || '').trim();
+
+        if (rawName && !rawFirst && !rawLast) {
+            // 이름만 있고 성/이름이 분할된 경우
+            if (rawName.includes(' ')) {
+                const parts = rawName.split(/\s+/);
+                processedTpl.firstName = parts.slice(1).join(' ');
+                processedTpl.lastName = parts[0];
+            } else if (rawName.length === 3) {
+                processedTpl.lastName = rawName.substring(0, 1);
+                processedTpl.firstName = rawName.substring(1);
+            } else if (rawName.length === 2) {
+                processedTpl.lastName = rawName.substring(0, 1);
+                processedTpl.firstName = rawName.substring(1);
+            } else {
+                processedTpl.firstName = rawName;
+                processedTpl.lastName = rawName;
+            }
+        } else if (!rawName && (rawFirst || rawLast)) {
+            // 성/이름은 있지만 전체 이름이 비어 있는 경우
+            if (/[a-zA-Z]/.test(rawFirst || rawLast)) {
+                processedTpl.name = [rawFirst, rawLast].filter(Boolean).join(' ');
+            } else {
+                processedTpl.name = [rawLast, rawFirst].filter(Boolean).join('');
+            }
+        } else if (rawFirst && !rawLast) {
+            processedTpl.lastName = rawFirst;
+        } else if (rawLast && !rawFirst) {
+            processedTpl.firstName = rawLast;
+        }
 
         const matchField = async (patterns, val, el) => {
             if (!val) return false;
@@ -808,30 +843,88 @@
         };
 
         const applyVal = async (el, val, matchedAttr) => {
+            if (!el || el.disabled || el.readOnly) return false;
+
             if (el.tagName === 'SELECT') {
                 if (el.options.length > 1) {
-                    const randomIndex = Math.floor(Math.random() * (el.options.length - 1)) + 1;
-                    el.selectedIndex = randomIndex;
-                    logDev(`   - [Select] Matched "${matchedAttr}" | Picked: ${el.options[randomIndex].text}`);
+                    if (el.selectedIndex <= 0) {
+                        const randomIndex = Math.floor(Math.random() * (el.options.length - 1)) + 1;
+                        el.selectedIndex = randomIndex;
+                        el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                        logDev(`   - [Select] Matched "${matchedAttr}" | Picked: ${el.options[randomIndex].text}`);
+                        filledFields++;
+                        return true;
+                    }
                 }
-            } else if (!el.value) {
-                // [v18.7.5] Intelligent Pacing: wait between field entry
-                await new Promise(r => setTimeout(r, speed.field));
+            } else {
+                // [v18.7.5] Intelligent Pacing
+                await new Promise(r => setTimeout(r, speed.field || 150));
                 
-                el.focus();
-                el.value = val;
-                el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-                el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-                el.blur();
+                // 1. Focus
+                el.click && el.click();
+                el.focus && el.focus();
+                
+                // 2. Insert text via execCommand (Highest trust, best for reCAPTCHA/Wix)
+                let setOk = false;
+                try {
+                    el.select && el.select();
+                    document.execCommand('selectAll', false, null);
+                    setOk = document.execCommand('insertText', false, val);
+                } catch(e) {}
+                
+                // 3. Fallback direct setter + descriptor bypass for framework tracking
+                if (!setOk || el.value !== val) {
+                    try {
+                        const proto = el.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+                        const d = Object.getOwnPropertyDescriptor(proto, 'value');
+                        if (d && d.set) {
+                            d.set.call(el, val);
+                        } else {
+                            el.value = val;
+                        }
+                    } catch(e) {
+                        el.value = val;
+                    }
+                }
+                
+                // 4. 7-Stage event dispatch for Wix & deep DOM syncing
+                const events = [
+                    new Event('focus', { bubbles: true, cancelable: true }),
+                    new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: val.slice(-1) }),
+                    new KeyboardEvent('keypress', { bubbles: true, cancelable: true, key: val.slice(-1) }),
+                    new InputEvent('input', { bubbles: true, cancelable: true, data: val }),
+                    new KeyboardEvent('keyup', { bubbles: true, cancelable: true, key: val.slice(-1) }),
+                    new Event('change', { bubbles: true, cancelable: true }),
+                    new Event('blur', { bubbles: true, cancelable: true })
+                ];
+                
+                events.forEach(evt => {
+                    try { el.dispatchEvent(evt); } catch(e) {}
+                });
+                
+                // React Fiber Sync
+                try {
+                    const rk = Object.keys(el).find(k => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
+                    if (rk) {
+                        const props = el[rk]?.memoizedProps || el[rk]?.pendingProps || el[rk];
+                        if (typeof props?.onChange === 'function') {
+                            props.onChange({ target: el, currentTarget: el, type: 'change', bubbles: true });
+                        }
+                    }
+                } catch(e) {}
+                
+                el.blur && el.blur();
                 logDev(`   - [Input] Matched "${matchedAttr}" | Val: ${val.substring(0, 15)}...`);
                 filledFields++;
+                return true;
             }
+            return false;
         };
 
         // 템플릿의 실존 유효 값들 수집
         const templateVals = [
-            tpl.firstName, tpl.lastName, tpl.name, tpl.email, 
-            tpl.phone, tpl.subject, tpl.message
+            processedTpl.firstName, processedTpl.lastName, processedTpl.name, processedTpl.email, 
+            processedTpl.phone, processedTpl.subject, processedTpl.message
         ].filter(v => typeof v === 'string' && v.trim() !== '');
 
         const getRandomTemplateVal = () => {
@@ -841,6 +934,7 @@
             return "Inquiry";
         };
 
+        // Pass 1: Primary matches
         for (const el of inputs) {
             if (isHoneypot(el)) continue;
 
@@ -877,13 +971,13 @@
                 continue;
             }
 
-            if (await matchField(FIELD_PATTERNS.firstName, tpl.firstName || tpl.name, el)) continue;
-            if (await matchField(FIELD_PATTERNS.lastName, tpl.lastName, el)) continue;
-            if (await matchField(FIELD_PATTERNS.name, tpl.name, el)) continue;
-            if (await matchField(FIELD_PATTERNS.email, tpl.email, el)) continue;
-            if (await matchField(FIELD_PATTERNS.phone, tpl.phone, el)) continue;
-            if (await matchField(FIELD_PATTERNS.subject, tpl.subject, el)) continue;
-            if (await matchField(FIELD_PATTERNS.message, tpl.message, el)) continue;
+            if (await matchField(FIELD_PATTERNS.firstName, processedTpl.firstName || processedTpl.name, el)) continue;
+            if (await matchField(FIELD_PATTERNS.lastName, processedTpl.lastName, el)) continue;
+            if (await matchField(FIELD_PATTERNS.name, processedTpl.name, el)) continue;
+            if (await matchField(FIELD_PATTERNS.email, processedTpl.email, el)) continue;
+            if (await matchField(FIELD_PATTERNS.phone, processedTpl.phone, el)) continue;
+            if (await matchField(FIELD_PATTERNS.subject, processedTpl.subject, el)) continue;
+            if (await matchField(FIELD_PATTERNS.message, processedTpl.message, el)) continue;
         }
 
         // [Fallback] 일반 입력란 무작위 대답을 템플릿 중 한 입력값으로 대체
@@ -891,7 +985,7 @@
             if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
                 if (!el.value && !isHoneypot(el) && el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'submit') {
                     if (el.tagName === 'TEXTAREA') {
-                        const val = tpl.message || getRandomTemplateVal();
+                        const val = processedTpl.message || getRandomTemplateVal();
                         await applyVal(el, val, "Fallback-MessageVal");
                     } else {
                         const val = getRandomTemplateVal();
@@ -950,14 +1044,59 @@
                 const isText = inp.tagName === 'TEXTAREA' || role === 'textbox' || inp.contentEditable === 'true';
                 
                 if (isText) {
-                    await applyVal(inp, tpl.message || getRandomTemplateVal(), "BruteForce-Message");
+                    await applyVal(inp, processedTpl.message || getRandomTemplateVal(), "BruteForce-Message");
                 } else {
                     const ph = (inp.placeholder || '').toLowerCase();
                     const n = (inp.name || '').toLowerCase();
                     const combined = `${ph} ${n}`;
                     
-                    if (combined.includes('email')) await applyVal(inp, tpl.email, "BruteForce-Email");
-                    else if (combined.includes('name')) await applyVal(inp, (tpl.firstName || tpl.name || getRandomTemplateVal()), "BruteForce-Name");
+                    if (combined.includes('email')) await applyVal(inp, processedTpl.email, "BruteForce-Email");
+                    else if (combined.includes('name')) await applyVal(inp, (processedTpl.firstName || processedTpl.name || getRandomTemplateVal()), "BruteForce-Name");
+                }
+            }
+        }
+
+        // [Ultimate Required Fields Guard] 필수 필드 철벽 방어선
+        logDev("🛡️ [Guard] Final checking for empty required fields before submission...");
+        for (const el of inputs) {
+            if (isHoneypot(el) || el.type === 'hidden' || el.disabled || el.readOnly) continue;
+            
+            const isRequired = el.hasAttribute('required') || 
+                               el.getAttribute('aria-required') === 'true' ||
+                               /required|essential|star|\*/i.test(el.className || '') ||
+                               /required|essential|star/i.test(el.id || '');
+            
+            if (isRequired) {
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    if (!el.value) {
+                        logDev(`⚠️ [Guard] Empty required input detected! name: ${el.name || el.id || 'unnamed'}. Injecting fallback...`, "warning");
+                        let fallbackVal = getRandomTemplateVal();
+                        
+                        const fieldId = [el.name || '', el.id || '', getLabelFor(el)].join(' ').toLowerCase();
+                        if (fieldId.includes('email')) {
+                            fallbackVal = processedTpl.email || "info@domain.com";
+                        } else if (fieldId.includes('phone') || fieldId.includes('tel')) {
+                            fallbackVal = processedTpl.phone || "010-0000-0000";
+                        } else if (fieldId.includes('subject') || fieldId.includes('title')) {
+                            fallbackVal = processedTpl.subject || "Inquiry";
+                        }
+                        
+                        await applyVal(el, fallbackVal, "Guard-RequiredFallback");
+                    }
+                } else if (el.tagName === 'SELECT') {
+                    if (el.selectedIndex <= 0 && el.options.length > 1) {
+                        logDev(`⚠️ [Guard] Empty required select detected! name: ${el.name || el.id || 'unnamed'}. Picking option...`, "warning");
+                        const validOptions = [];
+                        for (let i = 1; i < el.options.length; i++) {
+                            const opt = el.options[i];
+                            if (opt.value && !opt.disabled) {
+                                validOptions.push(i);
+                            }
+                        }
+                        const finalIdx = validOptions.length > 0 ? validOptions[Math.floor(Math.random() * validOptions.length)] : 1;
+                        el.selectedIndex = finalIdx;
+                        el.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
                 }
             }
         }

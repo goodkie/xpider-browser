@@ -101,63 +101,121 @@ if(window.__xpider_filling)return;
 window.__xpider_filling=true;
 const tpl=${tplJson};
 
+// [Auto-Name Synthesis] 이름 필드 상호 보완 자가 합성
+const processedTpl = { ...tpl };
+const rawName = (processedTpl.name || '').trim();
+const rawFirst = (processedTpl.firstName || '').trim();
+const rawLast = (processedTpl.lastName || '').trim();
+
+if (rawName && !rawFirst && !rawLast) {
+    if (rawName.includes(' ')) {
+        const parts = rawName.split(/\\s+/);
+        processedTpl.firstName = parts.slice(1).join(' ');
+        processedTpl.lastName = parts[0];
+    } else if (rawName.length === 3) {
+        processedTpl.lastName = rawName.substring(0, 1);
+        processedTpl.firstName = rawName.substring(1);
+    } else if (rawName.length === 2) {
+        processedTpl.lastName = rawName.substring(0, 1);
+        processedTpl.firstName = rawName.substring(1);
+    } else {
+        processedTpl.firstName = rawName;
+        processedTpl.lastName = rawName;
+    }
+} else if (!rawName && (rawFirst || rawLast)) {
+    if (/[a-zA-Z]/.test(rawFirst || rawLast)) {
+        processedTpl.name = [rawFirst, rawLast].filter(Boolean).join(' ');
+    } else {
+        processedTpl.name = [rawLast, rawFirst].filter(Boolean).join('');
+    }
+} else if (rawFirst && !rawLast) {
+    processedTpl.lastName = rawFirst;
+} else if (rawLast && !rawFirst) {
+    processedTpl.firstName = rawLast;
+}
+
 // Primary field patterns
 const P={
-  firstName:[/first.?name/i,/given.?name/i,/이름/i,/名前/i],
-  lastName:[/last.?name/i,/family.?name/i,/surname/i,/성(?!명)/i],
-  name:[/^name$/i,/full.?name/i,/성함/i,/your.?name/i,/contact.?name/i,/氏名/i,/姓名/i,/성명/i],
-  email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i],
-  subject:[/subject/i,/title(?!.*name)/i,/제목/i,/件名/i,/主题/i,/topic/i,/heading/i],
-  phone:[/phone/i,/mobile/i,/tel(?!eg)/i,/전화/i,/手机/i,/电话/i,/fax/i],
-  message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/text/i,/detail/i,/note/i]
+  firstName:[/first.*name/i,/given.*name/i,/이름/i,/名前/i,/名/i,/nombre/i,/vorname/i,/prénom/i],
+  lastName:[/last.*name/i,/family.*name/i,/surname/i,/성(?!명)/i,/苗字/i,/姓/i,/apellido/i,/nachname/i,/nom.*famille/i],
+  name:[/^name$/i,/full.?name/i,/성함/i,/your.?name/i,/contact.?name/i,/氏명/i,/姓名/i,/성명/i,/user/i,/contact.*person/i,/nombre.*completo/i],
+  email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i,/correo/i,/courriel/i,/correo.*electrónico/i],
+  subject:[/^subject$/i,/title(?!.*name)/i,/제목/i,/件명/i,/主题/i,/topic/i,/heading/i,/asunto/i,/betreff/i,/objet/i],
+  phone:[/phone/i,/mobile/i,/tel(?!eg)/i,/전화/i,/手机/i,/전화/i,/fax/i,/teléfono/i,/telefon/i,/téléphone/i],
+  message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/text/i,/detail/i,/note/i,/mensaje/i,/nachricht/i]
 };
 
 // Human-like value setter — execCommand first (best reCAPTCHA score)
 async function tv(el,v){
   if(!v||!el||el.disabled||el.readOnly)return false;
-  el.click&&el.click();
-  el.focus&&el.focus();
-  await new Promise(r=>setTimeout(r,80));
-  // Method 1: execCommand (most human-like — Wix reCAPTCHA friendly)
-  try{
-    el.select&&el.select();
-    document.execCommand('selectAll',false,null);
-    const ok=document.execCommand('insertText',false,v);
-    if(ok&&el.value){
-      el.dispatchEvent(new Event('blur',{bubbles:true}));
-      return true;
+  
+  if (el.tagName === 'SELECT') {
+    if (el.options.length > 1) {
+      if (el.selectedIndex <= 0) {
+        const randomIndex = Math.floor(Math.random() * (el.options.length - 1)) + 1;
+        el.selectedIndex = randomIndex;
+        el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+        return true;
+      }
     }
-  }catch(e){}
-  // Method 2: Native value setter + React fiber
-  try{
-    const proto=el.tagName==='TEXTAREA'?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;
-    const d=Object.getOwnPropertyDescriptor(proto,'value');
-    if(d&&d.set)d.set.call(el,v);else el.value=v;
-  }catch(e){el.value=v;}
-  ['input','change','keyup','blur'].forEach(t=>
-    el.dispatchEvent(new Event(t,{bubbles:true,cancelable:true}))
-  );
-  // React fiber
-  try{
-    const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
-    if(rk){
-      const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
-      if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+  } else {
+    el.click&&el.click();
+    el.focus&&el.focus();
+    await new Promise(r=>setTimeout(r,120));
+    
+    // Method 1: execCommand (most human-like — Wix reCAPTCHA friendly)
+    let setOk = false;
+    try{
+      el.select&&el.select();
+      document.execCommand('selectAll',false,null);
+      setOk = document.execCommand('insertText',false,v);
+    }catch(e){}
+    
+    // Method 2: Native value setter + React fiber
+    if (!setOk || el.value !== v) {
+      try{
+        const proto=el.tagName==='TEXTAREA'?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;
+        const d=Object.getOwnPropertyDescriptor(proto,'value');
+        if(d&&d.set)d.set.call(el,v);else el.value=v;
+      }catch(e){el.value=v;}
     }
-  }catch(e){}
-  try{el.dispatchEvent(new InputEvent('input',{bubbles:true,cancelable:true,data:v}));}catch(e){}
-  return !!el.value;
+    
+    // Method 3: 7-stage event dispatch for Wix & Deep DOM sync
+    const events = [
+      new Event('focus', { bubbles: true, cancelable: true }),
+      new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: v.slice(-1) }),
+      new KeyboardEvent('keypress', { bubbles: true, cancelable: true, key: v.slice(-1) }),
+      new InputEvent('input', { bubbles: true, cancelable: true, data: v }),
+      new KeyboardEvent('keyup', { bubbles: true, cancelable: true, key: v.slice(-1) }),
+      new Event('change', { bubbles: true, cancelable: true }),
+      new Event('blur', { bubbles: true, cancelable: true })
+    ];
+    
+    events.forEach(evt => {
+      try { el.dispatchEvent(evt); } catch(e) {}
+    });
+    
+    // React fiber
+    try{
+      const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
+      if(rk){
+        const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
+        if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+      }
+    }catch(e){}
+    
+    el.blur&&el.blur();
+    return !!el.value;
+  }
+  return false;
 }
 
 function lbl(el){
-  // Standard labels
   const ls=el.labels?Array.from(el.labels).map(l=>l.textContent).join(' '):'';
   const al=el.getAttribute('aria-label')||'';
   const alb=el.getAttribute('aria-labelledby');
   const albt=alb?(document.getElementById(alb)||{}).textContent||'':'';
-  // Wix: data-hook attribute
   const hook=el.getAttribute('data-hook')||'';
-  // Wix: label inside parent container (wix wraps inputs in divs with a label above)
   let parentLbl='';
   let p=el.parentElement;
   for(let i=0;i<5&&p;i++){
@@ -165,7 +223,6 @@ function lbl(el){
     if(lEl&&lEl!==el){parentLbl=lEl.textContent||'';break;}
     p=p.parentElement;
   }
-  // Previous sibling label
   let prevLbl='';
   let sib=el.previousElementSibling;
   for(let i=0;i<3&&sib;i++){
@@ -183,45 +240,42 @@ function getFieldId(el){
 // Smart inference for unmatched fields
 function inferValue(el){
   const c=getFieldId(el);
-  const emailDomain=tpl.email?tpl.email.split('@')[1]||'':'';
-  const emailUser=tpl.email?tpl.email.split('@')[0]||'':'';
+  const emailDomain=processedTpl.email?processedTpl.email.split('@')[1]||'':'';
+  const emailUser=processedTpl.email?processedTpl.email.split('@')[0]||'':'';
   const domainName=emailDomain.split('.')[0]||'';
   
   if(/company|organization|firm|business|brand|corp/i.test(c)){
-    return domainName||tpl.name||'';
+    return domainName||processedTpl.name||'';
   }
   if(/website|url|homepage|web.?address/i.test(c)){
     return emailDomain?'https://'+emailDomain:'';
   }
   if(/username|user.?id|login|account/i.test(c)){
-    return emailUser||tpl.name||'';
+    return emailUser||processedTpl.name||'';
   }
   if(/(your.?)?(re.?)?enter.*email|confirm.*email|email.*confirm/i.test(c)){
-    return tpl.email||'';
+    return processedTpl.email||'';
   }
   if(/interest|reason|purpose|how.*can|service.*need|what.*help/i.test(c)){
-    return tpl.message?tpl.message.substring(0,100):'General inquiry';
+    return processedTpl.message?processedTpl.message.substring(0,100):'General inquiry';
   }
   if(/salutation|gender|title/i.test(c)&&el.tagName==='SELECT'){
-    return ''; // skip dropdowns we can't determine
+    return ''; 
   }
   if(el.tagName==='TEXTAREA'&&!el.value){
-    return tpl.message||'';
+    return processedTpl.message||'';
   }
   if(/text|input/i.test(el.type||'text')&&/required/i.test(el.getAttribute('required')||'')){
-    // Required text field - try name as last resort
-    return tpl.name||'';
+    return processedTpl.name||'';
   }
   return null;
 }
 
 function bestForm(){
-  // Wix-specific form containers
   const wixForm=document.querySelector('[data-hook="wix-form"],[data-hook="cf-form"],form[class*="form"],[class*="contact-form"],[id*="contact-form"],[class*="wix-form"]');
   if(wixForm)return wixForm;
   const fs=Array.from(document.querySelectorAll('form'));
   if(fs.length>0)return fs.sort((a,b)=>b.querySelectorAll('input:not([type=hidden]),textarea').length-a.querySelectorAll('input:not([type=hidden]),textarea').length)[0];
-  // No <form> tag (common in Wix): find input cluster common ancestor
   const ins=Array.from(document.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]),textarea'));
   if(ins.length>=2){
     let ancestor=ins[0].parentElement;
@@ -243,26 +297,26 @@ async function fill(c){
   const used=new Set();
   let n=0;
   
-  // Pass 1: Primary matches (with delay between fields for human-like behavior)
+  // Pass 1: Primary matches
   for(const el of els){
     if(el.tagName==='SELECT')continue;
     for(const k of['firstName','lastName','name','email','phone','subject','message']){
       if(used.has(k)&&k!=='message')continue;
       const c2=getFieldId(el);
-      if(tpl[k]&&P[k].some(r=>r.test(c2))){
-        if(await tv(el,tpl[k])){used.add(k);n++;await new Promise(r=>setTimeout(r,150));break;}
+      if(processedTpl[k]&&P[k].some(r=>r.test(c2))){
+        if(await tv(el,processedTpl[k])){used.add(k);n++;await new Promise(r=>setTimeout(r,150));break;}
       }
     }
   }
   
   // Pass 2: Fallbacks
-  if(!used.has('message')&&tpl.message){
+  if(!used.has('message')&&processedTpl.message){
     const ta=c.querySelectorAll('textarea');
-    if(ta.length>0){await tv(ta[ta.length-1],tpl.message);n++;used.add('message');await new Promise(r=>setTimeout(r,150));}
+    if(ta.length>0){await tv(ta[ta.length-1],processedTpl.message);n++;used.add('message');await new Promise(r=>setTimeout(r,150));}
   }
-  if(!used.has('name')&&tpl.name){
+  if(!used.has('name')&&processedTpl.name){
     const ti=c.querySelector('input[type=text],input:not([type])');
-    if(ti&&!ti.value){await tv(ti,tpl.name);n++;used.add('name');}
+    if(ti&&!ti.value){await tv(ti,processedTpl.name);n++;used.add('name');}
   }
   
   // Pass 3: Smart inference for unmatched/empty fields
@@ -270,6 +324,47 @@ async function fill(c){
     if(el.value||el.tagName==='SELECT')continue;
     const inferred=inferValue(el);
     if(inferred){await tv(el,inferred);n++;await new Promise(r=>setTimeout(r,100));}
+  }
+
+  // Pass 4: Radio and Checkbox Safe Handling
+  try {
+    c.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+      if (!cb.checked) {
+        const lblText = lbl(cb);
+        if (/agree|terms|policy|동의|규정|약관/i.test(lblText)) {
+          cb.click();
+          cb.dispatchEvent(new Event('change', { bubbles: true }));
+        } else if (Math.random() > 0.3) {
+          cb.click();
+          cb.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    });
+  } catch(e) {}
+
+  // Pass 5: Ultimate Required Fields Guard
+  const templateVals = [
+    processedTpl.firstName, processedTpl.lastName, processedTpl.name, processedTpl.email, 
+    processedTpl.phone, processedTpl.subject, processedTpl.message
+  ].filter(v => typeof v === 'string' && v.trim() !== '');
+  const getRandomTplVal = () => templateVals.length > 0 ? templateVals[Math.floor(Math.random() * templateVals.length)] : "Inquiry";
+
+  for (const el of els) {
+    if (el.disabled || el.readOnly) continue;
+    const isReq = el.hasAttribute('required') || 
+                  el.getAttribute('aria-required') === 'true' ||
+                  /required|essential|star|\\*/i.test(el.className || '') ||
+                  /required|essential|star/i.test(el.id || '');
+    
+    if (isReq && !el.value) {
+      let fbVal = getRandomTplVal();
+      const fid = getFieldId(el);
+      if (fid.includes('email')) fbVal = processedTpl.email || "info@domain.com";
+      else if (fid.includes('phone') || fid.includes('tel')) fbVal = processedTpl.phone || "010-0000-0000";
+      else if (fid.includes('subject') || fid.includes('title')) fbVal = processedTpl.subject || "Inquiry";
+      
+      await tv(el, fbVal);
+    }
   }
   
   return n;
