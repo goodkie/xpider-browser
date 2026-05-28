@@ -296,7 +296,7 @@ async function signup(email, password, username) {
         return { 
           success: false, 
           code: 'DUPLICATE_DEVICE', 
-          error: '이 기기 또는 네트워크에서 이미 생성된 계정이 존재합니다.\n추가 계정 생성이 제한되며, 요금제 페이지로 이동합니다.'
+          error: 'An account has already been created from this device or network.\nAdditional account creation is restricted. Redirecting to the pricing page...'
         };
       }
     }
