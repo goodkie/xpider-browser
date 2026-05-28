@@ -1,1181 +1,1228 @@
-// [Extension Popup Script] v1.0.0 Pro
+/**
+ * X PIDER Sender Pro - Logic v1.1.0 (Side Panel & Full Settings)
+ */
 
-document.addEventListener('DOMContentLoaded', () => {
-    // [v18.1] STRICT Persistent Port Connection to detect popup closure instantly
-    chrome.runtime.connect({ name: 'popup-ctrl' });
+let currentTpl = {};
+let campaignQueue = [];
+let campaignActive = false;
+let campaignPaused = false;
+let successCount = 0;
+let totalTargets = 0;
+let i18nData = null;
+let lastLogMessage = "Ready..."; // [v2.5.5] For 3-line monitor
+let remainingTargets = 0;          // [v2.5.5] For 3-line monitor
 
-    // UI Elements Reference
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const tabContents = document.querySelectorAll('.tab-content');
-    const startBtn = document.getElementById('start-btn');
-    const pauseBtn = document.getElementById('pause-btn');
-    const cancelBtn = document.getElementById('cancel-btn');
-    const textInput = document.getElementById('text-input');
-    const urlInput = document.getElementById('url-input');
-    const depthRange = document.getElementById('depth-range');
-    const depthValue = document.getElementById('depth-value');
-
-    const engineMultiSelect = document.getElementById('engine-multi-select');
-    const engineSelectHeader = document.getElementById('engine-select-header');
-    const engineOptions = document.getElementById('engine-options');
-    const engineListContainer = document.getElementById('engine-list-container');
-    const selectAllEngines = document.getElementById('select-all-engines');
-    const keywordInput = document.getElementById('keyword-input');
-    const startPageRange = document.getElementById('start-page-range');
-    const endPageRange = document.getElementById('end-page-range');
-    const startPageValue = document.getElementById('start-page-value');
-    const endPageValue = document.getElementById('end-page-value');
-    const collectionTarget = document.getElementById('collection-target');
-
-    // [v36.9] Explicit slider initialization to ensure reliable start state
-    if (startPageRange) startPageRange.value = 1;
-    if (endPageRange) endPageRange.value = 1;
-    if (startPageValue) startPageValue.textContent = "1";
-    if (endPageValue) endPageValue.textContent = "1";
-
-    const settingsToggle = document.getElementById('settings-toggle');
-    const settingsOverlay = document.getElementById('settings-overlay');
-    const settingsClose = document.getElementById('settings-close');
-
-    const languageSelect = document.getElementById('language-select');
-    const regionSelect = document.getElementById('region-select');
-    const saveSettingsBtn = document.getElementById('save-settings-btn');
-
-    const statusBox = document.getElementById('status-box');
+// [v1.1.1] Global error handler for debugging
+window.onerror = function(msg, url, line) {
+    console.error(`[Popup Error] ${msg} at ${url}:${line}`);
+    // Optional: add to log container if it exists
     const logContainer = document.getElementById('log-container');
-    const captchaLogBox = document.getElementById('captcha-log-box');
-    const captchaLogContainer = document.getElementById('captcha-log-container');
-    const progressBar = document.getElementById('progress-bar');
-    const progressText = document.getElementById('progress-text');
-    const statusDetail = document.getElementById('status-detail');
-    const linkCountSpan = document.getElementById('link-count');
-    const resultBox = document.getElementById('result-box');
-    const resultTableBody = document.querySelector('#result-table tbody');
-    const downloadCsv = document.getElementById('download-csv');
-    const downloadTxt = document.getElementById('download-txt');
-    const downloadGs = document.getElementById('download-gs');
-    const captchaModalOverlay = document.getElementById('captcha-modal-overlay');
-    const captchaSolveToggle = document.getElementById('captcha-solve-toggle');
-    const captchaMethodSelect = document.getElementById('captcha-method-select');
-    const captchaApiKeyInput = document.getElementById('captcha-api-key');
+    if (logContainer) {
+        const div = document.createElement('div');
+        div.className = 'log-entry error';
+        div.textContent = `[System Error] ${msg}`;
+        logContainer.appendChild(div);
+    }
+    return false;
+};
 
-    // [v36.9] Hard Block Recovery UI
-    const hardBlockModalOverlay = document.getElementById('hard-block-modal-overlay');
-    const btnWait30 = document.getElementById('btn-wait-30');
-    const btnVpnResume = document.getElementById('btn-vpn-resume');
-    const captchaMethodGroup = document.getElementById('captcha-method-group');
-    const captchaApiGroup = document.getElementById('captcha-api-group');
-    const stealthModeToggle = document.getElementById('stealth-mode-toggle');
-    const apiLinkTip = document.getElementById('api-link-tip');
-    const audioSttGroup = document.getElementById('audio-stt-group');
-    const audioSttKeyInput = document.getElementById('audio-stt-key');
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // [v2.2.0] Maintain port to detect closure for Auto-Stop
+        chrome.runtime.connect({ name: 'xpider_popup' });
 
-    const vpnCheckToggle = document.getElementById('vpn-check-toggle');
-    const slowModeToggle = document.getElementById('slow-mode-toggle');
-    const proxyEnableToggle = document.getElementById('proxy-enable-toggle');
-    const proxySettingsFields = document.getElementById('proxy-settings-fields');
-    const proxyHostInput = document.getElementById('proxy-host-input');
-    const proxyPortInput = document.getElementById('proxy-port-input');
-    const proxyUserInput = document.getElementById('proxy-user-input');
-    const proxyPassInput = document.getElementById('proxy-pass-input');
+        await initLocalizer();
+        bindEvents();
+        await loadSettings();
+        await loadBlackBoxLogs(); // [v18.10.0] Restore persistent logs on reopen
+        
+        // [v18.10.0] Passive Keep-Alive from UI
+        setInterval(() => {
+            chrome.runtime.sendMessage({ action: 'UI_HEARTBEAT' }).catch(() => {});
+        }, 30000);
 
-    let currentTab = 'text';
-    let results = [];
-    let i18nData = null;
-
-    // [v68.0] Unified i18n Data Initialization
-    function initI18n() {
-        console.log('[v68.0][Popup] Initializing i18n and storage...');
-        i18nData = window.I18N_DATA || null;
-
-        if (!i18nData) {
-            console.error('[v68.0][Popup] I18N_DATA not found. translations.js might have failed to load.');
-        }
-
-        chrome.storage.local.get(['language', 'region', 'captchaSolveEnabled', 'captchaMethod', 'captchaApiKey', 'stealthModeEnabled', 'audioSttKey', 'proxyEnabled', 'proxyHost', 'proxyPort', 'proxyUser', 'proxyPass'], (storage) => {
-            const lang = storage.language || 'en';
-            const reg = storage.region || 'us';
-            
-            if (languageSelect) languageSelect.value = lang;
-            if (regionSelect) regionSelect.value = reg;
-
-            if (captchaSolveToggle) {
-                captchaSolveToggle.checked = !!storage.captchaSolveEnabled;
-                captchaMethodGroup.style.display = storage.captchaSolveEnabled ? 'block' : 'none';
-            }
-            if (captchaMethodSelect) {
-                captchaMethodSelect.value = storage.captchaMethod || 'audio';
-                const method = storage.captchaMethod || 'audio';
-                const isApi = (method === 'api' || method === 'nopecha');
-                const isAudio = (method === 'audio');
-                captchaApiGroup.style.display = (storage.captchaSolveEnabled && isApi) ? 'block' : 'none';
-                audioSttGroup.style.display = (storage.captchaSolveEnabled && isAudio) ? 'block' : 'none';
-                
-                if (apiLinkTip) {
-                    if (storage.captchaMethod === 'nopecha') {
-                        apiLinkTip.innerHTML = '<a href="https://nopecha.com/" target="_blank">NopeCHA API Key 받기</a>';
-                    } else {
-                        apiLinkTip.innerHTML = '<a href="https://2captcha.com?from=18329628" target="_blank">2Captcha Key 받기</a>';
-                    }
-                }
-            }
-            if (captchaApiKeyInput) captchaApiKeyInput.value = storage.captchaApiKey || '';
-            if (audioSttKeyInput) audioSttKeyInput.value = storage.audioSttKey || '';
-            if (stealthModeToggle) stealthModeToggle.checked = !!storage.stealthModeEnabled;
-            if (vpnCheckToggle) vpnCheckToggle.checked = !!storage.vpnCheckEnabled;
-            if (slowModeToggle) slowModeToggle.checked = !!storage.slowModeEnabled;
-
-            if (proxyEnableToggle) {
-                proxyEnableToggle.checked = !!storage.proxyEnabled;
-                proxySettingsFields.classList.toggle('hidden', !storage.proxyEnabled);
-            }
-            if (proxyHostInput) proxyHostInput.value = storage.proxyHost || '';
-            if (proxyPortInput) proxyPortInput.value = storage.proxyPort || '';
-            if (proxyUserInput) proxyUserInput.value = storage.proxyUser || '';
-            if (proxyPassInput) proxyPassInput.value = storage.proxyPass || '';
-            
-            // [v11.0] Initial captcha logs load
-            chrome.runtime.sendMessage({ action: 'GET_CAPTCHA_LOGS' }, (resp) => {
-                if (resp && resp.logs && resp.logs.length > 0) {
-                    updateCaptchaLogs(resp.logs);
-                }
-            });
-
-            if (i18nData) {
-                applyTranslations(lang, reg);
-            } else {
-                // Fallback attempt if script was slow
-                setTimeout(() => {
-                   i18nData = window.I18N_DATA || null;
-                   if (i18nData) applyTranslations(lang, reg);
-                }, 500);
-            }
-
-            if (!storage.language || !storage.region) {
-                chrome.storage.local.set({ language: lang, region: reg });
+        // [v1.3.8] Restore Real-time log listener
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            if (request.action === 'SENDER_LOG') {
+                addLog(request.message, request.logType);
+            } else if (request.action === 'UPDATE_STATS') {
+                updateRealTimeStatus(request.data);
             }
         });
-    }
 
-    initI18n();
+        // [v1.6.5] Playback Speed Slider Listener
+        const delayInput = document.getElementById('delay-input');
+        if (delayInput) {
+            delayInput.addEventListener('input', updateSpeedLabel);
+        }
 
-    try {
-        // [v17.0] Full Session Sync: Restore UI state on popup open
-        chrome.runtime.sendMessage({ action: 'GET_SEARCH_STATE' }, (res) => {
-            if (chrome.runtime.lastError || !res) return;
-            
-            if (res.isSearching) {
-                chrome.storage.local.get(['savedTargetOption', 'savedTargetText'], (storageRes) => {
-                    if (storageRes.savedTargetOption) {
-                        if (collectionTarget) collectionTarget.value = storageRes.savedTargetOption;
-                        document.body.className = "target-mode-" + storageRes.savedTargetOption;
-                        const tSpan = document.getElementById('current-target-name');
-                        if (tSpan) tSpan.textContent = storageRes.savedTargetText || 'All';
-                    }
-                });
-                startBtn.disabled = true;
-                pauseBtn.disabled = false;
-                cancelBtn.disabled = false;
-                statusBox.classList.remove('hidden');
-                
-                // Restore Progress
-                progressBar.style.width = `${res.percent}%`;
-                progressText.textContent = `${Math.round(res.percent)}%`;
-                if (res.statusDetail && statusDetail) {
-                    statusDetail.textContent = res.statusDetail;
-                }
-                
-                // Restore Results Table
-                if (res.results && res.results.length > 0) {
-                    results = res.results;
-                    linkCountSpan.textContent = results.length;
-                    resultBox.classList.remove('hidden');
-                    resultTableBody.innerHTML = '';
-                    results.forEach(d => {
-                        const tr = document.createElement('tr');
-                        const targetOption = document.getElementById('collection-target')?.value || 'all';
-                        
-                        let html = `<td class="col-name">${d.name}</td>`;
-                        if (targetOption === 'all') {
-                            html += `<td class="col-addr">${d.address || '-'}</td>
-                                   <td class="col-url">${d.homepage ? `<a href="${d.homepage}" target="_blank">${d.homepage}</a>` : '-'}</td>
-                                   <td class="col-sns">${Array.isArray(d.sns) ? d.sns.join(', ') : (d.sns || '-')}</td>
-                                   <td class="col-email">${d.emails || '-'}</td>
-                                   <td class="col-phone">${d.phone || '-'}</td>`;
-                        } else if (targetOption === 'address') html += `<td class="col-addr">${d.address || '-'}</td>`;
-                        else if (targetOption === 'phone') html += `<td class="col-phone">${d.phone || '-'}</td>`;
-                        else if (targetOption === 'email') html += `<td class="col-email">${d.emails || '-'}</td>`;
-                        else if (targetOption === 'sns') html += `<td class="col-sns">${Array.isArray(d.sns) ? d.sns.join(', ') : (d.sns || '-')}</td>`;
-                        
-                        tr.innerHTML = html;
-                        resultTableBody.appendChild(tr);
+        console.log("✅ X PIDER Sender Pro initialized.");
+
+        // [v18.28.0] State Handshake: Restore progress or reset UI on start
+        chrome.runtime.sendMessage({ action: 'GET_STATE' }, (response) => {
+            if (response && response.success) {
+                if (response.isActive) {
+                    campaignActive = true;
+                    totalTargets = response.totalTargets;
+                    successCount = response.successCount;
+                    remainingTargets = response.remainingCount;
+                    campaignPaused = !!response.isPaused; // [v18.7] Sync pause state
+                    
+                    document.getElementById('status-box').classList.remove('hidden');
+                    document.getElementById('multi-actions').classList.remove('hidden');
+                    document.getElementById('start-btn').classList.add('hidden');
+                    
+                    updateRealTimeStatus({
+                        successCount: successCount,
+                        remainingCount: remainingTargets
                     });
-                }
-
-                // Restore Logs
-                if (res.logs && res.logs.length > 0) {
-                    logContainer.innerHTML = '';
-                    res.logs.forEach(log => {
-                        const div = document.createElement('div');
-                        div.className = 'log-item';
-                        div.innerHTML = `<span class="log-time">[${log.time}]</span> <span class="log-msg">${log.message}</span>`;
-                        logContainer.appendChild(div);
-                    });
-                    logContainer.scrollTop = logContainer.scrollHeight;
-                }
-
-                // [v17.0] Ensure user sees the progress view
-                setTimeout(() => {
-                    statusBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 300);
-            }
-            
-            // [v17.7] Only show CAPTCHA modal if BOTH searching is true AND it's actually paused
-                    if (res.isPausedByCaptcha) {
-                        captchaModalOverlay.classList.remove('hidden');
-                        
-                        // [v1.0.0 Pro] Specific UI for Secondary Quiz Waiting
-                        if (res.isSecondaryQuizWaiting) {
-                            const titleEl = document.querySelector('[data-i18n="captcha_popup_title"]');
-                            const msgEl = document.querySelector('[data-i18n="captcha_popup_msg"]');
-                            const promoBox = document.getElementById('secondary-quiz-info');
-                            
-                            const lang = languageSelect.value;
-                            const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData['en'] || {});
-                            
-                            if (titleEl) titleEl.textContent = (dict.captcha_secondary_quiz_title || '2차 CAPTCHA Detected') + ` (${res.secondaryCountdown}s)`;
-                            if (msgEl) msgEl.textContent = (dict.captcha_secondary_quiz_msg || 'Pausing for safety...').replace('{seconds}', res.secondaryCountdown);
-                            if (promoBox) promoBox.classList.remove('hidden');
+                    
+                    // [v18.7] Update pause button UI state on restore
+                    const btn = document.getElementById('pause-btn');
+                    const langSelect = document.getElementById('language-select');
+                    const lang = langSelect ? langSelect.value : 'en';
+                    const dict = i18nData[lang] || i18nData['en'] || {};
+                    if (btn) {
+                        if (campaignPaused) {
+                            btn.textContent = dict.btn_resume || "▶️ Resume";
+                            btn.style.backgroundColor = "#22c55e";
                         } else {
-                            // [v1.0.0 Pro] Restore standard CAPTCHA messages for Audio Solver / Normal Block
-                            const titleEl = document.querySelector('[data-i18n="captcha_popup_title"]');
-                            const msgEl = document.querySelector('[data-i18n="captcha_popup_msg"]');
-                            const promoBox = document.getElementById('secondary-quiz-info');
-                            
-                            const lang = languageSelect.value;
-                            const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData['en'] || {});
-
-                            if (titleEl) titleEl.textContent = dict.captcha_popup_title || 'CAPTCHA Detected';
-                            if (msgEl) msgEl.textContent = dict.captcha_popup_msg || 'Google has blocked automated collection...';
-                            if (promoBox) promoBox.classList.add('hidden');
+                            btn.textContent = dict.btn_pause || "⏸️ Pause";
+                            btn.style.backgroundColor = "#f59e0b";
                         }
-                    } else {
-                        captchaModalOverlay.classList.add('hidden');
                     }
+                } else {
+                    // Reset to clean start state
+                    campaignActive = false;
+                    document.getElementById('start-btn').classList.remove('hidden');
+                    document.getElementById('multi-actions').classList.add('hidden');
+                }
+            }
+        });
+        
+        // [v18.23.0] Emergency Engine Recovery: Reload extension to wake up frozen worker
+        const hardResetBtn = document.getElementById('hard-reset-engine-btn');
+        if (hardResetBtn) {
+            hardResetBtn.addEventListener('click', () => {
+                if (confirm("Are you sure? This will reload the extension and reset its state.")) {
+                    chrome.runtime.reload();
+                }
+            });
+        }
 
-                    // [v36.9] Hard Block Modal Sync
-                    if (res.isHardBlocked) {
-                        hardBlockModalOverlay.classList.remove('hidden');
-                    } else {
-                        hardBlockModalOverlay.classList.add('hidden');
-                    }
+        // [v18.21.5] Pulse Check: Monitor background engine health in real-time
+        startPulseCheck();
+        
+        // Add status indicator to the footer
+        const footer = document.querySelector('.popup-footer');
+        if (footer && !document.getElementById('engine-status-indicator')) {
+            const span = document.createElement('span');
+            span.id = 'engine-status-indicator';
+            span.style.fontSize = '0.7rem';
+            span.style.marginLeft = 'auto';
+            span.style.opacity = '0.8';
+            span.textContent = "Checking...";
+            footer.appendChild(span);
+        }
+
+        // [v18.46.0] Audio STT API Key (Wit.ai) 최초 설정 여부 체크
+        chrome.storage.local.get(['xpider_stt_api_key'], (res) => {
+            if (!res.xpider_stt_api_key || res.xpider_stt_api_key.trim() === '') {
+                const setupModal = document.getElementById('stt-setup-modal-overlay');
+                if (setupModal) {
+                    setupModal.classList.remove('hidden');
+                }
+            }
         });
     } catch (e) {
-        console.error("Popup initialization error:", e);
+        console.error("Initialization failed:", e);
     }
+});
 
-    // [v18.1] Robust UI Synchronization (State Polling ONLY)
-    let statePollingInterval = null;
-
-    function startSync() {
-        // [v17.9] Active State Polling (Every 2s)
-        // Ensures the STOP button remains visible as long as background is actually searching
-        statePollingInterval = setInterval(() => {
-            chrome.runtime.sendMessage({ action: 'GET_SEARCH_STATE' }, (res) => {
-                if (chrome.runtime.lastError || !res) return;
-                
-                if (res.isSearching) {
-                    // Always visible buttons, just update disabled state
-                    startBtn.disabled = true;
-                    cancelBtn.disabled = false;
-                    pauseBtn.disabled = false;
-                    
-                    // [v36.9] Critical Fix: Ensure buttons stay visible even when returning from CAPTCHA
-                    if (res.isPausedByCaptcha) {
-                        statusBox.classList.remove('hidden');
-                    }
-                    
-                    // [v18.5] Update Pause/Resume button text
-                    const lang = languageSelect.value;
-                    const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData['en'] || {});
-                    if (res.isPaused) {
-                        pauseBtn.textContent = dict.btn_resume || '▶️ Resume';
-                        pauseBtn.classList.add('premium'); // Optional: change style when paused
-                    } else {
-                        pauseBtn.textContent = dict.btn_pause || '⏸️ Pause';
-                        pauseBtn.classList.remove('premium');
-                    }
-                    
-                    // Sync CAPTCHA Modal
-                    if (res.isPausedByCaptcha) {
-                        captchaModalOverlay.classList.remove('hidden');
-                        
-                        // [v1.0.0 Pro] Specific UI for Secondary Quiz Waiting
-                        if (res.isSecondaryQuizWaiting) {
-                            const titleEl = document.querySelector('[data-i18n="captcha_popup_title"]');
-                            const msgEl = document.querySelector('[data-i18n="captcha_popup_msg"]');
-                            const promoBox = document.getElementById('secondary-quiz-info');
-                            
-                            const lang = languageSelect.value;
-                            const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData['en'] || {});
-                            
-                            if (titleEl) titleEl.textContent = (dict.captcha_secondary_quiz_title || '2차 CAPTCHA Detected') + ` (${res.secondaryCountdown}s)`;
-                            if (msgEl) msgEl.textContent = (dict.captcha_secondary_quiz_msg || 'Pausing for safety...').replace('{seconds}', res.secondaryCountdown);
-                            if (promoBox) promoBox.classList.remove('hidden');
-                        } else {
-                            // [v1.0.0 Pro] Restore standard CAPTCHA messages for Audio Solver / Normal Block
-                            const titleEl = document.querySelector('[data-i18n="captcha_popup_title"]');
-                            const msgEl = document.querySelector('[data-i18n="captcha_popup_msg"]');
-                            const promoBox = document.getElementById('secondary-quiz-info');
-                            
-                            const lang = languageSelect.value;
-                            const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData['en'] || {});
-
-                            if (titleEl) titleEl.textContent = dict.captcha_popup_title || 'CAPTCHA Detected';
-                            if (msgEl) msgEl.textContent = dict.captcha_popup_msg || 'Google has blocked automated collection...';
-                            if (promoBox) promoBox.classList.add('hidden');
-                        }
-                    } else {
-                        captchaModalOverlay.classList.add('hidden');
-                    }
-
-                    // [v36.9] Hard Block Modal Sync
-                    if (res.isHardBlocked) {
-                        hardBlockModalOverlay.classList.remove('hidden');
-                    } else {
-                        hardBlockModalOverlay.classList.add('hidden');
-                    }
-                } else {
-                    // Sync buttons if background is IDLE
-                    startBtn.disabled = false;
-                    cancelBtn.disabled = true;
-                    pauseBtn.disabled = true;
-                }
-                // ALWAYS keep cancelBtn enabled as requested
-                cancelBtn.disabled = false;
-
-                // [v66.12] Continuous Dynamic Extraction Result Update
-                // Even when completely finished, fetch the latest count from background
-                if (res.results && res.results.length > results.length) {
-                    const newItems = res.results.slice(results.length);
-                    newItems.forEach(d => {
-                        results.push(d);
-                        const tr = document.createElement('tr');
-                        const targetOption = document.getElementById('collection-target')?.value || 'all';
-                        
-                        let html = `<td class="col-name">${d.name}</td>`;
-                        if (targetOption === 'all') {
-                            html += `<td class="col-addr">${d.address || '-'}</td>
-                                   <td class="col-url">${d.homepage ? `<a href="${d.homepage}" target="_blank">${d.homepage}</a>` : '-'}</td>
-                                   <td class="col-sns">${Array.isArray(d.sns) ? d.sns.join(', ') : (d.sns || '-')}</td>
-                                   <td class="col-email">${d.emails || '-'}</td>
-                                   <td class="col-phone">${d.phone || '-'}</td>`;
-                        } else if (targetOption === 'address') html += `<td class="col-addr">${d.address || '-'}</td>`;
-                        else if (targetOption === 'phone') html += `<td class="col-phone">${d.phone || '-'}</td>`;
-                        else if (targetOption === 'email') html += `<td class="col-email">${d.emails || '-'}</td>`;
-                        else if (targetOption === 'sns') html += `<td class="col-sns">${Array.isArray(d.sns) ? d.sns.join(', ') : (d.sns || '-')}</td>`;
-                        
-                        tr.innerHTML = html;
-                        resultTableBody.appendChild(tr);
-                    });
-
-                    // Update count display
-                    const linkCountSpan = document.getElementById('link-count');
-                    if (linkCountSpan) {
-                        linkCountSpan.textContent = results.length;
-                    }
-                    // [v67.0] Always update real-time status in polling
-                    updateRealTimeStatus(results.length);
-                }
-            });
-        }, 2000);
+async function initLocalizer() {
+    // Wait a bit to ensure translations.js is parsed if needed
+    i18nData = window.I18N_DATA;
+    if (!i18nData) {
+        console.warn("I18N_DATA not found, retrying...");
+        await new Promise(r => setTimeout(r, 100));
+        i18nData = window.I18N_DATA;
     }
     
-    // Start initial sync
-    startSync();
+    if (!i18nData) {
+        console.error("Fatal: I18N_DATA could not be loaded.");
+        return;
+    }
 
-    // [Integrated] applyTranslations function (UI + Engine Options)
-    function applyTranslations(lang, region) {
-        if (!i18nData) return;
-        const dictionary = i18nData[lang] || i18nData['en'] || {};
-        const fallback = i18nData['en'] || {};
+    const storage = await chrome.storage.local.get(['xpider_lang']);
+    const lang = storage.xpider_lang || 'en';
+    applyTranslations(lang);
+}
 
-        // 1. General UI Text (data-i18n)
-        document.querySelectorAll('[data-i18n]').forEach(el => {
-            const key = el.getAttribute('data-i18n');
-            el.textContent = dictionary[key] || fallback[key] || key;
-        });
+function applyTranslations(lang) {
+    if (!i18nData) return;
+    const dict = i18nData[lang] || i18nData['en'] || {};
 
-        // 2. Input Placeholder (data-i18n-placeholder)
-        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-            const key = el.getAttribute('data-i18n-placeholder');
-            const val = dictionary[key] || fallback[key];
-            if (val) el.setAttribute('placeholder', val);
-        });
-
-        // 3. Dynamic Engine List Update
-        const groups = [
-            { key: 'group_main_engines', engines: ['google', 'bing', 'yahoojp'] },
-            { key: 'group_map_engines', engines: ['google_maps', 'bing_maps', 'yahoo_maps'] }
-        ];
-
-        if (region === 'kr') {
-            groups[0].engines = ['naver', 'google'];
-            groups[1].engines = ['naver_place', 'google_maps'];
-        } else if (region === 'jp') {
-            groups[0].engines = ['yahoojp', 'google'];
-            groups[1].engines = ['yahoo_maps', 'google_maps'];
-        } else if (region === 'cn') {
-            groups[0].engines = ['baidu', 'bing'];
-            groups[1].engines = ['baidu_maps', 'bing_maps'];
-        } else if (region === 'tw') {
-            groups[0].engines = ['google', 'yahoo_tw'];
-            groups[1].engines = ['google_maps', 'bing_maps'];
-        } else {
-            groups[0].engines = ['google', 'bing'];
-            groups[1].engines = ['google_maps', 'bing_maps'];
-        }
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        let text = dict[key] || (i18nData['en'] ? i18nData['en'][key] : null) || key;
         
-        // Ensure the groups array is stable
-
-        engineListContainer.innerHTML = '';
-        groups.forEach(group => {
-            if (!group.engines || group.engines.length === 0) return;
-
-            const label = document.createElement('span');
-            label.className = 'optgroup-label';
-            label.textContent = dictionary[group.key] || fallback[group.key] || group.key;
-            engineListContainer.appendChild(label);
-
-            group.engines.forEach(engineKey => {
-                const item = document.createElement('label');
-                item.className = 'option-item';
-                const eKey = `engine_${engineKey}`;
-                let text = dictionary[eKey] || fallback[eKey] || engineKey;
-                
-                // Fallback for new un-translated engines
-                if (!dictionary[eKey] && !fallback[eKey]) {
-                    if (engineKey === 'baidu') text = '🟡 Baidu';
-                    if (engineKey === 'baidu_maps') text = '🟢 Baidu Maps';
-                    if (engineKey === 'yahoo_tw') text = '🟣 Yahoo Taiwan';
-                }
-
-                // All defined engines for the region are selected by default as requested
-                let isRecommended = true; 
-
-                item.innerHTML = `
-                    <input type="checkbox" class="engine-checkbox" value="${engineKey}" ${isRecommended ? 'checked' : ''}>
-                    <span>${text}</span>
-                `;
-                engineListContainer.appendChild(item);
-            });
-        });
-
-        updateHeaderStatus();
-    }
-
-    languageSelect.addEventListener('change', () => applyTranslations(languageSelect.value, regionSelect.value));
-    regionSelect.addEventListener('change', () => applyTranslations(languageSelect.value, regionSelect.value));
-
-    function updateHeaderStatus() {
-        const lang = languageSelect ? languageSelect.value : 'en';
-        const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData ? i18nData['en'] : {});
-        const checked = document.querySelectorAll('.engine-checkbox:checked');
-        const headerSpan = engineSelectHeader.querySelector('span');
-        const total = document.querySelectorAll('.engine-checkbox').length;
-
-        if (checked.length === 0) {
-            headerSpan.textContent = dict.engine_all || '🌐 Select Engines';
-        } else if (checked.length === total) {
-            headerSpan.textContent = dict.label_select_all || '🌐 All Selected';
+        if (key === 'status_finished') {
+            updateRealTimeStatus({ successCount });
         } else {
-            headerSpan.textContent = `🌐 ${checked.length} Engines`;
-        }
-    }
-
-    engineSelectHeader.addEventListener('click', (e) => {
-        e.stopPropagation();
-        engineMultiSelect.classList.toggle('open');
-        engineOptions.classList.toggle('hidden');
-    });
-
-    document.addEventListener('click', () => {
-        engineMultiSelect.classList.remove('open');
-        engineOptions.classList.add('hidden');
-    });
-
-    engineOptions.addEventListener('click', (e) => e.stopPropagation());
-
-    document.getElementById('engine-confirm-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        engineMultiSelect.classList.remove('open');
-        engineOptions.classList.add('hidden');
-        updateHeaderStatus();
-    });
-
-    selectAllEngines.addEventListener('change', (e) => {
-        const checked = e.target.checked;
-        document.querySelectorAll('.engine-checkbox').forEach(cb => {
-            cb.checked = checked;
-        });
-        updateHeaderStatus();
-    });
-
-    engineListContainer.addEventListener('change', (e) => {
-        if (e.target.classList.contains('engine-checkbox')) {
-            updateHeaderStatus();
-            const allCbs = document.querySelectorAll('.engine-checkbox');
-            const checkedCbs = document.querySelectorAll('.engine-checkbox:checked');
-            selectAllEngines.checked = (allCbs.length === checkedCbs.length);
+            el.textContent = text;
         }
     });
 
-    // (Original initI18n block removed, merged into top)
-
-    settingsToggle.addEventListener('click', () => {
-        settingsOverlay.classList.remove('hidden');
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const val = dict[key] || (i18nData['en'] ? i18nData['en'][key] : null);
+        if (val) el.placeholder = val;
     });
 
-    settingsClose.addEventListener('click', () => {
-        settingsOverlay.classList.add('hidden');
-    });
-
-    if (proxyEnableToggle) {
-        proxyEnableToggle.addEventListener('change', () => {
-            proxySettingsFields.classList.toggle('hidden', !proxyEnableToggle.checked);
-        });
+    // Update API Link Tip
+    const methodSelect = document.getElementById('captcha-method-select');
+    const apiLinkTip = document.getElementById('api-link-tip');
+    if (apiLinkTip && methodSelect) {
+        const method = methodSelect.value;
+        if (method === 'nopecha') {
+            apiLinkTip.innerHTML = '<a href="https://nopecha.com/" target="_blank">NopeCHA API Key 받기</a>';
+        } else {
+            apiLinkTip.innerHTML = '<a href="https://2captcha.com?from=18329628" target="_blank">2Captcha Key 받기</a>';
+        }
     }
+}
 
-    settingsOverlay.addEventListener('click', (e) => {
-        if (e.target === settingsOverlay) settingsOverlay.classList.add('hidden');
-    });
+function updateRealTimeStatus(data) {
+    if (data.successCount !== undefined) {
+        successCount = data.successCount;
+        const display = document.getElementById('success-count-display');
+        if (display) display.textContent = successCount;
+    }
+    
+    if (data.remainingCount !== undefined) {
+        remainingTargets = data.remainingCount;
+        const processed = totalTargets - remainingTargets;
+        const progress = totalTargets > 0 ? Math.round((processed / totalTargets) * 100) : 0;
+        updateProgress(progress);
+        
+        refreshStatusDetailUI();
 
-    // Tab Switch Logic
-    tabBtns.forEach(btn => {
+        const countDisplay = document.getElementById('url-count-display');
+        if (countDisplay) {
+            const lang = document.getElementById('language-select')?.value || 'en';
+            const dict = i18nData[lang] || i18nData['en'] || {};
+            const remainingLabel = dict.remaining_suffix || 'remaining';
+            countDisplay.textContent = `${remainingTargets} (${remainingLabel}) / ${totalTargets} URLs`;
+        }
+    }
+}
+
+/**
+ * [v2.5.5] Unified UI Refresh for 3-line monitor format:
+ * [Last Log Message]: [Remaining Count] remaining.
+ */
+function refreshStatusDetailUI() {
+    const statusDetail = document.getElementById('status-detail');
+    if (!statusDetail) return;
+
+    const lang = document.getElementById('language-select')?.value || 'en';
+    const dict = i18nData[lang] || i18nData['en'] || {};
+    const suffix = dict.remaining_suffix || 'remaining.';
+    
+    // [v2.8.9] Simplified UI: Only show remaining count, remove log noise
+    const statusText = campaignPaused ? `⏸️ PAUSED (${remainingTargets} ${suffix})` : `${remainingTargets} ${suffix}`;
+    statusDetail.textContent = statusText;
+    statusDetail.style.fontWeight = '700';
+    statusDetail.style.fontSize = '0.85rem'; // Smaller font as requested
+    statusDetail.style.color = campaignPaused ? '#ff3366' : '#facc15'; 
+}
+
+function updateSpeedLabel() {
+    const slider = document.getElementById('delay-input');
+    const display = document.getElementById('speed-value-display');
+    const lang = document.getElementById('language-select')?.value || 'en';
+    const dict = i18nData[lang] || i18nData['en'] || {};
+    
+    if (!slider || !display) return;
+    
+    const level = slider.value;
+    let label = `${dict.speed_level || 'Level'} ${level}`;
+    if (level === '6') label += ` <small>${dict.speed_normal || '(Normal)'}</small>`;
+    
+    display.innerHTML = label;
+}
+
+function bindEvents() {
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            tabBtns.forEach(b => b.classList.remove('active'));
-            tabContents.forEach(c => {
-                if (c.id !== 'settings-overlay') c.classList.remove('active');
-            });
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
-            currentTab = btn.dataset.tab;
-            let targetId = currentTab === 'url' ? 'url-tab' : `${currentTab}-tab`;
-            document.getElementById(targetId).classList.add('active');
-        });
-    });
-
-    // [Modified] Immediate translation preview and auto-save on change
-    languageSelect.addEventListener('change', () => {
-        chrome.storage.local.set({ language: languageSelect.value, region: regionSelect.value });
-        applyTranslations(languageSelect.value, regionSelect.value);
-    });
-    regionSelect.addEventListener('change', () => {
-        chrome.storage.local.set({ language: languageSelect.value, region: regionSelect.value });
-        applyTranslations(languageSelect.value, regionSelect.value);
-    });
-
-    // [Modified] Save settings logic
-    saveSettingsBtn.addEventListener('click', () => {
-        const lang = languageSelect.value;
-        const reg = regionSelect.value;
-        const captchaEnabled = captchaSolveToggle.checked;
-        const captchaMethod = captchaMethodSelect.value;
-        const captchaApiKey = captchaApiKeyInput.value;
-        const audioSttKey = audioSttKeyInput.value;
-        const stealthEnabled = stealthModeToggle.checked;
-        const vpnCheckEnabled = vpnCheckToggle.checked;
-        const slowModeEnabled = slowModeToggle.checked;
-
-        const proxyEnabled = proxyEnableToggle.checked;
-        const proxyHost = proxyHostInput.value.trim();
-        const proxyPort = proxyPortInput.value.trim();
-        const proxyUser = proxyUserInput.value.trim();
-        const proxyPass = proxyPassInput.value.trim();
-
-        chrome.storage.local.set({
-            language: lang,
-            region: reg,
-            captchaSolveEnabled: captchaEnabled,
-            captchaMethod: captchaMethod,
-            captchaApiKey: captchaApiKey,
-            audioSttKey: audioSttKey,
-            stealthModeEnabled: stealthEnabled,
-            vpnCheckEnabled: vpnCheckEnabled,
-            slowModeEnabled: slowModeEnabled,
-            proxyEnabled: proxyEnabled,
-            proxyHost: proxyHost,
-            proxyPort: proxyPort,
-            proxyUser: proxyUser,
-            proxyPass: proxyPass
-        }, () => {
-            const msg = (i18nData && i18nData[lang]) ? i18nData[lang].msg_saved : 'Applied!';
+            const target = document.getElementById(`${btn.dataset.tab}-tab`);
+            if (target) target.classList.add('active');
             
-            applyTranslations(lang, reg);
-
-            // [v36.9] Notify background of proxy change immediately
-            chrome.runtime.sendMessage({ action: 'APPLY_PROXY_SETTINGS' });
-
-            const originalText = saveSettingsBtn.textContent;
-            saveSettingsBtn.textContent = msg;
-            saveSettingsBtn.classList.add('success');
-
-            setTimeout(() => {
-                saveSettingsBtn.textContent = originalText;
-                saveSettingsBtn.classList.remove('success');
-            }, 2500);
-        });
-    });
-
-    if (captchaSolveToggle) {
-        captchaSolveToggle.addEventListener('change', () => {
-            const enabled = captchaSolveToggle.checked;
-            captchaMethodGroup.style.display = enabled ? 'block' : 'none';
-            if (enabled && captchaMethodSelect.value === 'api') {
-                captchaApiGroup.style.display = 'block';
+            // [v2.3.0] Hide status/log areas when in Template Tab
+            if (btn.dataset.tab === 'template') {
+                document.body.classList.add('template-active');
             } else {
-                captchaApiGroup.style.display = 'none';
+                document.body.classList.remove('template-active');
             }
         });
-    }
-
-    if (captchaMethodSelect) {
-        captchaMethodSelect.addEventListener('change', () => {
-            const method = captchaMethodSelect.value;
-            captchaApiGroup.style.display = (method === 'api' || method === 'nopecha') ? 'block' : 'none';
-            audioSttGroup.style.display = (method === 'audio') ? 'block' : 'none';
-            if (apiLinkTip) {
-                if (method === 'nopecha') {
-                    apiLinkTip.innerHTML = '<a href="https://nopecha.com/" target="_blank">NopeCHA API Key 받기</a>';
-                } else {
-                    apiLinkTip.innerHTML = '<a href="https://2captcha.com?from=18329628" target="_blank">2Captcha Key 받기</a>';
-                }
-            }
-        });
-    }
-
-    const manualCaptchaBtn = document.getElementById('manual-captcha-btn');
-    if (manualCaptchaBtn) {
-        manualCaptchaBtn.addEventListener('click', () => {
-            chrome.runtime.sendMessage({ action: 'MANUAL_CAPTCHA_RESOLVED' }, () => {
-                captchaModalOverlay.classList.add('hidden');
-            });
-        });
-    }
-
-    depthRange.addEventListener('input', (e) => {
-        depthValue.textContent = e.target.value;
     });
 
-    // [v36.9] Hard Block Recovery Choice Handlers
-    if (btnWait30) {
-        btnWait30.addEventListener('click', () => {
-            chrome.runtime.sendMessage({ action: 'RESOLVE_HARD_BLOCK', choice: 'wait' }, () => {
-                hardBlockModalOverlay.classList.add('hidden');
-            });
-        });
-    }
+    // File Upload
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) fileInput.addEventListener('change', handleFileUpload);
 
-    if (btnVpnResume) {
-        btnVpnResume.addEventListener('click', () => {
-            chrome.runtime.sendMessage({ action: 'RESOLVE_HARD_BLOCK', choice: 'vpn' }, () => {
-                hardBlockModalOverlay.classList.add('hidden');
-            });
-        });
-    }
+    // Campaign Buttons
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) startBtn.addEventListener('click', startCampaign);
+    
+    const pauseBtn = document.getElementById('pause-btn');
+    if (pauseBtn) pauseBtn.addEventListener('click', togglePause);
+    
+    const stopBtn = document.getElementById('stop-btn');
+    if (stopBtn) stopBtn.addEventListener('click', stopCampaign);
 
-    // [v36.9] Robust Search Range Slider Logic
-    function updateRangeUI() {
-        if (startPageRange && endPageRange && startPageValue && endPageValue) {
-            let start = parseInt(startPageRange.value);
-            let end = parseInt(endPageRange.value);
-            
-            // Ensure logical consistency
-            if (start > end) {
-                end = start;
-                endPageRange.value = end;
+    // Settings
+    const settingsToggle = document.getElementById('settings-toggle');
+    if (settingsToggle) settingsToggle.addEventListener('click', () => {
+        document.getElementById('settings-overlay').classList.remove('hidden');
+    });
+    
+    const settingsClose = document.getElementById('settings-close');
+    if (settingsClose) settingsClose.addEventListener('click', () => {
+        document.getElementById('settings-overlay').classList.add('hidden');
+    });
+    
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', saveSettings);
+
+    // [v18.46.0] Wit.ai STT Key Setup Modal Save Button
+    const saveSetupSttBtn = document.getElementById('save-setup-stt-btn');
+    if (saveSetupSttBtn) {
+        saveSetupSttBtn.addEventListener('click', async () => {
+            const input = document.getElementById('setup-stt-key-input');
+            const key = input ? input.value.trim() : '';
+            if (key === '') {
+                alert("Please enter a valid Wit.ai Key.");
+                return;
             }
             
-            startPageValue.textContent = start;
-            endPageValue.textContent = end;
-            console.log(`[v36.9] Range update: ${start} ~ ${end}`);
-        }
+            await chrome.storage.local.set({ xpider_stt_api_key: key });
+            const settingsInput = document.getElementById('audio-stt-key');
+            if (settingsInput) settingsInput.value = key;
+            
+            const setupModal = document.getElementById('stt-setup-modal-overlay');
+            if (setupModal) setupModal.classList.add('hidden');
+            
+            const langSelect = document.getElementById('language-select');
+            const lang = langSelect ? langSelect.value : 'en';
+            const dict = i18nData[lang] || i18nData['en'] || {};
+            alert(dict.msg_saved || "Saved!");
+        });
     }
 
-    if (startPageRange && endPageRange) {
-        startPageRange.addEventListener('input', () => {
-            let start = parseInt(startPageRange.value);
-            let end = parseInt(endPageRange.value);
-            if (start > end) {
-                endPageRange.value = start;
-            }
-            updateRangeUI();
+    // [v5.0.0] Wit.ai setup link fix to open in a new tab
+    const witAiLink = document.getElementById('wit-ai-link');
+    if (witAiLink) {
+        witAiLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            chrome.tabs.create({ url: 'https://wit.ai/apps' });
         });
+    }
+
+    // [v2.4.0] Template Save Buttons - Combined
+    ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', saveTemplateChanges);
+    });
+    
+    // [v2.2.0] Drop area styled as button label
+    const dropArea = document.getElementById('drop-area');
+    if (dropArea) {
+        dropArea.addEventListener('dragover', (e) => { e.preventDefault(); dropArea.classList.add('drag-active'); });
+        dropArea.addEventListener('dragleave', () => { dropArea.classList.remove('drag-active'); });
+        dropArea.addEventListener('drop', handleFileUpload);
+    }
+    
+    const loadFileBtn = document.getElementById('load-tpl-file-btn');
+    const tplFileInput = document.getElementById('tpl-file-input');
+    if (loadFileBtn && tplFileInput) {
+        loadFileBtn.addEventListener('click', () => tplFileInput.click());
+        tplFileInput.addEventListener('change', importMessageFromFile);
+    }
+    
+    const closeAppBtn = document.getElementById('close-app-btn');
+    if (closeAppBtn) closeAppBtn.addEventListener('click', () => window.close());
+
+    // Captcha Logic Toggles
+    const captchaToggle = document.getElementById('captcha-solve-toggle');
+    if (captchaToggle) {
+        captchaToggle.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            const methodGroup = document.getElementById('captcha-method-group');
+            if (methodGroup) methodGroup.style.display = enabled ? 'block' : 'none';
+            toggleCaptchaApiVisibility();
+        });
+    }
+
+    const methodSelect = document.getElementById('captcha-method-select');
+    if (methodSelect) {
+        methodSelect.addEventListener('change', () => {
+            toggleCaptchaApiVisibility();
+            const langSelect = document.getElementById('language-select');
+            if (langSelect) applyTranslations(langSelect.value);
+        });
+    }
+
+    const langSelect = document.getElementById('language-select');
+    if (langSelect) {
+        langSelect.addEventListener('change', (e) => {
+            applyTranslations(e.target.value);
+        });
+    }
+
+    // Persistence for Template
+    ['tpl-name', 'tpl-email', 'tpl-subject', 'tpl-message'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', saveTemplate);
+    });
+
+    // Single URL & List Management
+    // Single URL & List Management
+    const addUrlBtn = document.getElementById('add-url-btn');
+    if (addUrlBtn) {
+        addUrlBtn.classList.add('plus-btn-circle');
+        addUrlBtn.addEventListener('click', addSingleUrl);
+    }
+    
+    const manualUrlInput = document.getElementById('manual-url-input');
+    if (manualUrlInput) {
+        manualUrlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addSingleUrl();
+        });
+    }
+}
+
+function toggleCaptchaApiVisibility() {
+    const captchaToggle = document.getElementById('captcha-solve-toggle');
+    const methodSelect = document.getElementById('captcha-method-select');
+    if (!captchaToggle || !methodSelect) return;
+
+    const enabled = captchaToggle.checked;
+    const method = methodSelect.value;
+    
+    const isApi = (method === 'api' || method === 'nopecha');
+    const isAudio = (method === 'audio');
+    
+    const apiGroup = document.getElementById('captcha-api-group');
+    if (apiGroup) apiGroup.style.display = (enabled && isApi) ? 'block' : 'none';
+    
+    const sttGroup = document.getElementById('audio-stt-group');
+    if (sttGroup) sttGroup.style.display = (enabled && isAudio) ? 'block' : 'none';
+}
+
+async function handleFileUpload(e) {
+    e.preventDefault();
+    const file = e.target.files ? e.target.files[0] : e.dataTransfer.files[0];
+    if (!file) return;
+
+    const nameDisplay = document.getElementById('filename-display');
+    if (nameDisplay) nameDisplay.textContent = file.name;
+    
+    const text = await file.text();
+    const urlRegex = /(https?:\/\/[^\s,]+)/g;
+    const matches = text.match(urlRegex) || [];
+    
+    // [v1.3.1] Extended Global Blacklist
+    const blacklist = [
+        // Social Media & Messaging
+        'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'linkedin.com', 'youtube.com', 
+        'tiktok.com', 'pinterest.com', 'snapchat.com', 'whatsapp.com', 't.me', 'wa.me', 'discord.gg',
         
-        endPageRange.addEventListener('input', () => {
-            let start = parseInt(startPageRange.value);
-            let end = parseInt(endPageRange.value);
-            if (end < start) {
-                startPageRange.value = end;
-            }
-            updateRangeUI();
-        });
+        // Portals & Search Engines
+        'google.com', 'naver.com', 'daum.net', 'yahoo.com', 'bing.com', 'baidu.com', 'duckduckgo.com',
+        
+        // Government & Public institutions
+        '.gov', '.go.kr', '.mil', '.edu', '.ac.kr',
+        
+        // Hosting & Website Builders (Generic)
+        'godaddy.com', 'wix.com', 'shopify.com', 'squarespace.com', 'wordpress.com', 'bluehost.com', 'namecheap.com',
+        
+        // Misc / Non-business
+        'wikipedia.org', 'archive.org', 'mapquest.com', 'yelp.com', 'tripadvisor.com'
+    ];
+    
+    campaignQueue = [...new Set(matches)].filter(url => {
+        const lowerUrl = url.toLowerCase();
+        return !blacklist.some(domain => lowerUrl.includes(domain));
+    });
+
+    totalTargets = campaignQueue.length;
+    const countDisplay = document.getElementById('url-count-display');
+    if (countDisplay) countDisplay.textContent = `${totalTargets} URLs found`;
+    
+    const fileInfo = document.getElementById('file-info');
+    if (fileInfo) fileInfo.classList.remove('hidden');
+    
+    // [v1.2.0] Save to Permanent Lists
+    await saveListToStorage(file.name, campaignQueue);
+
+    chrome.storage.local.set({ 
+        xpider_queue: campaignQueue,
+        xpider_total: totalTargets,
+        xpider_success: 0
+    });
+    addLog(`Loaded ${totalTargets} business URLs.`, 'info');
+}
+
+async function saveListToStorage(name, urls) {
+    const data = await chrome.storage.local.get(['xpider_saved_lists']);
+    let lists = data.xpider_saved_lists || [];
+    
+    // Check for duplicates and update or append
+    const existingIdx = lists.findIndex(l => l.name === name);
+    if (existingIdx > -1) {
+        lists[existingIdx] = { name, urls, date: new Date().toISOString() };
+    } else {
+        lists.push({ name, urls, date: new Date().toISOString() });
+    }
+    
+    await chrome.storage.local.set({ xpider_saved_lists: lists });
+    await updateSavedListsUI();
+}
+
+async function updateSavedListsUI() {
+    const listContainer = document.getElementById('saved-lists-container');
+    if (!listContainer) return;
+
+    const data = await chrome.storage.local.get(['xpider_saved_lists']);
+    const savedLists = data.xpider_saved_lists || [];
+
+    listContainer.innerHTML = '';
+    
+    if (savedLists.length === 0) {
+        listContainer.innerHTML = '<div class="empty-list-note">No lists saved.</div>';
+        return;
     }
 
-    function addLog(msg) {
+    savedLists.forEach((list, index) => {
         const div = document.createElement('div');
-        div.textContent = `> ${msg}`;
-        logContainer.appendChild(div);
-        logContainer.scrollTop = logContainer.scrollHeight;
+        div.className = 'list-item-unified';
+        div.innerHTML = `
+            <span class="list-item-name">${list.name} (${list.urls.length})</span>
+            <button class="list-item-delete" title="Delete">&times;</button>
+        `;
+
+        div.onclick = async () => {
+            // Select this list
+            campaignQueue = [...list.urls];
+            totalTargets = campaignQueue.length;
+            successCount = 0;
+            
+            document.querySelectorAll('.list-item-unified').forEach(el => el.classList.remove('selected'));
+            div.classList.add('selected');
+            
+            const countDisplay = document.getElementById('url-count-display');
+            if (countDisplay) countDisplay.textContent = `${campaignQueue.length} URLs found`;
+            document.getElementById('file-info').classList.remove('hidden');
+            document.getElementById('status-box').classList.remove('hidden');
+            
+            addLog(`Loaded saved list: ${list.name} (${list.urls.length} URLs)`, 'info');
+            await chrome.storage.local.set({ xpider_queue: campaignQueue, xpider_success: 0, xpider_total: totalTargets });
+        };
+
+        const delBtn = div.querySelector('.list-item-delete');
+        delBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete list "${list.name}"?`)) {
+                savedLists.splice(index, 1);
+                await chrome.storage.local.set({ xpider_saved_lists: savedLists });
+                updateSavedListsUI();
+                addLog(`Deleted list: ${list.name}`, 'warning');
+            }
+        };
+
+        listContainer.appendChild(div);
+    });
+}
+
+/**
+ * [v2.2.0] Save current message setup as a template
+ */
+async function saveTemplateChanges() {
+    const now = new Date();
+    const versionStr = `[v${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}]`;
+    
+    const messageEl = document.getElementById('tpl-message');
+    let message = messageEl.value;
+    
+    // [v2.4.0] Update version in body if requested
+    const versionPattern = /\[v\d{4}\.\d{2}\.\d{2}\]/;
+    if (versionPattern.test(message)) {
+        message = message.replace(versionPattern, versionStr);
+    } else {
+        message += `\n\n${versionStr}`;
+    }
+    messageEl.value = message;
+
+    const tpl = {
+        firstName: document.getElementById('tpl-first-name').value,
+        lastName: document.getElementById('tpl-last-name').value,
+        name: document.getElementById('tpl-name').value,
+        email: document.getElementById('tpl-email').value,
+        phone: document.getElementById('tpl-phone').value,
+        subject: document.getElementById('tpl-subject').value,
+        message: message
+    };
+
+    const data = await chrome.storage.local.get(['xpider_tpl_lib']);
+    const lib = data.xpider_tpl_lib || [];
+    
+    // Check if current name exists to overwrite or create new
+    const existingIndex = lib.findIndex(t => t.templateName === (tpl.name || 'My Template'));
+    
+    if (existingIndex > -1) {
+        lib[existingIndex] = { ...tpl, templateName: tpl.name || 'My Template' };
+    } else {
+        lib.push({ ...tpl, templateName: tpl.name || 'My Template' });
     }
 
-    // [v67.0] Real-time Extraction Status Update Helper
-    function updateRealTimeStatus(count) {
-        const statsPrefix = document.getElementById('stats-prefix-span');
-        const linkCount = document.getElementById('link-count');
-        const statsSuffix = document.querySelector('[data-i18n="stats_suffix"]');
-        
-        const lang = languageSelect.value;
-        const dict = (typeof I18N_DATA !== 'undefined' && I18N_DATA[lang]) ? I18N_DATA[lang] : (typeof I18N_DATA !== 'undefined' ? I18N_DATA['en'] : {});
-        
-        if (statsPrefix) {
-            const finishedMsg = (dict.status_finished || 'Collection Status: {count} extracted');
-            // We reuse the premium red style for the count part
-            const countHtml = `<span class="stats-count-red" style="font-size: 3.5rem; color: #ff3366; text-shadow: 0 4px 15px rgba(255, 51, 102, 0.6);">${count}</span>`;
-            statsPrefix.innerHTML = finishedMsg.replace('{count}', countHtml);
-            statsPrefix.classList.add('stats-finished-text');
-        }
-        
-        // Hide the separate components if they are visible
-        if (linkCount) linkCount.style.display = 'none';
-        if (statsSuffix) statsSuffix.style.display = 'none';
-    }
-
-    // Data Sanitization logic
-    function sanitizeData(text) {
-        const noNumbers = text.replace(/[0-9]/g, '');
-        const sanitized = noNumbers.replace(/[^가-힣a-zA-Z\s]/g, ' ');
-        const tokens = sanitized.split(/[\n\t,;]/);
-
-        return [...new Set(tokens
-            .map(t => t.replace(/\s+/g, ' ').trim())
-            .filter(n => {
-                const hasHangeul = /[가-힣]/.test(n);
-                return hasHangeul ? n.length >= 2 : n.length >= 3;
-            })
-        )];
-    }
-
-    // Start Collection
-    startBtn.addEventListener('click', async () => {
-        const lang = languageSelect.value;
-        const reg = regionSelect.value;
-        const dictionary = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData ? i18nData['en'] : null);
-
-        let content = '';
-        if (currentTab === 'text') content = textInput.value;
-        else if (currentTab === 'url') content = urlInput.value;
-        else if (currentTab === 'search') content = keywordInput.value;
-
-        if (!content.trim()) {
-            return alert(dictionary ? dictionary.alert_empty : 'Please enter content.');
-        }
-
-        startBtn.disabled = true;
-        pauseBtn.classList.remove('hidden');
-        cancelBtn.classList.remove('hidden');
-        cancelBtn.disabled = false;
-        statusBox.classList.remove('hidden');
-        resultBox.classList.add('hidden');
-        logContainer.innerHTML = '';
-        resultTableBody.innerHTML = '';
-        progressBar.style.width = '0%';
-        progressText.textContent = '0%';
-        linkCountSpan.textContent = '0';
-        results = [];
-
-        addLog(dictionary ? dictionary.btn_start : 'Starting collection...');
-
-        setTimeout(() => {
-            statusBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 300);
-
-        if (content.length === 0) {
-            return alert(dictionary ? dictionary.alert_empty : 'Please enter content.');
-        }
-
-        results = [];
-        resultTableBody.innerHTML = '';
-        logContainer.innerHTML = ''; 
-        progressBar.style.width = '0%';
-        progressText.textContent = '0%';
-        linkCountSpan.textContent = '0';
-        resultBox.classList.add('hidden');
-
-        // [v66.11] Reset stats area UI
-        const statsPrefix = document.getElementById('stats-prefix-span');
-        const linkCount = document.getElementById('link-count');
-        const statsSuffix = document.querySelector('[data-i18n="stats_suffix"]');
-        const dict = (typeof I18N_DATA !== 'undefined' && I18N_DATA[lang]) ? I18N_DATA[lang] : (typeof I18N_DATA !== 'undefined' ? I18N_DATA['en'] : (dictionary || {}));
-
-        // [v67.0] Initialize with 'Collection Status: 0 extracted' format immediately
-        updateRealTimeStatus(0);
-
-        startBtn.disabled = true;
-        pauseBtn.disabled = false;
-        cancelBtn.disabled = false;
-        statusBox.classList.remove('hidden'); 
-        
-        try {
-            const time = new Date().toLocaleTimeString();
-            const startLog = `[${time}] [System] Starting Search... (Waiting for background)`;
-            const logEl = document.createElement('div');
-            logEl.className = 'log-entry';
-            logEl.textContent = startLog;
-            logContainer.appendChild(logEl);
-            logContainer.scrollTop = logContainer.scrollHeight;
-
-            const collectionTarget = document.getElementById('collection-target');
-            const targetOption = collectionTarget ? collectionTarget.value : 'all';
-            
-            // [v21.0] Fixed potential TypeError if selectedIndex is -1
-            let targetText = 'All';
-            if (collectionTarget && collectionTarget.selectedIndex >= 0) {
-                targetText = collectionTarget.options[collectionTarget.selectedIndex].text;
-            }
-            
-            const cleanTargetText = targetText.replace(/^[\u0000-\u1F9FF\u2600-\u26FF\s]+/, '');
-            document.body.className = "target-mode-" + targetOption;
-            
-            const targetNameSpan = document.getElementById('current-target-name');
-            if (targetNameSpan) {
-                targetNameSpan.textContent = cleanTargetText;
-            }
-            
-            chrome.storage.local.set({ savedTargetOption: targetOption, savedTargetText: cleanTargetText });
-            
-            if (currentTab === 'text') {
-                console.log('[v21.0][Popup] Dispatching startSearch...');
-                chrome.runtime.sendMessage({
-                    action: 'startSearch',
-                    text: content,
-                    collectEmails: true,
-                    targetOption: targetOption,
-                    language: lang,
-                    region: reg
-                }, (response) => {
-                    if (chrome.runtime.lastError) console.error('[v21.0][Popup] startSearch error:', chrome.runtime.lastError);
-                    else console.log('[v21.0][Popup] startSearch response:', response);
-                });
-            } else if (currentTab === 'url') {
-                if (!content.startsWith('http')) {
-                    throw new Error(dictionary ? 'Invalid URL' : 'Invalid URL');
-                }
-                console.log('[v21.0][Popup] Dispatching startCrawl...');
-                chrome.runtime.sendMessage({
-                    action: 'startCrawl',
-                    url: content,
-                    depth: parseInt(depthRange.value),
-                    collectEmails: true,
-                    targetOption: targetOption,
-                    language: lang,
-                    region: reg
-                }, (response) => {
-                    if (chrome.runtime.lastError) console.error('[v21.0][Popup] startCrawl error:', chrome.runtime.lastError);
-                    else console.log('[v21.0][Popup] startCrawl response:', response);
-                });
-            }
-            else if (currentTab === 'search') {
-                const checkedEngines = [...document.querySelectorAll('.engine-checkbox:checked')].map(cb => cb.value);
-                if (checkedEngines.length === 0) {
-                    startBtn.disabled = false;
-                    statusBox.classList.add('hidden'); 
-                    return alert(dictionary ? dictionary.alert_empty : 'Please select at least one engine.');
-                }
-                console.log('[v21.0][Popup] Dispatching startEngineSearch...');
-                chrome.runtime.sendMessage({
-                    action: 'startEngineSearch',
-                    engines: checkedEngines, 
-                    keyword: content,
-                    startPage: parseInt(startPageRange.value),
-                    maxPages: parseInt(endPageRange.value),
-                    depth: parseInt(depthRange.value),
-                    collectEmails: true,
-                    mapAuto: false,
-                    targetOption: targetOption,
-                    language: lang,
-                    region: reg
-                }, (response) => {
-                    if (chrome.runtime.lastError) console.error('[v21.0][Popup] startEngineSearch error:', chrome.runtime.lastError);
-                    else console.log('[v21.0][Popup] startEngineSearch response:', response);
-                });
-            }
-        } catch (err) {
-            startBtn.disabled = false;
+    // [v18.45.0] Export to local file with 'Save As' dialog as requested
+    downloadTemplateFile(tpl);
+    
+    // Provide feedback
+    ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            const originalText = btn.textContent;
+            btn.textContent = "Saved!";
+            setTimeout(() => btn.textContent = originalText, 1500);
         }
     });
 
-    // [v18.6] Optimized Pause/Resume Toggle for immediate feedback
-    pauseBtn.addEventListener('click', () => {
-        const isCurrentlyPaused = pauseBtn.textContent.includes('Resume') || pauseBtn.classList.contains('premium');
+    addLog(`Export initiated: ${tpl.name || 'Template'}`, 'info');
+}
+
+/**
+ * [v18.45.0] Upgraded to use chrome.downloads for 'Save As' dialog and history tracking
+ */
+function downloadTemplateFile(tpl) {
+    const safeName = (tpl.name || 'XPIDER_Template').replace(/[<>:"/\\|?*]/g, '_');
+    const filename = `${safeName}_template.txt`;
+    
+    const content = `[XPIDER MESSAGE TEMPLATE]
+-----------------------------------------
+Target Full Name: ${tpl.name || 'N/A'}
+First Name:       ${tpl.firstName || 'N/A'}
+Last Name:        ${tpl.lastName || 'N/A'}
+Email:            ${tpl.email || 'N/A'}
+Phone:            ${tpl.phone || 'N/A'}
+Subject:          ${tpl.subject || 'N/A'}
+
+[MESSAGE BODY]
+-----------------------------------------
+${tpl.message || ''}
+-----------------------------------------
+Generated by XPIDER AutoForm Sender Pro
+`;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const reader = new FileReader();
+    
+    reader.onloadend = function() {
+        const dataUrl = reader.result;
         
-        if (isCurrentlyPaused) {
-            chrome.runtime.sendMessage({ action: 'RESUME_SEARCH' });
-            pauseBtn.textContent = '⏸️ Pause';
-            pauseBtn.classList.remove('premium');
-        } else {
-            chrome.runtime.sendMessage({ action: 'PAUSE_SEARCH' });
-            pauseBtn.textContent = '▶️ Resume';
-            pauseBtn.classList.add('premium');
+        // Use Chrome Downloads API to show 'Save As' dialog
+        chrome.downloads.download({
+            url: dataUrl,
+            filename: filename,
+            saveAs: true
+        }, async (downloadId) => {
+            if (downloadId) {
+                // Track this export in our custom history
+                const data = await chrome.storage.local.get(['xpider_export_history']);
+                const history = data.xpider_export_history || [];
+                
+                const historyItem = {
+                    ...tpl,
+                    filename: filename,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Keep unique by suggested filename, most recent first
+                const existingIdx = history.findIndex(h => h.filename === filename);
+                if (existingIdx > -1) history.splice(existingIdx, 1);
+                history.unshift(historyItem);
+                
+                // Limit history to last 50 items
+                if (history.length > 50) history.pop();
+                
+                await chrome.storage.local.set({ xpider_export_history: history });
+                await updateTemplateDropdown();
+                addLog(`File saved and tracked in history: ${filename}`, 'success');
+            }
+        });
+    };
+    
+    reader.readAsDataURL(blob);
+}
+
+async function addSingleUrl() {
+    const input = document.getElementById('manual-url-input');
+    if (!input || !input.value.trim()) return;
+    
+    let url = input.value.trim();
+    if (!url.startsWith('http')) url = 'https://' + url;
+    
+    try {
+        new URL(url); // Validation
+        
+        // [v1.2.1] NEW: Save to Permanent "Manual Entries" List
+        const lang = document.getElementById('language-select')?.value || 'en';
+        const dict = i18nData[lang] || i18nData['en'] || {};
+        const manualListName = dict.list_manual_entries || 'Manual Entries';
+        
+        const data = await chrome.storage.local.get(['xpider_saved_lists']);
+        let lists = data.xpider_saved_lists || [];
+        
+        let manualList = lists.find(l => l.name === manualListName);
+        if (!manualList) {
+            manualList = { name: manualListName, urls: [], date: new Date().toISOString() };
+            lists.unshift(manualList); // Put at top
         }
-    });
-
-    cancelBtn.addEventListener('click', () => {
-        const lang = languageSelect.value;
-        const dict = (typeof I18N_DATA !== 'undefined' && I18N_DATA[lang]) ? I18N_DATA[lang] : (typeof I18N_DATA !== 'undefined' ? I18N_DATA['en'] : {});
         
-        chrome.runtime.sendMessage({ action: 'cancelSearch' });
-        cancelBtn.disabled = false; // Always enabled
-        startBtn.disabled = false;
+        // Avoid duplicate in the manual list
+        if (!manualList.urls.includes(url)) {
+            manualList.urls.push(url);
+            manualList.date = new Date().toISOString();
+        }
+        
+        await chrome.storage.local.set({ xpider_saved_lists: lists });
+        await updateSavedListsUI();
+        
+        addLog(`Manual URL saved: ${url}`, 'info');
+        input.value = '';
+    } catch (e) {
+        addLog(`Invalid URL format: ${url}`, 'error');
+    }
+}
 
-        // [v66.11] Update stats area for immediate feedback
-        const statsPrefix = document.getElementById('stats-prefix-span');
-        const linkCount = document.getElementById('link-count');
-        const statsSuffix = document.querySelector('[data-i18n="stats_suffix"]');
-        if (statsPrefix) statsPrefix.textContent = dict.status_stopping || 'Stopping...';
-        if (linkCount) linkCount.style.display = 'none';
-        if (statsSuffix) statsSuffix.style.display = 'none';
+function startCampaign() {
+    // If input has value, add it before starting if empty queue
+    const manualInput = document.getElementById('manual-url-input');
+    if (manualInput && manualInput.value.trim() && campaignQueue.length === 0) {
+        addSingleUrl();
+    }
 
-        // [v67.0] Immediate feedback on cancel (Remove 60s delay)
-        setTimeout(() => {
-            if (statsPrefix) {
-                updateRealTimeStatus(results.length);
+    if (campaignQueue.length === 0) return alert("Please upload a file or enter a URL first.");
+
+    currentTpl = {
+        firstName: document.getElementById('tpl-first-name').value,
+        lastName: document.getElementById('tpl-last-name').value,
+        name: document.getElementById('tpl-name').value,
+        email: document.getElementById('tpl-email').value,
+        phone: document.getElementById('tpl-phone').value,
+        subject: document.getElementById('tpl-subject').value,
+        message: document.getElementById('tpl-message').value
+    };
+
+    if (!currentTpl.message) return alert("Please enter a message body.");
+
+    campaignActive = true;
+    campaignPaused = false;
+    successCount = 0;
+    // Reset Stats for fresh start
+    successCount = 0;
+    updateRealTimeStatus({ successCount: 0, remainingCount: campaignQueue.length });
+    updateProgress(0);
+    
+    setTimeout(() => {
+        document.getElementById('status-box').classList.remove('hidden');
+        document.getElementById('multi-actions').classList.remove('hidden');
+        document.getElementById('start-btn').classList.add('hidden');
+    }, 100);
+
+    // [v2.5.0] Auto-scroll to status board
+    const statusBox = document.getElementById('status-box');
+    if (statusBox) {
+        statusBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    const delayInput = document.getElementById('delay-input');
+    const level = parseInt(delayInput ? delayInput.value : 6);
+    // [v18.7.0] Slower Tempo Range: 0 (60s) to 9 (3s). Normal (6) is 10s.
+    const levelToMs = [60000, 45000, 30000, 25000, 20000, 15000, 10000, 7000, 5000, 3000];
+    const delayMs = levelToMs[level] || 10000;
+
+    // Delegate to background
+    const messagePayload = {
+        action: 'START_CAMPAIGN',
+        queue: campaignQueue,
+        template: saveTemplate(), // [v18.20.0] Ensure latest UI data is sent
+        delayMs: delayMs
+    };
+
+    // [v18.25.0] Deep Diagnostic Timeout: Read engine blackbox on stall
+    const bootTimeout = setTimeout(() => {
+        chrome.storage.local.get(['xpider_boot_step', 'xpider_boot_ts', 'xpider_boot_error'], (data) => {
+            const step = data.xpider_boot_step || 'unknown';
+            const error = data.xpider_boot_error;
+            const timeAgo = data.xpider_boot_ts ? Math.round((Date.now() - data.xpider_boot_ts) / 1000) : '?';
+            
+            addLog(`⚠️ [System] Connection stall detected (6s). Engine is non-responsive.`, "error");
+            addLog(`📝 Internal State: [${step}] (last activity: ${timeAgo}s ago)`, "debug");
+            if (error) addLog(`❌ Boot Error: ${error}`, "error");
+            addLog(`💡 Suggestion: Click '⚙️ Settings' -> 'Emergency Recovery' to force restart the engine.`, "info");
+        });
+    }, 6000);
+
+    try {
+        chrome.runtime.sendMessage(messagePayload, (response) => {
+            clearTimeout(bootTimeout);
+            
+            if (chrome.runtime.lastError) {
+                console.error("[Handshake Error]", chrome.runtime.lastError.message);
+                addLog(`❌ [System] Connection failed: ${chrome.runtime.lastError.message}`, "error");
+                return;
             }
-            if (statusDetail) {
-                const logMsg = dict.log_cancelled || 'Collection stopped by user.';
-                statusDetail.textContent = logMsg;
-                statusDetail.style.color = 'var(--success-color)';
-                statusDetail.style.fontWeight = '700';
-            }
-            if (results.length > 0) {
-                progressBar.style.width = '100%';
-                progressText.textContent = `${results.length} items`;
-                setTimeout(() => {
-                    resultBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
+
+            if (response && response.success) {
+                console.log("Campaign orchestrated by background.");
+                addLog("[System] Engine responded. Starting sending loop...", "debug");
             } else {
-                addLog('Stopped. No items collected.');
+                const err = (response && response.error) ? response.error : "Unknown background error";
+                addLog(`❌ [Engine Error] ${err}`, "error");
             }
-        }, 500); // 0.5s instead of 60s
+        });
+    } catch (e) {
+        clearTimeout(bootTimeout);
+        addLog(`❌ [Fatal Error] ${e.message}`, "error");
+    }
+}
+
+function togglePause() {
+    campaignPaused = !campaignPaused;
+    const btn = document.getElementById('pause-btn');
+    const langSelect = document.getElementById('language-select');
+    const lang = langSelect ? langSelect.value : 'en';
+    const dict = i18nData[lang] || i18nData['en'] || {};
+    
+    // [v18.7] Send command to background engine
+    const action = campaignPaused ? 'PAUSE_CAMPAIGN' : 'RESUME_CAMPAIGN';
+    chrome.runtime.sendMessage({ action: action }, (response) => {
+        if (chrome.runtime.lastError) {
+             console.error("[Pause Error]", chrome.runtime.lastError);
+             return;
+        }
+        console.log(`Campaign ${campaignPaused ? 'Paused' : 'Resumed'}`);
     });
 
-    chrome.runtime.onMessage.addListener((msg) => {
-        if (msg.action === 'log') {
-            addLog(msg.message);
-        } else if (msg.action === 'progress') {
-            progressBar.style.width = `${msg.percent}%`;
-            progressText.textContent = `${Math.round(msg.percent)}%`;
-            if (msg.count !== undefined) updateRealTimeStatus(msg.count);
-        } else if (msg.action === 'statusDetail') {
-            if (statusDetail) {
-                statusDetail.textContent = msg.message;
-            }
-        } else if (msg.action === 'result') {
-            results.push(msg.data);
-            updateRealTimeStatus(results.length);
-            const d = msg.data;
-            const tr = document.createElement('tr');
-            const targetOption = document.getElementById('collection-target')?.value || 'all';
-            
-            let html = `<td class="col-name">${d.name}</td>`;
-            if (targetOption === 'all') {
-                html += `<td class="col-addr">${d.address || '-'}</td>
-                       <td class="col-url">${d.homepage ? `<a href="${d.homepage}" target="_blank">${d.homepage}</a>` : '-'}</td>
-                       <td class="col-sns">${Array.isArray(d.sns) ? d.sns.join(', ') : (d.sns || '-')}</td>
-                       <td class="col-email">${d.emails || '-'}</td>
-                       <td class="col-phone">${d.phone || '-'}</td>`;
-            } else if (targetOption === 'address') html += `<td class="col-addr">${d.address || '-'}</td>`;
-            else if (targetOption === 'phone') html += `<td class="col-phone">${d.phone || '-'}</td>`;
-            else if (targetOption === 'email') html += `<td class="col-email">${d.emails || '-'}</td>`;
-            else if (targetOption === 'sns') html += `<td class="col-sns">${Array.isArray(d.sns) ? d.sns.join(', ') : (d.sns || '-')}</td>`;
-            
-            tr.innerHTML = html;
-            resultTableBody.appendChild(tr);
+    if (btn) {
+        btn.textContent = campaignPaused ? (dict.btn_resume || "▶️ Resume") : (dict.btn_pause || "⏸️ Pause");
+        btn.style.backgroundColor = campaignPaused ? "#22c55e" : "#f59e0b"; // Visual cue
+    }
+    
+    refreshStatusDetailUI();
+}
 
-            // [v66.13] Show result box and scroll if first item
-            if (results.length === 1) {
-                resultBox.classList.remove('hidden');
-                setTimeout(() => {
-                    resultBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
+function stopCampaign() {
+    campaignActive = false;
+    document.getElementById('start-btn').classList.remove('hidden');
+    document.getElementById('multi-actions').classList.add('hidden');
+    
+    chrome.runtime.sendMessage({ action: 'STOP_CAMPAIGN' });
+    addLog("Campaign stopped by user.", "stop");
+}
+
+// processNext in popup is now obsolete as background handles routing
+// But we keep it as a fallback or for UI-only updates if needed
+async function processNext() {
+    console.log("processNext called in popup (Ignored - background handling it)");
+}
+
+// [v18.21.5] Pulse Check: Monitor background engine health in real-time
+function startPulseCheck() {
+    setInterval(() => {
+        chrome.runtime.sendMessage({ action: 'PING' }, (response) => {
+            const indicator = document.getElementById('engine-status-indicator');
+            if (!indicator) return;
+
+            if (chrome.runtime.lastError || !response || !response.success) {
+                indicator.textContent = "⚠️ Engine Disconnected";
+                indicator.style.color = "#ef4444";
+            } else {
+                indicator.textContent = "✅ Engine Alive";
+                indicator.style.color = "#22c55e";
             }
-        } else if (msg.action === 'complete') {
-            // [v18.0] Don't immediately hide cancel button.
-            // Verify with background that search truly ended before switching buttons.
-            chrome.runtime.sendMessage({ action: 'GET_SEARCH_STATE' }, (verifyRes) => {
-                if (chrome.runtime.lastError) {
-                    // Can't reach background - don't touch buttons
-                    console.log('[v18.0] complete: Cannot verify state, ignoring.');
+        });
+    }, 2000);
+}
+
+function finishCampaign() {
+    campaignActive = false;
+    addLog("Campaign finished!", "complete");
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) startBtn.classList.remove('hidden');
+    
+    const multiActions = document.getElementById('multi-actions');
+    if (multiActions) multiActions.classList.add('hidden');
+    
+    chrome.storage.local.remove(['xpider_queue', 'xpider_success', 'xpider_total']);
+}
+
+function updateProgress(percent) {
+    const bar = document.getElementById('progress-bar');
+    if (bar) bar.style.width = `${percent}%`;
+    
+    const text = document.getElementById('progress-text');
+    if (text) {
+        text.textContent = `${percent}%`;
+        text.style.fontSize = '0.9rem'; // Smaller font as requested
+    }
+}
+
+function addLog(msg, type = 'info', forcedTime = null) {
+    const container = document.getElementById('log-container');
+    if (!container) return;
+
+    // [v2.5.5] Update real-time status summary
+    const techKeywords = ['Precision targeting', 'Pre-scan', 'Sniper Mode', 'Target lost', 'Processing:', 'Opening target'];
+    const isTechLog = techKeywords.some(k => msg.includes(k)) && !msg.includes('Skipping') && !msg.includes('error');
+    
+    if (!isTechLog) {
+        lastLogMessage = msg.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
+        refreshStatusDetailUI();
+    }
+
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry ${type}`;
+    
+    const time = forcedTime || new Date().toLocaleTimeString('ko-KR', { hour12: false });
+    
+    // [v1.3.8] Premium Color Set for High Visibility
+    let color = '#ccc';
+    if (type === 'success') color = '#22c55e'; // Bright Green
+    if (type === 'error') color = '#ef4444';   // Bright Red
+    if (type === 'start') color = '#facc15';   // XSpider Yellow
+    if (type === 'visit') color = '#ffffff';   // Pure White for "Processing:"
+    if (type === 'info') color = '#60a5fa';    // Soft Blue
+    if (type === 'mapping') color = '#a855f7'; // Purple for mapping steps
+    if (type === 'debug') color = '#52525b';   // Darker gray for debug/tech logs
+
+    logEntry.style.color = color;
+    logEntry.style.fontWeight = (type === 'visit' || type === 'success') ? 'bold' : 'normal';
+    logEntry.style.marginBottom = '2px';
+    logEntry.style.fontSize = type === 'debug' ? '0.75rem' : '0.85rem';
+    logEntry.innerHTML = `<span class="log-time" style="color: #666; font-size: 0.7rem;">[${time}]</span> ${msg}`;
+    
+    container.appendChild(logEntry);
+    container.scrollTop = container.scrollHeight;
+}
+
+function saveTemplate() {
+    const tpl = {
+        firstName: document.getElementById('tpl-first-name').value,
+        lastName: document.getElementById('tpl-last-name').value,
+        name: document.getElementById('tpl-name').value,
+        email: document.getElementById('tpl-email').value,
+        phone: document.getElementById('tpl-phone').value,
+        subject: document.getElementById('tpl-subject').value,
+        message: document.getElementById('tpl-message').value
+    };
+    chrome.storage.local.set({ xpider_tpl: tpl });
+    return tpl;
+}
+
+// [v18.10.0] Diagnostic Recovery: Load persistent logs from storage
+async function loadBlackBoxLogs() {
+    const data = await chrome.storage.local.get(['xpider_blackbox_logs']);
+    const logs = data.xpider_blackbox_logs || [];
+    
+    const container = document.getElementById('log-container');
+    if (!container || logs.length === 0) return;
+
+    // Clear and re-populate to avoid duplicate confusion on refresh
+    container.innerHTML = '';
+    
+    logs.forEach(log => {
+        addLog(log.message, log.type, log.timestamp || "Past");
+    });
+    
+    addLog("--- Persistent Session Restored ---", "info");
+}
+
+// [v1.7.0] Advanced Template Library Logic
+async function saveTemplateToLibrary() {
+    const tpl = saveTemplate();
+    if (!tpl.subject && !tpl.message) return alert("Please enter at least a subject or message.");
+    
+    const name = tpl.subject || `Template_${new Date().toLocaleTimeString()}`;
+    const data = await chrome.storage.local.get(['xpider_tpl_library']);
+    let library = data.xpider_tpl_library || [];
+    
+    // Replace if exists with same name, or add new
+    const idx = library.findIndex(t => t.subject === tpl.subject && tpl.subject !== '');
+    if (idx > -1) {
+        library[idx] = tpl;
+    } else {
+        library.push(tpl);
+    }
+    
+    await chrome.storage.local.set({ xpider_tpl_library: library });
+    await updateTemplateDropdown();
+    
+    const lang = document.getElementById('language-select')?.value || 'en';
+    const dict = i18nData[lang] || i18nData['en'] || {};
+    alert(dict.msg_tpl_saved || "Template saved!");
+}
+
+async function updateTemplateDropdown() {
+    const select = document.getElementById('tpl-library-select');
+    if (!select) return;
+    
+    // [v18.45.0] Shift from internal library to Export History
+    const data = await chrome.storage.local.get(['xpider_export_history']);
+    const history = data.xpider_export_history || [];
+    
+    const lang = document.getElementById('language-select')?.value || 'en';
+    const dict = i18nData[lang] || i18nData['en'] || {};
+    
+    // Clear and add "Select Template" option (Empty by default as requested)
+    select.innerHTML = `<option value="" disabled selected>${dict.label_select_template || 'Select Template'}</option>`;
+    
+    if (history.length === 0) return;
+    
+    history.forEach((tpl, idx) => {
+        const option = document.createElement('option');
+        option.value = idx;
+        // Show filename as the history item label
+        option.textContent = tpl.filename || tpl.subject || `Template ${idx + 1}`;
+        select.appendChild(option);
+    });
+}
+
+function loadTemplateFromLibrary() {
+    const select = document.getElementById('tpl-library-select');
+    const idx = select.value;
+    if (idx === "") return;
+    
+    // [v18.45.0] Load from Export History
+    chrome.storage.local.get(['xpider_export_history'], (data) => {
+        const history = data.xpider_export_history || [];
+        const tpl = history[idx];
+        if (tpl) {
+            document.getElementById('tpl-first-name').value = tpl.firstName || '';
+            document.getElementById('tpl-last-name').value = tpl.lastName || '';
+            document.getElementById('tpl-name').value = tpl.name || '';
+            document.getElementById('tpl-email').value = tpl.email || '';
+            document.getElementById('tpl-phone').value = tpl.phone || '';
+            document.getElementById('tpl-subject').value = tpl.subject || '';
+            document.getElementById('tpl-message').value = tpl.message || '';
+            
+            // Sync as active tpl for campaign
+            chrome.storage.local.set({ xpider_tpl: tpl });
+            addLog(`Restored from history: ${tpl.filename}`, 'info');
+        }
+    });
+}
+
+function importMessageFromFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const content = e.target.result;
+        
+        // Intelligent Parsing Logic [v18.40.0]
+        const isStructured = content.includes('[XPIDER MESSAGE TEMPLATE]');
+        
+        if (isStructured) {
+            const lines = content.split('\n');
+            let bodyStarted = false;
+            let bodyLines = [];
+            
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                
+                if (trimmedLine.includes('[MESSAGE BODY]')) {
+                    bodyStarted = true;
                     return;
                 }
                 
-                // Only switch buttons if background confirms search is done
-                if (!verifyRes || !verifyRes.isSearching) {
-                    const lang = languageSelect.value;
-                    const dict = (typeof I18N_DATA !== 'undefined' && I18N_DATA[lang]) ? I18N_DATA[lang] : (typeof I18N_DATA !== 'undefined' ? I18N_DATA['en'] : {});
-                    const logMsg = dict.log_finished_overall || dict.log_complete || 'Collection process completely finished.';
-                    
-                    addLog(logMsg);
-                    
-                    // [v67.0] Immediate feedback on complete (Remove 60s delay)
-                    setTimeout(() => {
-                        updateRealTimeStatus(results.length);
-                    }, 500);
-
-                    if (statusDetail) {
-                        statusDetail.textContent = logMsg;
-                        statusDetail.style.color = 'var(--success-color)';
-                        statusDetail.style.fontWeight = '700';
-                    }
-                    
-                    startBtn.disabled = false;
-                    pauseBtn.disabled = true;
-                    cancelBtn.disabled = true;
-                    resultBox.classList.remove('hidden');
-                    progressBar.style.width = '100%';
-                    progressText.textContent = '100%';
-
-                    // [v66.13] Scroll to results for visibility
-                    setTimeout(() => {
-                        resultBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }, 100);
-                } else {
-                    console.log('[v18.0] complete received but background still searching. Ignoring.');
+                if (bodyStarted) {
+                    // Skip separators at the very start of body
+                    if (trimmedLine.startsWith('---') && bodyLines.length === 0) return;
+                    bodyLines.push(line); // Keep original indent in message
+                    return;
                 }
+
+                // Precise Field extraction using Regex
+                const matchName = line.match(/Target Full Name:\s*(.*)/i);
+                const matchFirst = line.match(/First Name:\s*(.*)/i);
+                const matchLast = line.match(/Last Name:\s*(.*)/i);
+                const matchEmail = line.match(/Email:\s*(.*)/i);
+                const matchPhone = line.match(/Phone:\s*(.*)/i);
+                const matchSubject = line.match(/Subject:\s*(.*)/i);
+
+                if (matchName) document.getElementById('tpl-name').value = matchName[1].trim();
+                if (matchFirst) document.getElementById('tpl-first-name').value = matchFirst[1].trim();
+                if (matchLast) document.getElementById('tpl-last-name').value = matchLast[1].trim();
+                if (matchEmail) document.getElementById('tpl-email').value = matchEmail[1].trim();
+                if (matchPhone) document.getElementById('tpl-phone').value = matchPhone[1].trim();
+                if (matchSubject) document.getElementById('tpl-subject').value = matchSubject[1].trim();
             });
-        } else if (msg.action === 'CAPTCHA_STATUS') {
-            if (msg.status === 'detected') {
-                if (typeof captchaModalOverlay !== 'undefined') captchaModalOverlay.classList.remove('hidden');
-            } else {
-                if (typeof captchaModalOverlay !== 'undefined') captchaModalOverlay.classList.add('hidden');
+
+            // Clean up message body text
+            let bodyText = bodyLines.join('\n').trim();
+            // Remove the trailing separator and footer often found in exported files
+            bodyText = bodyText.replace(/---+\s*Generated by XPIDER AutoForm Sender Pro.*/s, '').trim();
+            bodyText = bodyText.replace(/---+\s*$/, '').trim();
+            
+            document.getElementById('tpl-message').value = bodyText;
+            addLog("Intelligent template mapped successfully.", "success");
+        } else {
+            // Fallback for plain text: load everything into message body
+            const msgArea = document.getElementById('tpl-message');
+            if (msgArea) {
+                msgArea.value = content.trim();
+                addLog("Plain text imported to message body.", "info");
             }
-        } else if (msg.action === 'CAPTCHA_LOG_UPDATE') {
-            updateCaptchaLogs(msg.logs);
         }
-    });
-
-    function updateCaptchaLogs(logs) {
-        if (!captchaLogContainer) return;
-        if (logs.length > 0 && captchaLogBox) captchaLogBox.classList.remove('hidden');
-        captchaLogContainer.innerHTML = logs.map(line => `<div>${line}</div>`).join('');
-        captchaLogContainer.scrollTop = captchaLogContainer.scrollHeight;
-    }
-
-    function downloadFile(content, filename, type) {
-        const blob = new Blob([content], { type: type });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", filename);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    function getLabels() {
-        const lang = languageSelect.value;
-        const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData['en'] || {});
-        return {
-            name: dict.col_name || 'Name',
-            address: dict.col_address || 'Address',
-            homepage: dict.col_url || 'Website',
-            sns: dict.col_sns || 'Social Media',
-            email: dict.col_email || 'Email',
-            phone: dict.col_phone || 'Phone',
-            title: dict.result_title || 'Results',
-            unit: dict.stats_suffix ? dict.stats_suffix.trim() : 'items'
+        
+        // [v18.50.0] FIX: Do not call saveTemplateChanges here as it triggers 'Save As' again.
+        // Instead, just sync the current data for the campaign.
+        const tpl = {
+            firstName: document.getElementById('tpl-first-name').value,
+            lastName: document.getElementById('tpl-last-name').value,
+            name: document.getElementById('tpl-name').value,
+            email: document.getElementById('tpl-email').value,
+            phone: document.getElementById('tpl-phone').value,
+            subject: document.getElementById('tpl-subject').value,
+            message: document.getElementById('tpl-message').value
         };
+        chrome.storage.local.set({ xpider_tpl: tpl });
+        
+        event.target.value = ''; // Reset file input
+    };
+    reader.readAsText(file);
+}
+
+async function saveSettings() {
+    const langSelect = document.getElementById('language-select');
+    const captchaToggle = document.getElementById('captcha-solve-toggle');
+    const methodSelect = document.getElementById('captcha-method-select');
+    const apiKeyInput = document.getElementById('captcha-api-key');
+    const sttKeyInput = document.getElementById('audio-stt-key');
+    const stealthToggle = document.getElementById('stealth-mode-toggle');
+    const delayInput = document.getElementById('delay-input');
+    const randomToggle = document.getElementById('random-delay-toggle');
+
+    const lang = langSelect ? langSelect.value : 'en';
+    const settings = {
+        xpider_lang: lang,
+        xpider_captcha_enabled: captchaToggle ? captchaToggle.checked : false,
+        xpider_captcha_method: methodSelect ? methodSelect.value : 'audio',
+        xpider_captcha_api_key: apiKeyInput ? apiKeyInput.value : '',
+        xpider_stt_api_key: sttKeyInput ? sttKeyInput.value : '',
+        xpider_stealth_mode: stealthToggle ? stealthToggle.checked : false,
+        xpider_delay: delayInput ? delayInput.value : 6,
+        xpider_random_delay: randomToggle ? randomToggle.checked : false
+    };
+    await chrome.storage.local.set(settings);
+    
+    const saveBtn = document.getElementById('save-settings-btn');
+    if (saveBtn) {
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = "✅ Applied!";
+        setTimeout(() => saveBtn.textContent = originalText, 2000);
+    }
+    
+    applyTranslations(lang);
+    const settingsOverlay = document.getElementById('settings-overlay');
+    if (settingsOverlay) settingsOverlay.classList.add('hidden');
+}
+
+async function loadSettings() {
+    const data = await chrome.storage.local.get([
+        'xpider_lang', 'xpider_tpl', 'xpider_delay', 'xpider_queue', 'xpider_success', 'xpider_total',
+        'xpider_captcha_enabled', 'xpider_captcha_method', 'xpider_captcha_api_key', 'xpider_stt_api_key', 'xpider_stealth_mode'
+    ]);
+    
+    if (data.xpider_lang) {
+        const langSelect = document.getElementById('language-select');
+        if (langSelect) langSelect.value = data.xpider_lang;
+    }
+    
+    // Captcha Settings (v1.2.3: Set high-stability defaults if not present)
+    const captchaEnabled = (data.xpider_captcha_enabled !== undefined) ? !!data.xpider_captcha_enabled : true;
+    const captchaMethod = data.xpider_captcha_method || 'audio';
+
+    if (document.getElementById('captcha-solve-toggle')) {
+        document.getElementById('captcha-solve-toggle').checked = captchaEnabled;
+    }
+    if (document.getElementById('captcha-method-select')) {
+        document.getElementById('captcha-method-select').value = captchaMethod;
+    }
+    if (document.getElementById('captcha-api-key')) {
+        document.getElementById('captcha-api-key').value = data.xpider_captcha_api_key || '';
+    }
+    if (document.getElementById('audio-stt-key')) {
+        document.getElementById('audio-stt-key').value = data.xpider_stt_api_key || '';
+    }
+    if (document.getElementById('stealth-mode-toggle')) {
+        document.getElementById('stealth-mode-toggle').checked = (data.xpider_stealth_mode !== undefined) ? !!data.xpider_stealth_mode : true;
+    }
+    
+    const methodGroup = document.getElementById('captcha-method-group');
+    if (methodGroup) methodGroup.style.display = captchaEnabled ? 'block' : 'none';
+    toggleCaptchaApiVisibility();
+
+    // Template
+    if (data.xpider_tpl) {
+        if (document.getElementById('tpl-first-name')) document.getElementById('tpl-first-name').value = data.xpider_tpl.firstName || '';
+        if (document.getElementById('tpl-last-name')) document.getElementById('tpl-last-name').value = data.xpider_tpl.lastName || '';
+        if (document.getElementById('tpl-name')) document.getElementById('tpl-name').value = data.xpider_tpl.name || '';
+        if (document.getElementById('tpl-email')) document.getElementById('tpl-email').value = data.xpider_tpl.email || '';
+        if (document.getElementById('tpl-phone')) document.getElementById('tpl-phone').value = data.xpider_tpl.phone || '';
+        if (document.getElementById('tpl-subject')) document.getElementById('tpl-subject').value = data.xpider_tpl.subject || '';
+        if (document.getElementById('tpl-message')) document.getElementById('tpl-message').value = data.xpider_tpl.message || '';
     }
 
-    downloadCsv.addEventListener('click', () => {
-        if (results.length === 0) return;
-        const lb = getLabels();
-        const targetOption = document.getElementById('collection-target')?.value || 'all';
-        
-        let csvContent = `\ufeff`;
-        let headers = [lb.name];
-        
-        if (targetOption === 'all') headers.push(lb.address, lb.homepage, lb.sns, lb.email, lb.phone);
-        else if (targetOption === 'address') headers.push(lb.address);
-        else if (targetOption === 'phone') headers.push(lb.phone);
-        else if (targetOption === 'email') headers.push(lb.email);
-        else if (targetOption === 'sns') headers.push(lb.sns);
-        
-        csvContent += headers.join(',') + '\n';
-        
-        results.forEach(r => {
-            let row = [`"${r.name}"`];
-            if (targetOption === 'all') row.push(`"${r.address || ''}"`, `"${r.homepage || ''}"`, `"${r.sns || ''}"`, `"${r.emails || ''}"`, `"${r.phone || ''}"`);
-            else if (targetOption === 'address') row.push(`"${r.address || ''}"`);
-            else if (targetOption === 'phone') row.push(`"${r.phone || ''}"`);
-            else if (targetOption === 'email') row.push(`"${r.emails || ''}"`);
-            else if (targetOption === 'sns') row.push(`"${r.sns || ''}"`);
-            csvContent += row.join(',') + '\n';
-        });
-        
-        const modeLabel = targetOption !== 'all' ? `_${targetOption}` : '';
-        downloadFile(csvContent, `collected${modeLabel}_${new Date().getTime()}.csv`, 'text/csv;charset=utf-8;');
-    });
+    if (data.xpider_delay && document.getElementById('delay-input')) {
+        document.getElementById('delay-input').value = data.xpider_delay;
+        updateSpeedLabel();
+    }
+    if (document.getElementById('random-delay-toggle')) {
+        document.getElementById('random-delay-toggle').checked = !!data.xpider_random_delay;
+    }
 
-    downloadTxt.addEventListener('click', () => {
-        if (results.length === 0) return;
-        const lb = getLabels();
-        const targetOption = document.getElementById('collection-target')?.value || 'all';
-        let txtContent = `=== ${lb.title} (${results.length} ${lb.unit}) ===\n`;
-        if (targetOption !== 'all') txtContent += `[Target: ${targetOption.toUpperCase()}]\n`;
-        txtContent += `\n`;
-        
-        results.forEach((r, i) => {
-            txtContent += `${i + 1}. ${r.name}\n`;
-            if (targetOption === 'all' || targetOption === 'address') txtContent += `   ${lb.address}: ${r.address || '-'}\n`;
-            if (targetOption === 'all') txtContent += `   ${lb.homepage}: ${r.homepage || '-'}\n`;
-            if (targetOption === 'all' || targetOption === 'sns') txtContent += `   ${lb.sns}: ${r.sns || '-'}\n`;
-            if (targetOption === 'all' || targetOption === 'email') txtContent += `   ${lb.email}: ${r.emails || '-'}\n`;
-            if (targetOption === 'all' || targetOption === 'phone') txtContent += `   ${lb.phone}: ${r.phone || '-'}\n`;
-            txtContent += `\n`;
-        });
-        
-        const modeLabel = targetOption !== 'all' ? `_${targetOption}` : '';
-        downloadFile(txtContent, `collected${modeLabel}_${new Date().getTime()}.txt`, 'text/plain;charset=utf-8;');
-    });
+    // Resuming Campaign
+    if (data.xpider_queue && data.xpider_queue.length > 0) {
+        campaignQueue = data.xpider_queue;
+        totalTargets = data.xpider_total || campaignQueue.length;
+        successCount = data.xpider_success || 0;
+        campaignActive = true; // Mark as active to show Pause/Stop buttons
 
-    downloadGs.addEventListener('click', () => {
-        if (results.length === 0) return;
-        const lb = getLabels();
-        const targetOption = document.getElementById('collection-target')?.value || 'all';
+        updateRealTimeStatus({ successCount });
+        const countDisplay = document.getElementById('url-count-display');
+        if (countDisplay) countDisplay.textContent = `${campaignQueue.length} (remaining) / ${totalTargets} URLs`;
         
-        let tsvContent = ``;
-        let headers = [lb.name];
+        if (document.getElementById('file-info')) document.getElementById('file-info').classList.remove('hidden');
+        if (document.getElementById('status-box')) document.getElementById('status-box').classList.remove('hidden');
+        if (document.getElementById('start-btn')) document.getElementById('start-btn').classList.add('hidden');
+        if (document.getElementById('multi-actions')) document.getElementById('multi-actions').classList.remove('hidden');
         
-        if (targetOption === 'all') headers.push(lb.address, lb.homepage, lb.sns, lb.email, lb.phone);
-        else if (targetOption === 'address') headers.push(lb.address);
-        else if (targetOption === 'phone') headers.push(lb.phone);
-        else if (targetOption === 'email') headers.push(lb.email);
-        else if (targetOption === 'sns') headers.push(lb.sns);
-        
-        tsvContent += headers.join('\t') + '\n';
-        
-        results.forEach(r => {
-            let row = [r.name];
-            if (targetOption === 'all') row.push(r.address || '', r.homepage || '', r.sns || '', r.emails || '', r.phone || '');
-            else if (targetOption === 'address') row.push(r.address || '');
-            else if (targetOption === 'phone') row.push(r.phone || '');
-            else if (targetOption === 'email') row.push(r.emails || '');
-            else if (targetOption === 'sns') row.push(r.sns || '');
-            tsvContent += row.join('\t') + '\n';
-        });
-        
-        const modeLabel = targetOption !== 'all' ? `_${targetOption}` : '';
-        downloadFile(tsvContent, `for_google_sheets${modeLabel}_${new Date().getTime()}.tsv`, 'text/tab-separated-values;charset=utf-8;');
-    });
-});
+        updateProgress(Math.round(((totalTargets - campaignQueue.length) / totalTargets) * 100));
+        addLog(`Resumed campaign: ${campaignQueue.length} remaining.`, 'info');
+    }
+
+    // [v1.2.0] Populate saved lists
+    await updateSavedListsUI();
+    
+    // [v1.7.0] Populate template library
+    await updateTemplateDropdown();
+}
