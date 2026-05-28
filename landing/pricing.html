@@ -1,0 +1,2317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XPIDER B2B Premium Pricing & Modules Suite</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Next-generation B2B Lead Crawler, Unlimited Proxy VPN, AI Form Sender, and Bulk Mailer by XPIDER. Discover the ultimate dynamic pricing plans today.">
+  <meta name="keywords" content="XPIDER, marketing automation, Google Maps crawler, Bing Maps extractor, AI contact form sender, VPN proxy">
+  
+  <!-- Google & FontAwesome Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* ─── Design System & Dynamic Neon Variables ─── */
+    :root {
+      --bg-dark: #020012;
+      --bg-mid: #060320;
+      --bg-light: #0b0732;
+      --color-primary: #3b82f6;
+      --color-cyan: #06b6d4;
+      --color-purple: #8b5cf6;
+      --color-pink: #ec4899;
+      --color-green: #10b981;
+      --color-orange: #f97316;
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --glass-surface: rgba(255, 255, 255, 0.02);
+      --glass-border: rgba(255, 255, 255, 0.05);
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 8px;
+      --transition-dynamic: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    /* ─── Resets ─── */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ─── Ambient Glow Orbs ─── */
+    .neon-light-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(160px);
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.5;
+      animation: float-orb 15s ease-in-out infinite alternate;
+    }
+
+    .orb-purple {
+      top: -10%;
+      right: 15%;
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%);
+    }
+
+    .orb-cyan {
+      top: 40%;
+      left: -10%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.25) 0%, transparent 70%);
+      animation-delay: -5s;
+    }
+
+    .orb-pink {
+      bottom: 10%;
+      right: -5%;
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, rgba(236, 72, 153, 0.2) 0%, transparent 70%);
+      animation-delay: -10s;
+    }
+
+    @keyframes float-orb {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(40px, 40px) scale(1.1); }
+    }
+
+    /* ─── Header ─── */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--glass-border);
+      z-index: 100;
+      background: rgba(2, 0, 18, 0.8);
+      transition: var(--transition-dynamic);
+    }
+
+    .nav-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 84px;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 900;
+      font-size: 24px;
+      color: #fff;
+      box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
+    }
+
+    .logo-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      background: linear-gradient(90deg, #fff 30%, var(--color-cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-menu {
+      display: flex;
+      list-style: none;
+      gap: 40px;
+      align-items: center;
+    }
+
+    .nav-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14.5px;
+      font-weight: 600;
+      transition: var(--transition-dynamic);
+      position: relative;
+    }
+
+    .nav-link:hover {
+      color: #fff;
+      text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+    }
+
+    .btn-header {
+      padding: 12px 30px;
+      border-radius: 50px;
+      background: linear-gradient(135deg, var(--color-cyan), var(--color-primary));
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.35);
+      transition: var(--transition-dynamic);
+    }
+
+    .btn-header:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 25px rgba(6, 182, 212, 0.6);
+    }
+
+    /* ─── Hero Section ─── */
+    .hero-section {
+      padding-top: 180px;
+      padding-bottom: 20px;
+      text-align: center;
+      position: relative;
+    }
+
+    .badge-promo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 24px;
+      border-radius: 50px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--glass-border);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--color-cyan);
+      margin-bottom: 24px;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .badge-promo > span:first-child {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-cyan);
+      box-shadow: 0 0 10px var(--color-cyan);
+      display: inline-block;
+      animation: pulse-ring 2s infinite;
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.9); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.4; }
+      100% { transform: scale(0.9); opacity: 1; }
+    }
+
+    .hero-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 72px;
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -3px;
+      margin-bottom: 24px;
+    }
+
+    .hero-title span {
+      background: linear-gradient(135deg, #fff 10%, var(--color-cyan) 60%, var(--color-purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 20px;
+      color: var(--text-muted);
+      max-width: 820px;
+      margin: 0 auto;
+      line-height: 1.65;
+    }
+
+    /* ─── Pricing Section ─── */
+    .pricing-section {
+      padding: 60px 0 100px 0;
+      text-align: center;
+      position: relative;
+    }
+
+    .billing-switcher-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 60px;
+    }
+
+    .switcher-label {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-muted);
+      transition: var(--transition-dynamic);
+    }
+
+    .switcher-label.active {
+      color: #fff;
+      text-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+    }
+
+    .billing-toggle {
+      width: 72px;
+      height: 36px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 50px;
+      position: relative;
+      cursor: pointer;
+      transition: var(--transition-dynamic);
+    }
+
+    .toggle-handle {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--color-cyan), var(--color-primary));
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      transition: var(--transition-dynamic);
+      box-shadow: 0 0 12px var(--color-cyan);
+    }
+
+    .billing-toggle.yearly .toggle-handle {
+      left: 39px;
+    }
+
+    .yearly-discount-tag {
+      font-size: 11.5px;
+      font-weight: 900;
+      color: #00f5ff;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.35);
+      padding: 4px 10px;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+    }
+
+    /* Pricing Grid Layout */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 36px;
+      align-items: stretch;
+    }
+
+    .price-card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0) 100%);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 56px 40px;
+      text-align: left;
+      transition: var(--transition-dynamic);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 100%;
+    }
+
+    .price-card:hover {
+      transform: translateY(-10px) scale(1.02);
+      border-color: rgba(255, 255, 255, 0.12);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    .price-card.recommended {
+      background: linear-gradient(180deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0) 100%);
+      border: 1px solid rgba(59, 130, 246, 0.4);
+      box-shadow: 0 20px 50px rgba(59, 130, 246, 0.15);
+    }
+
+    .price-card.recommended::before {
+      content: '';
+      position: absolute;
+      top: -1.5px;
+      left: 10%;
+      right: 10%;
+      height: 1.5px;
+      background: linear-gradient(90deg, transparent, var(--color-cyan), var(--color-purple), transparent);
+    }
+
+    .price-card.recommended:hover {
+      border-color: rgba(6, 182, 212, 0.6);
+      box-shadow: 0 35px 70px rgba(0, 0, 0, 0.7), 0 0 30px rgba(6, 182, 212, 0.25);
+    }
+
+    .price-card.enterprise:hover {
+      border-color: rgba(249, 115, 22, 0.5) !important;
+      box-shadow: 0 35px 70px rgba(0, 0, 0, 0.7), 0 0 35px rgba(249, 115, 22, 0.3) !important;
+    }
+
+    .recommended-badge {
+      position: absolute;
+      top: -18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--color-cyan), var(--color-primary));
+      padding: 6px 20px;
+      border-radius: 50px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      box-shadow: 0 5px 15px rgba(6, 182, 212, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .plan-name {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .price-card.recommended .plan-name {
+      color: var(--color-cyan);
+      text-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+    }
+
+    .plan-price-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 32px;
+    }
+
+    .plan-price {
+      font-family: 'Outfit', sans-serif;
+      font-size: 56px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -2px;
+      transition: var(--transition-dynamic);
+      display: inline-block;
+    }
+
+    .plan-period {
+      font-size: 14.5px;
+      color: var(--text-dim);
+      font-weight: 600;
+    }
+
+    .plan-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin-bottom: 40px;
+    }
+
+    .btn-pricing {
+      display: block;
+      width: 100%;
+      padding: 18px;
+      border-radius: var(--radius-sm);
+      text-align: center;
+      font-size: 15px;
+      font-weight: 800;
+      text-decoration: none;
+      transition: var(--transition-dynamic);
+      margin-bottom: 40px;
+      border: 1px solid var(--glass-border);
+      cursor: pointer;
+    }
+
+    .price-card .btn-pricing {
+      background: rgba(255, 255, 255, 0.02);
+      color: #fff;
+    }
+
+    .price-card .btn-pricing:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--glass-border-hover);
+    }
+
+    .price-card.recommended .btn-pricing {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      box-shadow: 0 10px 25px rgba(59, 130, 246, 0.35);
+    }
+
+    .price-card.recommended .btn-pricing:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(59, 130, 246, 0.55);
+    }
+
+    .price-card .btn-pricing.btn-enterprise {
+      border: 1px solid rgba(249, 115, 22, 0.4);
+      color: #fff;
+    }
+
+    .price-card .btn-pricing.btn-enterprise:hover {
+      background: linear-gradient(135deg, #ff6b00, #ff9e00);
+      border-color: #ff9e00;
+      color: #fff;
+      transform: translateY(-3px);
+      box-shadow: 0 0 15px rgba(249, 115, 22, 0.65), 0 0 30px rgba(249, 115, 22, 0.45);
+    }
+
+    .plan-features-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .plan-feature-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 14px;
+      color: var(--text-main);
+    }
+
+    .plan-feature-item i {
+      font-size: 16px;
+      color: var(--color-cyan);
+    }
+
+    .plan-feature-item.disabled {
+      color: var(--text-dim);
+    }
+
+    .plan-feature-item.disabled i {
+      color: var(--text-dim);
+    }
+
+    /* ─── 3D Package Showcase ─── */
+    .showcase-section {
+      padding: 120px 0;
+      background: rgba(255, 255, 255, 0.01);
+      border-top: 1px solid var(--glass-border);
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .dynamic-showcase-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 60px;
+      margin-top: 80px;
+    }
+
+    .dynamic-module-row {
+      display: grid;
+      grid-template-columns: 1fr 1.1fr;
+      gap: 64px;
+      align-items: center;
+      padding: 40px;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+      border: 1px solid var(--glass-border);
+      transition: var(--transition-dynamic);
+      cursor: pointer;
+    }
+
+    .dynamic-module-row:hover {
+      border-color: rgba(6, 182, 212, 0.3);
+      background: rgba(6, 3, 32, 0.6);
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.7);
+    }
+
+    .dynamic-module-row:nth-child(even) {
+      grid-template-columns: 1.1fr 1fr;
+    }
+
+    .dynamic-module-row:nth-child(even) .module-visual-panel {
+      order: -1;
+    }
+
+    .module-info-panel {
+      text-align: left;
+    }
+
+    .module-tag-badge {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      display: inline-block;
+    }
+
+    .tag-cyan { color: var(--color-cyan); }
+    .tag-green { color: var(--color-green); }
+    .tag-orange { color: var(--color-orange); }
+    .tag-purple { color: var(--color-purple); }
+    .tag-pink { color: var(--color-pink); }
+    .tag-primary { color: var(--color-primary); }
+
+    .module-title-dynamic {
+      font-family: 'Outfit', sans-serif;
+      font-size: 32px;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 20px;
+      letter-spacing: -1px;
+    }
+
+    .module-desc-dynamic {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 32px;
+    }
+
+    .spec-bullets-dynamic {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      list-style: none;
+    }
+
+    .spec-bullet-dynamic-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14.5px;
+      color: var(--text-main);
+    }
+
+    .spec-bullet-dynamic-item i {
+      font-size: 16px;
+    }
+
+    .action-trigger-modal {
+      margin-top: 36px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--color-cyan);
+      transition: var(--transition-dynamic);
+    }
+
+    .dynamic-module-row:hover .action-trigger-modal {
+      transform: translateX(6px);
+      color: #fff;
+      text-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+    }
+
+    /* 3D Visual Panel */
+    .module-visual-panel {
+      position: relative;
+      width: 100%;
+      height: 320px;
+      border-radius: var(--radius-md);
+      background: transparent;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible;
+      transform-style: preserve-3d;
+      perspective: 1000px;
+    }
+
+    .module-visual-glow {
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.45;
+      z-index: 1;
+      transition: var(--transition-dynamic);
+    }
+
+    .glow-cyan { background: var(--color-cyan); }
+    .glow-green { background: var(--color-green); }
+    .glow-orange { background: var(--color-orange); }
+    .glow-purple { background: var(--color-purple); }
+    .glow-pink { background: var(--color-pink); }
+    .glow-primary { background: var(--color-primary); }
+
+    .dynamic-module-row:hover .module-visual-glow {
+      opacity: 0.75;
+      width: 260px;
+      height: 260px;
+      filter: blur(90px);
+    }
+
+    .floating-mockup-3d {
+      max-height: 230px;
+      object-fit: contain;
+      z-index: 3;
+      transform: translateZ(50px);
+      filter: drop-shadow(0 20px 30px rgba(0, 0, 0, 0.7));
+      transition: filter 0.4s ease;
+      animation: dynamic-levitation 6s ease-in-out infinite;
+    }
+
+    .dynamic-module-row:hover .floating-mockup-3d {
+      filter: drop-shadow(0 30px 45px rgba(0, 0, 0, 0.85));
+    }
+
+    @keyframes dynamic-levitation {
+      0%, 100% { transform: translateZ(50px) translateY(0); }
+      50% { transform: translateZ(50px) translateY(-10px); }
+    }
+
+    /* ─── Cinematic 3D Spin Modal ─── */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(2, 0, 14, 0.9);
+      backdrop-filter: blur(20px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.5s cubic-bezier(0.19, 1, 0.22, 1), visibility 0.5s;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background: linear-gradient(135deg, rgba(10, 6, 36, 0.96) 0%, rgba(6, 3, 26, 0.99) 100%);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: var(--radius-lg);
+      width: 94%;
+      max-width: 1100px;
+      height: 85vh;
+      max-height: 700px;
+      overflow: hidden;
+      box-shadow: 0 35px 90px rgba(0, 0, 0, 0.85), 0 0 60px rgba(6, 182, 212, 0.2);
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      transform: perspective(1200px) translate3d(0, 80px, -200px) rotateY(-45deg);
+      opacity: 0;
+      transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s;
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: perspective(1200px) translate3d(0, 0, 0) rotateY(0deg);
+      opacity: 1;
+    }
+
+    .modal-left {
+      background: #030111;
+      border-right: 1px solid rgba(6, 182, 212, 0.15);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+
+    .modal-glow-back {
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      background: radial-gradient(circle, var(--color-cyan-glow) 0%, transparent 70%);
+      filter: blur(60px);
+      z-index: 1;
+      opacity: 0.6;
+    }
+
+    .modal-media-viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+    }
+
+    .modal-screenshot-img {
+      max-width: 88%;
+      max-height: 80%;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      transition: transform 0.6s ease;
+    }
+
+    .modal-package-3d-fly {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      width: 130px;
+      height: auto;
+      filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.85));
+      z-index: 3;
+      transform: translate3d(80px, 40px, 150px) rotateY(-360deg);
+      opacity: 0;
+      transition: transform 1.2s cubic-bezier(0.19, 1, 0.22, 1) 0.3s, opacity 1.2s ease 0.3s;
+    }
+
+    .modal-overlay.active .modal-package-3d-fly {
+      transform: translate3d(0, 0, 0) rotateY(0deg);
+      opacity: 1;
+    }
+
+    .modal-right {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: rgba(2, 0, 18, 0.4);
+    }
+
+    .modal-header {
+      padding: 36px 40px 24px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .modal-title-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+    }
+
+    .modal-tag-text {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: var(--color-cyan);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .modal-title-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 30px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -0.5px;
+    }
+
+    .modal-close-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: var(--text-muted);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      cursor: pointer;
+      transition: var(--transition-dynamic);
+    }
+
+    .modal-close-btn:hover {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #ef4444;
+      transform: rotate(90deg);
+    }
+
+    .modal-body {
+      padding: 36px 40px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    .modal-section {
+      text-align: left;
+    }
+
+    .modal-section-title {
+      font-size: 16.5px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-section-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 18px;
+      background: var(--color-cyan);
+      border-radius: 2px;
+    }
+
+    .modal-desc-para {
+      font-size: 14.5px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+
+    .modal-feature-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .modal-feature-card {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: var(--radius-sm);
+      padding: 18px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      transition: var(--transition-dynamic);
+    }
+
+    .modal-feature-card:hover {
+      background: rgba(6, 182, 212, 0.03);
+      border-color: rgba(6, 182, 212, 0.2);
+    }
+
+    .modal-feature-icon-box {
+      font-size: 16px;
+      color: var(--color-cyan);
+      background: rgba(6, 182, 212, 0.08);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .modal-feature-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .modal-feature-name {
+      font-size: 14px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .modal-feature-desc {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    .modal-footer {
+      padding: 24px 40px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-modal-close {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      padding: 12px 24px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition-dynamic);
+    }
+
+    .btn-modal-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .btn-modal-action {
+      background: linear-gradient(135deg, var(--color-cyan) 0%, var(--color-primary) 100%);
+      border: none;
+      color: #fff;
+      padding: 12px 30px;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: var(--transition-dynamic);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+    }
+
+    .btn-modal-action:hover {
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* ─── Trust Metrics ─── */
+    .trust-section {
+      padding: 100px 0;
+      background: rgba(2, 0, 14, 0.5);
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .trust-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 40px;
+    }
+
+    .trust-card {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      text-align: left;
+      background: var(--glass-surface);
+      border: 1px solid var(--glass-border);
+      padding: 32px;
+      border-radius: var(--radius-md);
+      transition: var(--transition-dynamic);
+    }
+
+    .trust-card:hover {
+      border-color: rgba(6, 182, 212, 0.25);
+      transform: translateY(-5px);
+    }
+
+    .trust-icon-box {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: rgba(6, 182, 212, 0.08);
+      border: 1px solid rgba(6, 182, 212, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-cyan);
+      font-size: 22px;
+      flex-shrink: 0;
+      animation: smooth-spin 8s linear infinite;
+    }
+
+    @keyframes smooth-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .trust-info h4 {
+      font-size: 17px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .trust-info p {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Bouncy Accordion FAQ */
+    .faq-section {
+      padding: 120px 0;
+      text-align: center;
+    }
+
+    .faq-wrapper {
+      max-width: 840px;
+      margin: 64px auto 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: left;
+    }
+
+    .faq-item {
+      background: var(--glass-surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      transition: var(--transition-dynamic);
+    }
+
+    .faq-item:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .faq-question {
+      padding: 26px 36px;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      padding: 0 36px;
+      color: var(--text-muted);
+      font-size: 14.5px;
+      line-height: 1.75;
+    }
+
+    .faq-item.active .faq-answer {
+      padding-bottom: 28px;
+      max-height: 350px;
+    }
+
+    .faq-arrow {
+      font-size: 16px;
+      transition: var(--transition-dynamic);
+      color: var(--text-muted);
+    }
+
+    .faq-item.active .faq-arrow {
+      transform: rotate(180deg);
+      color: var(--color-cyan);
+      text-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+    }
+
+    /* ─── Footer ─── */
+    footer {
+      background: #01000e;
+      padding: 90px 0 40px 0;
+      border-top: 1px solid var(--glass-border);
+      color: var(--text-muted);
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr repeat(3, 1fr);
+      gap: 48px;
+      margin-bottom: 60px;
+      text-align: left;
+    }
+
+    .footer-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .footer-brand-desc {
+      font-size: 14px;
+      line-height: 1.65;
+      max-width: 340px;
+    }
+
+    .footer-col h4 {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 800;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+
+    .footer-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .footer-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      transition: var(--transition-dynamic);
+    }
+
+    .footer-link:hover {
+      color: #fff;
+      padding-left: 6px;
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.03);
+      padding-top: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13.5px;
+    }
+
+    .footer-copy {
+      color: var(--text-dim);
+    }
+
+    .footer-bottom-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-bottom-link {
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: var(--transition-dynamic);
+    }
+
+    .footer-bottom-link:hover {
+      color: #fff;
+    }
+
+    /* ─── Responsive Queries ─── */
+    @media (max-width: 992px) {
+      .dynamic-showcase-grid {
+        gap: 40px;
+      }
+      .dynamic-module-row {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+      .dynamic-module-row:nth-child(even) {
+        grid-template-columns: 1fr;
+      }
+      .pricing-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 28px;
+      }
+      .trust-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+      }
+      .modal-content {
+        grid-template-columns: 1fr;
+        height: 90vh;
+        max-height: none;
+      }
+      .modal-left {
+        display: none;
+      }
+      .hero-title {
+        font-size: 52px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .pricing-grid, .footer-grid {
+        grid-template-columns: 1fr;
+      }
+      .nav-menu {
+        display: none;
+      }
+      .hero-title {
+        font-size: 42px;
+      }
+      .hero-subtitle {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Lighting Orbs -->
+  <div class="neon-light-orb orb-purple"></div>
+  <div class="neon-light-orb orb-cyan"></div>
+  <div class="neon-light-orb orb-pink"></div>
+
+  <!-- Header Navigation -->
+  <header>
+    <div class="container nav-container">
+      <a href="index.html" class="logo-area">
+        <img class="logo-icon" src="./logo.png" alt="XPIDER" style="object-fit: contain; padding: 4px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);">
+        <span class="logo-text">XPIDER</span>
+      </a>
+      <ul class="nav-menu">
+        <li><a href="#pricing" class="nav-link">Pricing</a></li>
+        <li><a href="#showcase" class="nav-link">Core Modules</a></li>
+        <li><a href="#trust" class="nav-link">Security</a></li>
+        <li><a href="#faq" class="nav-link">FAQ</a></li>
+        <li><a href="#pricing" class="btn-header">Subscribe Now</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="container">
+      <div class="badge-promo">
+        <span></span>
+        <span>Premium B2B Pricing Suite</span>
+      </div>
+      <h1 class="hero-title">
+        <span>XPIDER Pricing & Premium Modules</span>
+      </h1>
+      <p class="hero-subtitle">
+        The fastest and most intelligent solution for mining core B2B contact networks globally.<br>
+        Explore the 7 refined and powerful XPIDER core modules at extremely reasonable costs.
+      </p>
+    </div>
+  </section>
+
+  <!-- 1. Interactive 3-Tier Pricing Section -->
+  <section class="pricing-section" id="pricing">
+    <div class="container">
+      <!-- Monthly/Yearly Switcher -->
+      <div class="billing-switcher-wrap">
+        <span class="switcher-label active" id="label-monthly">Monthly Billing</span>
+        <div class="billing-toggle" id="billing-toggle" onclick="toggleBilling()">
+          <div class="toggle-handle"></div>
+        </div>
+        <span class="switcher-label" id="label-yearly">Yearly Billing</span>
+        <span class="yearly-discount-tag">20% Special Discount</span>
+      </div>
+
+      <div class="pricing-grid">
+        <!-- 1. Starter Plan -->
+        <div class="price-card" data-tilt data-tilt-max="6" data-tilt-speed="400" data-tilt-glare data-tilt-max-glare="0.1">
+          <div>
+            <h3 class="plan-name">Starter Plan</h3>
+            <div class="plan-price-wrap">
+              <span class="plan-price" id="price-starter">$59</span>
+              <span class="plan-period">/ mo</span>
+            </div>
+            <p class="plan-desc">Designed for beginners, solo creators, and small businesses looking to conduct marketing campaigns using core extraction tools.</p>
+            <a href="javascript:void(0)" onclick="handlePricingCheckout('starter')" class="btn-pricing">Get Started</a>
+            <ul class="plan-features-list">
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>6,000 tokens / mo</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>10-Engine Local Business Crawler</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Google Maps Business Finder</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Built-in Real-time Email Extractor</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>AutoForm Sender Pro</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>XPIDER VPN Dedicated Proxy</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 2. Business Pro Plan (Recommended) -->
+        <div class="price-card recommended" data-tilt data-tilt-max="6" data-tilt-speed="400" data-tilt-glare data-tilt-max-glare="0.15">
+          <div class="recommended-badge">B2B BEST VALUE</div>
+          <div>
+            <h3 class="plan-name">Business Pro Plan</h3>
+            <div class="plan-price-wrap">
+              <span class="plan-price" id="price-business">$99</span>
+              <span class="plan-period">/ mo</span>
+            </div>
+            <p class="plan-desc">Our most preferred corporate plan, unlocking all core modules for seamless, large-scale B2B lead generation and intelligent outreach infrastructure.</p>
+            <a href="javascript:void(0)" onclick="handlePricingCheckout('business')" class="btn-pricing">Get Started</a>
+            <ul class="plan-features-list">
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>12,000 tokens / mo</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>7 Premium Core Engines (Unlimited Access)</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Google & Bing Maps Cross-Validation</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>XPIDER VPN Proxy (Zero Block Bypass)</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>AI AutoForm Sender Pro (Up to 600 sends)</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>SendForce Mailer Pro (Up to 2,000 sends)</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 3. Enterprise Plan -->
+        <div class="price-card enterprise" data-tilt data-tilt-max="6" data-tilt-speed="400" data-tilt-glare data-tilt-max-glare="0.1">
+          <div>
+            <h3 class="plan-name">Enterprise Plan</h3>
+            <div class="plan-price-wrap">
+              <span class="plan-price" id="price-enterprise">$199</span>
+              <span class="plan-period">/ mo</span>
+            </div>
+            <p class="plan-desc">Tailored for large agencies, data scraping APIs, and professional marketing teams requiring independent multi-browser infrastructure.</p>
+            <a href="javascript:void(0)" onclick="handlePricingCheckout('enterprise')" class="btn-pricing btn-enterprise">Get Started</a>
+            <ul class="plan-features-list">
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>30,000 tokens / mo</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Includes all features of Business Pro</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Dedicated Multi-Proxy Premium Subnets</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Unlimited Multi-Browser Profiles</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>1:1 Dedicated Technical Support Engineer</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Tailored Custom Feature Development</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Dynamic 3D Package Showcase Section -->
+  <section class="showcase-section" id="showcase">
+    <div class="container">
+      <div class="section-header" style="text-align: center; margin-bottom: 64px;">
+        <p class="section-tag" style="font-size: 13px; font-weight: 800; color: var(--color-cyan); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px;">XPIDER ECOSYSTEM</p>
+        <h2 class="section-title" style="font-family: 'Outfit', sans-serif; font-size: 42px; font-weight: 900; color: #fff; margin-bottom: 20px; letter-spacing: -1.5px;">Next-Gen AI-Powered B2B Lead Scraping & Automation</h2>
+        <p class="section-desc" style="font-size: 16px; color: var(--text-muted); max-width: 800px; margin: 0 auto; line-height: 1.7;">
+          XPIDER is more than just a scraping tool. It is an enterprise-grade B2B sales automation platform integrating AI data extraction, map-based lead mining, automated email outreach, contact form submission, and secure proxy networks into a single ecosystem.
+        </p>
+      </div>
+
+      <div class="dynamic-showcase-grid">
+        <!-- 1. Local Business Crawler Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(0)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-cyan">AI EXTRACTION</span>
+            <h3 class="module-title-dynamic">Local Business Crawler Pro</h3>
+            <p class="module-desc-dynamic">
+              Intelligently cross-tracks 10 search engines to mine business names and domain contact info in bulk. Experience the peak of B2B sales lead scraping.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-cyan"></i> <span>10 Search Engine Cross-Tracking Auto Engine</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-cyan"></i> <span>AI-Driven Domain Contact Depth Precision Parsing</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Screenshots</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <!-- 3D Tilt Visual Panel -->
+          <div class="module-visual-panel" data-tilt data-tilt-max="12" data-tilt-speed="500" data-tilt-perspective="1000" data-tilt-glare data-tilt-max-glare="0.2">
+            <div class="module-visual-glow glow-cyan"></div>
+            <img src="mockup-t/local_business_crawler2.png" alt="Local Business Crawler Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 2. GMaps Business Finder -->
+        <div class="dynamic-module-row" onclick="openModuleModal(1)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-green">GOOGLE MAPS</span>
+            <h3 class="module-title-dynamic">GMaps Business Finder</h3>
+            <p class="module-desc-dynamic">
+              Integrates tightly with Google Maps to locate and extract offline leads (store name, rating, phone, email) within specific coordinates.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-green"></i> <span>Coordinate-based Proximity Precision Search</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-green"></i> <span>Real-time CSV/JSON Excel-optimized Export</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Screenshots</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="12" data-tilt-speed="500" data-tilt-perspective="1000" data-tilt-glare data-tilt-max-glare="0.2">
+            <div class="module-visual-glow glow-green"></div>
+            <img src="mockup-t/gmaps_business_finder2.png" alt="GMaps Finder Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 3. Bing Maps Business Finder -->
+        <div class="dynamic-module-row" onclick="openModuleModal(2)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-orange">MS ECOSYSTEM</span>
+            <h3 class="module-title-dynamic">Bing Maps Finder</h3>
+            <p class="module-desc-dynamic">
+              Targets the Microsoft Bing Maps ecosystem, cross-validating results with Google Maps to eliminate data loss and errors.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-orange"></i> <span>Zero-Error Cross-Validation with Google Maps</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-orange"></i> <span>Automatic Missing Value Supplement Algorithm</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Screenshots</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="12" data-tilt-speed="500" data-tilt-perspective="1000" data-tilt-glare data-tilt-max-glare="0.2">
+            <div class="module-visual-glow glow-orange"></div>
+            <img src="mockup-t/bing_maps_finder2.png" alt="Bing Maps Finder Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 4. XPIDER VPN -->
+        <div class="dynamic-module-row" onclick="openModuleModal(3)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-purple">SECURE & ANONYMOUS</span>
+            <h3 class="module-title-dynamic">XPIDER VPN</h3>
+            <p class="module-desc-dynamic">
+              Bypasses bot detection and site blocks using military-grade IP encryption and ultra-fast global proxy relays.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-purple"></i> <span>Global Unique Proxy Band Session Switching</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-purple"></i> <span>Safe Anti-Blocking Scraper Tunneling</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Screenshots</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="12" data-tilt-speed="500" data-tilt-perspective="1000" data-tilt-glare data-tilt-max-glare="0.2">
+            <div class="module-visual-glow glow-purple"></div>
+            <img src="mockup-t/xpider_vpn2.png" alt="XPIDER VPN Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 5. Email Extractor -->
+        <div class="dynamic-module-row" onclick="openModuleModal(4)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-pink">REAL-TIME LEAD CAPTURE</span>
+            <h3 class="module-title-dynamic">Email Extractor</h3>
+            <p class="module-desc-dynamic">
+              The background engine parses and captures emails automatically just as you browse across your workspace tabs.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-pink"></i> <span>Smart Filter to Remove Invalid/Temporary Emails</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-pink"></i> <span>Multi-Thread Real-time Parallel Tab Monitoring</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Screenshots</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="12" data-tilt-speed="500" data-tilt-perspective="1000" data-tilt-glare data-tilt-max-glare="0.2">
+            <div class="module-visual-glow glow-pink"></div>
+            <img src="mockup-t/email2.png" alt="Email Extractor Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 6. XPIDER AutoForm Sender Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(5)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-primary">AI AUTOMATION</span>
+            <h3 class="module-title-dynamic">AutoForm Sender Pro</h3>
+            <p class="module-desc-dynamic">
+              Leverages AI to decode input fields of target contact form pages and automatically submits your proposals in bulk.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-primary"></i> <span>AI-Powered Multilingual & Complex Input Resolver</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-primary"></i> <span>High-Precision Success Rate Analytics Dashboard</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Screenshots</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="12" data-tilt-speed="500" data-tilt-perspective="1000" data-tilt-glare data-tilt-max-glare="0.2">
+            <div class="module-visual-glow glow-primary"></div>
+            <img src="mockup-t/autoform_sender2.png" alt="AutoForm Sender Pro Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 7. XPIDER SendForce Mailer Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(6)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-purple">BULK EMAIL OUTREACH</span>
+            <h3 class="module-title-dynamic">SendForce Mailer Pro</h3>
+            <p class="module-desc-dynamic">
+              A bulk email outreach mailer coupled with anti-spam technologies. Maintains peak delivery rates with precision timers.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-purple"></i> <span>Smart Anti-Spam Sending Delay to Prevent Bouncebacks</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-bolt tag-purple"></i> <span>Custom SMTP Infrastructure & Transparent Transmit Logs</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Screenshots</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="12" data-tilt-speed="500" data-tilt-perspective="1000" data-tilt-glare data-tilt-max-glare="0.2">
+            <div class="module-visual-glow glow-purple"></div>
+            <img src="mockup-t/sendforce_mailer2.png" alt="SendForce Mailer Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Security & Trust Badge Section -->
+  <section class="trust-section" id="trust">
+    <div class="container">
+      <div class="trust-grid">
+        <div class="trust-card">
+          <div class="trust-icon-box">
+            <i class="fa-solid fa-fingerprint"></i>
+          </div>
+          <div class="trust-info">
+            <h4>B2B Secure Encryption</h4>
+            <p>Using secure Stripe gateways, your payment info is fully isolated and heavily protected.</p>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon-box">
+            <i class="fa-solid fa-handshake-simple"></i>
+          </div>
+          <div class="trust-info">
+            <h4>14-Day Guarantee</h4>
+            <p>Get 100% money back within 14 days if you encounter any software or scraping issues under our usage guidelines.</p>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon-box">
+            <i class="fa-solid fa-bolt"></i>
+          </div>
+          <div class="trust-info">
+            <h4>Instant License Delivery</h4>
+            <p>Your real-time product license key will be sent to your inbox within a minute of successful checkout.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section (Bouncy Accordions) -->
+  <section class="faq-section" id="faq">
+    <div class="container">
+      <div class="section-header" style="text-align: center; margin-bottom: 64px;">
+        <p class="section-tag" style="font-size: 13px; font-weight: 800; color: var(--color-cyan); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px;">FAQ SUITE</p>
+        <h2 class="section-title" style="font-family: 'Outfit', sans-serif; font-size: 42px; font-weight: 900; color: #fff; margin-bottom: 20px; letter-spacing: -1.5px;">Frequently Asked Questions</h2>
+        <p class="section-desc" style="font-size: 16px; color: var(--text-muted); max-width: 800px; margin: 0 auto; line-height: 1.7;">Here is the essential information on XPIDER software purchases and licensing terms most frequently asked by buyers.</p>
+      </div>
+
+      <div class="faq-wrapper">
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Can I run the scraper on multiple devices with a single license?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>A single subscription key is bound to a single PC profile session. For agencies requiring concurrent executions, we highly recommend the Enterprise Plan to scale independent multi-browser seats and ports.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Does a special filter operate to lower spam blocks when sending bulk emails?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>Yes, indeed. SendForce Mailer Pro features an integrated sending delay scheduler and SMTP proxy-switching system to eliminate spam blocks and domain overload, keeping email success rates at their peak.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Does the XPIDER VPN proxy stay active for general web browsing other than scraping?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>XPIDER VPN employs a built-in proxy relay, encrypting all outbound traffic and web browsing inside XPIDER. The target web servers will always see secure proxy IPs instead of your real residential IP.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Can I switch my plan from Starter to Business Pro in the middle of a subscription?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>Yes, you can upgrade your plan at any time with a single click. The upgrade will be prorated, meaning you only pay the exact difference for the remaining period, and the high-end modules unlock instantly.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>What are the refund guarantee conditions and procedures?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>If you experience scraping issues or software difficulties within 14 days of purchase, we offer a 100% guarantee refund under our usage limits. Simply contact support with your email and receipt number, and it will be processed within the day.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3D Cinematic Fly-in Modal -->
+  <div class="modal-overlay" id="module-modal" onclick="closeModuleModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <!-- Left Media Area -->
+      <div class="modal-left">
+        <div class="modal-glow-back"></div>
+        <div class="modal-media-viewport">
+          <img src="" alt="Main Spec Screenshot" id="modal-main-img" class="modal-screenshot-img">
+          <!-- 3D Package Spin overlay -->
+          <img src="" alt="3D Package Spin Packshot" id="modal-packshot-overlay" class="modal-package-3d-fly">
+        </div>
+      </div>
+
+      <!-- Right Detailed Specs Area -->
+      <div class="modal-right">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-tag-text" id="modal-module-tag">AI ENGINE SPEC</span>
+            <h3 class="modal-title-text" id="modal-module-title">Local Business Crawler</h3>
+          </div>
+          <button class="modal-close-btn" onclick="closeModuleModal(event)">×</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-section">
+            <h4 class="modal-section-title">Module Architecture</h4>
+            <p class="modal-desc-para" id="modal-module-desc">Loading specifications...</p>
+          </div>
+
+          <div class="modal-section">
+            <h4 class="modal-section-title">Precision Technical Features</h4>
+            <div class="modal-feature-grid" id="modal-spec-grid">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-modal-close" onclick="closeModuleModal(event)">Close</button>
+          <a href="#pricing" class="btn-modal-action" onclick="closeModuleModal(event)">
+            <span>Subscribe Now</span>
+            <i class="fa-solid fa-key"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Signup Bypass Modal ─── -->
+  <div class="modal-overlay" id="signup-modal" onclick="(function(e){ if(e.target.id==='signup-modal') closeSignupModal(); })(event)">
+    <div class="modal-content" onclick="event.stopPropagation()" style="
+      display:flex; flex-direction:column;
+      max-width:560px; width:94%;
+      height:auto; max-height:92vh;
+      grid-template-columns:none;
+      overflow-y:auto;
+      border:1px solid rgba(6,182,212,0.35);
+      background:linear-gradient(145deg, rgba(8,5,30,0.98) 0%, rgba(3,2,18,0.99) 100%);
+      box-shadow:0 40px 100px rgba(0,0,0,0.95), 0 0 60px rgba(6,182,212,0.2);
+      padding:48px 44px;
+      border-radius:24px;
+    ">
+      <!-- Header -->
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:32px;">
+        <div>
+          <span style="font-size:12px; font-weight:800; color:var(--color-cyan); letter-spacing:2px; text-transform:uppercase; display:block; margin-bottom:10px;">STEP 1 of 2 — ACCOUNT SETUP</span>
+          <h3 style="font-family:'Outfit',sans-serif; font-size:28px; font-weight:900; color:#fff; letter-spacing:-1px; margin:0;">Create Your Account</h3>
+          <p style="font-size:13.5px; color:var(--text-muted); margin-top:8px; line-height:1.6;">Set up your XPIDER account first, then complete payment.</p>
+        </div>
+        <button onclick="closeSignupModal()" style="
+          background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+          color:#fff; width:36px; height:36px; border-radius:50%;
+          font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+          transition:all 0.3s ease; flex-shrink:0; margin-left:16px;
+        " onmouseover="this.style.background='rgba(255,255,255,0.12)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">×</button>
+      </div>
+
+      <!-- Plan Summary Badge -->
+      <div id="su-plan-badge" style="
+        display:flex; align-items:center; gap:14px;
+        padding:16px 20px;
+        background:linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(139,92,246,0.08) 100%);
+        border:1px solid rgba(59,130,246,0.25);
+        border-radius:14px;
+        margin-bottom:28px;
+      ">
+        <div style="width:40px;height:40px;background:linear-gradient(135deg,var(--color-primary),var(--color-purple));border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="fa-solid fa-layer-group" style="color:#fff;font-size:16px;"></i>
+        </div>
+        <div>
+          <div id="su-plan-label" style="font-weight:800;font-size:15px;color:#fff;">Starter Plan</div>
+          <div id="su-plan-price" style="font-size:13px;color:var(--color-cyan);font-weight:600;">$59/mo</div>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-cyan);font-weight:700;">
+          <i class="fa-solid fa-shield-halved"></i> Secure
+        </div>
+      </div>
+
+      <!-- Form Fields -->
+      <div style="display:flex; flex-direction:column; gap:16px; margin-bottom:20px;">
+        <!-- Username -->
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <label style="font-size:13px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Username <span style="color:var(--text-dim);font-weight:400;">(optional)</span></label>
+          <div style="position:relative;">
+            <i class="fa-solid fa-user" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:14px;"></i>
+            <input id="su-username" type="text" placeholder="Your display name" style="
+              width:100%; padding:14px 16px 14px 44px;
+              background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+              border-radius:10px; color:#fff; font-size:14.5px; font-family:'Inter',sans-serif;
+              outline:none; transition:border-color 0.3s ease;
+            " onfocus="this.style.borderColor='rgba(6,182,212,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'">
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <label style="font-size:13px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Email Address <span style="color:var(--color-pink);font-size:11px;">*</span></label>
+          <div style="position:relative;">
+            <i class="fa-solid fa-envelope" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:14px;"></i>
+            <input id="su-email" type="email" placeholder="your@email.com" style="
+              width:100%; padding:14px 16px 14px 44px;
+              background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+              border-radius:10px; color:#fff; font-size:14.5px; font-family:'Inter',sans-serif;
+              outline:none; transition:border-color 0.3s ease;
+            " onfocus="this.style.borderColor='rgba(6,182,212,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'"
+            onkeydown="if(event.key==='Enter') document.getElementById('su-password').focus()">
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <label style="font-size:13px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Password <span style="color:var(--color-pink);font-size:11px;">*</span></label>
+          <div style="position:relative;">
+            <i class="fa-solid fa-lock" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--text-dim);font-size:14px;"></i>
+            <input id="su-password" type="password" placeholder="Min. 6 characters" style="
+              width:100%; padding:14px 16px 14px 44px;
+              background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08);
+              border-radius:10px; color:#fff; font-size:14.5px; font-family:'Inter',sans-serif;
+              outline:none; transition:border-color 0.3s ease;
+            " onfocus="this.style.borderColor='rgba(6,182,212,0.5)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'"
+            onkeydown="if(event.key==='Enter') handleSignupSubmit()">
+          </div>
+          <span style="font-size:12px;color:var(--text-dim);">You'll use this to log in to the XPIDER browser app.</span>
+        </div>
+      </div>
+
+      <!-- Error / Success Messages -->
+      <div id="su-error-msg" style="
+        display:none; padding:12px 16px;
+        background:rgba(236,72,153,0.1); border:1px solid rgba(236,72,153,0.25);
+        border-radius:10px; color:#f472b6; font-size:13.5px; font-weight:600;
+        margin-bottom:16px; line-height:1.5;
+      "></div>
+      <div id="su-success-msg" style="
+        display:none; padding:12px 16px;
+        background:rgba(16,185,129,0.12); border:1px solid rgba(16,185,129,0.3);
+        border-radius:10px; color:#34d399; font-size:13.5px; font-weight:600;
+        margin-bottom:16px; line-height:1.5; text-align:center;
+      ">✅ Account created! Redirecting to payment...</div>
+
+      <!-- Submit Button -->
+      <button id="su-btn" onclick="handleSignupSubmit()" style="
+        width:100%; padding:18px;
+        background:linear-gradient(135deg, var(--color-primary), var(--color-purple));
+        border:1px solid rgba(255,255,255,0.15);
+        border-radius:12px; color:#fff;
+        font-size:15px; font-weight:800; font-family:'Inter',sans-serif;
+        cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;
+        box-shadow:0 10px 30px rgba(59,130,246,0.35);
+        transition:all 0.3s ease; margin-bottom:16px;
+      " onmouseover="if(!this.disabled){this.style.transform='translateY(-2px)';this.style.boxShadow='0 15px 40px rgba(59,130,246,0.55)'}"
+         onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 10px 30px rgba(59,130,246,0.35)'">
+        <i class="fa-solid fa-user-plus"></i>
+        <span>Create Account &amp; Pay</span>
+      </button>
+
+      <!-- Trust Row -->
+      <div style="display:flex; align-items:center; justify-content:center; gap:20px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.05);">
+        <span style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:6px;">
+          <i class="fa-brands fa-stripe" style="color:#635bff;font-size:14px;"></i> Stripe Secured
+        </span>
+        <span style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-shield" style="color:var(--color-cyan);font-size:13px;"></i> 256-bit SSL
+        </span>
+        <span style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-rotate-left" style="color:var(--color-green);font-size:13px;"></i> 14-Day Guarantee
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="logo-area">
+            <img class="logo-icon" src="./logo.png" alt="XPIDER" style="object-fit: contain; padding: 4px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);">
+            <span class="logo-text">XPIDER</span>
+          </a>
+          <p class="footer-brand-desc">
+            XPIDER is the industry-leading all-in-one corporate marketing browser ecosystem designed for rapid and organic business lead mining.
+          </p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul class="footer-links">
+            <li><a href="index.html" class="footer-link">Landing Home</a></li>
+            <li><a href="#pricing" class="footer-link">B2B Pricing</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul class="footer-links">
+            <li><a href="#faq" class="footer-link">FAQ</a></li>
+            <li><a href="#" class="footer-link">Subscription Dashboard</a></li>
+            <li><a href="#" class="footer-link">Interactive Tutorials</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal & Terms</h4>
+          <ul class="footer-links">
+            <li><a href="/standalone-tos.html" class="footer-link">Terms of Service</a></li>
+            <li><a href="#" class="footer-link">Privacy Policy</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span class="footer-copy">&copy; 2026 XPIDER Suite. All rights reserved. Designed by Antigravity.</span>
+        <div class="footer-bottom-links">
+          <a href="#" class="footer-bottom-link">Sitemap</a>
+          <a href="#" class="footer-bottom-link">B2B Compliance</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- Vanilla Tilt JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.1/vanilla-tilt.min.js"></script>
+  
+  <script>
+    /* ─── Vanilla Tilt ─── */
+    document.addEventListener("DOMContentLoaded", function() {
+      VanillaTilt.init(document.querySelectorAll("[data-tilt]"), {
+        max: 8,
+        speed: 500,
+        glare: true,
+        "max-glare": 0.15
+      });
+    });
+
+    /* ─── Stripe Payment Links Configuration ─── */
+    const STRIPE_LINKS = {
+      starter: {
+        monthly: "https://buy.stripe.com/test_7sYdR85ZqdjCgBPehi77O00",
+        yearly: "https://buy.stripe.com/test_4gM4gy73ufrKadrc9a77O01"
+      },
+      business: {
+        monthly: "https://buy.stripe.com/test_00wfZg87y3J2clz6OQ77O02",
+        yearly: "https://buy.stripe.com/test_cNi6oGafGa7q2KZehi77O03"
+      },
+      enterprise: {
+        monthly: "https://buy.stripe.com/test_5kQcN42Nea7qadr5KM77O04",
+        yearly: "https://buy.stripe.com/test_4gMbJ0gE45Ra4T7ehi77O05"
+      }
+    };
+
+    /* ─── Checkout Redirect Handler ─── */
+    function handlePricingCheckout(planId) {
+      // 결제 전에 계정 생성 모달 표시 (바이패스 플로우)
+      openSignupModal(planId);
+    }
+
+    /* ─── 7 Core Engines Modules Specifications ─── */
+    const MODULE_DATA = [
+      {
+        tag: "AI EXTRACTION",
+        title: "Local Business Crawler Pro",
+        desc: "Revolutionize the tedious era of manual data gathering across search engines. Extract and sort business names, phone numbers, email accounts, and brand social networks from 10 global core search channels with a single keyword search.",
+        screenshot: "screenshot/local_business.jpg",
+        mockup: "mockup-t/local_business_crawler2.png",
+        specs: [
+          { name: "4-Step Deep Scan", desc: "Intelligent deep scraping automatically searches contact depths inside the domain." },
+          { name: "Auto Email Extraction", desc: "Leverages precision parsing algorithms to clean and organize active emails." },
+          { name: "Auto CAPTCHA Bypass", desc: "Uses active CAPTCHA resolver bypass mechanisms to prevent blocks." }
+        ]
+      },
+      {
+        tag: "GOOGLE MAPS",
+        title: "GMaps Business Finder",
+        desc: "Offline local businesses listed on maps are prime targets for B2B. This module extracts and compiles B2B databases of offline map leads (store names, ratings, phone numbers, emails) within coordinate coordinates in real time.",
+        screenshot: "screenshot/GMaps.png",
+        mockup: "mockup-t/gmaps_business_finder2.png",
+        specs: [
+          { name: "Location-based Search", desc: "Uses latitude/longitude filters for precise localized targeting." },
+          { name: "Rating Filter", desc: "Sorts prioritizations by ratings and review count metrics." },
+          { name: "Instant CSV Export", desc: "Instantly exports records to CSV format during active scraping sessions." }
+        ]
+      },
+      {
+        tag: "MS ECOSYSTEM",
+        title: "Bing Maps Finder",
+        desc: "Precisely gathers databases from the Microsoft Bing Maps ecosystem. Employs cross-validation with Google Maps data to delete invalid contacts and minimize missing values.",
+        screenshot: "screenshot/bing_maps.png",
+        mockup: "mockup-t/bing_maps_finder2.png",
+        specs: [
+          { name: "Cross Validation System", desc: "Cross-analyzes address directories to compile error-free lead sheets." },
+          { name: "Auto Contact Discovery", desc: "Discovers external domains to supplement local shops without visible emails." },
+          { name: "Sophisticated JSON Export", desc: "Generates raw JSON feeds optimized for CRM integrations and databases." }
+        ]
+      },
+      {
+        tag: "SECURE & ANONYMOUS",
+        title: "XPIDER VPN",
+        desc: "Scraping without a proxy leads to permanent IP bans. XPIDER VPN secures your operations by routing all outbound connections through secure, rotating global IP sessions.",
+        screenshot: "screenshot/VPN.JPG",
+        mockup: "mockup-t/xpider_vpn2.png",
+        specs: [
+          { name: "IP Encryption Tunnel", desc: "Encrypts scraper payloads to avoid local detection by target websites." },
+          { name: "High-speed Proxy Nodes", desc: "Uses high-bandwidth backbones for concurrent multi-scraper workflows." },
+          { name: "Global Server Switching", desc: "Offers rotating IPs across Asia, Europe, and America to bypass geo-blocks." }
+        ]
+      },
+      {
+        tag: "REAL-TIME LEAD CAPTURE",
+        title: "Email Extractor",
+        desc: "Forget manual copying of emails from web pages. Running silently in the background, this module parses and aggregates active email accounts across all your browser tabs.",
+        screenshot: "screenshot/EMAIL.png",
+        mockup: "mockup-t/email2.png",
+        specs: [
+          { name: "Real-time Detection Engine", desc: "Monitors HTML scripts and text blocks to gather valid emails instantly." },
+          { name: "Smart Lead Filter", desc: "Built-in algorithms filter out invalid, temporary, and dead accounts." },
+          { name: "Cross-Tab Multi Thread", desc: "Simultaneously monitors multiple open tabs to boost data capture efficiency." }
+        ]
+      },
+      {
+        tag: "AI AUTOMATION",
+        title: "AutoForm Sender Pro",
+        desc: "The peak of B2B cold outreach is automatically submitting proposals to contact forms. AutoForm Sender Pro decodes page input structures and fills name, email, and messages in milliseconds.",
+        screenshot: "screenshot/sender.JPG",
+        mockup: "mockup-t/autoform_sender2.png",
+        specs: [
+          { name: "AI Field Detection", desc: "Intelligently maps multilingual field tags (Name, Email, Message) accurately." },
+          { name: "Bulk Campaign Scheduling", desc: "Loads target lead lists to deploy outreach campaigns with safe delay intervals." },
+          { name: "Advanced Report Manager", desc: "Monitors success rates, captcha blocks, and outcomes via a visual dashboard." }
+        ]
+      },
+      {
+        tag: "BULK EMAIL OUTREACH",
+        title: "SendForce Mailer Pro",
+        desc: "Deploy bulk cold email campaigns securely. SendForce Mailer Pro employs custom timers and multi-SMTP relays to maximize deliverability and land directly in inbox folders.",
+        screenshot: "screenshot/send_force.jpg",
+        mockup: "mockup-t/sendforce_mailer2.png",
+        specs: [
+          { name: "Optimized Delivery Engine", desc: "Bypasses spam filters with custom headers and structured templates." },
+          { name: "Smart Delivery Scheduler", desc: "Uses custom intervals between sends to prevent server overhead and IP blacklist flags." },
+          { name: "Technical Settings Panel", desc: "Equipped with custom SMTP configurations and SPF/DKIM validation tools." }
+        ]
+      }
+    ];
+
+    /* ─── Billing Price Calculation ─── */
+    let isYearlyBilling = false;
+
+    const PRICING_DATA = {
+      starter: { monthly: "$59", yearly: "$47" },
+      business: { monthly: "$99", yearly: "$79" },
+      enterprise: { monthly: "$199", yearly: "$159" }
+    };
+
+    function toggleBilling() {
+      const toggle = document.getElementById('billing-toggle');
+      const labelMonthly = document.getElementById('label-monthly');
+      const labelYearly = document.getElementById('label-yearly');
+      
+      isYearlyBilling = !isYearlyBilling;
+
+      if (isYearlyBilling) {
+        toggle.classList.add('yearly');
+        labelMonthly.classList.remove('active');
+        labelYearly.classList.add('active');
+        updatePricingText('yearly');
+      } else {
+        toggle.classList.remove('yearly');
+        labelMonthly.classList.add('active');
+        labelYearly.classList.remove('active');
+        updatePricingText('monthly');
+      }
+    }
+
+    function updatePricingText(type) {
+      const pStarter = document.getElementById('price-starter');
+      const pBusiness = document.getElementById('price-business');
+      const pEnterprise = document.getElementById('price-enterprise');
+
+      // Price fade transition animation
+      [pStarter, pBusiness, pEnterprise].forEach(el => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-12px) scale(0.95)';
+      });
+
+      setTimeout(() => {
+        pStarter.textContent = PRICING_DATA.starter[type];
+        pBusiness.textContent = PRICING_DATA.business[type];
+        pEnterprise.textContent = PRICING_DATA.enterprise[type];
+
+        [pStarter, pBusiness, pEnterprise].forEach(el => {
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0) scale(1)';
+        });
+      }, 250);
+    }
+
+    /* ─── Module Showcase Modal ─── */
+    function openModuleModal(index) {
+      const data = MODULE_DATA[index];
+      const modal = document.getElementById('module-modal');
+      
+      document.getElementById('modal-module-tag').textContent = data.tag;
+      document.getElementById('modal-module-title').textContent = data.title;
+      document.getElementById('modal-module-desc').textContent = data.desc;
+      
+      document.getElementById('modal-main-img').src = data.screenshot;
+      document.getElementById('modal-packshot-overlay').src = data.mockup;
+      
+      const specGrid = document.getElementById('modal-spec-grid');
+      specGrid.innerHTML = ''; // reset
+
+      data.specs.forEach(spec => {
+        const item = document.createElement('div');
+        item.className = 'modal-feature-card';
+        item.innerHTML = `
+          <div class="modal-feature-icon-box">
+            <i class="fa-solid fa-fire"></i>
+          </div>
+          <div class="modal-feature-info">
+            <span class="modal-feature-name">${spec.name}</span>
+            <span class="modal-feature-desc">${spec.desc}</span>
+          </div>
+        `;
+        specGrid.appendChild(item);
+      });
+
+      modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModuleModal(event) {
+      const modal = document.getElementById('module-modal');
+      modal.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    /* ─── FAQ Accordion Switcher ─── */
+    function toggleFaq(element) {
+      const allFaqItems = document.querySelectorAll('.faq-item');
+      
+      allFaqItems.forEach(item => {
+        if (item !== element) {
+          item.classList.remove('active');
+          item.querySelector('.faq-answer').style.maxHeight = null;
+        }
+      });
+
+      element.classList.toggle('active');
+      const answer = element.querySelector('.faq-answer');
+      
+      if (element.classList.contains('active')) {
+        answer.style.maxHeight = answer.scrollHeight + 15 + "px";
+      } else {
+        answer.style.maxHeight = null;
+      }
+    }
+
+    /* ─── Supabase Signup Bypass ─── */
+    const SUPABASE_URL  = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTczNzYsImV4cCI6MjA5MjM3MzM3Nn0.k3qu4QiHjhbQEhTpr90UIr4ZKGbKA1YbvANE2kYog-c';
+    const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    // 선택된 플랜 임시 저장
+    let _signupPlanId = 'starter';
+
+    // 플랜 ID → DB 플랜 명칭 매핑
+    const PLAN_MAP = {
+      starter:    'starter',
+      business:   'pro',
+      enterprise: 'enterprise'
+    };
+
+    // 플랜 ID → 토큰 수 매핑
+    const PLAN_TOKENS_MAP = {
+      starter:    6000,
+      business:   12000,
+      enterprise: 30000
+    };
+
+    function openSignupModal(planId) {
+      _signupPlanId = planId;
+      const planLabels = { starter: 'Starter Plan', business: 'Business Pro Plan', enterprise: 'Enterprise Plan' };
+      const planPrices = { starter: '$59/mo', business: '$99/mo', enterprise: '$199/mo' };
+
+      // 모달 내 플랜 정보 업데이트
+      document.getElementById('su-plan-label').textContent = planLabels[planId] || 'Starter Plan';
+      document.getElementById('su-plan-price').textContent = planPrices[planId] || '$59/mo';
+
+      // 폼 초기화
+      document.getElementById('su-email').value = '';
+      document.getElementById('su-password').value = '';
+      document.getElementById('su-username').value = '';
+      document.getElementById('su-error-msg').textContent = '';
+      document.getElementById('su-error-msg').style.display = 'none';
+      document.getElementById('su-success-msg').style.display = 'none';
+      document.getElementById('su-btn').disabled = false;
+      document.getElementById('su-btn').innerHTML = '<i class="fa-solid fa-user-plus"></i> <span>Create Account & Pay</span>';
+
+      document.getElementById('signup-modal').classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeSignupModal() {
+      document.getElementById('signup-modal').classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    // IP 주소 획득 함수 (비동기)
+    async function getIpAddress() {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2초 타임아웃
+        const res = await fetch('https://api.ipify.org?format=json', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        const data = await res.json();
+        return data.ip || 'unknown';
+      } catch (e) {
+        console.warn('IP fetch failed, fallback to unknown:', e);
+        return 'unknown';
+      }
+    }
+
+    // MAC 주소 획득 함수
+    function getMacAddress() {
+      // 1. 일렉트론(Electron) 환경 주입 체크
+      if (window.electronAPI && typeof window.electronAPI.getMacAddress === 'function') {
+        return window.electronAPI.getMacAddress();
+      }
+      if (window.XPIDER_MAC) {
+        return window.XPIDER_MAC;
+      }
+      if (window.macAddress || window.mac_address) {
+        return window.macAddress || window.mac_address;
+      }
+      // 2. 일반 웹 브라우저 환경인 경우 폴백 식별자 반환
+      return 'unknown_web_client';
+    }
+
+    async function handleSignupSubmit() {
+      const email    = document.getElementById('su-email').value.trim();
+      const password = document.getElementById('su-password').value.trim();
+      const username = document.getElementById('su-username').value.trim() || email.split('@')[0];
+      const errEl    = document.getElementById('su-error-msg');
+      const successEl = document.getElementById('su-success-msg');
+      const btn      = document.getElementById('su-btn');
+
+      // 유효성 검사
+      if (!email || !password) {
+        errEl.textContent = 'Please enter your email and password.';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (password.length < 6) {
+        errEl.textContent = 'Password must be at least 6 characters.';
+        errEl.style.display = 'block';
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errEl.textContent = 'Please enter a valid email address.';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      // 버튼 로딩 상태
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Gathering security info & creating...</span>';
+      errEl.style.display = 'none';
+
+      try {
+        // IP 및 MAC 수집
+        const ip = await getIpAddress();
+        const mac = getMacAddress();
+
+        const planKey    = PLAN_MAP[_signupPlanId] || 'starter';
+        const planTokens = PLAN_TOKENS_MAP[_signupPlanId] || 6000;
+
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Creating Account...</span>';
+
+        // 1단계: Supabase 회원가입 (Auth 메타데이터에 플랜, 토큰, IP, MAC 전부 포함)
+        const { data, error } = await sbClient.auth.signUp({
+          email,
+          password,
+          options: { 
+            data: { 
+              username,
+              plan: planKey,
+              tokens_remaining: planTokens,
+              ip_address: ip,
+              mac_address: mac
+            } 
+          }
+        });
+
+        if (error) {
+          errEl.textContent = error.message || 'Signup failed. Please try again.';
+          errEl.style.display = 'block';
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> <span>Create Account & Pay</span>';
+          return;
+        }
+
+        // 2단계: 프로필 테이블에 is_active=true + plan 설정 + IP/MAC 추가 저장 (트리거 실패 대비 예비 upsert)
+        if (data.user) {
+          try {
+            await sbClient.from('profiles').upsert({
+              id:                data.user.id,
+              username:          username,
+              email:             email,
+              plan:              planKey,
+              is_active:         true,
+              tokens_remaining:  planTokens,
+              ip_address:        ip,
+              mac_address:       mac,
+              created_at:        new Date().toISOString()
+            }, { onConflict: 'id' });
+          } catch (upsertErr) {
+            console.warn("Profiles upsert blocked by RLS/Session. Relying on DB Auth Trigger to create profile:", upsertErr);
+          }
+        }
+
+        // 3단계: 성공 — Stripe 결제 페이지 열기
+        localStorage.setItem('xpider_purchased_plan', _signupPlanId);
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Account Created!</span>';
+        successEl.style.display = 'block';
+
+        // 1.5초 후 Stripe 결제 페이지로 리다이렉트
+        setTimeout(() => {
+          const billingCycle = isYearlyBilling ? 'yearly' : 'monthly';
+          let stripeUrl = STRIPE_LINKS[_signupPlanId]?.[billingCycle];
+          closeSignupModal();
+          if (stripeUrl) {
+            const refId = data.user.id + "___" + planKey;
+            stripeUrl += "?client_reference_id=" + refId;
+            window.open(stripeUrl, '_blank');
+          }
+        }, 1500);
+
+      } catch (e) {
+        errEl.textContent = 'Network error: ' + (e.message || 'Please try again.');
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> <span>Create Account & Pay</span>';
+      }
+    }
+  </script>
+</body>
+</html>
