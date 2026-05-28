@@ -198,7 +198,7 @@ namespace XpiderSetup
             if (resName == null) throw new Exception("내장 ZIP을 찾을 수 없습니다.");
 
             using (var stream = asm.GetManifestResourceStream(resName))
-            using (var zip = new ZipArchive(stream, ZipArchiveMode.Read, System.Text.Encoding.Default))
+            using (var zip = new ZipArchive(stream, ZipArchiveMode.Read, false, System.Text.Encoding.Default))
             {
                 int total = zip.Entries.Count, cur = 0;
                 Directory.CreateDirectory(dest);

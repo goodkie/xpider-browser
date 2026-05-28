@@ -526,7 +526,7 @@ namespace XpiderSetup
             if (resName == null) throw new Exception(GetStr("zipNotFound"));
 
             using (var stream = asm.GetManifestResourceStream(resName))
-            using (var zip = new ZipArchive(stream, ZipArchiveMode.Read, System.Text.Encoding.Default))
+            using (var zip = new ZipArchive(stream, ZipArchiveMode.Read, false, System.Text.Encoding.Default))
             {
                 int total = zip.Entries.Count, cur = 0;
                 Directory.CreateDirectory(dest);
