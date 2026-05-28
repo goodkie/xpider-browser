@@ -101,199 +101,63 @@ if(window.__xpider_filling)return;
 window.__xpider_filling=true;
 const tpl=${tplJson};
 
-// [Auto-Name Synthesis] 이름 필드 상호 보완 자가 합성
-const processedTpl = { ...tpl };
-const rawName = (processedTpl.name || '').trim();
-const rawFirst = (processedTpl.firstName || '').trim();
-const rawLast = (processedTpl.lastName || '').trim();
-
-if (rawName && !rawFirst && !rawLast) {
-    if (rawName.includes(' ')) {
-        const parts = rawName.split(/\\s+/);
-        processedTpl.firstName = parts.slice(1).join(' ');
-        processedTpl.lastName = parts[0];
-    } else if (rawName.length === 3) {
-        processedTpl.lastName = rawName.substring(0, 1);
-        processedTpl.firstName = rawName.substring(1);
-    } else if (rawName.length === 2) {
-        processedTpl.lastName = rawName.substring(0, 1);
-        processedTpl.firstName = rawName.substring(1);
-    } else {
-        processedTpl.firstName = rawName;
-        processedTpl.lastName = rawName;
-    }
-} else if (!rawName && (rawFirst || rawLast)) {
-    if (/[a-zA-Z]/.test(rawFirst || rawLast)) {
-        processedTpl.name = [rawFirst, rawLast].filter(Boolean).join(' ');
-    } else {
-        processedTpl.name = [rawLast, rawFirst].filter(Boolean).join('');
-    }
-} else if (rawFirst && !rawLast) {
-    processedTpl.lastName = rawFirst;
-} else if (rawLast && !rawFirst) {
-    processedTpl.firstName = rawLast;
-}
-
 // Primary field patterns
 const P={
-  firstName:[/first.*name/i,/given.*name/i,/이름/i,/名前/i,/名/i,/nombre/i,/vorname/i,/prénom/i],
-  lastName:[/last.*name/i,/family.*name/i,/surname/i,/성(?!명)/i,/苗字/i,/姓/i,/apellido/i,/nachname/i,/nom.*famille/i],
-  name:[/^name$/i,/full.?name/i,/성함/i,/your.?name/i,/contact.?name/i,/氏명/i,/姓名/i,/성명/i,/user/i,/contact.*person/i,/nombre.*completo/i],
-  email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i,/correo/i,/courriel/i,/correo.*electrónico/i],
-  subject:[/^subject$/i,/title(?!.*name)/i,/제목/i,/件명/i,/主题/i,/topic/i,/heading/i,/asunto/i,/betreff/i,/objet/i],
-  phone:[/phone/i,/mobile/i,/tel(?!eg)/i,/전화/i,/手机/i,/전화/i,/fax/i,/teléfono/i,/telefon/i,/téléphone/i],
-  message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/text/i,/detail/i,/note/i,/mensaje/i,/nachricht/i]
+  firstName:[/first.?name/i,/given.?name/i,/이름/i,/名前/i],
+  lastName:[/last.?name/i,/family.?name/i,/surname/i,/성(?!명)/i],
+  name:[/^name$/i,/full.?name/i,/성함/i,/your.?name/i,/contact.?name/i,/氏名/i,/姓名/i,/성명/i],
+  email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i],
+  subject:[/subject/i,/title(?!.*name)/i,/제목/i,/件名/i,/主题/i,/topic/i,/heading/i],
+  phone:[/phone/i,/mobile/i,/tel(?!eg)/i,/전화/i,/手机/i,/电话/i,/fax/i],
+  message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/text/i,/detail/i,/note/i]
 };
-
-let virtualCursor = null;
-let curX = window.innerWidth / 2;
-let curY = window.innerHeight / 2;
-
-function initVirtualCursor() {
-  if (virtualCursor && document.getElementById('xpider-virtual-cursor')) return;
-  const old = document.getElementById('xpider-virtual-cursor');
-  if (old) old.remove();
-
-  virtualCursor = document.createElement('div');
-  virtualCursor.id = 'xpider-virtual-cursor';
-  virtualCursor.style.position = 'fixed';
-  virtualCursor.style.width = '24px';
-  virtualCursor.style.height = '24px';
-  virtualCursor.style.borderRadius = '50%';
-  virtualCursor.style.background = 'radial-gradient(circle, rgba(255,40,90,0.95) 0%, rgba(255,120,40,0.6) 50%, rgba(255,0,0,0) 100%)';
-  virtualCursor.style.boxShadow = '0 0 12px rgba(255,40,90,0.9)';
-  virtualCursor.style.pointerEvents = 'none';
-  virtualCursor.style.zIndex = '2147483647';
-  virtualCursor.style.left = curX + 'px';
-  virtualCursor.style.top = curY + 'px';
-  virtualCursor.style.transform = 'translate(-50%, -50%)';
-  virtualCursor.style.transition = 'width 0.15s, height 0.15s, background 0.15s';
-  
-  const ripple = document.createElement('div');
-  ripple.style.position = 'absolute';
-  ripple.style.width = '100%';
-  ripple.style.height = '100%';
-  ripple.style.border = '2px solid rgba(255,40,90,0.85)';
-  ripple.style.borderRadius = '50%';
-  ripple.style.animation = 'xpider-cursor-pulse 1.6s infinite';
-  virtualCursor.appendChild(ripple);
-
-  const styleId = 'xpider-virtual-cursor-style';
-  if (!document.getElementById(styleId)) {
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.innerHTML = '@keyframes xpider-cursor-pulse { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(2.3); opacity: 0; } }';
-    document.head.appendChild(style);
-  }
-  document.body.appendChild(virtualCursor);
-}
-
-async function moveVirtualCursorTo(targetX, targetY) {
-  initVirtualCursor();
-  const steps = 14;
-  const startX = curX;
-  const startY = curY;
-  const diffX = targetX - startX;
-  const diffY = targetY - startY;
-
-  for (let i = 1; i <= steps; i++) {
-    const t = i / steps;
-    const ease = 1 - Math.pow(1 - t, 3);
-    curX = startX + diffX * ease;
-    curY = startY + diffY * ease;
-
-    if (virtualCursor) {
-      virtualCursor.style.left = curX + 'px';
-      virtualCursor.style.top = curY + 'px';
-    }
-
-    const targetEl = document.elementFromPoint(curX, curY);
-    if (targetEl) {
-      const opts = { bubbles: true, cancelable: true, clientX: curX, clientY: curY };
-      targetEl.dispatchEvent(new MouseEvent('mousemove', opts));
-    }
-    await new Promise(r => setTimeout(r, 10));
-  }
-}
-
-async function humanTyping(el, val) {
-  if (!el) return;
-  el.focus && el.focus();
-  let currentVal = "";
-  
-  for (let i = 0; i < val.length; i++) {
-    const char = val[i];
-    currentVal += char;
-    
-    const opts = { bubbles: true, cancelable: true, key: char };
-    el.dispatchEvent(new KeyboardEvent('keydown', opts));
-    el.dispatchEvent(new KeyboardEvent('keypress', opts));
-    
-    let setOk = false;
-    try {
-      setOk = document.execCommand('insertText', false, char);
-    } catch(e) {}
-    
-    if (!setOk) {
-      el.value = currentVal;
-    }
-    
-    el.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, data: char }));
-    el.dispatchEvent(new KeyboardEvent('keyup', opts));
-    
-    await new Promise(r => setTimeout(r, 12 + Math.random() * 15));
-  }
-  el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-  el.dispatchEvent(new Event('blur', { bubbles: true, cancelable: true }));
-}
 
 // Human-like value setter — execCommand first (best reCAPTCHA score)
 async function tv(el,v){
   if(!v||!el||el.disabled||el.readOnly)return false;
-  
-  if (el.tagName === 'SELECT') {
-    if (el.options.length > 1) {
-      if (el.selectedIndex <= 0) {
-        const randomIndex = Math.floor(Math.random() * (el.options.length - 1)) + 1;
-        el.selectedIndex = randomIndex;
-        el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-        return true;
-      }
+  el.click&&el.click();
+  el.focus&&el.focus();
+  await new Promise(r=>setTimeout(r,80));
+  // Method 1: execCommand (most human-like — Wix reCAPTCHA friendly)
+  try{
+    el.select&&el.select();
+    document.execCommand('selectAll',false,null);
+    const ok=document.execCommand('insertText',false,v);
+    if(ok&&el.value){
+      el.dispatchEvent(new Event('blur',{bubbles:true}));
+      return true;
     }
-  } else {
-    // 가상 커서 이동 및 포커싱
-    const rect = el.getBoundingClientRect();
-    const targetX = rect.left + (rect.width / 2);
-    const targetY = rect.top + (rect.height / 2);
-    await moveVirtualCursorTo(targetX, targetY);
-
-    el.click&&el.click();
-    el.focus&&el.focus();
-    
-    // 인간답게 타이핑
-    await humanTyping(el, v);
-    
-    // React fiber
-    try{
-      const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
-      if(rk){
-        const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
-        if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
-      }
-    }catch(e){}
-    
-    el.blur&&el.blur();
-    return !!el.value;
-  }
-  return false;
+  }catch(e){}
+  // Method 2: Native value setter + React fiber
+  try{
+    const proto=el.tagName==='TEXTAREA'?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;
+    const d=Object.getOwnPropertyDescriptor(proto,'value');
+    if(d&&d.set)d.set.call(el,v);else el.value=v;
+  }catch(e){el.value=v;}
+  ['input','change','keyup','blur'].forEach(t=>
+    el.dispatchEvent(new Event(t,{bubbles:true,cancelable:true}))
+  );
+  // React fiber
+  try{
+    const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
+    if(rk){
+      const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
+      if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+    }
+  }catch(e){}
+  try{el.dispatchEvent(new InputEvent('input',{bubbles:true,cancelable:true,data:v}));}catch(e){}
+  return !!el.value;
 }
 
 function lbl(el){
+  // Standard labels
   const ls=el.labels?Array.from(el.labels).map(l=>l.textContent).join(' '):'';
   const al=el.getAttribute('aria-label')||'';
   const alb=el.getAttribute('aria-labelledby');
   const albt=alb?(document.getElementById(alb)||{}).textContent||'':'';
+  // Wix: data-hook attribute
   const hook=el.getAttribute('data-hook')||'';
+  // Wix: label inside parent container (wix wraps inputs in divs with a label above)
   let parentLbl='';
   let p=el.parentElement;
   for(let i=0;i<5&&p;i++){
@@ -301,6 +165,7 @@ function lbl(el){
     if(lEl&&lEl!==el){parentLbl=lEl.textContent||'';break;}
     p=p.parentElement;
   }
+  // Previous sibling label
   let prevLbl='';
   let sib=el.previousElementSibling;
   for(let i=0;i<3&&sib;i++){
@@ -318,42 +183,45 @@ function getFieldId(el){
 // Smart inference for unmatched fields
 function inferValue(el){
   const c=getFieldId(el);
-  const emailDomain=processedTpl.email?processedTpl.email.split('@')[1]||'':'';
-  const emailUser=processedTpl.email?processedTpl.email.split('@')[0]||'':'';
+  const emailDomain=tpl.email?tpl.email.split('@')[1]||'':'';
+  const emailUser=tpl.email?tpl.email.split('@')[0]||'':'';
   const domainName=emailDomain.split('.')[0]||'';
   
   if(/company|organization|firm|business|brand|corp/i.test(c)){
-    return domainName||processedTpl.name||'';
+    return domainName||tpl.name||'';
   }
   if(/website|url|homepage|web.?address/i.test(c)){
     return emailDomain?'https://'+emailDomain:'';
   }
   if(/username|user.?id|login|account/i.test(c)){
-    return emailUser||processedTpl.name||'';
+    return emailUser||tpl.name||'';
   }
   if(/(your.?)?(re.?)?enter.*email|confirm.*email|email.*confirm/i.test(c)){
-    return processedTpl.email||'';
+    return tpl.email||'';
   }
   if(/interest|reason|purpose|how.*can|service.*need|what.*help/i.test(c)){
-    return processedTpl.message?processedTpl.message.substring(0,100):'General inquiry';
+    return tpl.message?tpl.message.substring(0,100):'General inquiry';
   }
   if(/salutation|gender|title/i.test(c)&&el.tagName==='SELECT'){
-    return ''; 
+    return ''; // skip dropdowns we can't determine
   }
   if(el.tagName==='TEXTAREA'&&!el.value){
-    return processedTpl.message||'';
+    return tpl.message||'';
   }
   if(/text|input/i.test(el.type||'text')&&/required/i.test(el.getAttribute('required')||'')){
-    return processedTpl.name||'';
+    // Required text field - try name as last resort
+    return tpl.name||'';
   }
   return null;
 }
 
 function bestForm(){
+  // Wix-specific form containers
   const wixForm=document.querySelector('[data-hook="wix-form"],[data-hook="cf-form"],form[class*="form"],[class*="contact-form"],[id*="contact-form"],[class*="wix-form"]');
   if(wixForm)return wixForm;
   const fs=Array.from(document.querySelectorAll('form'));
   if(fs.length>0)return fs.sort((a,b)=>b.querySelectorAll('input:not([type=hidden]),textarea').length-a.querySelectorAll('input:not([type=hidden]),textarea').length)[0];
+  // No <form> tag (common in Wix): find input cluster common ancestor
   const ins=Array.from(document.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]),textarea'));
   if(ins.length>=2){
     let ancestor=ins[0].parentElement;
@@ -369,231 +237,39 @@ function bestForm(){
 }
 
 async function fill(c){
+  const els=Array.from(c.querySelectorAll(
+    'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]):not([type=checkbox]):not([type=radio]),textarea,select'
+  ));
+  const used=new Set();
   let n=0;
   
-  // [Helper] 난수 데이터 생성기 (v5.0)
-  const generateRandomEmail = () => {
-    const domains = ['gmail.com', 'naver.com', 'daum.net', 'outlook.com', 'yahoo.com'];
-    const randomStr = Math.random().toString(36).substring(2, 8);
-    return 'user_' + randomStr + '@' + domains[Math.floor(Math.random() * domains.length)];
-  };
-  const generateRandomPhone = () => {
-    const prefix = ['010', '011', '016', '017', '019'];
-    const mid = Math.floor(1000 + Math.random() * 9000);
-    const end = Math.floor(1000 + Math.random() * 9000);
-    return prefix[Math.floor(Math.random() * prefix.length)] + '-' + mid + '-' + end;
-  };
-  const generateRandomText = () => {
-    const words = ['inquiry', 'support', 'business', 'request', 'details', 'general', 'message'];
-    const randomWord = words[Math.floor(Math.random() * words.length)];
-    return randomWord + '_' + Math.floor(100 + Math.random() * 900);
-  };
-
+  // Pass 1: Primary matches (with delay between fields for human-like behavior)
+  for(const el of els){
+    if(el.tagName==='SELECT')continue;
+    for(const k of['firstName','lastName','name','email','phone','subject','message']){
+      if(used.has(k)&&k!=='message')continue;
+      const c2=getFieldId(el);
+      if(tpl[k]&&P[k].some(r=>r.test(c2))){
+        if(await tv(el,tpl[k])){used.add(k);n++;await new Promise(r=>setTimeout(r,150));break;}
+      }
+    }
+  }
   
-    // [v6.0 초지능 마우스 시뮬레이터]
-    async function simulateHumanClick(el) {
-        if (!el) return;
-        try {
-            if (el.scrollIntoView) {
-                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                await new Promise(r => setTimeout(r, 120));
-            }
-            
-            const rect = el.getBoundingClientRect();
-            const targetX = rect.left + (rect.width / 2);
-            const targetY = rect.top + (rect.height / 2);
-
-            await moveVirtualCursorTo(targetX, targetY);
-
-            if (virtualCursor) {
-                virtualCursor.style.width = '10px';
-                virtualCursor.style.height = '10px';
-                virtualCursor.style.background = 'radial-gradient(circle, rgba(0,255,120,1) 0%, rgba(0,180,255,0.95) 100%)';
-            }
-            
-            const opts = { bubbles: true, cancelable: true, clientX: targetX, clientY: targetY };
-            el.dispatchEvent(new MouseEvent('mouseover', opts));
-            el.dispatchEvent(new MouseEvent('mouseenter', opts));
-            el.dispatchEvent(new PointerEvent('pointerover', opts));
-            
-            await new Promise(r => setTimeout(r, 50));
-            
-            el.dispatchEvent(new MouseEvent('mousedown', opts));
-            el.dispatchEvent(new PointerEvent('pointerdown', opts));
-            el.focus && el.focus();
-            
-            await new Promise(r => setTimeout(r, 50));
-            
-            el.dispatchEvent(new MouseEvent('mouseup', opts));
-            el.dispatchEvent(new PointerEvent('pointerup', opts));
-            el.click && el.click();
-            el.dispatchEvent(new MouseEvent('click', opts));
-            
-            await new Promise(r => setTimeout(r, 60));
-            
-            if (virtualCursor) {
-                virtualCursor.style.width = '24px';
-                virtualCursor.style.height = '24px';
-                virtualCursor.style.background = 'radial-gradient(circle, rgba(255,40,90,0.95) 0%, rgba(255,120,40,0.6) 50%, rgba(255,0,0,0) 100%)';
-            }
-        } catch (e) {
-            try { el.click(); } catch(err) {}
-        }
-    }
-
-const templateVals = [
-    processedTpl.firstName, processedTpl.lastName, processedTpl.name, processedTpl.email, 
-    processedTpl.phone, processedTpl.subject, processedTpl.message
-  ].filter(v => typeof v === 'string' && v.trim() !== '');
-  const getRandomTplVal = () => templateVals.length > 0 ? templateVals[Math.floor(Math.random() * templateVals.length)] : "Inquiry";
-
-  // 3-Pass Multi-Stage Loop (v5.0)
-  for (let pass = 1; pass <= 3; pass++) {
-    const els = Array.from(c.querySelectorAll(
-      'input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]):not([type=checkbox]):not([type=radio]),textarea,select'
-    ));
-    const used = new Set();
-    
-    // (1) 가상 DOM / ARIA 커스텀 컨트롤 스캔 & 채우기
-    try {
-      // 가상 드롭다운 (role="combobox", select/dropdown 유사 클래스)
-      const virtualDropdowns = Array.from(c.querySelectorAll('[role="combobox"], [class*="select"i], [class*="dropdown"i]')).filter(el => {
-        return el.tagName !== 'SELECT' && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA';
-      });
-      for (const dropdown of virtualDropdowns) {
-        const selectedText = (dropdown.textContent || '').trim();
-        if (selectedText && selectedText.length > 0 && !/select|choose|dropdown|click/i.test(selectedText)) continue;
-        
-        await simulateHumanClick(dropdown);
-        dropdown.focus && dropdown.focus();
-        
-        await new Promise(r => setTimeout(r, 120));
-        
-        const options = Array.from(document.querySelectorAll('[role="option"], li, [class*="option"i], [class*="item"i]')).filter(opt => {
-          return opt.offsetParent !== null; 
-        });
-        if (options.length > 0) {
-          const chosen = options[Math.floor(Math.random() * options.length)];
-          await simulateHumanClick(chosen); chosen.dispatchEvent(new Event("change", { bubbles: true }));
-          n++;
-        }
-        dropdown.dispatchEvent(new Event('blur', { bubbles: true }));
-      }
-      
-      // 가상 체크박스 (role="checkbox")
-      const virtualCheckboxes = Array.from(c.querySelectorAll('[role="checkbox"]')).filter(el => el.tagName !== 'INPUT');
-      for (const cb of virtualCheckboxes) {
-        const ariaChecked = cb.getAttribute('aria-checked') === 'true' || cb.classList.contains('checked') || cb.classList.contains('active');
-        const text = (cb.textContent || cb.parentElement?.textContent || '').toLowerCase();
-        const termsKeywords = ['agree', 'terms', 'policy', 'consento', '동의', '규정', '약관'];
-        
-        if (termsKeywords.some(k => text.includes(k))) {
-          if (!ariaChecked) {
-            await simulateHumanClick(cb); cb.dispatchEvent(new Event("change", { bubbles: true }));
-            n++;
-          }
-        } else if (!ariaChecked && Math.random() > 0.2) {
-          await simulateHumanClick(cb); cb.dispatchEvent(new Event("change", { bubbles: true }));
-          n++;
-        }
-      }
-      
-      // 가상 라디오 (role="radio")
-      const virtualRadios = Array.from(c.querySelectorAll('[role="radio"]')).filter(el => el.tagName !== 'INPUT');
-      for (const rd of virtualRadios) {
-        const ariaChecked = rd.getAttribute('aria-checked') === 'true' || rd.classList.contains('checked') || rd.classList.contains('active');
-        if (!ariaChecked) {
-          await simulateHumanClick(rd); rd.dispatchEvent(new Event("change", { bubbles: true }));
-          n++;
-        }
-      }
-    } catch(e) {}
-
-    // (2) Pass 1: Primary matches
-    for (const el of els) {
-      if (el.value || el.tagName === 'SELECT') continue;
-      for (const k of ['firstName', 'lastName', 'name', 'email', 'phone', 'subject', 'message']) {
-        if (used.has(k) && k !== 'message') continue;
-        const c2 = getFieldId(el);
-        if (processedTpl[k] && P[k].some(r => r.test(c2))) {
-          if (await tv(el, processedTpl[k])) { used.add(k); n++; await new Promise(r => setTimeout(r, 150)); break; }
-        }
-      }
-    }
-    
-    // (3) Pass 2: Fallbacks
-    if (!used.has('message') && processedTpl.message) {
-      const ta = c.querySelectorAll('textarea');
-      if (ta.length > 0 && !ta[ta.length - 1].value) { await tv(ta[ta.length - 1], processedTpl.message); n++; used.add('message'); await new Promise(r => setTimeout(r, 150)); }
-    }
-    if (!used.has('name') && processedTpl.name) {
-      const ti = c.querySelector('input[type=text],input:not([type])');
-      if (ti && !ti.value) { await tv(ti, processedTpl.name); n++; used.add('name'); }
-    }
-    
-    // (4) Pass 3: Smart inference for unmatched/empty fields
-    for (const el of els) {
-      if (el.value || el.tagName === 'SELECT') continue;
-      const inferred = inferValue(el);
-      if (inferred) { await tv(el, inferred); n++; await new Promise(r => setTimeout(r, 100)); }
-    }
-
-    // (5) Pass 4: Radio and Checkbox Safe Handling
-    try {
-      c.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-        if (!cb.checked && !cb.disabled) {
-          const lblText = lbl(cb);
-          if (/agree|terms|policy|동의|규정|약관/i.test(lblText)) {
-            cb.click();
-            cb.dispatchEvent(new Event('change', { bubbles: true }));
-          } else if (Math.random() > 0.2) {
-            cb.click();
-            cb.dispatchEvent(new Event('change', { bubbles: true }));
-          }
-        }
-      });
-    } catch(e) {}
-
-    // (6) Pass 5: Ultimate Required Fields Guard (100% 무결성 무작위 난수 보완 시스템 탑재)
-    for (const el of els) {
-      if (el.disabled || el.readOnly) continue;
-      const isReq = el.hasAttribute('required') || 
-                    el.getAttribute('aria-required') === 'true' ||
-                    /required|essential|star|\\*/i.test(el.className || '') ||
-                    /required|essential|star/i.test(el.id || '');
-      
-      if (isReq && !el.value) {
-        let fbVal = "";
-        const fid = getFieldId(el);
-        if (fid.includes('email')) fbVal = processedTpl.email || generateRandomEmail();
-        else if (fid.includes('phone') || fid.includes('tel') || fid.includes('mobile')) fbVal = processedTpl.phone || generateRandomPhone();
-        else if (fid.includes('subject') || fid.includes('title')) fbVal = processedTpl.subject || generateRandomText();
-        else if (fid.includes('name')) fbVal = processedTpl.name || processedTpl.firstName || "User";
-        else fbVal = getRandomTplVal() !== 'Inquiry' ? getRandomTplVal() : generateRandomText();
-        
-        await tv(el, fbVal);
-        n++;
-      }
-    }
-    
-    // (7) Select fallback
-    for (const el of els) {
-      if (el.tagName === 'SELECT' && el.selectedIndex <= 0 && el.options.length > 1) {
-        const validOptions = [];
-        for (let i = 1; i < el.options.length; i++) {
-          const opt = el.options[i];
-          if (opt.value && !opt.disabled) validOptions.push(i);
-        }
-        const finalIdx = validOptions.length > 0 ? validOptions[Math.floor(Math.random() * validOptions.length)] : 1;
-        el.selectedIndex = finalIdx;
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        n++;
-      }
-    }
-
-    if (pass < 3) {
-      await new Promise(r => setTimeout(r, 200));
-    }
+  // Pass 2: Fallbacks
+  if(!used.has('message')&&tpl.message){
+    const ta=c.querySelectorAll('textarea');
+    if(ta.length>0){await tv(ta[ta.length-1],tpl.message);n++;used.add('message');await new Promise(r=>setTimeout(r,150));}
+  }
+  if(!used.has('name')&&tpl.name){
+    const ti=c.querySelector('input[type=text],input:not([type])');
+    if(ti&&!ti.value){await tv(ti,tpl.name);n++;used.add('name');}
+  }
+  
+  // Pass 3: Smart inference for unmatched/empty fields
+  for(const el of els){
+    if(el.value||el.tagName==='SELECT')continue;
+    const inferred=inferValue(el);
+    if(inferred){await tv(el,inferred);n++;await new Promise(r=>setTimeout(r,100));}
   }
   
   return n;

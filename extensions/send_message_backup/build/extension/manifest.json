@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "XPIDER AutoForm Sender Pro",
-  "version": "1.1.13",
+  "version": "1.1.0",
   "description": "Mass message sender for business websites with Side Panel UI and CAPTCHA solving.",
   "permissions": [
     "storage",
@@ -35,23 +35,15 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://www.google.com/recaptcha/*"
-      ],
-      "js": [
-        "solver-content.js"
-      ],
+      "matches": ["https://www.google.com/recaptcha/*"],
+      "js": ["solver-content.js"],
       "all_frames": true
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": [
-        "icons/*"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "resources": ["icons/*"],
+      "matches": ["<all_urls>"]
     }
   ]
 }

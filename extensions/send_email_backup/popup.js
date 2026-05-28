@@ -27,21 +27,30 @@ window.onerror = function(msg, url, line) {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        // [v2.2.0] Maintain port to detect closure for Auto-Stop
-        chrome.runtime.connect({ name: 'xpider_popup' });
+    // ── Step 1: Bind ALL events FIRST (no async, cannot fail) ──
+    try { bindEvents(); } catch(e) { console.error('[Popup] bindEvents failed:', e); }
+    
+    // ── Step 2: Connect to runtime (non-critical, ignore errors) ──
+    try { chrome.runtime.connect({ name: 'xpider_popup' }); } catch(e) {}
 
-        await initLocalizer();
-        bindEvents();
-        await loadSettings();
-        await loadBlackBoxLogs(); // [v18.10.0] Restore persistent logs on reopen
-        
-        // [v18.10.0] Passive Keep-Alive from UI
+    // ── Step 3: Load localizer ──
+    try { await initLocalizer(); } catch(e) { console.error('[Popup] initLocalizer failed:', e); }
+
+    // ── Step 4: Load settings ──
+    try { await loadSettings(); } catch(e) { console.error('[Popup] loadSettings failed:', e); }
+
+    // ── Step 5: Restore persistent logs ──
+    try { await loadBlackBoxLogs(); } catch(e) {}
+
+    // ── Step 6: Passive Keep-Alive heartbeat ──
+    try {
         setInterval(() => {
             chrome.runtime.sendMessage({ action: 'UI_HEARTBEAT' }).catch(() => {});
         }, 30000);
+    } catch(e) {}
 
-        // [v1.3.8] Restore Real-time log listener
+    // ── Step 7: Real-time log listener ──
+    try {
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (request.action === 'SENDER_LOG') {
                 addLog(request.message, request.logType);
@@ -49,16 +58,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 updateRealTimeStatus(request.data);
             }
         });
+    } catch(e) { console.error('[Popup] onMessage listener failed:', e); }
 
-        // [v1.6.5] Playback Speed Slider Listener
+    // ── Step 8: Speed slider ──
+    try {
         const delayInput = document.getElementById('delay-input');
-        if (delayInput) {
-            delayInput.addEventListener('input', updateSpeedLabel);
-        }
+        if (delayInput) delayInput.addEventListener('input', updateSpeedLabel);
+    } catch(e) {}
 
-        console.log("✅ X PIDER Sender Pro initialized.");
+    console.log("✅ X PIDER Sender Pro initialized.");
 
-        // [v18.28.0] State Handshake: Restore progress or reset UI on start
+    // ── Step 9: State Handshake ──
+    try {
         chrome.runtime.sendMessage({ action: 'GET_STATE' }, (response) => {
             if (response && response.success) {
                 if (response.isActive) {
@@ -66,7 +77,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     totalTargets = response.totalTargets;
                     successCount = response.successCount;
                     remainingTargets = response.remainingCount;
-                    campaignPaused = !!response.isPaused; // [v18.7] Sync pause state
                     
                     document.getElementById('status-box').classList.remove('hidden');
                     document.getElementById('multi-actions').classList.remove('hidden');
@@ -76,31 +86,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                         successCount: successCount,
                         remainingCount: remainingTargets
                     });
-                    
-                    // [v18.7] Update pause button UI state on restore
-                    const btn = document.getElementById('pause-btn');
-                    const langSelect = document.getElementById('language-select');
-                    const lang = langSelect ? langSelect.value : 'en';
-                    const dict = i18nData[lang] || i18nData['en'] || {};
-                    if (btn) {
-                        if (campaignPaused) {
-                            btn.textContent = dict.btn_resume || "▶️ Resume";
-                            btn.style.backgroundColor = "#22c55e";
-                        } else {
-                            btn.textContent = dict.btn_pause || "⏸️ Pause";
-                            btn.style.backgroundColor = "#f59e0b";
-                        }
-                    }
                 } else {
-                    // Reset to clean start state
                     campaignActive = false;
                     document.getElementById('start-btn').classList.remove('hidden');
                     document.getElementById('multi-actions').classList.add('hidden');
                 }
             }
         });
-        
-        // [v18.23.0] Emergency Engine Recovery: Reload extension to wake up frozen worker
+    } catch(e) { console.error('[Popup] GET_STATE failed:', e); }
+
+    // ── Step 10: Hard Reset Button ──
+    try {
         const hardResetBtn = document.getElementById('hard-reset-engine-btn');
         if (hardResetBtn) {
             hardResetBtn.addEventListener('click', () => {
@@ -109,34 +105,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         }
+    } catch(e) {}
 
-        // [v18.21.5] Pulse Check: Monitor background engine health in real-time
-        startPulseCheck();
-        
-        // Add status indicator to the footer
+    // ── Step 11: Engine status indicator ──
+    try {
         const footer = document.querySelector('.popup-footer');
         if (footer && !document.getElementById('engine-status-indicator')) {
             const span = document.createElement('span');
             span.id = 'engine-status-indicator';
-            span.style.fontSize = '0.7rem';
-            span.style.marginLeft = 'auto';
-            span.style.opacity = '0.8';
+            span.style.cssText = 'font-size:0.7rem;margin-left:auto;opacity:0.8';
             span.textContent = "Checking...";
             footer.appendChild(span);
         }
+    } catch(e) {}
 
-        // [v18.46.0] Audio STT API Key (Wit.ai) 최초 설정 여부 체크
-        chrome.storage.local.get(['xpider_stt_api_key'], (res) => {
-            if (!res.xpider_stt_api_key || res.xpider_stt_api_key.trim() === '') {
-                const setupModal = document.getElementById('stt-setup-modal-overlay');
-                if (setupModal) {
-                    setupModal.classList.remove('hidden');
-                }
-            }
-        });
-    } catch (e) {
-        console.error("Initialization failed:", e);
-    }
+    // ── Step 12: Pulse check ──
+    try { startPulseCheck(); } catch(e) {}
 });
 
 async function initLocalizer() {
@@ -212,7 +196,7 @@ function updateRealTimeStatus(data) {
             const lang = document.getElementById('language-select')?.value || 'en';
             const dict = i18nData[lang] || i18nData['en'] || {};
             const remainingLabel = dict.remaining_suffix || 'remaining';
-            countDisplay.textContent = `${remainingTargets} (${remainingLabel}) / ${totalTargets} URLs`;
+            countDisplay.textContent = `${remainingTargets} (${remainingLabel}) / ${totalTargets} Recipients`;
         }
     }
 }
@@ -230,11 +214,10 @@ function refreshStatusDetailUI() {
     const suffix = dict.remaining_suffix || 'remaining.';
     
     // [v2.8.9] Simplified UI: Only show remaining count, remove log noise
-    const statusText = campaignPaused ? `⏸️ PAUSED (${remainingTargets} ${suffix})` : `${remainingTargets} ${suffix}`;
-    statusDetail.textContent = statusText;
-    statusDetail.style.fontWeight = '700';
+    statusDetail.textContent = `${remainingTargets} ${suffix}`;
+    statusDetail.style.fontWeight = '500';
     statusDetail.style.fontSize = '0.85rem'; // Smaller font as requested
-    statusDetail.style.color = campaignPaused ? '#ff3366' : '#facc15'; 
+    statusDetail.style.color = '#facc15'; 
 }
 
 function updateSpeedLabel() {
@@ -299,48 +282,6 @@ function bindEvents() {
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', saveSettings);
 
-    // [v18.46.0] Wit.ai STT Key Setup Modal Save Button
-    const saveSetupSttBtn = document.getElementById('save-setup-stt-btn');
-    if (saveSetupSttBtn) {
-        saveSetupSttBtn.addEventListener('click', async () => {
-            const input = document.getElementById('setup-stt-key-input');
-            const key = input ? input.value.trim() : '';
-            if (key === '') {
-                alert("Please enter a valid Wit.ai Key.");
-                return;
-            }
-            
-            await chrome.storage.local.set({ xpider_stt_api_key: key });
-            const settingsInput = document.getElementById('audio-stt-key');
-            if (settingsInput) settingsInput.value = key;
-            
-            const setupModal = document.getElementById('stt-setup-modal-overlay');
-            if (setupModal) setupModal.classList.add('hidden');
-            
-            const langSelect = document.getElementById('language-select');
-            const lang = langSelect ? langSelect.value : 'en';
-            const dict = i18nData[lang] || i18nData['en'] || {};
-            alert(dict.msg_saved || "Saved!");
-        });
-    }
-
-    // [v6.0.0] Wit.ai setup link fix to open in a new tab with fallback
-    const witAiLink = document.getElementById('wit-ai-link');
-    if (witAiLink) {
-        witAiLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            try {
-                if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
-                    chrome.tabs.create({ url: 'https://wit.ai/apps' });
-                } else {
-                    window.open('https://wit.ai/apps', '_blank');
-                }
-            } catch (err) {
-                window.open('https://wit.ai/apps', '_blank');
-            }
-        });
-    }
-
     // [v2.4.0] Template Save Buttons - Combined
     ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
         const btn = document.getElementById(id);
@@ -393,23 +334,28 @@ function bindEvents() {
     }
 
     // Persistence for Template
-    ['tpl-name', 'tpl-email', 'tpl-subject', 'tpl-message'].forEach(id => {
+    ['tpl-sender-name', 'tpl-name', 'tpl-email', 'tpl-subject', 'tpl-message'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', saveTemplate);
     });
 
-    // Single URL & List Management
-    // Single URL & List Management
+    // Clear List Button
+    const clearListBtn = document.getElementById('clear-list-btn');
+    if (clearListBtn) {
+        clearListBtn.addEventListener('click', clearCampaignQueue);
+    }
+
+    // Single Email & List Management
     const addUrlBtn = document.getElementById('add-url-btn');
     if (addUrlBtn) {
-        addUrlBtn.classList.add('plus-btn-circle');
-        addUrlBtn.addEventListener('click', addSingleUrl);
+        // [v2.0.0] Changed from addSingleUrl to addSingleEmail
+        addUrlBtn.addEventListener('click', addSingleEmail);
     }
     
     const manualUrlInput = document.getElementById('manual-url-input');
     if (manualUrlInput) {
         manualUrlInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') addSingleUrl();
+            if (e.key === 'Enter') addSingleEmail();
         });
     }
 }
@@ -432,6 +378,26 @@ function toggleCaptchaApiVisibility() {
     if (sttGroup) sttGroup.style.display = (enabled && isAudio) ? 'block' : 'none';
 }
 
+/**
+ * [v2.0.0] Shared Email Extraction Engine
+ * Matches any valid email format across messy text / CSV / TXT
+ */
+function extractEmails(text) {
+    if (!text) return [];
+    const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
+    const matches = text.match(emailRegex) || [];
+    
+    // [v1.3.1] Email Blacklist (Persistent)
+    const blacklist = [
+        '.gov', '.go.kr', 'noreply', 'no-reply', 'admin', 'postmaster'
+    ];
+    
+    return [...new Set(matches)].filter(email => {
+        const lower = email.toLowerCase();
+        return !blacklist.some(domain => lower.includes(domain));
+    });
+}
+
 async function handleFileUpload(e) {
     e.preventDefault();
     const file = e.target.files ? e.target.files[0] : e.dataTransfer.files[0];
@@ -441,36 +407,18 @@ async function handleFileUpload(e) {
     if (nameDisplay) nameDisplay.textContent = file.name;
     
     const text = await file.text();
-    const urlRegex = /(https?:\/\/[^\s,]+)/g;
-    const matches = text.match(urlRegex) || [];
+    const extracted = extractEmails(text);
     
-    // [v1.3.1] Extended Global Blacklist
-    const blacklist = [
-        // Social Media & Messaging
-        'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'linkedin.com', 'youtube.com', 
-        'tiktok.com', 'pinterest.com', 'snapchat.com', 'whatsapp.com', 't.me', 'wa.me', 'discord.gg',
-        
-        // Portals & Search Engines
-        'google.com', 'naver.com', 'daum.net', 'yahoo.com', 'bing.com', 'baidu.com', 'duckduckgo.com',
-        
-        // Government & Public institutions
-        '.gov', '.go.kr', '.mil', '.edu', '.ac.kr',
-        
-        // Hosting & Website Builders (Generic)
-        'godaddy.com', 'wix.com', 'shopify.com', 'squarespace.com', 'wordpress.com', 'bluehost.com', 'namecheap.com',
-        
-        // Misc / Non-business
-        'wikipedia.org', 'archive.org', 'mapquest.com', 'yelp.com', 'tripadvisor.com'
-    ];
-    
-    campaignQueue = [...new Set(matches)].filter(url => {
-        const lowerUrl = url.toLowerCase();
-        return !blacklist.some(domain => lowerUrl.includes(domain));
-    });
+    if (extracted.length === 0) {
+        addLog("No valid emails found in the file.", "error");
+        return;
+    }
+
+    campaignQueue = extracted;
 
     totalTargets = campaignQueue.length;
     const countDisplay = document.getElementById('url-count-display');
-    if (countDisplay) countDisplay.textContent = `${totalTargets} URLs found`;
+    if (countDisplay) countDisplay.textContent = `${totalTargets} Recipients found`;
     
     const fileInfo = document.getElementById('file-info');
     if (fileInfo) fileInfo.classList.remove('hidden');
@@ -483,7 +431,7 @@ async function handleFileUpload(e) {
         xpider_total: totalTargets,
         xpider_success: 0
     });
-    addLog(`Loaded ${totalTargets} business URLs.`, 'info');
+    addLog(`Loaded ${totalTargets} recipient emails.`, 'info');
 }
 
 async function saveListToStorage(name, urls) {
@@ -534,11 +482,11 @@ async function updateSavedListsUI() {
             div.classList.add('selected');
             
             const countDisplay = document.getElementById('url-count-display');
-            if (countDisplay) countDisplay.textContent = `${campaignQueue.length} URLs found`;
+            if (countDisplay) countDisplay.textContent = `${campaignQueue.length} Recipients found`;
             document.getElementById('file-info').classList.remove('hidden');
             document.getElementById('status-box').classList.remove('hidden');
             
-            addLog(`Loaded saved list: ${list.name} (${list.urls.length} URLs)`, 'info');
+            addLog(`Loaded saved list: ${list.name} (${list.urls.length} Recipients)`, 'info');
             await chrome.storage.local.set({ xpider_queue: campaignQueue, xpider_success: 0, xpider_total: totalTargets });
         };
 
@@ -577,6 +525,7 @@ async function saveTemplateChanges() {
     messageEl.value = message;
 
     const tpl = {
+        senderName: document.getElementById('tpl-sender-name').value,
         firstName: document.getElementById('tpl-first-name').value,
         lastName: document.getElementById('tpl-last-name').value,
         name: document.getElementById('tpl-name').value,
@@ -623,6 +572,7 @@ function downloadTemplateFile(tpl) {
     
     const content = `[XPIDER MESSAGE TEMPLATE]
 -----------------------------------------
+Sender Name:      ${tpl.senderName || 'N/A'}
 Target Full Name: ${tpl.name || 'N/A'}
 First Name:       ${tpl.firstName || 'N/A'}
 Last Name:        ${tpl.lastName || 'N/A'}
@@ -634,7 +584,7 @@ Subject:          ${tpl.subject || 'N/A'}
 -----------------------------------------
 ${tpl.message || ''}
 -----------------------------------------
-Generated by XPIDER AutoForm Sender Pro
+Generated by XPIDER Send Pro
 `;
 
     const blob = new Blob([content], { type: 'text/plain' });
@@ -678,56 +628,65 @@ Generated by XPIDER AutoForm Sender Pro
     reader.readAsDataURL(blob);
 }
 
-async function addSingleUrl() {
+async function addSingleEmail() {
     const input = document.getElementById('manual-url-input');
     if (!input || !input.value.trim()) return;
     
-    let url = input.value.trim();
-    if (!url.startsWith('http')) url = 'https://' + url;
+    const email = input.value.trim();
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     
-    try {
-        new URL(url); // Validation
-        
-        // [v1.2.1] NEW: Save to Permanent "Manual Entries" List
-        const lang = document.getElementById('language-select')?.value || 'en';
-        const dict = i18nData[lang] || i18nData['en'] || {};
-        const manualListName = dict.list_manual_entries || 'Manual Entries';
-        
-        const data = await chrome.storage.local.get(['xpider_saved_lists']);
-        let lists = data.xpider_saved_lists || [];
-        
-        let manualList = lists.find(l => l.name === manualListName);
-        if (!manualList) {
-            manualList = { name: manualListName, urls: [], date: new Date().toISOString() };
-            lists.unshift(manualList); // Put at top
-        }
-        
-        // Avoid duplicate in the manual list
-        if (!manualList.urls.includes(url)) {
-            manualList.urls.push(url);
-            manualList.date = new Date().toISOString();
-        }
-        
-        await chrome.storage.local.set({ xpider_saved_lists: lists });
-        await updateSavedListsUI();
-        
-        addLog(`Manual URL saved: ${url}`, 'info');
-        input.value = '';
-    } catch (e) {
-        addLog(`Invalid URL format: ${url}`, 'error');
+    if (!emailRegex.test(email)) {
+        addLog(`Invalid email format: ${email}`, 'error');
+        return;
     }
+
+    // [v1.2.1] NEW: Save to Permanent "Manual Entries" List
+    const lang = document.getElementById('language-select')?.value || 'en';
+    const dict = i18nData[lang] || i18nData['en'] || {};
+    const manualListName = dict.list_manual_entries || 'Manual Entries';
+    
+    const data = await chrome.storage.local.get(['xpider_saved_lists']);
+    let lists = data.xpider_saved_lists || [];
+    
+    let manualList = lists.find(l => l.name === manualListName);
+    if (!manualList) {
+        manualList = { name: manualListName, urls: [], date: new Date().toISOString() };
+        lists.unshift(manualList); // Put at top
+    }
+    
+    // Avoid duplicate in the manual list
+    if (!manualList.urls.includes(email)) {
+        manualList.urls.push(email);
+        manualList.date = new Date().toISOString();
+    }
+    
+    await chrome.storage.local.set({ xpider_saved_lists: lists });
+    await updateSavedListsUI();
+    
+    // Also add to current queue immediately for UX
+    if (!campaignQueue.includes(email)) {
+        campaignQueue.push(email);
+        totalTargets = campaignQueue.length;
+        remainingTargets = totalTargets;
+        const countDisplay = document.getElementById('url-count-display');
+        if (countDisplay) countDisplay.textContent = `${totalTargets} Recipients ready`;
+    }
+
+    addLog(`Manual Email added: ${email}`, 'info');
+    input.value = '';
 }
 
 function startCampaign() {
     // If input has value, add it before starting if empty queue
     const manualInput = document.getElementById('manual-url-input');
     if (manualInput && manualInput.value.trim() && campaignQueue.length === 0) {
-        addSingleUrl();
+        addSingleEmail();
     }
 
-    if (campaignQueue.length === 0) return alert("Please upload a file or enter a URL first.");
+    if (campaignQueue.length === 0) return alert("Please upload a file or enter an email first.");
 
     currentTpl = {
+        senderName: document.getElementById('tpl-sender-name').value,
         firstName: document.getElementById('tpl-first-name').value,
         lastName: document.getElementById('tpl-last-name').value,
         name: document.getElementById('tpl-name').value,
@@ -818,22 +777,8 @@ function togglePause() {
     const lang = langSelect ? langSelect.value : 'en';
     const dict = i18nData[lang] || i18nData['en'] || {};
     
-    // [v18.7] Send command to background engine
-    const action = campaignPaused ? 'PAUSE_CAMPAIGN' : 'RESUME_CAMPAIGN';
-    chrome.runtime.sendMessage({ action: action }, (response) => {
-        if (chrome.runtime.lastError) {
-             console.error("[Pause Error]", chrome.runtime.lastError);
-             return;
-        }
-        console.log(`Campaign ${campaignPaused ? 'Paused' : 'Resumed'}`);
-    });
-
-    if (btn) {
-        btn.textContent = campaignPaused ? (dict.btn_resume || "▶️ Resume") : (dict.btn_pause || "⏸️ Pause");
-        btn.style.backgroundColor = campaignPaused ? "#22c55e" : "#f59e0b"; // Visual cue
-    }
-    
-    refreshStatusDetailUI();
+    if (btn) btn.textContent = campaignPaused ? (dict.btn_resume || "▶️ Resume") : (dict.btn_pause || "⏸️ Pause");
+    if (!campaignPaused) processNext();
 }
 
 function stopCampaign() {
@@ -932,6 +877,7 @@ function addLog(msg, type = 'info', forcedTime = null) {
 
 function saveTemplate() {
     const tpl = {
+        senderName: document.getElementById('tpl-sender-name').value,
         firstName: document.getElementById('tpl-first-name').value,
         lastName: document.getElementById('tpl-last-name').value,
         name: document.getElementById('tpl-name').value,
@@ -1022,6 +968,7 @@ function loadTemplateFromLibrary() {
         const history = data.xpider_export_history || [];
         const tpl = history[idx];
         if (tpl) {
+            document.getElementById('tpl-sender-name').value = tpl.senderName || '';
             document.getElementById('tpl-first-name').value = tpl.firstName || '';
             document.getElementById('tpl-last-name').value = tpl.lastName || '';
             document.getElementById('tpl-name').value = tpl.name || '';
@@ -1069,6 +1016,7 @@ function importMessageFromFile(event) {
                 }
 
                 // Precise Field extraction using Regex
+                const matchSenderName = line.match(/Sender Name:\s*(.*)/i);
                 const matchName = line.match(/Target Full Name:\s*(.*)/i);
                 const matchFirst = line.match(/First Name:\s*(.*)/i);
                 const matchLast = line.match(/Last Name:\s*(.*)/i);
@@ -1076,6 +1024,7 @@ function importMessageFromFile(event) {
                 const matchPhone = line.match(/Phone:\s*(.*)/i);
                 const matchSubject = line.match(/Subject:\s*(.*)/i);
 
+                if (matchSenderName) document.getElementById('tpl-sender-name').value = matchSenderName[1].trim();
                 if (matchName) document.getElementById('tpl-name').value = matchName[1].trim();
                 if (matchFirst) document.getElementById('tpl-first-name').value = matchFirst[1].trim();
                 if (matchLast) document.getElementById('tpl-last-name').value = matchLast[1].trim();
@@ -1087,7 +1036,7 @@ function importMessageFromFile(event) {
             // Clean up message body text
             let bodyText = bodyLines.join('\n').trim();
             // Remove the trailing separator and footer often found in exported files
-            bodyText = bodyText.replace(/---+\s*Generated by XPIDER AutoForm Sender Pro.*/s, '').trim();
+            bodyText = bodyText.replace(/---+\s*Generated by XPIDER Send Pro.*/s, '').trim();
             bodyText = bodyText.replace(/---+\s*$/, '').trim();
             
             document.getElementById('tpl-message').value = bodyText;
@@ -1104,6 +1053,7 @@ function importMessageFromFile(event) {
         // [v18.50.0] FIX: Do not call saveTemplateChanges here as it triggers 'Save As' again.
         // Instead, just sync the current data for the campaign.
         const tpl = {
+            senderName: document.getElementById('tpl-sender-name').value,
             firstName: document.getElementById('tpl-first-name').value,
             lastName: document.getElementById('tpl-last-name').value,
             name: document.getElementById('tpl-name').value,
@@ -1135,7 +1085,7 @@ async function saveSettings() {
         xpider_captcha_enabled: captchaToggle ? captchaToggle.checked : false,
         xpider_captcha_method: methodSelect ? methodSelect.value : 'audio',
         xpider_captcha_api_key: apiKeyInput ? apiKeyInput.value : '',
-        xpider_stt_api_key: sttKeyInput ? sttKeyInput.value : '',
+        xpider_audio_stt_key: sttKeyInput ? sttKeyInput.value : '',
         xpider_stealth_mode: stealthToggle ? stealthToggle.checked : false,
         xpider_delay: delayInput ? delayInput.value : 6,
         xpider_random_delay: randomToggle ? randomToggle.checked : false
@@ -1157,7 +1107,7 @@ async function saveSettings() {
 async function loadSettings() {
     const data = await chrome.storage.local.get([
         'xpider_lang', 'xpider_tpl', 'xpider_delay', 'xpider_queue', 'xpider_success', 'xpider_total',
-        'xpider_captcha_enabled', 'xpider_captcha_method', 'xpider_captcha_api_key', 'xpider_stt_api_key', 'xpider_stealth_mode'
+        'xpider_captcha_enabled', 'xpider_captcha_method', 'xpider_captcha_api_key', 'xpider_audio_stt_key', 'xpider_stealth_mode'
     ]);
     
     if (data.xpider_lang) {
@@ -1179,7 +1129,7 @@ async function loadSettings() {
         document.getElementById('captcha-api-key').value = data.xpider_captcha_api_key || '';
     }
     if (document.getElementById('audio-stt-key')) {
-        document.getElementById('audio-stt-key').value = data.xpider_stt_api_key || '';
+        document.getElementById('audio-stt-key').value = data.xpider_audio_stt_key || '';
     }
     if (document.getElementById('stealth-mode-toggle')) {
         document.getElementById('stealth-mode-toggle').checked = (data.xpider_stealth_mode !== undefined) ? !!data.xpider_stealth_mode : true;
@@ -1191,6 +1141,7 @@ async function loadSettings() {
 
     // Template
     if (data.xpider_tpl) {
+        if (document.getElementById('tpl-sender-name')) document.getElementById('tpl-sender-name').value = data.xpider_tpl.senderName || '';
         if (document.getElementById('tpl-first-name')) document.getElementById('tpl-first-name').value = data.xpider_tpl.firstName || '';
         if (document.getElementById('tpl-last-name')) document.getElementById('tpl-last-name').value = data.xpider_tpl.lastName || '';
         if (document.getElementById('tpl-name')) document.getElementById('tpl-name').value = data.xpider_tpl.name || '';
@@ -1233,4 +1184,53 @@ async function loadSettings() {
     
     // [v1.7.0] Populate template library
     await updateTemplateDropdown();
+}
+
+// ─── [XPIDER] Browser Language-Change Broadcast Listener ──────────────
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'language-change') {
+        const lang = event.data.data && event.data.data.lang;
+        if (lang && typeof applyTranslations === 'function') {
+            applyTranslations(lang);
+            const langSelect = document.getElementById('language-select');
+            if (langSelect) langSelect.value = lang;
+            chrome.storage.local.set({ xpider_lang: lang });
+        }
+    }
+});
+
+async function clearCampaignQueue() {
+    // 1. Reset campaign queue and counts
+    campaignQueue = [];
+    totalTargets = 0;
+    successCount = 0;
+    remainingTargets = 0;
+    
+    // 2. Hide file info
+    const fileInfo = document.getElementById('file-info');
+    if (fileInfo) fileInfo.classList.add('hidden');
+    
+    // 3. Clear file input
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) fileInput.value = '';
+    
+    const nameDisplay = document.getElementById('filename-display');
+    if (nameDisplay) nameDisplay.textContent = 'No file selected';
+
+    const countDisplay = document.getElementById('url-count-display');
+    if (countDisplay) countDisplay.textContent = '0 Recipients found';
+    
+    // 4. Update UI counts and progress
+    updateRealTimeStatus({ successCount: 0, remainingCount: 0 });
+    updateProgress(0);
+    
+    // 5. Clear Storage
+    await chrome.storage.local.set({
+        xpider_queue: [],
+        xpider_total: 0,
+        xpider_success: 0
+    });
+    
+    // 6. Log success
+    addLog("Recipient emails list cleared.", "stop");
 }

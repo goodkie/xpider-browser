@@ -124,16 +124,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             span.textContent = "Checking...";
             footer.appendChild(span);
         }
-
-        // [v18.46.0] Audio STT API Key (Wit.ai) 최초 설정 여부 체크
-        chrome.storage.local.get(['xpider_stt_api_key'], (res) => {
-            if (!res.xpider_stt_api_key || res.xpider_stt_api_key.trim() === '') {
-                const setupModal = document.getElementById('stt-setup-modal-overlay');
-                if (setupModal) {
-                    setupModal.classList.remove('hidden');
-                }
-            }
-        });
     } catch (e) {
         console.error("Initialization failed:", e);
     }
@@ -193,6 +183,9 @@ function applyTranslations(lang) {
 }
 
 function updateRealTimeStatus(data) {
+    if (data.totalTargets !== undefined) {
+        totalTargets = data.totalTargets;
+    }
     if (data.successCount !== undefined) {
         successCount = data.successCount;
         const display = document.getElementById('success-count-display');
@@ -299,40 +292,6 @@ function bindEvents() {
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', saveSettings);
 
-    // [v18.46.0] Wit.ai STT Key Setup Modal Save Button
-    const saveSetupSttBtn = document.getElementById('save-setup-stt-btn');
-    if (saveSetupSttBtn) {
-        saveSetupSttBtn.addEventListener('click', async () => {
-            const input = document.getElementById('setup-stt-key-input');
-            const key = input ? input.value.trim() : '';
-            if (key === '') {
-                alert("Please enter a valid Wit.ai Key.");
-                return;
-            }
-            
-            await chrome.storage.local.set({ xpider_stt_api_key: key });
-            const settingsInput = document.getElementById('audio-stt-key');
-            if (settingsInput) settingsInput.value = key;
-            
-            const setupModal = document.getElementById('stt-setup-modal-overlay');
-            if (setupModal) setupModal.classList.add('hidden');
-            
-            const langSelect = document.getElementById('language-select');
-            const lang = langSelect ? langSelect.value : 'en';
-            const dict = i18nData[lang] || i18nData['en'] || {};
-            alert(dict.msg_saved || "Saved!");
-        });
-    }
-
-    // [v5.0.0] Wit.ai setup link fix to open in a new tab
-    const witAiLink = document.getElementById('wit-ai-link');
-    if (witAiLink) {
-        witAiLink.addEventListener('click', (e) => {
-            e.preventDefault();
-            chrome.tabs.create({ url: 'https://wit.ai/apps' });
-        });
-    }
-
     // [v2.4.0] Template Save Buttons - Combined
     ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
         const btn = document.getElementById(id);
@@ -403,6 +362,12 @@ function bindEvents() {
         manualUrlInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') addSingleUrl();
         });
+    }
+
+    // Clear List Button
+    const clearListBtn = document.getElementById('clear-list-btn');
+    if (clearListBtn) {
+        clearListBtn.addEventListener('click', clearCampaignQueue);
     }
 }
 
@@ -1225,4 +1190,46 @@ async function loadSettings() {
     
     // [v1.7.0] Populate template library
     await updateTemplateDropdown();
+}
+
+async function clearCampaignQueue() {
+    // 1. Reset campaign queue and counts
+    campaignQueue = [];
+    totalTargets = 0;
+    successCount = 0;
+    remainingTargets = 0;
+    
+    // 2. Hide file info and preview lists
+    const fileInfo = document.getElementById('file-info');
+    if (fileInfo) fileInfo.classList.add('hidden');
+    
+    const previewList = document.getElementById('file-urls-preview');
+    if (previewList) previewList.classList.add('hidden');
+    
+    const previewContainer = document.getElementById('preview-list');
+    if (previewContainer) previewContainer.innerHTML = '';
+    
+    // 3. Clear file input
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) fileInput.value = '';
+    
+    const nameDisplay = document.getElementById('filename-display');
+    if (nameDisplay) nameDisplay.textContent = 'No file selected';
+
+    const countDisplay = document.getElementById('url-count-display');
+    if (countDisplay) countDisplay.textContent = '0 URLs found';
+    
+    // 4. Update UI counts and progress
+    updateRealTimeStatus({ successCount: 0, remainingCount: 0 });
+    updateProgress(0);
+    
+    // 5. Clear Storage
+    await chrome.storage.local.set({
+        xpider_queue: [],
+        xpider_total: 0,
+        xpider_success: 0
+    });
+    
+    // 6. Log success
+    addLog("Business URLs list cleared.", "stop");
 }
