@@ -1,458 +1,1236 @@
-// popup.js - XPIDER VPN v2.6
-// ES Module import 제거 → inline 방식으로 재작성
-// chrome.runtime.sendMessage 제거 → XPIDER IPC 브릿지(xpider-vpn-*) 사용
+/**
+ * X PIDER Sender Pro - Logic v1.1.0 (Side Panel & Full Settings)
+ */
 
-// ─── WebShare API ────────────────────────────────────────────────────────
-const WEBSHARE_API_KEY = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
-const WEBSHARE_API_URL = 'https://proxy.webshare.io/api/v2/proxy/list/?mode=direct&page=1&page_size=100';
+let currentTpl = {};
+let campaignQueue = [];
+let campaignActive = false;
+let campaignPaused = false;
+let successCount = 0;
+let totalTargets = 0;
+let i18nData = null;
+let lastLogMessage = "Ready..."; // [v2.5.5] For 3-line monitor
+let remainingTargets = 0;          // [v2.5.5] For 3-line monitor
 
-async function getProxyList() {
-  const res = await fetch(WEBSHARE_API_URL, {
-    headers: { Authorization: `Token ${WEBSHARE_API_KEY}` }
-  });
-  if (!res.ok) throw new Error(`WebShare API ${res.status}`);
-  const data = await res.json();
-  return data.results.map(p => ({
-    id:       p.id,
-    name:     `${flag(p.country_code)} ${p.country_code} — ${p.proxy_address}`,
-    host:     p.proxy_address,
-    port:     p.port,
-    username: p.username,
-    password: p.password,
-    country:  p.country_code,
-    city:     p.city_name || '',
-    valid:    p.valid
-  }));
-}
-
-function addLog(type, msg, customTime) {
-  const container = document.getElementById('logs-container');
-  if (!container) return;
-  const time = customTime || new Date().toLocaleTimeString('ko-KR', { hour12: false });
-  const logLine = document.createElement('div');
-  logLine.style.marginBottom = '2px';
-  
-  let color = '#a5f3fc'; 
-  if (type === 'SYSTEM') color = '#38bdf8'; 
-  if (type === 'API') color = '#c084fc'; 
-  if (type === 'TEST-CLEAN') color = '#4ade80'; 
-  if (type === 'TEST-BLOCKED') color = '#f87171'; 
-  if (type === 'WARN') color = '#fbbf24'; 
-  
-  logLine.innerHTML = `<span style="color:#64748b;">[${time}]</span> <span style="color:${color};font-weight:700;">[${type}]</span> <span style="color:#e2e8f0;">${msg}</span>`;
-  container.appendChild(logLine);
-  container.scrollTop = container.scrollHeight;
-}
-
-function flag(cc) {
-  if (!cc) return '🌐';
-  return [...cc.toUpperCase()].map(c => String.fromCodePoint(c.charCodeAt(0) + 127397)).join('');
-}
-
-// ─── i18n ─────────────────────────────────────────────────────────────────
-const translations = {
-  en: { tagline:'Hide Your Online Presence Completely', status_dis:'Disconnected', status_con:'Connected', label_ip:'Proxy IP', label_loc:'Location', hint_idle:'Tap to Connect', hint_con:'Protected', modal_server:'Select Location', modal_set:'Settings', none:'None', loading:'Loading...', connecting:'Connecting...', error:'Connection failed' },
-  ko: { tagline:'온라인 존재를 완벽하게 숨기세요', status_dis:'연결 해제됨', status_con:'연결됨', label_ip:'프록시 IP', label_loc:'위치', hint_idle:'터치하여 연결', hint_con:'보호됨', modal_server:'위치 선택', modal_set:'설정', none:'없음', loading:'로딩 중...', connecting:'연결 중...', error:'연결 실패' },
-  ja: { tagline:'オンラインの存在を完全に隠す', status_dis:'切断済み', status_con:'接続済み', label_ip:'プロキシIP', label_loc:'場所', hint_idle:'タップして接続', hint_con:'保護済み', modal_server:'場所を選択', modal_set:'設定', none:'なし', loading:'読み込み中...', connecting:'接続中...', error:'接続失敗' },
-  zh: { tagline:'完全隐藏您的在线存在', status_dis:'已断开', status_con:'已连接', label_ip:'代理IP', label_loc:'地点', hint_idle:'点击连接', hint_con:'受保护', modal_server:'选择地点', modal_set:'设置', none:'无', loading:'加载中...', connecting:'连接中...', error:'连接失败' },
-  es: { tagline:'Oculte su presencia en línea', status_dis:'Desconectado', status_con:'Conectado', label_ip:'IP de Proxy', label_loc:'Ubicación', hint_idle:'Tocar para conectar', hint_con:'Protegido', modal_server:'Seleccionar ubicación', modal_set:'Ajustes', none:'Ninguno', loading:'Cargando...', connecting:'Conectando...', error:'Error de conexión' },
-  fr: { tagline:'Cachez votre présence en ligne', status_dis:'Déconnecté', status_con:'Connecté', label_ip:'IP Proxy', label_loc:'Emplacement', hint_idle:'Appuyer pour connecter', hint_con:'Protégé', modal_server:'Choisir un lieu', modal_set:'Réglages', none:'Aucun', loading:'Chargement...', connecting:'Connexion...', error:'Échec de connexion' },
-  de: { tagline:'Verbergen Sie Ihre Online-Präsenz', status_dis:'Getrennt', status_con:'Verbunden', label_ip:'Proxy-IP', label_loc:'Standort', hint_idle:'Tippen zum Verbinden', hint_con:'Geschützt', modal_server:'Ort wählen', modal_set:'Einstellungen', none:'Keine', loading:'Laden...', connecting:'Verbinde...', error:'Verbindung fehlgeschlagen' },
-  ru: { tagline:'Скройте свое присутствие в сети', status_dis:'Отключено', status_con:'Подключено', label_ip:'Proxy IP', label_loc:'Местоположение', hint_idle:'Нажмите для входа', hint_con:'Защищено', modal_server:'Выбрать сервер', modal_set:'Настройки', none:'Нет', loading:'Загрузка...', connecting:'Подключение...', error:'Ошибка подключения' },
-  pt: { tagline:'Oculte sua presença online', status_dis:'Desconectado', status_con:'Conectado', label_ip:'IP do Proxy', label_loc:'Localização', hint_idle:'Toque para conectar', hint_con:'Protegido', modal_server:'Selecionar local', modal_set:'Configurações', none:'Nenhum', loading:'Carregando...', connecting:'Conectando...', error:'Falha na conexão' },
-  it: { tagline:'Nascondi la tua presenza online', status_dis:'Disconnesso', status_con:'Connesso', label_ip:'Proxy IP', label_loc:'Posizione', hint_idle:'Tocca per connettere', hint_con:'Protetto', modal_server:'Scegli località', modal_set:'Impostazioni', none:'Nessuna', loading:'Caricamento...', connecting:'Connessione...', error:'Connessione fallita' },
-  vi: { tagline:'Ẩn hoàn toàn sự hiện diện trực tuyến', status_dis:'Đã ngắt kết nối', status_con:'Đã kết nối', label_ip:'Proxy IP', label_loc:'Vị trí', hint_idle:'Chạm để kết nối', hint_con:'Được bảo vệ', modal_server:'Chọn vị trí', modal_set:'Cài đặt', none:'Không có', loading:'Đang tải...', connecting:'Đang kết nối...', error:'Kết nối thất bại' },
-  th: { tagline:'ซ่อนตัวตนออนไลน์ของคุณโดยสมบูรณ์', status_dis:'ตัดการเชื่อมต่อ', status_con:'เชื่อมต่อแล้ว', label_ip:'Proxy IP', label_loc:'ตำแหน่ง', hint_idle:'แตะเพื่อเชื่อมต่อ', hint_con:'ได้รับการคุ้มครอง', modal_server:'เลือกตำแหน่ง', modal_set:'การตั้งค่า', none:'ไม่มี', loading:'กำลังโหลด...', connecting:'กำลังเชื่อมต่อ...', error:'การเชื่อมต่อล้มเหลว' }
+// [v1.1.1] Global error handler for debugging
+window.onerror = function(msg, url, line) {
+    console.error(`[Popup Error] ${msg} at ${url}:${line}`);
+    // Optional: add to log container if it exists
+    const logContainer = document.getElementById('log-container');
+    if (logContainer) {
+        const div = document.createElement('div');
+        div.className = 'log-entry error';
+        div.textContent = `[System Error] ${msg}`;
+        logContainer.appendChild(div);
+    }
+    return false;
 };
-const languages = [
-  { code:'en', name:'English' }, { code:'ko', name:'한국어' }, { code:'ja', name:'日本語' },
-  { code:'zh', name:'中文'    }, { code:'es', name:'Español' }, { code:'fr', name:'Français' },
-  { code:'de', name:'Deutsch' }, { code:'ru', name:'Русский' }, { code:'pt', name:'Português' },
-  { code:'it', name:'Italiano'}, { code:'vi', name:'Tiếng Việt' }, { code:'th', name:'ไทย' }
-];
-function t(key) { return (translations[currentLang] || translations['en'])[key] || key; }
 
-// ─── XPIDER IPC 브릿지 ────────────────────────────────────────────────────
-// ext-preload.js의 XPIDER_INVOKE 채널을 통해 main.js IPC를 직접 호출합니다.
-function xpiderInvoke(channel, args) {
-  return new Promise((resolve) => {
-    const id = `vpn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const handler = (event) => {
-      if (event.data && event.data.type === 'XPIDER_RESPONSE' && event.data.id === id) {
-        window.removeEventListener('message', handler);
-        clearTimeout(timer);
-        resolve(event.data.result || null);
-      }
-    };
-    const timer = setTimeout(() => {
-      window.removeEventListener('message', handler);
-      resolve(null);
-    }, 10000);
-    window.addEventListener('message', handler);
-    window.postMessage({ type: 'XPIDER_INVOKE', channel, args: args || {}, id }, '*');
-  });
-}
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // [v2.2.0] Maintain port to detect closure for Auto-Stop
+        chrome.runtime.connect({ name: 'xpider_popup' });
 
-// ─── DOM refs ────────────────────────────────────────────────────────────
-const $ = (id) => document.getElementById(id);
-const connectBtn      = $('connect-btn');
-const statusBadge     = $('connection-status');
-const ipDisplay       = $('current-ip');
-const locationDisplay = $('current-location');
-const actionHint      = $('action-hint');
-const serverTrigger   = $('server-list-trigger');
-const selectedName    = $('selected-server-name');
-const serverModal     = $('server-modal');
-const closeModal      = $('close-modal');
-const serverListEl    = $('server-list');
-const settingsTrigger = $('settings-trigger');
-const settingsPanel   = $('settings-panel');
-const closeSettings   = $('close-settings');
-const langGrid        = $('lang-grid');
-const flagPlaceholder = document.querySelector('.flag-placeholder');
-const resetTrigger     = $('reset-trigger');
-const refreshServersBtn = $('refresh-servers-btn');
-const autoSelectToggle = $('auto-select-toggle');
-const clearLogsBtn     = $('clear-logs-btn');
-const logsContainer    = $('logs-container');
+        await initLocalizer();
+        bindEvents();
+        await loadSettings();
+        await loadBlackBoxLogs(); // [v18.10.0] Restore persistent logs on reopen
+        
+        // [v18.10.0] Passive Keep-Alive from UI
+        setInterval(() => {
+            chrome.runtime.sendMessage({ action: 'UI_HEARTBEAT' }).catch(() => {});
+        }, 30000);
 
-// ─── State ────────────────────────────────────────────────────────────────
-let servers     = [];
-let selected    = null;
-let connected   = false;
-let currentLang = 'en';
-let _busy       = false;  // 중복 클릭 방지
+        // [v1.3.8] Restore Real-time log listener
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            if (request.action === 'SENDER_LOG') {
+                addLog(request.message, request.logType);
+            } else if (request.action === 'UPDATE_STATS') {
+                updateRealTimeStatus(request.data);
+            }
+        });
 
-// ─── i18n Apply ──────────────────────────────────────────────────────────
-function applyLanguage() {
-  const tagEl = $('tagline');
-  if (tagEl) tagEl.textContent = t('tagline');
-  const ipLbl  = $('label-ip');   if (ipLbl)  ipLbl.textContent  = t('label_ip');
-  const locLbl = $('label-loc');  if (locLbl) locLbl.textContent = t('label_loc');
-  const srvLbl = $('label-server'); if (srvLbl) srvLbl.textContent = t('label-server') || 'Server';
-  const mSrv   = $('modal-title-server'); if (mSrv) mSrv.textContent = t('modal_server');
-  const mSet   = $('modal-title-set');    if (mSet) mSet.textContent = t('modal_set');
-  setUI(connected ? 'connected' : 'disconnected');
-  renderLangGrid();
-  renderServers();
-}
+        // [v1.6.5] Playback Speed Slider Listener
+        const delayInput = document.getElementById('delay-input');
+        if (delayInput) {
+            delayInput.addEventListener('input', updateSpeedLabel);
+        }
 
-function renderLangGrid() {
-  if (!langGrid) return;
-  langGrid.innerHTML = '';
-  languages.forEach(lang => {
-    const el = document.createElement('div');
-    el.className = `lang-opt${currentLang === lang.code ? ' active' : ''}`;
-    el.textContent = lang.name;
-    el.onclick = async () => {
-      currentLang = lang.code;
-      await chrome.storage.local.set({ language: currentLang });
-      applyLanguage();
-    };
-    langGrid.appendChild(el);
-  });
-}
+        console.log("✅ X PIDER Sender Pro initialized.");
 
-// ─── UI 상태 업데이트 ─────────────────────────────────────────────────────
-function setUI(state) {
-  if (state === 'connected') {
-    connectBtn.classList.add('active');
-    statusBadge.textContent  = t('status_con');
-    statusBadge.className    = 'status-badge connected';
-    actionHint.textContent   = t('hint_con');
-    // 연결된 서버 표시
-    if (selected) {
-      ipDisplay.textContent       = selected.host + ':' + selected.port;
-      locationDisplay.textContent = selected.city ? `${selected.country} · ${selected.city}` : selected.country;
+        // [v18.28.0] State Handshake: Restore progress or reset UI on start
+        chrome.runtime.sendMessage({ action: 'GET_STATE' }, (response) => {
+            if (response && response.success) {
+                if (response.isActive) {
+                    campaignActive = true;
+                    totalTargets = response.totalTargets;
+                    successCount = response.successCount;
+                    remainingTargets = response.remainingCount;
+                    campaignPaused = !!response.isPaused; // [v18.7] Sync pause state
+                    
+                    document.getElementById('status-box').classList.remove('hidden');
+                    document.getElementById('multi-actions').classList.remove('hidden');
+                    document.getElementById('start-btn').classList.add('hidden');
+                    
+                    updateRealTimeStatus({
+                        successCount: successCount,
+                        remainingCount: remainingTargets
+                    });
+                    
+                    // [v18.7] Update pause button UI state on restore
+                    const btn = document.getElementById('pause-btn');
+                    const langSelect = document.getElementById('language-select');
+                    const lang = langSelect ? langSelect.value : 'en';
+                    const dict = i18nData[lang] || i18nData['en'] || {};
+                    if (btn) {
+                        if (campaignPaused) {
+                            btn.textContent = dict.btn_resume || "▶️ Resume";
+                            btn.style.backgroundColor = "#22c55e";
+                        } else {
+                            btn.textContent = dict.btn_pause || "⏸️ Pause";
+                            btn.style.backgroundColor = "#f59e0b";
+                        }
+                    }
+                } else {
+                    // Reset to clean start state
+                    campaignActive = false;
+                    document.getElementById('start-btn').classList.remove('hidden');
+                    document.getElementById('multi-actions').classList.add('hidden');
+                }
+            }
+        });
+        
+        // [v18.23.0] Emergency Engine Recovery: Reload extension to wake up frozen worker
+        const hardResetBtn = document.getElementById('hard-reset-engine-btn');
+        if (hardResetBtn) {
+            hardResetBtn.addEventListener('click', () => {
+                if (confirm("Are you sure? This will reload the extension and reset its state.")) {
+                    chrome.runtime.reload();
+                }
+            });
+        }
+
+        // [v18.21.5] Pulse Check: Monitor background engine health in real-time
+        startPulseCheck();
+        
+        // Add status indicator to the footer
+        const footer = document.querySelector('.popup-footer');
+        if (footer && !document.getElementById('engine-status-indicator')) {
+            const span = document.createElement('span');
+            span.id = 'engine-status-indicator';
+            span.style.fontSize = '0.7rem';
+            span.style.marginLeft = 'auto';
+            span.style.opacity = '0.8';
+            span.textContent = "Checking...";
+            footer.appendChild(span);
+        }
+
+        // [v18.46.0] Audio STT API Key (Wit.ai) 최초 설정 여부 체크
+        chrome.storage.local.get(['xpider_stt_api_key'], (res) => {
+            if (!res.xpider_stt_api_key || res.xpider_stt_api_key.trim() === '') {
+                const setupModal = document.getElementById('stt-setup-modal-overlay');
+                if (setupModal) {
+                    setupModal.classList.remove('hidden');
+                }
+            }
+        });
+    } catch (e) {
+        console.error("Initialization failed:", e);
     }
-  } else if (state === 'connecting') {
-    statusBadge.textContent = t('connecting') || '...';
-    actionHint.textContent  = t('connecting') || '...';
-  } else {
-    connectBtn.classList.remove('active');
-    statusBadge.textContent  = t('status_dis');
-    statusBadge.className    = 'status-badge';
-    actionHint.textContent   = t('hint_idle');
-    ipDisplay.textContent    = '— — — —';
-    locationDisplay.textContent = t('none');
-  }
-}
+});
 
-// ─── 서버 목록 렌더링 ─────────────────────────────────────────────────────
-function renderServers() {
-  if (!serverListEl) return;
-  serverListEl.innerHTML = '';
-  if (servers.length === 0) {
-    serverListEl.innerHTML = `<div class="loading">${t('loading')}</div>`;
-    return;
-  }
-  servers.forEach(s => {
-    const el = document.createElement('div');
-    el.className = `server-item${selected?.id === s.id ? ' active' : ''}`;
-    const pingMs = Math.floor(Math.random() * 40 + 12);
-    const validDot = s.valid ? '🟢' : '🔴';
-    el.innerHTML = `
-      <div class="server-name-container">
-        <span style="font-size:1.5rem">${s.name.split('—')[0].trim()}</span>
-        <div class="server-info" style="display:flex;flex-direction:column;margin-left:4px">
-          <span class="server-name">${s.country}${s.city ? ' · ' + s.city : ''}</span>
-          <span style="color:var(--text-muted);font-size:0.65rem">${s.host}:${s.port}</span>
-        </div>
-      </div>
-      <span class="server-ping">${validDot} ⚡ ${pingMs}ms</span>`;
-    el.onclick = () => {
-      selected = s;
-      if (selectedName) selectedName.textContent = s.city ? `${s.country} · ${s.city}` : s.country;
-      if (flagPlaceholder) flagPlaceholder.textContent = s.name.split('—')[0].trim();
-      serverModal.classList.remove('active');
-      renderServers();
-      if (connected) handleConnect(); // 다른 서버로 즉시 전환
-    };
-    serverListEl.appendChild(el);
-  });
-}
-
-// ─── 연결 / 해제 ──────────────────────────────────────────────────────────
-async function handleConnect() {
-  const isAuto = autoSelectToggle ? autoSelectToggle.checked : true;
-  if (!isAuto && !selected) {
-    showError('Select a server first.');
-    return;
-  }
-  if (_busy) return;
-  _busy = true;
-  setUI('connecting');
-
-  try {
-    // main.js IPC → session.setProxy() 직접 호출
-    const res = await xpiderInvoke('xpider-vpn-connect', {
-      host:     selected ? selected.host : '',
-      port:     selected ? selected.port : 0,
-      username: selected ? selected.username : '',
-      password: selected ? selected.password : '',
-      country:  selected ? selected.country : '',
-      city:     selected ? (selected.city || '') : '',
-      autoSelect: isAuto
-    });
-
-    if (res && res.ok) {
-      connected = true;
-      const freshSettings = await chrome.storage.local.get(['connected', 'server']);
-      if (freshSettings.server) {
-        selected = freshSettings.server;
-        if (selectedName) selectedName.textContent = selected.city ? `${selected.country} · ${selected.city}` : selected.country;
-        if (flagPlaceholder) flagPlaceholder.textContent = selected.name ? selected.name.split('—')[0].trim() : '🌐';
-      }
-      setUI('connected');
-    } else {
-      connected = false;
-      setUI('disconnected');
-      showError(res && res.error ? res.error : t('error'));
-    }
-  } catch(e) {
-    connected = false;
-    setUI('disconnected');
-    showError(e.message);
-  } finally {
-    _busy = false;
-  }
-}
-
-async function handleDisconnect() {
-  if (_busy) return;
-  _busy = true;
-  try {
-    await xpiderInvoke('xpider-vpn-disconnect', {});
-    connected = false;
-    await chrome.storage.local.set({ connected: false, server: null });
-    setUI('disconnected');
-  } catch(e) {
-    console.error('[VPN] Disconnect error:', e);
-  } finally {
-    _busy = false;
-  }
-}
-
-function showError(msg) {
-  const hint = $('action-hint');
-  if (!hint) return;
-  const prev = hint.textContent;
-  hint.textContent = '⚠️ ' + (msg || t('error'));
-  hint.style.color = '#ff5555';
-  setTimeout(() => { hint.textContent = prev; hint.style.color = ''; }, 3000);
-}
-
-// ─── VPN 상태 이벤트 수신 (main.js → renderer_ui.js → extensionWebview) ─
-window.addEventListener('message', (evt) => {
-  if (!evt.data) return;
-  if (evt.data.type === 'XPIDER_EVENT' && evt.data.name === 'vpn-state') {
-    const state = evt.data.data;
-    connected = !!(state && state.connected);
-    if (connected && state.server) {
-      selected = state.server;
-    }
-    setUI(connected ? 'connected' : 'disconnected');
-    if (state && state.statusMessage && actionHint) {
-      actionHint.textContent = state.statusMessage;
-      if (!connected) {
-        statusBadge.textContent = state.statusMessage;
-        statusBadge.className = 'status-badge';
-      }
+async function initLocalizer() {
+    // Wait a bit to ensure translations.js is parsed if needed
+    i18nData = window.I18N_DATA;
+    if (!i18nData) {
+        console.warn("I18N_DATA not found, retrying...");
+        await new Promise(r => setTimeout(r, 100));
+        i18nData = window.I18N_DATA;
     }
     
-    // Add real-time log event to console
-    if (state && state.logEvent) {
-      addLog(state.logEvent.type, state.logEvent.message, state.logEvent.time);
-    } else if (state && state.logHistory && logsContainer) {
-      const currentLogCount = logsContainer.querySelectorAll('div').length;
-      if (currentLogCount <= 1) {
-        logsContainer.innerHTML = '';
-        state.logHistory.forEach(h => {
-          addLog(h.type, h.message, h.time);
-        });
-      }
+    if (!i18nData) {
+        console.error("Fatal: I18N_DATA could not be loaded.");
+        return;
     }
-  }
-});
 
-// ─── Init ────────────────────────────────────────────────────────────────
-async function init() {
-  // 1. 저장된 언어/상태 불러오기
-  const settings = await chrome.storage.local.get(['connected', 'server', 'language', 'autoSelect']);
-  currentLang = settings.language || 'en';
+    const storage = await chrome.storage.local.get(['xpider_lang']);
+    const lang = storage.xpider_lang || 'en';
+    applyTranslations(lang);
+}
 
-  const autoSelect = settings.autoSelect !== false;
-  if (autoSelectToggle) {
-    autoSelectToggle.checked = autoSelect;
-  }
+function applyTranslations(lang) {
+    if (!i18nData) return;
+    const dict = i18nData[lang] || i18nData['en'] || {};
 
-  // 2. main.js에서 실제 VPN 상태 확인 (스토리지와 싱크)
-  const vpnState = await xpiderInvoke('xpider-vpn-get-state', {});
-  if (vpnState && vpnState.logHistory && logsContainer) {
-    logsContainer.innerHTML = '';
-    vpnState.logHistory.forEach(h => {
-      addLog(h.type, h.message, h.time);
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        let text = dict[key] || (i18nData['en'] ? i18nData['en'][key] : null) || key;
+        
+        if (key === 'status_finished') {
+            updateRealTimeStatus({ successCount });
+        } else {
+            el.textContent = text;
+        }
     });
-  }
 
-  if (vpnState && vpnState.connected && vpnState.server) {
-    connected = true;
-    selected  = vpnState.server;
-    if (selectedName) selectedName.textContent = selected.city ? `${selected.country} · ${selected.city}` : selected.country;
-    if (flagPlaceholder) flagPlaceholder.textContent = selected.name ? selected.name.split('—')[0].trim() : '🌐';
-  } else if (settings.connected && settings.server) {
-    // fallback: 스토리지 상태 사용
-    connected = true;
-    selected  = settings.server;
-    if (selectedName) selectedName.textContent = selected.city ? `${selected.country} · ${selected.city}` : selected.country;
-    if (flagPlaceholder) flagPlaceholder.textContent = selected.name ? selected.name.split('—')[0].trim() : '🌐';
-  }
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        const val = dict[key] || (i18nData['en'] ? i18nData['en'][key] : null);
+        if (val) el.placeholder = val;
+    });
 
-  applyLanguage();
-  setUI(connected ? 'connected' : 'disconnected');
-
-  // 3. WebShare API에서 프록시 목록 로드
-  try {
-    servers = await getProxyList();
-    // 유효한 서버만 우선 정렬
-    servers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
-
-    if (!selected && servers.length > 0) {
-      selected = servers[0];
-      if (selectedName) selectedName.textContent = selected.city ? `${selected.country} · ${selected.city}` : selected.country;
-      if (flagPlaceholder) flagPlaceholder.textContent = selected.name.split('—')[0].trim();
+    // Update API Link Tip
+    const methodSelect = document.getElementById('captcha-method-select');
+    const apiLinkTip = document.getElementById('api-link-tip');
+    if (apiLinkTip && methodSelect) {
+        const method = methodSelect.value;
+        if (method === 'nopecha') {
+            apiLinkTip.innerHTML = '<a href="https://nopecha.com/" target="_blank">NopeCHA API Key 받기</a>';
+        } else {
+            apiLinkTip.innerHTML = '<a href="https://2captcha.com?from=18329628" target="_blank">2Captcha Key 받기</a>';
+        }
     }
-    renderServers();
-  } catch (err) {
-    console.error('[VPN] Failed to load server list:', err.message);
-    if (serverListEl) serverListEl.innerHTML = `<div class="loading" style="color:#ff5555">⚠️ ${err.message}</div>`;
-  }
 }
 
-// ─── 이벤트 바인딩 ────────────────────────────────────────────────────────
-connectBtn.onclick    = () => connected ? handleDisconnect() : handleConnect();
-serverTrigger.onclick = () => serverModal.classList.add('active');
-closeModal.onclick    = () => serverModal.classList.remove('active');
-settingsTrigger.onclick = () => settingsPanel.classList.add('active');
-closeSettings.onclick   = () => settingsPanel.classList.remove('active');
+function updateRealTimeStatus(data) {
+    if (data.successCount !== undefined) {
+        successCount = data.successCount;
+        const display = document.getElementById('success-count-display');
+        if (display) display.textContent = successCount;
+    }
+    
+    if (data.remainingCount !== undefined) {
+        remainingTargets = data.remainingCount;
+        const processed = totalTargets - remainingTargets;
+        const progress = totalTargets > 0 ? Math.round((processed / totalTargets) * 100) : 0;
+        updateProgress(progress);
+        
+        refreshStatusDetailUI();
 
-if (resetTrigger) {
-  resetTrigger.onclick = async () => {
-    if (_busy) return;
-    _busy = true;
+        const countDisplay = document.getElementById('url-count-display');
+        if (countDisplay) {
+            const lang = document.getElementById('language-select')?.value || 'en';
+            const dict = i18nData[lang] || i18nData['en'] || {};
+            const remainingLabel = dict.remaining_suffix || 'remaining';
+            countDisplay.textContent = `${remainingTargets} (${remainingLabel}) / ${totalTargets} URLs`;
+        }
+    }
+}
+
+/**
+ * [v2.5.5] Unified UI Refresh for 3-line monitor format:
+ * [Last Log Message]: [Remaining Count] remaining.
+ */
+function refreshStatusDetailUI() {
+    const statusDetail = document.getElementById('status-detail');
+    if (!statusDetail) return;
+
+    const lang = document.getElementById('language-select')?.value || 'en';
+    const dict = i18nData[lang] || i18nData['en'] || {};
+    const suffix = dict.remaining_suffix || 'remaining.';
+    
+    // [v2.8.9] Simplified UI: Only show remaining count, remove log noise
+    const statusText = campaignPaused ? `⏸️ PAUSED (${remainingTargets} ${suffix})` : `${remainingTargets} ${suffix}`;
+    statusDetail.textContent = statusText;
+    statusDetail.style.fontWeight = '700';
+    statusDetail.style.fontSize = '0.85rem'; // Smaller font as requested
+    statusDetail.style.color = campaignPaused ? '#ff3366' : '#facc15'; 
+}
+
+function updateSpeedLabel() {
+    const slider = document.getElementById('delay-input');
+    const display = document.getElementById('speed-value-display');
+    const lang = document.getElementById('language-select')?.value || 'en';
+    const dict = i18nData[lang] || i18nData['en'] || {};
+    
+    if (!slider || !display) return;
+    
+    const level = slider.value;
+    let label = `${dict.speed_level || 'Level'} ${level}`;
+    if (level === '6') label += ` <small>${dict.speed_normal || '(Normal)'}</small>`;
+    
+    display.innerHTML = label;
+}
+
+function bindEvents() {
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            const target = document.getElementById(`${btn.dataset.tab}-tab`);
+            if (target) target.classList.add('active');
+            
+            // [v2.3.0] Hide status/log areas when in Template Tab
+            if (btn.dataset.tab === 'template') {
+                document.body.classList.add('template-active');
+            } else {
+                document.body.classList.remove('template-active');
+            }
+        });
+    });
+
+    // File Upload
+    const fileInput = document.getElementById('file-input');
+    if (fileInput) fileInput.addEventListener('change', handleFileUpload);
+
+    // Campaign Buttons
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) startBtn.addEventListener('click', startCampaign);
+    
+    const pauseBtn = document.getElementById('pause-btn');
+    if (pauseBtn) pauseBtn.addEventListener('click', togglePause);
+    
+    const stopBtn = document.getElementById('stop-btn');
+    if (stopBtn) stopBtn.addEventListener('click', stopCampaign);
+
+    // Settings
+    const settingsToggle = document.getElementById('settings-toggle');
+    if (settingsToggle) settingsToggle.addEventListener('click', () => {
+        document.getElementById('settings-overlay').classList.remove('hidden');
+    });
+    
+    const settingsClose = document.getElementById('settings-close');
+    if (settingsClose) settingsClose.addEventListener('click', () => {
+        document.getElementById('settings-overlay').classList.add('hidden');
+    });
+    
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
+    if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', saveSettings);
+
+    // [v18.46.0] Wit.ai STT Key Setup Modal Save Button
+    const saveSetupSttBtn = document.getElementById('save-setup-stt-btn');
+    if (saveSetupSttBtn) {
+        saveSetupSttBtn.addEventListener('click', async () => {
+            const input = document.getElementById('setup-stt-key-input');
+            const key = input ? input.value.trim() : '';
+            if (key === '') {
+                alert("Please enter a valid Wit.ai Key.");
+                return;
+            }
+            
+            await chrome.storage.local.set({ xpider_stt_api_key: key });
+            const settingsInput = document.getElementById('audio-stt-key');
+            if (settingsInput) settingsInput.value = key;
+            
+            const setupModal = document.getElementById('stt-setup-modal-overlay');
+            if (setupModal) setupModal.classList.add('hidden');
+            
+            const langSelect = document.getElementById('language-select');
+            const lang = langSelect ? langSelect.value : 'en';
+            const dict = i18nData[lang] || i18nData['en'] || {};
+            alert(dict.msg_saved || "Saved!");
+        });
+    }
+
+    // [v6.0.0] Wit.ai setup link fix to open in a new tab with fallback
+    const witAiLink = document.getElementById('wit-ai-link');
+    if (witAiLink) {
+        witAiLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            try {
+                if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+                    chrome.tabs.create({ url: 'https://wit.ai/apps' });
+                } else {
+                    window.open('https://wit.ai/apps', '_blank');
+                }
+            } catch (err) {
+                window.open('https://wit.ai/apps', '_blank');
+            }
+        });
+    }
+
+    // [v2.4.0] Template Save Buttons - Combined
+    ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.addEventListener('click', saveTemplateChanges);
+    });
+    
+    // [v2.2.0] Drop area styled as button label
+    const dropArea = document.getElementById('drop-area');
+    if (dropArea) {
+        dropArea.addEventListener('dragover', (e) => { e.preventDefault(); dropArea.classList.add('drag-active'); });
+        dropArea.addEventListener('dragleave', () => { dropArea.classList.remove('drag-active'); });
+        dropArea.addEventListener('drop', handleFileUpload);
+    }
+    
+    const loadFileBtn = document.getElementById('load-tpl-file-btn');
+    const tplFileInput = document.getElementById('tpl-file-input');
+    if (loadFileBtn && tplFileInput) {
+        loadFileBtn.addEventListener('click', () => tplFileInput.click());
+        tplFileInput.addEventListener('change', importMessageFromFile);
+    }
+    
+    const closeAppBtn = document.getElementById('close-app-btn');
+    if (closeAppBtn) closeAppBtn.addEventListener('click', () => window.close());
+
+    // Captcha Logic Toggles
+    const captchaToggle = document.getElementById('captcha-solve-toggle');
+    if (captchaToggle) {
+        captchaToggle.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            const methodGroup = document.getElementById('captcha-method-group');
+            if (methodGroup) methodGroup.style.display = enabled ? 'block' : 'none';
+            toggleCaptchaApiVisibility();
+        });
+    }
+
+    const methodSelect = document.getElementById('captcha-method-select');
+    if (methodSelect) {
+        methodSelect.addEventListener('change', () => {
+            toggleCaptchaApiVisibility();
+            const langSelect = document.getElementById('language-select');
+            if (langSelect) applyTranslations(langSelect.value);
+        });
+    }
+
+    const langSelect = document.getElementById('language-select');
+    if (langSelect) {
+        langSelect.addEventListener('change', (e) => {
+            applyTranslations(e.target.value);
+        });
+    }
+
+    // Persistence for Template
+    ['tpl-name', 'tpl-email', 'tpl-subject', 'tpl-message'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('input', saveTemplate);
+    });
+
+    // Single URL & List Management
+    // Single URL & List Management
+    const addUrlBtn = document.getElementById('add-url-btn');
+    if (addUrlBtn) {
+        addUrlBtn.classList.add('plus-btn-circle');
+        addUrlBtn.addEventListener('click', addSingleUrl);
+    }
+    
+    const manualUrlInput = document.getElementById('manual-url-input');
+    if (manualUrlInput) {
+        manualUrlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addSingleUrl();
+        });
+    }
+}
+
+function toggleCaptchaApiVisibility() {
+    const captchaToggle = document.getElementById('captcha-solve-toggle');
+    const methodSelect = document.getElementById('captcha-method-select');
+    if (!captchaToggle || !methodSelect) return;
+
+    const enabled = captchaToggle.checked;
+    const method = methodSelect.value;
+    
+    const isApi = (method === 'api' || method === 'nopecha');
+    const isAudio = (method === 'audio');
+    
+    const apiGroup = document.getElementById('captcha-api-group');
+    if (apiGroup) apiGroup.style.display = (enabled && isApi) ? 'block' : 'none';
+    
+    const sttGroup = document.getElementById('audio-stt-group');
+    if (sttGroup) sttGroup.style.display = (enabled && isAudio) ? 'block' : 'none';
+}
+
+async function handleFileUpload(e) {
+    e.preventDefault();
+    const file = e.target.files ? e.target.files[0] : e.dataTransfer.files[0];
+    if (!file) return;
+
+    const nameDisplay = document.getElementById('filename-display');
+    if (nameDisplay) nameDisplay.textContent = file.name;
+    
+    const text = await file.text();
+    const urlRegex = /(https?:\/\/[^\s,]+)/g;
+    const matches = text.match(urlRegex) || [];
+    
+    // [v1.3.1] Extended Global Blacklist
+    const blacklist = [
+        // Social Media & Messaging
+        'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'linkedin.com', 'youtube.com', 
+        'tiktok.com', 'pinterest.com', 'snapchat.com', 'whatsapp.com', 't.me', 'wa.me', 'discord.gg',
+        
+        // Portals & Search Engines
+        'google.com', 'naver.com', 'daum.net', 'yahoo.com', 'bing.com', 'baidu.com', 'duckduckgo.com',
+        
+        // Government & Public institutions
+        '.gov', '.go.kr', '.mil', '.edu', '.ac.kr',
+        
+        // Hosting & Website Builders (Generic)
+        'godaddy.com', 'wix.com', 'shopify.com', 'squarespace.com', 'wordpress.com', 'bluehost.com', 'namecheap.com',
+        
+        // Misc / Non-business
+        'wikipedia.org', 'archive.org', 'mapquest.com', 'yelp.com', 'tripadvisor.com'
+    ];
+    
+    campaignQueue = [...new Set(matches)].filter(url => {
+        const lowerUrl = url.toLowerCase();
+        return !blacklist.some(domain => lowerUrl.includes(domain));
+    });
+
+    totalTargets = campaignQueue.length;
+    const countDisplay = document.getElementById('url-count-display');
+    if (countDisplay) countDisplay.textContent = `${totalTargets} URLs found`;
+    
+    const fileInfo = document.getElementById('file-info');
+    if (fileInfo) fileInfo.classList.remove('hidden');
+    
+    // [v1.2.0] Save to Permanent Lists
+    await saveListToStorage(file.name, campaignQueue);
+
+    chrome.storage.local.set({ 
+        xpider_queue: campaignQueue,
+        xpider_total: totalTargets,
+        xpider_success: 0
+    });
+    addLog(`Loaded ${totalTargets} business URLs.`, 'info');
+}
+
+async function saveListToStorage(name, urls) {
+    const data = await chrome.storage.local.get(['xpider_saved_lists']);
+    let lists = data.xpider_saved_lists || [];
+    
+    // Check for duplicates and update or append
+    const existingIdx = lists.findIndex(l => l.name === name);
+    if (existingIdx > -1) {
+        lists[existingIdx] = { name, urls, date: new Date().toISOString() };
+    } else {
+        lists.push({ name, urls, date: new Date().toISOString() });
+    }
+    
+    await chrome.storage.local.set({ xpider_saved_lists: lists });
+    await updateSavedListsUI();
+}
+
+async function updateSavedListsUI() {
+    const listContainer = document.getElementById('saved-lists-container');
+    if (!listContainer) return;
+
+    const data = await chrome.storage.local.get(['xpider_saved_lists']);
+    const savedLists = data.xpider_saved_lists || [];
+
+    listContainer.innerHTML = '';
+    
+    if (savedLists.length === 0) {
+        listContainer.innerHTML = '<div class="empty-list-note">No lists saved.</div>';
+        return;
+    }
+
+    savedLists.forEach((list, index) => {
+        const div = document.createElement('div');
+        div.className = 'list-item-unified';
+        div.innerHTML = `
+            <span class="list-item-name">${list.name} (${list.urls.length})</span>
+            <button class="list-item-delete" title="Delete">&times;</button>
+        `;
+
+        div.onclick = async () => {
+            // Select this list
+            campaignQueue = [...list.urls];
+            totalTargets = campaignQueue.length;
+            successCount = 0;
+            
+            document.querySelectorAll('.list-item-unified').forEach(el => el.classList.remove('selected'));
+            div.classList.add('selected');
+            
+            const countDisplay = document.getElementById('url-count-display');
+            if (countDisplay) countDisplay.textContent = `${campaignQueue.length} URLs found`;
+            document.getElementById('file-info').classList.remove('hidden');
+            document.getElementById('status-box').classList.remove('hidden');
+            
+            addLog(`Loaded saved list: ${list.name} (${list.urls.length} URLs)`, 'info');
+            await chrome.storage.local.set({ xpider_queue: campaignQueue, xpider_success: 0, xpider_total: totalTargets });
+        };
+
+        const delBtn = div.querySelector('.list-item-delete');
+        delBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if (confirm(`Delete list "${list.name}"?`)) {
+                savedLists.splice(index, 1);
+                await chrome.storage.local.set({ xpider_saved_lists: savedLists });
+                updateSavedListsUI();
+                addLog(`Deleted list: ${list.name}`, 'warning');
+            }
+        };
+
+        listContainer.appendChild(div);
+    });
+}
+
+/**
+ * [v2.2.0] Save current message setup as a template
+ */
+async function saveTemplateChanges() {
+    const now = new Date();
+    const versionStr = `[v${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}]`;
+    
+    const messageEl = document.getElementById('tpl-message');
+    let message = messageEl.value;
+    
+    // [v2.4.0] Update version in body if requested
+    const versionPattern = /\[v\d{4}\.\d{2}\.\d{2}\]/;
+    if (versionPattern.test(message)) {
+        message = message.replace(versionPattern, versionStr);
+    } else {
+        message += `\n\n${versionStr}`;
+    }
+    messageEl.value = message;
+
+    const tpl = {
+        firstName: document.getElementById('tpl-first-name').value,
+        lastName: document.getElementById('tpl-last-name').value,
+        name: document.getElementById('tpl-name').value,
+        email: document.getElementById('tpl-email').value,
+        phone: document.getElementById('tpl-phone').value,
+        subject: document.getElementById('tpl-subject').value,
+        message: message
+    };
+
+    const data = await chrome.storage.local.get(['xpider_tpl_lib']);
+    const lib = data.xpider_tpl_lib || [];
+    
+    // Check if current name exists to overwrite or create new
+    const existingIndex = lib.findIndex(t => t.templateName === (tpl.name || 'My Template'));
+    
+    if (existingIndex > -1) {
+        lib[existingIndex] = { ...tpl, templateName: tpl.name || 'My Template' };
+    } else {
+        lib.push({ ...tpl, templateName: tpl.name || 'My Template' });
+    }
+
+    // [v18.45.0] Export to local file with 'Save As' dialog as requested
+    downloadTemplateFile(tpl);
+    
+    // Provide feedback
+    ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            const originalText = btn.textContent;
+            btn.textContent = "Saved!";
+            setTimeout(() => btn.textContent = originalText, 1500);
+        }
+    });
+
+    addLog(`Export initiated: ${tpl.name || 'Template'}`, 'info');
+}
+
+/**
+ * [v18.45.0] Upgraded to use chrome.downloads for 'Save As' dialog and history tracking
+ */
+function downloadTemplateFile(tpl) {
+    const safeName = (tpl.name || 'XPIDER_Template').replace(/[<>:"/\\|?*]/g, '_');
+    const filename = `${safeName}_template.txt`;
+    
+    const content = `[XPIDER MESSAGE TEMPLATE]
+-----------------------------------------
+Target Full Name: ${tpl.name || 'N/A'}
+First Name:       ${tpl.firstName || 'N/A'}
+Last Name:        ${tpl.lastName || 'N/A'}
+Email:            ${tpl.email || 'N/A'}
+Phone:            ${tpl.phone || 'N/A'}
+Subject:          ${tpl.subject || 'N/A'}
+
+[MESSAGE BODY]
+-----------------------------------------
+${tpl.message || ''}
+-----------------------------------------
+Generated by XPIDER AutoForm Sender Pro
+`;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const reader = new FileReader();
+    
+    reader.onloadend = function() {
+        const dataUrl = reader.result;
+        
+        // Use Chrome Downloads API to show 'Save As' dialog
+        chrome.downloads.download({
+            url: dataUrl,
+            filename: filename,
+            saveAs: true
+        }, async (downloadId) => {
+            if (downloadId) {
+                // Track this export in our custom history
+                const data = await chrome.storage.local.get(['xpider_export_history']);
+                const history = data.xpider_export_history || [];
+                
+                const historyItem = {
+                    ...tpl,
+                    filename: filename,
+                    timestamp: new Date().toISOString()
+                };
+                
+                // Keep unique by suggested filename, most recent first
+                const existingIdx = history.findIndex(h => h.filename === filename);
+                if (existingIdx > -1) history.splice(existingIdx, 1);
+                history.unshift(historyItem);
+                
+                // Limit history to last 50 items
+                if (history.length > 50) history.pop();
+                
+                await chrome.storage.local.set({ xpider_export_history: history });
+                await updateTemplateDropdown();
+                addLog(`File saved and tracked in history: ${filename}`, 'success');
+            }
+        });
+    };
+    
+    reader.readAsDataURL(blob);
+}
+
+async function addSingleUrl() {
+    const input = document.getElementById('manual-url-input');
+    if (!input || !input.value.trim()) return;
+    
+    let url = input.value.trim();
+    if (!url.startsWith('http')) url = 'https://' + url;
+    
     try {
-      addLog('SYSTEM', 'Hard reset initiated. Terminating all active proxy tunnels and resetting settings...');
-      await xpiderInvoke('xpider-vpn-hard-reset', {});
-      await chrome.storage.local.remove(['connected', 'server', 'webshareApiKey']);
-      await chrome.storage.local.set({ autoSelect: true });
-      if (autoSelectToggle) autoSelectToggle.checked = true;
-      addLog('SYSTEM', 'Hard reset completed. Reloading extension settings...');
-      
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-    } catch(e) {
-      addLog('WARN', 'Reset failed: ' + e.message);
-      console.error('Reset error:', e);
-      _busy = false;
+        new URL(url); // Validation
+        
+        // [v1.2.1] NEW: Save to Permanent "Manual Entries" List
+        const lang = document.getElementById('language-select')?.value || 'en';
+        const dict = i18nData[lang] || i18nData['en'] || {};
+        const manualListName = dict.list_manual_entries || 'Manual Entries';
+        
+        const data = await chrome.storage.local.get(['xpider_saved_lists']);
+        let lists = data.xpider_saved_lists || [];
+        
+        let manualList = lists.find(l => l.name === manualListName);
+        if (!manualList) {
+            manualList = { name: manualListName, urls: [], date: new Date().toISOString() };
+            lists.unshift(manualList); // Put at top
+        }
+        
+        // Avoid duplicate in the manual list
+        if (!manualList.urls.includes(url)) {
+            manualList.urls.push(url);
+            manualList.date = new Date().toISOString();
+        }
+        
+        await chrome.storage.local.set({ xpider_saved_lists: lists });
+        await updateSavedListsUI();
+        
+        addLog(`Manual URL saved: ${url}`, 'info');
+        input.value = '';
+    } catch (e) {
+        addLog(`Invalid URL format: ${url}`, 'error');
     }
-  };
 }
 
-if (clearLogsBtn) {
-  clearLogsBtn.onclick = () => {
-    if (logsContainer) {
-      logsContainer.innerHTML = `<div style="color: #64748b;">[SYSTEM] Console logs cleared.</div>`;
+function startCampaign() {
+    // If input has value, add it before starting if empty queue
+    const manualInput = document.getElementById('manual-url-input');
+    if (manualInput && manualInput.value.trim() && campaignQueue.length === 0) {
+        addSingleUrl();
     }
-  };
-}
 
-if (refreshServersBtn) {
-  refreshServersBtn.onclick = async () => {
-    if (serverListEl) {
-      serverListEl.innerHTML = `<div class="loading">Loading...</div>`;
+    if (campaignQueue.length === 0) return alert("Please upload a file or enter a URL first.");
+
+    currentTpl = {
+        firstName: document.getElementById('tpl-first-name').value,
+        lastName: document.getElementById('tpl-last-name').value,
+        name: document.getElementById('tpl-name').value,
+        email: document.getElementById('tpl-email').value,
+        phone: document.getElementById('tpl-phone').value,
+        subject: document.getElementById('tpl-subject').value,
+        message: document.getElementById('tpl-message').value
+    };
+
+    if (!currentTpl.message) return alert("Please enter a message body.");
+
+    campaignActive = true;
+    campaignPaused = false;
+    successCount = 0;
+    // Reset Stats for fresh start
+    successCount = 0;
+    updateRealTimeStatus({ successCount: 0, remainingCount: campaignQueue.length });
+    updateProgress(0);
+    
+    setTimeout(() => {
+        document.getElementById('status-box').classList.remove('hidden');
+        document.getElementById('multi-actions').classList.remove('hidden');
+        document.getElementById('start-btn').classList.add('hidden');
+    }, 100);
+
+    // [v2.5.0] Auto-scroll to status board
+    const statusBox = document.getElementById('status-box');
+    if (statusBox) {
+        statusBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-    addLog('API', 'Refreshing proxy server list from WebShare...');
+
+    const delayInput = document.getElementById('delay-input');
+    const level = parseInt(delayInput ? delayInput.value : 6);
+    // [v18.7.0] Slower Tempo Range: 0 (60s) to 9 (3s). Normal (6) is 10s.
+    const levelToMs = [60000, 45000, 30000, 25000, 20000, 15000, 10000, 7000, 5000, 3000];
+    const delayMs = levelToMs[level] || 10000;
+
+    // Delegate to background
+    const messagePayload = {
+        action: 'START_CAMPAIGN',
+        queue: campaignQueue,
+        template: saveTemplate(), // [v18.20.0] Ensure latest UI data is sent
+        delayMs: delayMs
+    };
+
+    // [v18.25.0] Deep Diagnostic Timeout: Read engine blackbox on stall
+    const bootTimeout = setTimeout(() => {
+        chrome.storage.local.get(['xpider_boot_step', 'xpider_boot_ts', 'xpider_boot_error'], (data) => {
+            const step = data.xpider_boot_step || 'unknown';
+            const error = data.xpider_boot_error;
+            const timeAgo = data.xpider_boot_ts ? Math.round((Date.now() - data.xpider_boot_ts) / 1000) : '?';
+            
+            addLog(`⚠️ [System] Connection stall detected (6s). Engine is non-responsive.`, "error");
+            addLog(`📝 Internal State: [${step}] (last activity: ${timeAgo}s ago)`, "debug");
+            if (error) addLog(`❌ Boot Error: ${error}`, "error");
+            addLog(`💡 Suggestion: Click '⚙️ Settings' -> 'Emergency Recovery' to force restart the engine.`, "info");
+        });
+    }, 6000);
+
     try {
-      servers = await getProxyList();
-      servers.sort((a, b) => (b.valid ? 1 : 0) - (a.valid ? 1 : 0));
-      addLog('API', `Loaded ${servers.length} proxies.`);
-      renderServers();
-    } catch (err) {
-      addLog('WARN', 'Failed to refresh server list: ' + err.message);
-      console.error('[VPN] Refresh failed:', err.message);
-      if (serverListEl) serverListEl.innerHTML = `<div class="loading" style="color:#ff5555">⚠️ ${err.message}</div>`;
+        chrome.runtime.sendMessage(messagePayload, (response) => {
+            clearTimeout(bootTimeout);
+            
+            if (chrome.runtime.lastError) {
+                console.error("[Handshake Error]", chrome.runtime.lastError.message);
+                addLog(`❌ [System] Connection failed: ${chrome.runtime.lastError.message}`, "error");
+                return;
+            }
+
+            if (response && response.success) {
+                console.log("Campaign orchestrated by background.");
+                addLog("[System] Engine responded. Starting sending loop...", "debug");
+            } else {
+                const err = (response && response.error) ? response.error : "Unknown background error";
+                addLog(`❌ [Engine Error] ${err}`, "error");
+            }
+        });
+    } catch (e) {
+        clearTimeout(bootTimeout);
+        addLog(`❌ [Fatal Error] ${e.message}`, "error");
     }
-  };
 }
 
-if (autoSelectToggle) {
-  autoSelectToggle.onchange = async () => {
-    const isAuto = autoSelectToggle.checked;
-    await chrome.storage.local.set({ autoSelect: isAuto });
-    addLog('SYSTEM', `Proxy Auto-Select mode toggled: ${isAuto ? 'ON' : 'OFF'}`);
-    if (connected) {
-      handleConnect();
+function togglePause() {
+    campaignPaused = !campaignPaused;
+    const btn = document.getElementById('pause-btn');
+    const langSelect = document.getElementById('language-select');
+    const lang = langSelect ? langSelect.value : 'en';
+    const dict = i18nData[lang] || i18nData['en'] || {};
+    
+    // [v18.7] Send command to background engine
+    const action = campaignPaused ? 'PAUSE_CAMPAIGN' : 'RESUME_CAMPAIGN';
+    chrome.runtime.sendMessage({ action: action }, (response) => {
+        if (chrome.runtime.lastError) {
+             console.error("[Pause Error]", chrome.runtime.lastError);
+             return;
+        }
+        console.log(`Campaign ${campaignPaused ? 'Paused' : 'Resumed'}`);
+    });
+
+    if (btn) {
+        btn.textContent = campaignPaused ? (dict.btn_resume || "▶️ Resume") : (dict.btn_pause || "⏸️ Pause");
+        btn.style.backgroundColor = campaignPaused ? "#22c55e" : "#f59e0b"; // Visual cue
     }
-  };
+    
+    refreshStatusDetailUI();
 }
 
-[serverModal, settingsPanel].forEach(m => {
-  m.onclick = (e) => { if (e.target === m) m.classList.remove('active'); };
-});
+function stopCampaign() {
+    campaignActive = false;
+    document.getElementById('start-btn').classList.remove('hidden');
+    document.getElementById('multi-actions').classList.add('hidden');
+    
+    chrome.runtime.sendMessage({ action: 'STOP_CAMPAIGN' });
+    addLog("Campaign stopped by user.", "stop");
+}
 
-// ─── [XPIDER] Browser Language-Change Broadcast Listener ──────────────
-window.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'language-change') {
-    const lang = event.data.data && event.data.data.lang;
-    if (lang && translations[lang]) {
-      currentLang = lang;
-      applyLanguage();
-      chrome.storage.local.set({ language: lang });
+// processNext in popup is now obsolete as background handles routing
+// But we keep it as a fallback or for UI-only updates if needed
+async function processNext() {
+    console.log("processNext called in popup (Ignored - background handling it)");
+}
+
+// [v18.21.5] Pulse Check: Monitor background engine health in real-time
+function startPulseCheck() {
+    setInterval(() => {
+        chrome.runtime.sendMessage({ action: 'PING' }, (response) => {
+            const indicator = document.getElementById('engine-status-indicator');
+            if (!indicator) return;
+
+            if (chrome.runtime.lastError || !response || !response.success) {
+                indicator.textContent = "⚠️ Engine Disconnected";
+                indicator.style.color = "#ef4444";
+            } else {
+                indicator.textContent = "✅ Engine Alive";
+                indicator.style.color = "#22c55e";
+            }
+        });
+    }, 2000);
+}
+
+function finishCampaign() {
+    campaignActive = false;
+    addLog("Campaign finished!", "complete");
+    const startBtn = document.getElementById('start-btn');
+    if (startBtn) startBtn.classList.remove('hidden');
+    
+    const multiActions = document.getElementById('multi-actions');
+    if (multiActions) multiActions.classList.add('hidden');
+    
+    chrome.storage.local.remove(['xpider_queue', 'xpider_success', 'xpider_total']);
+}
+
+function updateProgress(percent) {
+    const bar = document.getElementById('progress-bar');
+    if (bar) bar.style.width = `${percent}%`;
+    
+    const text = document.getElementById('progress-text');
+    if (text) {
+        text.textContent = `${percent}%`;
+        text.style.fontSize = '0.9rem'; // Smaller font as requested
     }
-  }
-});
+}
 
-// ─── 실행 ────────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', init);
-if (document.readyState !== 'loading') init();
+function addLog(msg, type = 'info', forcedTime = null) {
+    const container = document.getElementById('log-container');
+    if (!container) return;
+
+    // [v2.5.5] Update real-time status summary
+    const techKeywords = ['Precision targeting', 'Pre-scan', 'Sniper Mode', 'Target lost', 'Processing:', 'Opening target'];
+    const isTechLog = techKeywords.some(k => msg.includes(k)) && !msg.includes('Skipping') && !msg.includes('error');
+    
+    if (!isTechLog) {
+        lastLogMessage = msg.replace(/[\u{1F300}-\u{1F9FF}]/gu, '').trim();
+        refreshStatusDetailUI();
+    }
+
+    const logEntry = document.createElement('div');
+    logEntry.className = `log-entry ${type}`;
+    
+    const time = forcedTime || new Date().toLocaleTimeString('ko-KR', { hour12: false });
+    
+    // [v1.3.8] Premium Color Set for High Visibility
+    let color = '#ccc';
+    if (type === 'success') color = '#22c55e'; // Bright Green
+    if (type === 'error') color = '#ef4444';   // Bright Red
+    if (type === 'start') color = '#facc15';   // XSpider Yellow
+    if (type === 'visit') color = '#ffffff';   // Pure White for "Processing:"
+    if (type === 'info') color = '#60a5fa';    // Soft Blue
+    if (type === 'mapping') color = '#a855f7'; // Purple for mapping steps
+    if (type === 'debug') color = '#52525b';   // Darker gray for debug/tech logs
+
+    logEntry.style.color = color;
+    logEntry.style.fontWeight = (type === 'visit' || type === 'success') ? 'bold' : 'normal';
+    logEntry.style.marginBottom = '2px';
+    logEntry.style.fontSize = type === 'debug' ? '0.75rem' : '0.85rem';
+    logEntry.innerHTML = `<span class="log-time" style="color: #666; font-size: 0.7rem;">[${time}]</span> ${msg}`;
+    
+    container.appendChild(logEntry);
+    container.scrollTop = container.scrollHeight;
+}
+
+function saveTemplate() {
+    const tpl = {
+        firstName: document.getElementById('tpl-first-name').value,
+        lastName: document.getElementById('tpl-last-name').value,
+        name: document.getElementById('tpl-name').value,
+        email: document.getElementById('tpl-email').value,
+        phone: document.getElementById('tpl-phone').value,
+        subject: document.getElementById('tpl-subject').value,
+        message: document.getElementById('tpl-message').value
+    };
+    chrome.storage.local.set({ xpider_tpl: tpl });
+    return tpl;
+}
+
+// [v18.10.0] Diagnostic Recovery: Load persistent logs from storage
+async function loadBlackBoxLogs() {
+    const data = await chrome.storage.local.get(['xpider_blackbox_logs']);
+    const logs = data.xpider_blackbox_logs || [];
+    
+    const container = document.getElementById('log-container');
+    if (!container || logs.length === 0) return;
+
+    // Clear and re-populate to avoid duplicate confusion on refresh
+    container.innerHTML = '';
+    
+    logs.forEach(log => {
+        addLog(log.message, log.type, log.timestamp || "Past");
+    });
+    
+    addLog("--- Persistent Session Restored ---", "info");
+}
+
+// [v1.7.0] Advanced Template Library Logic
+async function saveTemplateToLibrary() {
+    const tpl = saveTemplate();
+    if (!tpl.subject && !tpl.message) return alert("Please enter at least a subject or message.");
+    
+    const name = tpl.subject || `Template_${new Date().toLocaleTimeString()}`;
+    const data = await chrome.storage.local.get(['xpider_tpl_library']);
+    let library = data.xpider_tpl_library || [];
+    
+    // Replace if exists with same name, or add new
+    const idx = library.findIndex(t => t.subject === tpl.subject && tpl.subject !== '');
+    if (idx > -1) {
+        library[idx] = tpl;
+    } else {
+        library.push(tpl);
+    }
+    
+    await chrome.storage.local.set({ xpider_tpl_library: library });
+    await updateTemplateDropdown();
+    
+    const lang = document.getElementById('language-select')?.value || 'en';
+    const dict = i18nData[lang] || i18nData['en'] || {};
+    alert(dict.msg_tpl_saved || "Template saved!");
+}
+
+async function updateTemplateDropdown() {
+    const select = document.getElementById('tpl-library-select');
+    if (!select) return;
+    
+    // [v18.45.0] Shift from internal library to Export History
+    const data = await chrome.storage.local.get(['xpider_export_history']);
+    const history = data.xpider_export_history || [];
+    
+    const lang = document.getElementById('language-select')?.value || 'en';
+    const dict = i18nData[lang] || i18nData['en'] || {};
+    
+    // Clear and add "Select Template" option (Empty by default as requested)
+    select.innerHTML = `<option value="" disabled selected>${dict.label_select_template || 'Select Template'}</option>`;
+    
+    if (history.length === 0) return;
+    
+    history.forEach((tpl, idx) => {
+        const option = document.createElement('option');
+        option.value = idx;
+        // Show filename as the history item label
+        option.textContent = tpl.filename || tpl.subject || `Template ${idx + 1}`;
+        select.appendChild(option);
+    });
+}
+
+function loadTemplateFromLibrary() {
+    const select = document.getElementById('tpl-library-select');
+    const idx = select.value;
+    if (idx === "") return;
+    
+    // [v18.45.0] Load from Export History
+    chrome.storage.local.get(['xpider_export_history'], (data) => {
+        const history = data.xpider_export_history || [];
+        const tpl = history[idx];
+        if (tpl) {
+            document.getElementById('tpl-first-name').value = tpl.firstName || '';
+            document.getElementById('tpl-last-name').value = tpl.lastName || '';
+            document.getElementById('tpl-name').value = tpl.name || '';
+            document.getElementById('tpl-email').value = tpl.email || '';
+            document.getElementById('tpl-phone').value = tpl.phone || '';
+            document.getElementById('tpl-subject').value = tpl.subject || '';
+            document.getElementById('tpl-message').value = tpl.message || '';
+            
+            // Sync as active tpl for campaign
+            chrome.storage.local.set({ xpider_tpl: tpl });
+            addLog(`Restored from history: ${tpl.filename}`, 'info');
+        }
+    });
+}
+
+function importMessageFromFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const content = e.target.result;
+        
+        // Intelligent Parsing Logic [v18.40.0]
+        const isStructured = content.includes('[XPIDER MESSAGE TEMPLATE]');
+        
+        if (isStructured) {
+            const lines = content.split('\n');
+            let bodyStarted = false;
+            let bodyLines = [];
+            
+            lines.forEach(line => {
+                const trimmedLine = line.trim();
+                
+                if (trimmedLine.includes('[MESSAGE BODY]')) {
+                    bodyStarted = true;
+                    return;
+                }
+                
+                if (bodyStarted) {
+                    // Skip separators at the very start of body
+                    if (trimmedLine.startsWith('---') && bodyLines.length === 0) return;
+                    bodyLines.push(line); // Keep original indent in message
+                    return;
+                }
+
+                // Precise Field extraction using Regex
+                const matchName = line.match(/Target Full Name:\s*(.*)/i);
+                const matchFirst = line.match(/First Name:\s*(.*)/i);
+                const matchLast = line.match(/Last Name:\s*(.*)/i);
+                const matchEmail = line.match(/Email:\s*(.*)/i);
+                const matchPhone = line.match(/Phone:\s*(.*)/i);
+                const matchSubject = line.match(/Subject:\s*(.*)/i);
+
+                if (matchName) document.getElementById('tpl-name').value = matchName[1].trim();
+                if (matchFirst) document.getElementById('tpl-first-name').value = matchFirst[1].trim();
+                if (matchLast) document.getElementById('tpl-last-name').value = matchLast[1].trim();
+                if (matchEmail) document.getElementById('tpl-email').value = matchEmail[1].trim();
+                if (matchPhone) document.getElementById('tpl-phone').value = matchPhone[1].trim();
+                if (matchSubject) document.getElementById('tpl-subject').value = matchSubject[1].trim();
+            });
+
+            // Clean up message body text
+            let bodyText = bodyLines.join('\n').trim();
+            // Remove the trailing separator and footer often found in exported files
+            bodyText = bodyText.replace(/---+\s*Generated by XPIDER AutoForm Sender Pro.*/s, '').trim();
+            bodyText = bodyText.replace(/---+\s*$/, '').trim();
+            
+            document.getElementById('tpl-message').value = bodyText;
+            addLog("Intelligent template mapped successfully.", "success");
+        } else {
+            // Fallback for plain text: load everything into message body
+            const msgArea = document.getElementById('tpl-message');
+            if (msgArea) {
+                msgArea.value = content.trim();
+                addLog("Plain text imported to message body.", "info");
+            }
+        }
+        
+        // [v18.50.0] FIX: Do not call saveTemplateChanges here as it triggers 'Save As' again.
+        // Instead, just sync the current data for the campaign.
+        const tpl = {
+            firstName: document.getElementById('tpl-first-name').value,
+            lastName: document.getElementById('tpl-last-name').value,
+            name: document.getElementById('tpl-name').value,
+            email: document.getElementById('tpl-email').value,
+            phone: document.getElementById('tpl-phone').value,
+            subject: document.getElementById('tpl-subject').value,
+            message: document.getElementById('tpl-message').value
+        };
+        chrome.storage.local.set({ xpider_tpl: tpl });
+        
+        event.target.value = ''; // Reset file input
+    };
+    reader.readAsText(file);
+}
+
+async function saveSettings() {
+    const langSelect = document.getElementById('language-select');
+    const captchaToggle = document.getElementById('captcha-solve-toggle');
+    const methodSelect = document.getElementById('captcha-method-select');
+    const apiKeyInput = document.getElementById('captcha-api-key');
+    const sttKeyInput = document.getElementById('audio-stt-key');
+    const stealthToggle = document.getElementById('stealth-mode-toggle');
+    const delayInput = document.getElementById('delay-input');
+    const randomToggle = document.getElementById('random-delay-toggle');
+
+    const lang = langSelect ? langSelect.value : 'en';
+    const settings = {
+        xpider_lang: lang,
+        xpider_captcha_enabled: captchaToggle ? captchaToggle.checked : false,
+        xpider_captcha_method: methodSelect ? methodSelect.value : 'audio',
+        xpider_captcha_api_key: apiKeyInput ? apiKeyInput.value : '',
+        xpider_stt_api_key: sttKeyInput ? sttKeyInput.value : '',
+        xpider_stealth_mode: stealthToggle ? stealthToggle.checked : false,
+        xpider_delay: delayInput ? delayInput.value : 6,
+        xpider_random_delay: randomToggle ? randomToggle.checked : false
+    };
+    await chrome.storage.local.set(settings);
+    
+    const saveBtn = document.getElementById('save-settings-btn');
+    if (saveBtn) {
+        const originalText = saveBtn.textContent;
+        saveBtn.textContent = "✅ Applied!";
+        setTimeout(() => saveBtn.textContent = originalText, 2000);
+    }
+    
+    applyTranslations(lang);
+    const settingsOverlay = document.getElementById('settings-overlay');
+    if (settingsOverlay) settingsOverlay.classList.add('hidden');
+}
+
+async function loadSettings() {
+    const data = await chrome.storage.local.get([
+        'xpider_lang', 'xpider_tpl', 'xpider_delay', 'xpider_queue', 'xpider_success', 'xpider_total',
+        'xpider_captcha_enabled', 'xpider_captcha_method', 'xpider_captcha_api_key', 'xpider_stt_api_key', 'xpider_stealth_mode'
+    ]);
+    
+    if (data.xpider_lang) {
+        const langSelect = document.getElementById('language-select');
+        if (langSelect) langSelect.value = data.xpider_lang;
+    }
+    
+    // Captcha Settings (v1.2.3: Set high-stability defaults if not present)
+    const captchaEnabled = (data.xpider_captcha_enabled !== undefined) ? !!data.xpider_captcha_enabled : true;
+    const captchaMethod = data.xpider_captcha_method || 'audio';
+
+    if (document.getElementById('captcha-solve-toggle')) {
+        document.getElementById('captcha-solve-toggle').checked = captchaEnabled;
+    }
+    if (document.getElementById('captcha-method-select')) {
+        document.getElementById('captcha-method-select').value = captchaMethod;
+    }
+    if (document.getElementById('captcha-api-key')) {
+        document.getElementById('captcha-api-key').value = data.xpider_captcha_api_key || '';
+    }
+    if (document.getElementById('audio-stt-key')) {
+        document.getElementById('audio-stt-key').value = data.xpider_stt_api_key || '';
+    }
+    if (document.getElementById('stealth-mode-toggle')) {
+        document.getElementById('stealth-mode-toggle').checked = (data.xpider_stealth_mode !== undefined) ? !!data.xpider_stealth_mode : true;
+    }
+    
+    const methodGroup = document.getElementById('captcha-method-group');
+    if (methodGroup) methodGroup.style.display = captchaEnabled ? 'block' : 'none';
+    toggleCaptchaApiVisibility();
+
+    // Template
+    if (data.xpider_tpl) {
+        if (document.getElementById('tpl-first-name')) document.getElementById('tpl-first-name').value = data.xpider_tpl.firstName || '';
+        if (document.getElementById('tpl-last-name')) document.getElementById('tpl-last-name').value = data.xpider_tpl.lastName || '';
+        if (document.getElementById('tpl-name')) document.getElementById('tpl-name').value = data.xpider_tpl.name || '';
+        if (document.getElementById('tpl-email')) document.getElementById('tpl-email').value = data.xpider_tpl.email || '';
+        if (document.getElementById('tpl-phone')) document.getElementById('tpl-phone').value = data.xpider_tpl.phone || '';
+        if (document.getElementById('tpl-subject')) document.getElementById('tpl-subject').value = data.xpider_tpl.subject || '';
+        if (document.getElementById('tpl-message')) document.getElementById('tpl-message').value = data.xpider_tpl.message || '';
+    }
+
+    if (data.xpider_delay && document.getElementById('delay-input')) {
+        document.getElementById('delay-input').value = data.xpider_delay;
+        updateSpeedLabel();
+    }
+    if (document.getElementById('random-delay-toggle')) {
+        document.getElementById('random-delay-toggle').checked = !!data.xpider_random_delay;
+    }
+
+    // Resuming Campaign
+    if (data.xpider_queue && data.xpider_queue.length > 0) {
+        campaignQueue = data.xpider_queue;
+        totalTargets = data.xpider_total || campaignQueue.length;
+        successCount = data.xpider_success || 0;
+        campaignActive = true; // Mark as active to show Pause/Stop buttons
+
+        updateRealTimeStatus({ successCount });
+        const countDisplay = document.getElementById('url-count-display');
+        if (countDisplay) countDisplay.textContent = `${campaignQueue.length} (remaining) / ${totalTargets} URLs`;
+        
+        if (document.getElementById('file-info')) document.getElementById('file-info').classList.remove('hidden');
+        if (document.getElementById('status-box')) document.getElementById('status-box').classList.remove('hidden');
+        if (document.getElementById('start-btn')) document.getElementById('start-btn').classList.add('hidden');
+        if (document.getElementById('multi-actions')) document.getElementById('multi-actions').classList.remove('hidden');
+        
+        updateProgress(Math.round(((totalTargets - campaignQueue.length) / totalTargets) * 100));
+        addLog(`Resumed campaign: ${campaignQueue.length} remaining.`, 'info');
+    }
+
+    // [v1.2.0] Populate saved lists
+    await updateSavedListsUI();
+    
+    // [v1.7.0] Populate template library
+    await updateTemplateDropdown();
+}

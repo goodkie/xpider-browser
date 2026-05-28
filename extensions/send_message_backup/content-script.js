@@ -108,7 +108,7 @@
     }
 
     async function discoverBranchLinks() {
-        logDev("🔍 [Supreme-X 5.0] Scanning for multi-location / branch links...", "info");
+        logDev("🔍 [Supreme-X 6.0] Scanning for multi-location / branch links...", "info");
         const links = queryAllDeep('a');
         const results = [];
         const currentOrigin = window.location.origin;
@@ -135,7 +135,7 @@
             if (isBranchLink && results.length < 5) {
                 if (!results.includes(href)) {
                     results.push(href);
-                    logDev(`📍 [Supreme-X 5.0] Branch discovered: ${text} -> ${href}`);
+                    logDev(`📍 [Supreme-X 6.0] Branch discovered: ${text} -> ${href}`);
                 }
             }
         }
@@ -381,7 +381,7 @@
                 const branches = await discoverBranchLinks();
                 if (branches.length > 0) {
                     chrome.runtime.sendMessage({ action: 'QUEUE_BRANCHES', links: branches });
-                    logDev(`🌐 [Supreme-X 5.0] ${branches.length} additional branch targets queued for traversal.`, "success");
+                    logDev(`🌐 [Supreme-X 6.0] ${branches.length} additional branch targets queued for traversal.`, "success");
                 }
 
                 const fillResult = await fillAndSubmit(currentForm, template, speed);
@@ -777,38 +777,8 @@
     }
 
     async function fillFormIntelligent(form, tpl, speed) {
-        logDev("🛠️ [Supreme-X 6.0] Initiating Multi-Stage 3-Pass Loop with Human Mouse Simulation...");
+        logDev("🛠️ [Supreme-X 6.0] Initiating Human-Simulation 3-Pass Loop for maximum coverage...");
         let filledFields = 0;
-
-        // [Helper] 휴먼 마우스 시뮬레이션 엔진 (v6.0)
-        const simulateHumanClick = async (element) => {
-            if (!element) return;
-            try {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                await new Promise(r => setTimeout(r, 80));
-                const rect = element.getBoundingClientRect();
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
-                const baseEventInit = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy };
-                
-                element.dispatchEvent(new MouseEvent('mousemove', baseEventInit));
-                await new Promise(r => setTimeout(r, 20));
-                element.dispatchEvent(new MouseEvent('mouseover', baseEventInit));
-                element.dispatchEvent(new MouseEvent('mouseenter', baseEventInit));
-                await new Promise(r => setTimeout(r, 30));
-                element.dispatchEvent(new PointerEvent('pointerdown', baseEventInit));
-                element.dispatchEvent(new MouseEvent('mousedown', baseEventInit));
-                await new Promise(r => setTimeout(r, Math.floor(Math.random() * 40) + 20));
-                element.dispatchEvent(new PointerEvent('pointerup', baseEventInit));
-                element.dispatchEvent(new MouseEvent('mouseup', baseEventInit));
-                element.click();
-                element.dispatchEvent(new MouseEvent('click', baseEventInit));
-                element.focus && element.focus();
-            } catch (e) {
-                logDev(`⚠️ [Human-Click] Error: ${e.message}`, "warning");
-                element.click && element.click();
-            }
-        };
 
         // [Helper] 난수 데이터 생성기 (v5.0)
         const generateRandomEmail = () => {
@@ -828,7 +798,38 @@
             return `${randomWord}_${Math.floor(100 + Math.random() * 900)}`;
         };
 
-        // [Auto-Name Synthesis] 이름 필드 상호 보완 자가 합성
+        
+    // [v6.0 초지능 마우스 시뮬레이터]
+    async function simulateHumanClick(el) {
+        if (!el) return;
+        try {
+            const rect = el.getBoundingClientRect();
+            const x = rect.left + (rect.width / 2);
+            const y = rect.top + (rect.height / 2);
+            const opts = { bubbles: true, cancelable: true, clientX: x, clientY: y };
+            
+            if (el.scrollIntoView) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await new Promise(r => setTimeout(r, 100));
+            }
+            
+            el.dispatchEvent(new MouseEvent('mousemove', opts));
+            await new Promise(r => setTimeout(r, 50));
+            el.dispatchEvent(new MouseEvent('mouseover', opts));
+            el.dispatchEvent(new MouseEvent('mouseenter', opts));
+            await new Promise(r => setTimeout(r, 50));
+            el.dispatchEvent(new MouseEvent('mousedown', opts));
+            await new Promise(r => setTimeout(r, 50));
+            el.dispatchEvent(new MouseEvent('mouseup', opts));
+            el.click && el.click();
+            el.dispatchEvent(new MouseEvent('click', opts));
+            await new Promise(r => setTimeout(r, 50));
+        } catch (e) {
+            try { el.click(); } catch(err) {}
+        }
+    }
+
+// [Auto-Name Synthesis] 이름 필드 상호 보완 자가 합성
         const processedTpl = { ...tpl };
         const rawName = (processedTpl.name || '').trim();
         const rawFirst = (processedTpl.firstName || '').trim();
@@ -918,8 +919,9 @@
                 // Intelligent Pacing
                 await new Promise(r => setTimeout(r, speed.field || 150));
                 
-                // 1. Focus (Human-like)
-                await simulateHumanClick(el);
+                // 1. Focus
+                el.click && el.click();
+                el.focus && el.focus();
                 
                 // 2. Insert text via execCommand (Highest trust, best for reCAPTCHA/Wix)
                 let setOk = false;
@@ -980,7 +982,7 @@
 
         // 3-Pass Multi-Stage Loop (v5.0)
         for (let pass = 1; pass <= 3; pass++) {
-            logDev(`🔄 [Supreme-X 5.0] Executing Fill Pass ${pass}/3...`, "info");
+            logDev(`🔄 [Supreme-X 6.0] Executing Fill Pass ${pass}/3...`, "info");
             
             // 1. 실시간 입력 필드 스캔 (매 패스마다 최신 DOM 스캔)
             const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), textarea, select'));
@@ -999,6 +1001,7 @@
                     
                     logDev(`   - [Virtual Dropdown] Detected dropdown: ${dropdown.className}. Triggering options...`);
                     await simulateHumanClick(dropdown);
+                    dropdown.focus && dropdown.focus();
                     
                     await new Promise(r => setTimeout(r, 120)); // 옵션 렌더링 시간 지연
                     
@@ -1008,8 +1011,7 @@
                     
                     if (options.length > 0) {
                         const chosen = options[Math.floor(Math.random() * options.length)];
-                        await simulateHumanClick(chosen);
-                        chosen.dispatchEvent(new Event('change', { bubbles: true }));
+                        await simulateHumanClick(chosen); chosen.dispatchEvent(new Event("change", { bubbles: true }));
                         logDev(`   - [Virtual Dropdown] Selected option text: "${chosen.textContent.trim()}"`);
                         filledFields++;
                     }
@@ -1025,14 +1027,12 @@
                     
                     if (termsKeywords.some(k => text.includes(k))) {
                         if (!ariaChecked) {
-                            await simulateHumanClick(cb);
-                            cb.dispatchEvent(new Event('change', { bubbles: true }));
+                            await simulateHumanClick(cb); cb.dispatchEvent(new Event("change", { bubbles: true }));
                             logDev(`   - [Virtual Checkbox] Checked required terms.`);
                             filledFields++;
                         }
                     } else if (!ariaChecked && Math.random() > 0.2) { // 80% 확률로 무작위 체크
-                        await simulateHumanClick(cb);
-                        cb.dispatchEvent(new Event('change', { bubbles: true }));
+                        await simulateHumanClick(cb); cb.dispatchEvent(new Event("change", { bubbles: true }));
                         logDev(`   - [Virtual Checkbox] Randomly checked.`);
                         filledFields++;
                     }
@@ -1043,8 +1043,7 @@
                 for (const rd of virtualRadios) {
                     const ariaChecked = rd.getAttribute('aria-checked') === 'true' || rd.classList.contains('checked') || rd.classList.contains('active');
                     if (!ariaChecked) {
-                        await simulateHumanClick(rd);
-                        rd.dispatchEvent(new Event('change', { bubbles: true }));
+                        await simulateHumanClick(rd); rd.dispatchEvent(new Event("change", { bubbles: true }));
                         logDev(`   - [Virtual Radio] Checked.`);
                         filledFields++;
                     }
@@ -1065,8 +1064,7 @@
                     
                     if (termsKeywords.some(k => labelText.includes(k) || containerText.includes(k))) {
                         if (!el.checked) {
-                            await simulateHumanClick(el);
-                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                            await simulateHumanClick(el); el.dispatchEvent(new Event("change", { bubbles: true }));
                         }
                     }
                     continue;
@@ -1131,8 +1129,7 @@
                     const isChecked = group.some(r => r.checked);
                     if (!isChecked && group.length > 0) {
                         const randomRadio = group[Math.floor(Math.random() * group.length)];
-                        randomRadio.click();
-                        randomRadio.dispatchEvent(new Event('change', { bubbles: true }));
+                        await simulateHumanClick(randomRadio); randomRadio.dispatchEvent(new Event("change", { bubbles: true }));
                         logDev(`   - [Fallback-Radio] Randomly checked radio in group "${name}"`);
                     }
                 }
@@ -1153,7 +1150,7 @@
 
             // 7. Brute-force Injector
             if (filledFields < 2) {
-                logDev("🛠️ [Supreme-X 5.0] High-confidence matching limited. Engaging Brute-Force Injector...");
+                logDev("🛠️ [Supreme-X 6.0] High-confidence matching limited. Engaging Brute-Force Injector...");
                 const allFieldTypes = queryAllInputs(form); 
                 for (const inp of allFieldTypes) {
                     if (inp.value || inp.disabled || inp.readOnly) continue;
@@ -1174,70 +1171,53 @@
                 }
             }
 
-            // 8. Ultimate Required Fields Guard (v6.0 - 100% 무결점 보완 시스템 탑재)
-            logDev("🛡️ [Guard v6.0] Final checking for empty required fields and contenteditable editors before submission...");
-            
-            // contenteditable 요소 스캔 및 텍스트 강제 주입
-            const editors = Array.from(form.querySelectorAll('[contenteditable="true"]'));
-            for (const editor of editors) {
-                if (!editor.textContent || editor.textContent.trim() === '') {
-                    logDev(`⚠️ [Guard v6.0] Empty contenteditable detected! Injecting fallback...`, "warning");
-                    await simulateHumanClick(editor);
-                    editor.textContent = processedTpl.message || getRandomTemplateVal();
-                    editor.dispatchEvent(new Event('input', { bubbles: true }));
-                    editor.dispatchEvent(new Event('blur', { bubbles: true }));
-                    filledFields++;
-                }
-            }
-
-            // 모든 요소 중 required 속성이 있는 것들 (inputs 배열에 국한되지 않음)
-            const allRequiredEls = Array.from(form.querySelectorAll('*[required], *[aria-required="true"], .required, .essential'));
-            for (const el of allRequiredEls) {
+            // 8. Ultimate Required Fields Guard (100% 무결성 무작위 난수 보완 시스템 탑재)
+            logDev("🛡️ [Guard] Final checking for empty required fields before submission...");
+            for (const el of inputs) {
                 if (isHoneypot(el) || el.type === 'hidden' || el.disabled || el.readOnly) continue;
                 
-                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                    if (!el.value) {
-                        logDev(`⚠️ [Guard v6.0] Empty required input detected! name: ${el.name || el.id || 'unnamed'}. Injecting fallback/random...`, "warning");
-                        
-                        const fieldId = [el.name || '', el.id || '', getLabelFor(el)].join(' ').toLowerCase();
-                        let fallbackVal = "";
-                        
-                        if (fieldId.includes('email')) {
-                            fallbackVal = processedTpl.email || generateRandomEmail();
-                        } else if (fieldId.includes('phone') || fieldId.includes('tel') || fieldId.includes('mobile')) {
-                            fallbackVal = processedTpl.phone || generateRandomPhone();
-                        } else if (fieldId.includes('subject') || fieldId.includes('title')) {
-                            fallbackVal = processedTpl.subject || generateRandomText('subject');
-                        } else if (fieldId.includes('name')) {
-                            fallbackVal = processedTpl.name || processedTpl.firstName || "User";
-                        } else {
-                            fallbackVal = getRandomTemplateVal() !== 'Inquiry' ? getRandomTemplateVal() : generateRandomText('general');
-                        }
-                        
-                        // v6.0: 강제로 required 속성 해제 시도
-                        try { el.removeAttribute('required'); el.removeAttribute('aria-required'); } catch(e) {}
-                        
-                        await applyVal(el, fallbackVal, "Guard-RequiredFallback");
-                    }
-                } else if (el.tagName === 'SELECT') {
-                    if (el.selectedIndex <= 0 && el.options.length > 1) {
-                        logDev(`⚠️ [Guard v6.0] Empty required select detected! name: ${el.name || el.id || 'unnamed'}. Picking option...`, "warning");
-                        const validOptions = [];
-                        for (let i = 1; i < el.options.length; i++) {
-                            const opt = el.options[i];
-                            if (opt.value && !opt.disabled) {
-                                validOptions.push(i);
+                const isRequired = el.hasAttribute('required') || 
+                                   el.getAttribute('aria-required') === 'true' ||
+                                   /required|essential|star|\*/i.test(el.className || '') ||
+                                   /required|essential|star/i.test(el.id || '');
+                
+                if (isRequired) {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        if (!el.value) {
+                            logDev(`⚠️ [Guard] Empty required input detected! name: ${el.name || el.id || 'unnamed'}. Injecting fallback/random...`, "warning");
+                            
+                            const fieldId = [el.name || '', el.id || '', getLabelFor(el)].join(' ').toLowerCase();
+                            let fallbackVal = "";
+                            
+                            if (fieldId.includes('email')) {
+                                fallbackVal = processedTpl.email || generateRandomEmail();
+                            } else if (fieldId.includes('phone') || fieldId.includes('tel') || fieldId.includes('mobile')) {
+                                fallbackVal = processedTpl.phone || generateRandomPhone();
+                            } else if (fieldId.includes('subject') || fieldId.includes('title')) {
+                                fallbackVal = processedTpl.subject || generateRandomText('subject');
+                            } else if (fieldId.includes('name')) {
+                                fallbackVal = processedTpl.name || processedTpl.firstName || "User";
+                            } else {
+                                fallbackVal = getRandomTemplateVal() !== 'Inquiry' ? getRandomTemplateVal() : generateRandomText('general');
                             }
+                            
+                            await applyVal(el, fallbackVal, "Guard-RequiredFallback");
                         }
-                        const finalIdx = validOptions.length > 0 ? validOptions[Math.floor(Math.random() * validOptions.length)] : 1;
-                        await simulateHumanClick(el);
-                        el.selectedIndex = finalIdx;
-                        el.dispatchEvent(new Event('change', { bubbles: true }));
-                        try { el.removeAttribute('required'); el.removeAttribute('aria-required'); } catch(e) {}
+                    } else if (el.tagName === 'SELECT') {
+                        if (el.selectedIndex <= 0 && el.options.length > 1) {
+                            logDev(`⚠️ [Guard] Empty required select detected! name: ${el.name || el.id || 'unnamed'}. Picking option...`, "warning");
+                            const validOptions = [];
+                            for (let i = 1; i < el.options.length; i++) {
+                                const opt = el.options[i];
+                                if (opt.value && !opt.disabled) {
+                                    validOptions.push(i);
+                                }
+                            }
+                            const finalIdx = validOptions.length > 0 ? validOptions[Math.floor(Math.random() * validOptions.length)] : 1;
+                            el.selectedIndex = finalIdx;
+                            el.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
                     }
-                } else if (el.tagName === 'DIV' || el.tagName === 'SPAN') {
-                    // 보이지 않는 악의적 required 엘리먼트 강제 해제
-                    try { el.removeAttribute('required'); el.removeAttribute('aria-required'); } catch(e) {}
                 }
             }
 

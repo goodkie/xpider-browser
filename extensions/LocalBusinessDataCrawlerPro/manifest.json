@@ -1,25 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "XPIDER Pro - Local Business Data Crawler v1.2.3 Pro",
-  "version": "1.2.59",
-  "description": "웹에서 비즈니스 정보를 수집하고 이메일, 전화번호, SNS 링크 등을 추출하는 심층 데이터 크롤러 프로 버전입니다.",
-  "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
-  },
+  "name": "XPIDER AutoForm Sender Pro",
+  "version": "1.1.14",
+  "description": "Mass message sender for business websites with Side Panel UI and CAPTCHA solving.",
   "permissions": [
+    "storage",
     "tabs",
     "scripting",
-    "storage",
     "activeTab",
     "sidePanel",
-    "webNavigation",
-    "offscreen",
-    "audioCapture",
-    "proxy",
-    "webRequest",
-    "webRequestAuthProvider"
+    "alarms",
+    "downloads"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -34,53 +25,33 @@
   "side_panel": {
     "default_path": "popup.html"
   },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "https://www.google.com/recaptcha/*"
       ],
       "js": [
-        "translations.js",
-        "business_dictionaries.js",
-        "global_blacklist.js",
-        "language_filters.js",
-        "noise_dictionary.js",
-        "business_filters.js",
-        "content.js"
+        "solver-content.js"
       ],
-      "all_frames": true,
-      "match_about_blank": true,
-      "run_at": "document_start"
-    },
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
     {
+      "resources": [
+        "icons/*"
+      ],
       "matches": [
-        "*://*.google.com/recaptcha/*",
-        "*://*.google.co.kr/recaptcha/*",
-        "https://www.google.com/recaptcha/*",
-        "https://www.gstatic.com/recaptcha/*",
-        "*://*.google.com/sorry/*",
-        "*://*.google.co.kr/sorry/*",
-        "*://*.google.co.jp/sorry/*",
-        "*://*.google.co.uk/sorry/*",
-        "*://*.google.com.sg/sorry/*",
-        "*://*.google.com.hk/sorry/*",
-        "*://*.google.com.tw/sorry/*",
-        "*://*.google.ca/sorry/*",
-        "*://*.google.de/sorry/*",
-        "*://*.google.fr/sorry/*",
-        "*://*.google.it/sorry/*",
-        "*://*.google.es/sorry/*"
-      ],
-      "js": [
-        "translations.js",
-        "challenge_solver_content.js"
-      ],
-      "all_frames": true,
-      "match_about_blank": true,
-      "run_at": "document_start"
+        "<all_urls>"
+      ]
     }
   ]
 }

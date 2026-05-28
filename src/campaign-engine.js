@@ -159,7 +159,8 @@ async function tv(el,v){
       }
     }
   } else {
-    await simulateHumanClick(el);
+    el.click&&el.click();
+    el.focus&&el.focus();
     await new Promise(r=>setTimeout(r,120));
     
     // Method 1: execCommand (most human-like — Wix reCAPTCHA friendly)
@@ -292,34 +293,6 @@ function bestForm(){
 async function fill(c){
   let n=0;
   
-  // [Helper] 휴먼 마우스 시뮬레이션 엔진 (v6.0)
-  const simulateHumanClick = async (element) => {
-    if (!element) return;
-    try {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      await new Promise(r => setTimeout(r, 80));
-      const rect = element.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const baseEventInit = { bubbles: true, cancelable: true, view: window, clientX: cx, clientY: cy };
-      
-      element.dispatchEvent(new MouseEvent('mousemove', baseEventInit));
-      await new Promise(r => setTimeout(r, 20));
-      element.dispatchEvent(new MouseEvent('mouseover', baseEventInit));
-      element.dispatchEvent(new MouseEvent('mouseenter', baseEventInit));
-      await new Promise(r => setTimeout(r, 30));
-      element.dispatchEvent(new PointerEvent('pointerdown', baseEventInit));
-      element.dispatchEvent(new MouseEvent('mousedown', baseEventInit));
-      await new Promise(r => setTimeout(r, Math.floor(Math.random() * 40) + 20));
-      element.dispatchEvent(new PointerEvent('pointerup', baseEventInit));
-      element.dispatchEvent(new MouseEvent('mouseup', baseEventInit));
-      element.click();
-      element.dispatchEvent(new MouseEvent('click', baseEventInit));
-      element.focus && element.focus();
-    } catch (e) {
-      element.click && element.click();
-    }
-  };
   // [Helper] 난수 데이터 생성기 (v5.0)
   const generateRandomEmail = () => {
     const domains = ['gmail.com', 'naver.com', 'daum.net', 'outlook.com', 'yahoo.com'];
@@ -338,7 +311,38 @@ async function fill(c){
     return randomWord + '_' + Math.floor(100 + Math.random() * 900);
   };
 
-  const templateVals = [
+  
+    // [v6.0 초지능 마우스 시뮬레이터]
+    async function simulateHumanClick(el) {
+        if (!el) return;
+        try {
+            const rect = el.getBoundingClientRect();
+            const x = rect.left + (rect.width / 2);
+            const y = rect.top + (rect.height / 2);
+            const opts = { bubbles: true, cancelable: true, clientX: x, clientY: y };
+            
+            if (el.scrollIntoView) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await new Promise(r => setTimeout(r, 100));
+            }
+            
+            el.dispatchEvent(new MouseEvent('mousemove', opts));
+            await new Promise(r => setTimeout(r, 50));
+            el.dispatchEvent(new MouseEvent('mouseover', opts));
+            el.dispatchEvent(new MouseEvent('mouseenter', opts));
+            await new Promise(r => setTimeout(r, 50));
+            el.dispatchEvent(new MouseEvent('mousedown', opts));
+            await new Promise(r => setTimeout(r, 50));
+            el.dispatchEvent(new MouseEvent('mouseup', opts));
+            el.click && el.click();
+            el.dispatchEvent(new MouseEvent('click', opts));
+            await new Promise(r => setTimeout(r, 50));
+        } catch (e) {
+            try { el.click(); } catch(err) {}
+        }
+    }
+
+const templateVals = [
     processedTpl.firstName, processedTpl.lastName, processedTpl.name, processedTpl.email, 
     processedTpl.phone, processedTpl.subject, processedTpl.message
   ].filter(v => typeof v === 'string' && v.trim() !== '');
@@ -362,6 +366,7 @@ async function fill(c){
         if (selectedText && selectedText.length > 0 && !/select|choose|dropdown|click/i.test(selectedText)) continue;
         
         await simulateHumanClick(dropdown);
+        dropdown.focus && dropdown.focus();
         
         await new Promise(r => setTimeout(r, 120));
         
@@ -370,8 +375,7 @@ async function fill(c){
         });
         if (options.length > 0) {
           const chosen = options[Math.floor(Math.random() * options.length)];
-          await simulateHumanClick(chosen);
-          chosen.dispatchEvent(new Event('change', { bubbles: true }));
+          await simulateHumanClick(chosen); chosen.dispatchEvent(new Event("change", { bubbles: true }));
           n++;
         }
         dropdown.dispatchEvent(new Event('blur', { bubbles: true }));
@@ -386,13 +390,11 @@ async function fill(c){
         
         if (termsKeywords.some(k => text.includes(k))) {
           if (!ariaChecked) {
-            await simulateHumanClick(cb);
-            cb.dispatchEvent(new Event('change', { bubbles: true }));
+            await simulateHumanClick(cb); cb.dispatchEvent(new Event("change", { bubbles: true }));
             n++;
           }
         } else if (!ariaChecked && Math.random() > 0.2) {
-          await simulateHumanClick(cb);
-          cb.dispatchEvent(new Event('change', { bubbles: true }));
+          await simulateHumanClick(cb); cb.dispatchEvent(new Event("change", { bubbles: true }));
           n++;
         }
       }
@@ -402,8 +404,7 @@ async function fill(c){
       for (const rd of virtualRadios) {
         const ariaChecked = rd.getAttribute('aria-checked') === 'true' || rd.classList.contains('checked') || rd.classList.contains('active');
         if (!ariaChecked) {
-          await simulateHumanClick(rd);
-          rd.dispatchEvent(new Event('change', { bubbles: true }));
+          await simulateHumanClick(rd); rd.dispatchEvent(new Event("change", { bubbles: true }));
           n++;
         }
       }
@@ -444,63 +445,50 @@ async function fill(c){
         if (!cb.checked && !cb.disabled) {
           const lblText = lbl(cb);
           if (/agree|terms|policy|동의|규정|약관/i.test(lblText)) {
-            await simulateHumanClick(cb);
+            cb.click();
             cb.dispatchEvent(new Event('change', { bubbles: true }));
           } else if (Math.random() > 0.2) {
-            await simulateHumanClick(cb);
+            cb.click();
             cb.dispatchEvent(new Event('change', { bubbles: true }));
           }
         }
       });
     } catch(e) {}
 
-    // (6) Pass 5: Ultimate Required Fields Guard (v6.0 - 100% 무결점 보완 시스템 탑재)
-    // contenteditable 요소 스캔 및 텍스트 강제 주입
-    const editors = Array.from(c.querySelectorAll('[contenteditable="true"]'));
-    for (const editor of editors) {
-      if (!editor.textContent || editor.textContent.trim() === '') {
-        await simulateHumanClick(editor);
-        editor.textContent = processedTpl.message || generateRandomText();
-        editor.dispatchEvent(new Event('input', { bubbles: true }));
-        editor.dispatchEvent(new Event('blur', { bubbles: true }));
+    // (6) Pass 5: Ultimate Required Fields Guard (100% 무결성 무작위 난수 보완 시스템 탑재)
+    for (const el of els) {
+      if (el.disabled || el.readOnly) continue;
+      const isReq = el.hasAttribute('required') || 
+                    el.getAttribute('aria-required') === 'true' ||
+                    /required|essential|star|\\*/i.test(el.className || '') ||
+                    /required|essential|star/i.test(el.id || '');
+      
+      if (isReq && !el.value) {
+        let fbVal = "";
+        const fid = getFieldId(el);
+        if (fid.includes('email')) fbVal = processedTpl.email || generateRandomEmail();
+        else if (fid.includes('phone') || fid.includes('tel') || fid.includes('mobile')) fbVal = processedTpl.phone || generateRandomPhone();
+        else if (fid.includes('subject') || fid.includes('title')) fbVal = processedTpl.subject || generateRandomText();
+        else if (fid.includes('name')) fbVal = processedTpl.name || processedTpl.firstName || "User";
+        else fbVal = getRandomTplVal() !== 'Inquiry' ? getRandomTplVal() : generateRandomText();
+        
+        await tv(el, fbVal);
         n++;
       }
     }
-
-    // 모든 요소 중 required 속성이 있는 것들 (els 배열에 국한되지 않음)
-    const allReqs = Array.from(c.querySelectorAll('*[required], *[aria-required="true"], .required, .essential'));
-    for (const el of allReqs) {
-      if (el.disabled || el.readOnly || el.type === 'hidden') continue;
-      
-      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-        if (!el.value) {
-          let fbVal = "";
-          const fid = getFieldId(el);
-          if (fid.includes('email')) fbVal = processedTpl.email || generateRandomEmail();
-          else if (fid.includes('phone') || fid.includes('tel') || fid.includes('mobile')) fbVal = processedTpl.phone || generateRandomPhone();
-          else if (fid.includes('subject') || fid.includes('title')) fbVal = processedTpl.subject || generateRandomText();
-          else if (fid.includes('name')) fbVal = processedTpl.name || processedTpl.firstName || "User";
-          else fbVal = getRandomTplVal() !== 'Inquiry' ? getRandomTplVal() : generateRandomText();
-          
-          try { el.removeAttribute('required'); el.removeAttribute('aria-required'); } catch(e) {}
-          await tv(el, fbVal);
-          n++;
+    
+    // (7) Select fallback
+    for (const el of els) {
+      if (el.tagName === 'SELECT' && el.selectedIndex <= 0 && el.options.length > 1) {
+        const validOptions = [];
+        for (let i = 1; i < el.options.length; i++) {
+          const opt = el.options[i];
+          if (opt.value && !opt.disabled) validOptions.push(i);
         }
-      } else if (el.tagName === 'SELECT') {
-        if (el.selectedIndex <= 0 && el.options.length > 1) {
-          const validOptions = [];
-          for (let i = 1; i < el.options.length; i++) {
-            if (el.options[i].value && !el.options[i].disabled) validOptions.push(i);
-          }
-          const finalIdx = validOptions.length > 0 ? validOptions[Math.floor(Math.random() * validOptions.length)] : 1;
-          await simulateHumanClick(el);
-          el.selectedIndex = finalIdx;
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-          try { el.removeAttribute('required'); el.removeAttribute('aria-required'); } catch(e) {}
-          n++;
-        }
-      } else if (el.tagName === 'DIV' || el.tagName === 'SPAN') {
-        try { el.removeAttribute('required'); el.removeAttribute('aria-required'); } catch(e) {}
+        const finalIdx = validOptions.length > 0 ? validOptions[Math.floor(Math.random() * validOptions.length)] : 1;
+        el.selectedIndex = finalIdx;
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        n++;
       }
     }
 

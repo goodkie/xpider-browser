@@ -324,12 +324,20 @@ function bindEvents() {
         });
     }
 
-    // [v5.0.0] Wit.ai setup link fix to open in a new tab
+    // [v6.0.0] Wit.ai setup link fix to open in a new tab with fallback
     const witAiLink = document.getElementById('wit-ai-link');
     if (witAiLink) {
         witAiLink.addEventListener('click', (e) => {
             e.preventDefault();
-            chrome.tabs.create({ url: 'https://wit.ai/apps' });
+            try {
+                if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+                    chrome.tabs.create({ url: 'https://wit.ai/apps' });
+                } else {
+                    window.open('https://wit.ai/apps', '_blank');
+                }
+            } catch (err) {
+                window.open('https://wit.ai/apps', '_blank');
+            }
         });
     }
 
