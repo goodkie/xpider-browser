@@ -564,7 +564,7 @@ function bindEvents() {
     }
 
     // Persistence for Template
-    ['tpl-name', 'tpl-email', 'tpl-subject', 'tpl-message'].forEach(id => {
+    ['tpl-first-name', 'tpl-last-name', 'tpl-name', 'tpl-email', 'tpl-phone', 'tpl-subject', 'tpl-message'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', saveTemplate);
     });
@@ -1237,7 +1237,7 @@ function importMessageFromFile(event) {
                 }
 
                 // Precise Field extraction using Regex
-                const matchName = line.match(/Target Full Name:\s*(.*)/i);
+                const matchName = line.match(/Full Name:\s*(.*)/i);
                 const matchFirst = line.match(/First Name:\s*(.*)/i);
                 const matchLast = line.match(/Last Name:\s*(.*)/i);
                 const matchEmail = line.match(/Email:\s*(.*)/i);

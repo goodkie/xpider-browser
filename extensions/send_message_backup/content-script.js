@@ -1242,21 +1242,29 @@
 
         // ── 확장된 honeypot 판정 (v4.0: 오탐 방지 강화) ──
         function isHoneypotV4(el) {
-            // 명시적 허니팟 표지
+            // 1. 명시적 허니팟 표지 검사
             const idOrName = ((el.id || '') + ' ' + (el.name || '')).toLowerCase();
             const honeypotKeywords = ['honeypot', 'website_url', 'trap', 'bottom_field', 'h-captcha-response', 'g-recaptcha-response'];
             if (honeypotKeywords.some(k => idOrName.includes(k))) return true;
 
-            // tab-reachable이거나 aria-hidden=false이면 허니팟 아님
-            if (el.tabIndex >= 0 && el.getAttribute('aria-hidden') !== 'true') {
-                // 실제 크기가 0이면 허니팟
-                const rect = el.getBoundingClientRect();
-                if (rect.width < 1 && rect.height < 1) return true;
+            // 2. 물리적 크기가 0x0인 극단적인 경우에만 허니팟으로 강력 판정
+            const rect = el.getBoundingClientRect();
+            if (rect.width === 0 && rect.height === 0) {
+                const style = window.getComputedStyle(el);
+                if (style.display === 'none' || style.visibility === 'hidden') return true;
+            }
+
+            // 3. input/textarea/select 등 네이티브 포커스 가능한 태그이며 물리적 크기가 있는 경우 100% 정상 필드로 판정
+            const tagName = el.tagName.toLowerCase();
+            if ((tagName === 'input' || tagName === 'textarea' || tagName === 'select') && rect.width > 0 && rect.height > 0) {
                 return false;
             }
 
-            // 시각적 비가시 판정 (기본)
-            if (!elementIsVisible(el)) return true;
+            // 4. 시각적 비가시 판정 (안전하게 display:none, visibility:hidden, opacity:0 인 경우만 기본 판정)
+            const style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+                return true;
+            }
 
             return false;
         }
@@ -1447,16 +1455,59 @@
         await applyCustomCheckableElements(form);
 
         // ── 10단계: 브루트포스 - contentEditable / role=textbox 탐색 ──
-        if (filledFields < 2) {
-            logDev("🛠️ [HyperEngine v4.0] Phase 9 - BruteForce contentEditable/role=textbox...");
+        logDev("🛠️ [HyperEngine v4.0] Phase 9 - BruteForce contentEditable/role=textbox...");
+        try {
             const contentEditables = Array.from(queryAllDeep('[contenteditable="true"], [role="textbox"], [role="searchbox"], [role="combobox"]', form));
             for (const inp of contentEditables) {
                 if (isHoneypotV4(inp)) continue;
                 const text = (inp.textContent || '').trim();
                 if (text === '' || text === inp.getAttribute('placeholder')) {
                     await applyVal(inp, tpl.message || getRandomTemplateVal(), 'BruteForce-ContentEditable');
+                    filledFields++;
                 }
             }
+        } catch (e) {
+            logDev(`⚠️ [Phase 9] Error: ${e.message}`, 'warning');
+        }
+
+        // ── 11단계: [NEW] Super-BruteForce Final Target Sweeper ──
+        logDev("🎯 [HyperEngine v4.0] Phase 10 - Super-BruteForce Sweeper (초강력 입력기) 가동...");
+        try {
+            // 다시 한 번 폼 내의 모든 입력 요소를 전수 수집
+            const finalInputs = Array.from(queryAllInputs(form));
+            for (const el of finalInputs) {
+                // 타입 검사: 비입력용 타입들은 무조건 스킵
+                if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button' || el.type === 'image' || el.type === 'file' || el.type === 'reset') continue;
+                
+                // 이미 체크되었거나 값이 적힌 것들은 스킵
+                if (el.type === 'checkbox' && el.checked) continue;
+                if (el.type === 'radio' && el.checked) continue;
+                
+                // 텍스트/셀렉트 박스 값 검사
+                const currentVal = el.contentEditable === 'true' ? (el.textContent || '') : (el.value || '');
+                if (currentVal.trim() !== '') continue;
+
+                // 빈 텍스트 입력창 / TEXTAREA / contentEditable 이면 무조건 강제로 임의의 템플릿 값 또는 메시지 주입!
+                if (el.tagName === 'TEXTAREA' || el.contentEditable === 'true' || el.getAttribute('role') === 'textbox') {
+                    await applyVal(el, tpl.message || getRandomTemplateVal(), 'SuperSweeper-Message');
+                    filledFields++;
+                } else if (el.tagName === 'SELECT') {
+                    await applySelect(el);
+                    filledFields++;
+                } else if (el.type === 'checkbox') {
+                    await applyCheckbox(el);
+                    filledFields++;
+                } else if (el.type === 'radio') {
+                    await applyRadio(el);
+                    filledFields++;
+                } else {
+                    // 일반 input 텍스트 필드 계열
+                    await applyVal(el, getRandomTemplateVal(), 'SuperSweeper-Text');
+                    filledFields++;
+                }
+            }
+        } catch (e) {
+            logDev(`⚠️ [SuperSweeper] Error: ${e.message}`, 'warning');
         }
 
         // ── 11단계: 멀티 단계 폼(wizard) 감지 ──
