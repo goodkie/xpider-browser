@@ -104,7 +104,7 @@ const tpl=${tplJson};
 // Primary field patterns
 const P={
   firstName:[/first.?name/i,/given.?name/i,/이름/i,/名前/i],
-  lastName:[/last.?name/i,/family.?name/i,/surname/i,/성(?!명)/i],
+  lastName:[/last.?name/i,/family.?name/i,/surname/i,/성(?!명|함)/i],
   name:[/^name$/i,/full.?name/i,/성함/i,/your.?name/i,/contact.?name/i,/氏名/i,/姓名/i,/성명/i],
   email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i],
   subject:[/subject/i,/title(?!.*name)/i,/제목/i,/件名/i,/主题/i,/topic/i,/heading/i],
@@ -195,6 +195,12 @@ function inferValue(el){
   }
   if(/username|user.?id|login|account/i.test(c)){
     return emailUser||tpl.name||'';
+  }
+  if(/last.?name|family.?name|surname/i.test(c)){
+    return tpl.lastName||tpl.name||'';
+  }
+  if(/first.?name|given.?name/i.test(c)){
+    return tpl.firstName||tpl.name||'';
   }
   if(/(your.?)?(re.?)?enter.*email|confirm.*email|email.*confirm/i.test(c)){
     return tpl.email||'';

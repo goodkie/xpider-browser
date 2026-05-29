@@ -50,7 +50,7 @@
 
     const FIELD_PATTERNS = {
         firstName: [/first.*name/i, /given.*name/i, /이름/i, /名前/i, /名/i, /nombre/i, /vorname/i, /prénom/i],
-        lastName: [/last.*name/i, /family.*name/i, /surname/i, /성/i, /苗字/i, /姓/i, /apellido/i, /nachname/i, /nom.*famille/i],
+        lastName: [/last.*name/i, /family.*name/i, /surname/i, /성(?!명|함)/i, /苗字/i, /姓/i, /apellido/i, /nachname/i, /nom.*famille/i],
         name: [/name/i, /fullname/i, /성함/i, /氏名/i, /姓名/i, /user/i, /contact.*person/i, /nombre.*completo/i],
         email: [/email/i, /e-mail/i, /이메일/i, /メール/i, /邮箱/i, /correo/i, /courriel/i, /correo.*electrónico/i],
         subject: [/subject/i, /title/i, /제목/i, /件名/i, /主题/i, /topic/i, /asunto/i, /betreff/i, /objet/i],
