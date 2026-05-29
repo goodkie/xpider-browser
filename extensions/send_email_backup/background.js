@@ -99,17 +99,58 @@ try {
         }
 
         async transcribeAudio(audioData, audioUrl = null) {
-            if (!this.config.witAiKey) throw new Error("Wit.ai API Key missing in configuration.");
+            const storage = await new Promise(resolve => {
+                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                    chrome.storage.local.get(['xpider_stt_api_key', 'audioSttKey', 'witKey'], resolve);
+                } else {
+                    resolve({});
+                }
+            });
+            const activeKey = storage.xpider_stt_api_key || storage.audioSttKey || storage.witKey || this.config.witAiKey;
+
+            if (!activeKey) throw new Error("Wit.ai API Key missing in configuration.");
             try {
                 const audioBlob = this._dataURLtoBlob(audioData);
-                const apiRes = await fetch("https://api.wit.ai/speech", {
+                
+                // [v37.0] 오디오 MIME 타입 자동 감지
+                const blobMime = audioBlob.type || '';
+                let contentType;
+                if (blobMime.includes('wav') || blobMime.includes('wave')) {
+                    contentType = 'audio/wav';
+                } else if (blobMime.includes('ogg') || blobMime.includes('opus')) {
+                    contentType = 'audio/ogg;codecs=opus';
+                } else if (blobMime.includes('webm')) {
+                    contentType = 'audio/webm';
+                } else if (blobMime.includes('mp4')) {
+                    contentType = 'audio/mp4';
+                } else {
+                    const urlLower = (audioUrl || '').toLowerCase();
+                    if (urlLower.includes('.wav')) contentType = 'audio/wav';
+                    else if (urlLower.includes('.ogg')) contentType = 'audio/ogg;codecs=opus';
+                    else contentType = 'audio/mpeg3';
+                }
+
+                let apiRes = await fetch("https://api.wit.ai/speech", {
                     method: "POST",
                     headers: {
-                        "Authorization": `Bearer ${this.config.witAiKey}`,
-                        "Content-Type": "audio/mpeg3"
+                        "Authorization": `Bearer ${activeKey}`,
+                        "Content-Type": contentType
                     },
                     body: audioBlob
                 });
+
+                // [v37.0] 첫 시도 실패 시, audio/mpeg3으로 폴백 재시도
+                if (!apiRes.ok && contentType !== 'audio/mpeg3') {
+                    apiRes = await fetch("https://api.wit.ai/speech", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": `Bearer ${activeKey}`,
+                            "Content-Type": "audio/mpeg3"
+                        },
+                        body: audioBlob
+                    });
+                }
+
                 if (!apiRes.ok) throw new Error(`Wit.ai Error (${apiRes.status})`);
                 const rawText = await apiRes.text();
                 let result = null;
@@ -714,5 +755,14 @@ async function sendDirectEmailViaBrevo(recipient, template) {
     } catch (err) {
         logBg(null, `❌ Fatal Connection Error: ${err.message}`, 'error');
         return { success: false, error: err.message };
+    }
+}
+
+async function handleTranscription(audioData, audioUrl, sendResponse) {
+    try {
+        const text = await solver.transcribeAudio(audioData, audioUrl);
+        sendResponse({ text });
+    } catch (err) {
+        sendResponse({ error: err.message });
     }
 }

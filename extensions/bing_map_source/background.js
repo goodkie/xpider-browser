@@ -73,6 +73,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true;
   }
+
+  else if (request.action === 'PERFORM_TRANSCRIPTION') {
+    handleTranscription(request.audioData, request.url, sendResponse);
+    return true; // async
+  }
+
+  else if (request.action === 'CAPTCHA_LOG') {
+    sendLog(request.message);
+  }
   
   return true; // Keep channel open for async responses if needed
 });
@@ -141,9 +150,10 @@ async function sendLog(msg) {
 }
 
 async function handleTranscription(audioData, audioUrl, sendResponse) {
-  const keys = await chrome.storage.local.get(['witKey', 'captchaMethod']);
+  const keys = await chrome.storage.local.get(['xpider_stt_api_key', 'witKey', 'audioSttKey', 'captchaMethod']);
+  const activeKey = keys.xpider_stt_api_key || keys.witKey || keys.audioSttKey || '';
   try {
-    const text = await CAPTCHA_SOLVER.transcribeAudio(audioUrl, { audioSttKey: keys.witKey }, audioData);
+    const text = await CAPTCHA_SOLVER.transcribeAudio(audioUrl, { audioSttKey: activeKey }, audioData);
     sendResponse({ text });
   } catch (err) {
     sendResponse({ error: err.message });
