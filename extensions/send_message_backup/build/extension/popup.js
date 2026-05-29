@@ -455,6 +455,23 @@ function bindEvents() {
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', saveSettings);
 
+    // [WitKey-Sync v2] #audio-stt-key 실시간 입력 → debounce 후 즉시 스토리지 동기화
+    // Crawler의 onChanged 리스너가 감지하여 Crawler UI도 자동 업데이트됨
+    (function bindSttKeyRealTimeSync() {
+        let _sttDebounceTimer = null;
+        const sttKeyEl = document.getElementById('audio-stt-key');
+        if (!sttKeyEl) return;
+        sttKeyEl.addEventListener('input', () => {
+            clearTimeout(_sttDebounceTimer);
+            _sttDebounceTimer = setTimeout(() => {
+                const key = sttKeyEl.value.trim();
+                chrome.storage.local.set({ xpider_stt_api_key: key, audioSttKey: key, witKey: key }, () => {
+                    console.log(`[WitKey-Sync v2] Sender 실시간 입력 동기화: ${key ? key.substring(0, 8) + '...' : 'NONE'}`);
+                });
+            }, 600); // 600ms 타이핑 중지 후 저장
+        });
+    })();
+
     // [v18.46.0] Wit.ai STT Key Setup Modal Save Button
     const saveSetupSttBtn = document.getElementById('save-setup-stt-btn');
     if (saveSetupSttBtn) {
@@ -466,7 +483,8 @@ function bindEvents() {
                 return;
             }
             
-            await chrome.storage.local.set({ xpider_stt_api_key: key });
+            // [WitKey-Sync v2] 3개 키 모두 저장하여 Crawler와 실시간 동기화
+            await chrome.storage.local.set({ xpider_stt_api_key: key, audioSttKey: key, witKey: key });
             const settingsInput = document.getElementById('audio-stt-key');
             if (settingsInput) settingsInput.value = key;
             
@@ -1312,12 +1330,16 @@ async function saveSettings() {
     const randomToggle = document.getElementById('random-delay-toggle');
 
     const lang = langSelect ? langSelect.value : 'en';
+    const sttKeyVal = sttKeyInput ? sttKeyInput.value.trim() : '';
     const settings = {
         xpider_lang: lang,
         xpider_captcha_enabled: captchaToggle ? captchaToggle.checked : false,
         xpider_captcha_method: methodSelect ? methodSelect.value : 'audio',
         xpider_captcha_api_key: apiKeyInput ? apiKeyInput.value : '',
-        xpider_stt_api_key: sttKeyInput ? sttKeyInput.value : '',
+        xpider_stt_api_key: sttKeyVal,
+        // [WitKey-Sync v2] 공유 키 필드: Crawler와 실시간 동기화를 위해 모두 저장
+        audioSttKey: sttKeyVal,
+        witKey: sttKeyVal,
         xpider_stealth_mode: stealthToggle ? stealthToggle.checked : false,
         xpider_delay: delayInput ? delayInput.value : 6,
         xpider_random_delay: randomToggle ? randomToggle.checked : false

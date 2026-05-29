@@ -452,6 +452,8 @@ document.addEventListener('DOMContentLoaded', () => {
             chrome.storage.local.set({ 
                 witKey: val, 
                 audioSttKey: val, 
+                // [WitKey-Sync v2] Sender와 실시간 동기화를 위해 xpider_stt_api_key도 저장
+                xpider_stt_api_key: val,
                 captchaSolveEnabled: true 
             }, () => {
                 // Sync settings fields if they exist
@@ -515,12 +517,27 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsToggle.addEventListener('click', () => {
         settingsOverlay.classList.remove('hidden');
         // [WitKey-Sync] 설정창 오픈 시 최신 스토리지 값으로 Wit.ai Key 입력 필드 갱신
-        chrome.storage.local.get(['audioSttKey', 'witKey'], (storage) => {
-            const latestKey = storage.audioSttKey || storage.witKey || '';
+        chrome.storage.local.get(['audioSttKey', 'witKey', 'xpider_stt_api_key'], (storage) => {
+            const latestKey = storage.audioSttKey || storage.witKey || storage.xpider_stt_api_key || '';
             if (audioSttKeyInput && latestKey) {
                 audioSttKeyInput.value = latestKey;
             }
         });
+
+        // [WitKey-Sync v2] 설정창 오픈 후 #audio-stt-key 실시간 input 동기화 바인딩
+        if (audioSttKeyInput && !audioSttKeyInput._witSyncBound) {
+            audioSttKeyInput._witSyncBound = true;
+            let _crawlerDebounceTimer = null;
+            audioSttKeyInput.addEventListener('input', () => {
+                clearTimeout(_crawlerDebounceTimer);
+                _crawlerDebounceTimer = setTimeout(() => {
+                    const key = audioSttKeyInput.value.trim();
+                    chrome.storage.local.set({ audioSttKey: key, witKey: key, xpider_stt_api_key: key }, () => {
+                        console.log(`[WitKey-Sync v2] Crawler 실시간 입력 동기화: ${key ? key.substring(0, 8) + '...' : 'NONE'}`);
+                    });
+                }, 600);
+            });
+        }
     });
 
     settingsClose.addEventListener('click', () => {
@@ -586,6 +603,9 @@ document.addEventListener('DOMContentLoaded', () => {
             captchaSolveEnabled: captchaEnabled,
             captchaMethod: 'audio', // 항상 Wit.ai 음성 우회
             audioSttKey: audioSttKey,
+            // [WitKey-Sync v2] Sender와 실시간 동기화를 위해 모든 키 필드에 함께 저장
+            witKey: audioSttKey,
+            xpider_stt_api_key: audioSttKey,
             stealthModeEnabled: stealthEnabled,
             vpnCheckEnabled: vpnCheckEnabled,
             slowModeEnabled: slowModeEnabled,
@@ -1539,17 +1559,20 @@ if (captchaWitSaveBtn) {
     });
 }
 
-// [WitKey-Sync] 실시간 스토리지 변경 시 UI 자동 업데이트 처리
+// [WitKey-Sync v2] 실시간 스토리지 변경 시 UI 자동 업데이트 처리 (양방향 동기화)
 chrome.storage.onChanged.addListener((changes) => {
     let newKey = null;
     if (changes.audioSttKey && changes.audioSttKey.newValue !== undefined) {
         newKey = changes.audioSttKey.newValue;
     } else if (changes.witKey && changes.witKey.newValue !== undefined) {
         newKey = changes.witKey.newValue;
+    } else if (changes.xpider_stt_api_key && changes.xpider_stt_api_key.newValue !== undefined) {
+        // [WitKey-Sync v2] Sender 저장 시 발생하는 xpider_stt_api_key 변경도 감지
+        newKey = changes.xpider_stt_api_key.newValue;
     }
     
     if (newKey !== null) {
-        console.log(`[WitKey-Sync] Crawler Popup Storage changed → Syncing UI to new key: ${newKey ? newKey.substring(0, 8) + '...' : 'NONE'}`);
+        console.log(`[WitKey-Sync v2] Crawler onChanged → UI 동기화: ${newKey ? newKey.substring(0, 8) + '...' : 'NONE'}`);
         if (audioSttKeyInput) audioSttKeyInput.value = newKey;
         if (captchaWitKeyInput) captchaWitKeyInput.value = newKey;
         if (captchaWitInputContainer) {
