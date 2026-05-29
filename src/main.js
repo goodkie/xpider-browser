@@ -2453,6 +2453,7 @@ let _captchaResolveCallback = null;
 let _captchaCheckInterval   = null;
 let _captchaTabUIId         = null; // 새로 열린 캡챠 탭 ID
 let _captchaResolvedAt      = 0;    // [v3.3] 마지막 해결 시각(ms) — 쿨다운 단속 제어용
+let _captchaWindowOpenCount = 0;    // [v4.12.26] 캡챠 솔버창 누적 생성 카운트 (최대 3회 제한용)
 const CAPTCHA_COOLDOWN_MS   = 15000; // 해결 후 15초 내 재감지 억제
 
 // CAPTCHA 페이지 여부 감지 — Google /sorry/ 전용 (contact 페이지 reCAPTCHA 위젯 추룬 제외)
@@ -2541,6 +2542,18 @@ async function _handleCaptchaDetected(captchaUrl) {
         return false;
     }
 
+    // [v4.12.26] 캡챠 솔버창 누적 생성 제한 (3회 초과 시 무한 루프 방지를 위해 차단)
+    if (_captchaWindowOpenCount >= 3) {
+        log.warn(`[CAPTCHA] 캡챠 솔버창 생성 제한 초과 (${_captchaWindowOpenCount}/3). 더 이상 창을 열지 않고 무시합니다.`);
+        broadcastExtMessage({ 
+            action: 'CAPTCHA_STATUS', 
+            status: 'bypassed', 
+            auto: true,
+            message: '⚠️ CAPTCHA 창 생성 제한 초과 (최대 3회) → 자동 스킵'
+        });
+        return false;
+    }
+
     // [v3.3] 이미 대기 중이면 재진입 차단
     if (_captchaResolveCallback) {
         log.info('[CAPTCHA] 이미 CAPTCHA 대기 중 — 재진입 무시');
@@ -2575,6 +2588,8 @@ async function _handleCaptchaDetected(captchaUrl) {
 
             // 새로 열린 탭을 캡챠 탭으로 마킹 (did-navigate 감지 연동)
             if (_captchaTabUIId) {
+                _captchaWindowOpenCount++; // [v4.12.26] 캡챠 솔버창 누적 생성 횟수 증가
+                log.warn(`[CAPTCHA] 캡챠 솔버창이 열렸습니다. (누적 생성 횟수: ${_captchaWindowOpenCount}/3)`);
                 await mainWindow.webContents.executeJavaScript(`
                     window._captchaTabId = ${JSON.stringify(_captchaTabUIId)};
                     console.log('[CAPTCHA] 새 탭 캡챠 마킹:', window._captchaTabId);
@@ -4058,6 +4073,7 @@ campaignEngine.init(
 
 ipcMain.handle('xpider-campaign-start', async (event, { queue, template, delayMs }) => {
     try {
+        _captchaWindowOpenCount = 0; // [v4.12.26] 캠페인 시작 시 캡챠 카운트 리셋
         const result = campaignEngine.start(queue, template, delayMs);
         return result;
     } catch (e) {

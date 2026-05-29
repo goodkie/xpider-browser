@@ -805,22 +805,68 @@
         // ============================================================
         // [v4.0] 전체 이벤트 시퀀스 디스패처 - 사람처럼 행동
         // ============================================================
-        function dispatchHumanEvents(el, eventNames) {
-            eventNames.forEach(evtName => {
+        // ============================================================
+        // [v4.12.26] 초강력 스텔스 마우스 궤적 Bezier Curve 시뮬레이터 및 디스패처
+        // ============================================================
+        async function dispatchHumanEvents(el, eventNames) {
+            // Track last mouse location globally to simulate cohesive drag/hover paths
+            if (typeof window.__xpider_last_mouse_x === 'undefined') {
+                window.__xpider_last_mouse_x = Math.random() * window.innerWidth;
+                window.__xpider_last_mouse_y = Math.random() * window.innerHeight;
+            }
+
+            const rect = el.getBoundingClientRect();
+            const randomOffsetX = (Math.random() - 0.5) * (rect.width * 0.3);
+            const randomOffsetY = (Math.random() - 0.5) * (rect.height * 0.3);
+            const targetX = rect.left + rect.width / 2 + randomOffsetX;
+            const targetY = rect.top + rect.height / 2 + randomOffsetY;
+
+            // 만약 mousemove 나 click 계열이 포함되어 있다면 마우스 실제 움직임(Bezier Curve)을 시뮬레이션
+            const hasMovement = eventNames.some(name => name.includes('move') || name.includes('over') || name === 'click');
+            if (hasMovement) {
+                const startX = window.__xpider_last_mouse_x;
+                const startY = window.__xpider_last_mouse_y;
+
+                // Bezier Curve 중간 좌표 계산
+                const steps = 6 + Math.floor(Math.random() * 5); // 6 ~ 10 steps
+                const cp1x = startX + (targetX - startX) * 0.25 + (Math.random() * 50 - 25);
+                const cp1y = startY + (targetY - startY) * 0.25 + (Math.random() * 50 - 25);
+                const cp2x = startX + (targetX - startX) * 0.75 + (Math.random() * 50 - 25);
+                const cp2y = startY + (targetY - startY) * 0.75 + (Math.random() * 50 - 25);
+
+                for(let i = 1; i <= steps; i++) {
+                    const t = i / steps;
+                    const x = Math.round((1-t)**3 * startX + 3*(1-t)**2*t * cp1x + 3*(1-t)*t**2 * cp2x + t**3 * targetX);
+                    const y = Math.round((1-t)**3 * startY + 3*(1-t)**2*t * cp1y + 3*(1-t)*t**2 * cp2y + t**3 * targetY);
+
+                    try {
+                        el.dispatchEvent(new MouseEvent('mousemove', {
+                            bubbles: true, cancelable: true, view: window,
+                            clientX: x, clientY: y, screenX: x, screenY: y
+                        }));
+                        el.dispatchEvent(new PointerEvent('pointermove', {
+                            bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse',
+                            clientX: x, clientY: y, screenX: x, screenY: y
+                        }));
+                    } catch(e) {}
+                    await new Promise(r => setTimeout(r, 10 + Math.random()*15)); // 자연스러운 이동 딜레이
+                }
+
+                window.__xpider_last_mouse_x = targetX;
+                window.__xpider_last_mouse_y = targetY;
+            }
+
+            for (const evtName of eventNames) {
                 try {
                     if (evtName.startsWith('pointer')) {
-                        el.dispatchEvent(new PointerEvent(evtName, { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse' }));
+                        el.dispatchEvent(new PointerEvent(evtName, { 
+                            bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse',
+                            clientX: targetX, clientY: targetY
+                        }));
                     } else if (evtName.startsWith('mouse') || evtName === 'click') {
-                        const rect = el.getBoundingClientRect();
-                        // [v4.1] 인간 무작위 클릭 오프셋 주입 (중앙 기준 ±20% 범위 무작위 좌표 계산)
-                        const randomOffsetX = (Math.random() - 0.5) * (rect.width * 0.4);
-                        const randomOffsetY = (Math.random() - 0.5) * (rect.height * 0.4);
-                        const clientX = rect.left + rect.width / 2 + randomOffsetX;
-                        const clientY = rect.top + rect.height / 2 + randomOffsetY;
-
                         el.dispatchEvent(new MouseEvent(evtName, {
                             bubbles: true, cancelable: true, view: window,
-                            clientX: clientX, clientY: clientY
+                            clientX: targetX, clientY: targetY
                         }));
                     } else if (evtName.startsWith('key')) {
                         el.dispatchEvent(new KeyboardEvent(evtName, { bubbles: true, cancelable: true }));
@@ -830,7 +876,9 @@
                         el.dispatchEvent(new Event(evtName, { bubbles: true, cancelable: true }));
                     }
                 } catch(e) {}
-            });
+                // 이벤트간 미세 딜레이
+                await new Promise(r => setTimeout(r, 10 + Math.random() * 20));
+            }
         }
 
         const FULL_CLICK_SEQUENCE = [
@@ -1177,28 +1225,56 @@
         }
 
         // ============================================================
-        // [v4.1] 인간 키보드 입력 인터랙션 모사 엔진 (Human Keyboard Simulation)
+        // [v4.12.26] 인간 키보드 입력 인터랙션 모사 엔진 (Stealth Human Keyboard Simulator)
         // ============================================================
         async function typeHumanlike(el, val) {
             if (!el || !val) return;
             
             // 1. 엘리먼트 가시성 확보 및 부드러운 스크롤 & 초점 잡기
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            await new Promise(r => setTimeout(r, 60)); // 시선 이동 딜레이
+            try {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await new Promise(r => setTimeout(r, 450 + Math.random()*150)); // 시선 이동 딜레이
+            } catch(e) {}
             
-            // 2. 포커스 및 마우스 클릭 이벤트 디스패치 (랜덤 오프셋 자동 적용)
+            // 2. 포커스 및 마우스 클릭 이벤트 디스패치 (Bezier 마우스 궤적 자동 기동)
             el.focus();
-            dispatchHumanEvents(el, ['pointerover', 'pointerenter', 'mouseover', 'mouseenter', 'pointerdown', 'mousedown', 'focusin', 'pointerup', 'mouseup', 'click']);
-            await new Promise(r => setTimeout(r, 50));
+            await dispatchHumanEvents(el, ['pointerover', 'pointerenter', 'mouseover', 'mouseenter', 'pointerdown', 'mousedown', 'focusin', 'pointerup', 'mouseup', 'click']);
+            await new Promise(r => setTimeout(r, 100 + Math.random()*100));
             
-            // 3. 한 글자씩 순차적 타이핑
+            // 3. 한 글자씩 순차적 타이핑 (오타 및 백스페이스 인간미 포함)
             let accumulatedValue = '';
             for (let i = 0; i < val.length; i++) {
                 const char = val[i];
                 const key = char;
                 const keyCode = char.charCodeAt(0);
                 
-                // 3a. keydown 이벤트 발생 (인간미 있는 keydown 설정)
+                // 3a. 간헐적 오타 발생 및 지우기 시뮬레이션 (1.2% 확률)
+                if (Math.random() < 0.012 && i > 0 && i < val.length - 1) {
+                    const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+                    const typo = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                    
+                    // 오타 삽입
+                    accumulatedValue += typo;
+                    if (el.contentEditable === 'true') {
+                        el.textContent = accumulatedValue;
+                    } else {
+                        setNativeValue(el, accumulatedValue);
+                    }
+                    el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+                    await new Promise(r => setTimeout(r, 100 + Math.random()*120));
+                    
+                    // 지우기 (Backspace)
+                    accumulatedValue = accumulatedValue.slice(0, -1);
+                    if (el.contentEditable === 'true') {
+                        el.textContent = accumulatedValue;
+                    } else {
+                        setNativeValue(el, accumulatedValue);
+                    }
+                    el.dispatchEvent(new Event('input', { bubbles: true, inputType: 'deleteContentBackward' }));
+                    await new Promise(r => setTimeout(r, 120 + Math.random()*80));
+                }
+
+                // 3b. keydown 이벤트 발생 (인간미 있는 keydown 설정)
                 el.dispatchEvent(new KeyboardEvent('keydown', {
                     key: key,
                     code: `Key${key.toUpperCase()}`,
@@ -1208,7 +1284,7 @@
                     cancelable: true
                 }));
                 
-                // 3b. keypress 이벤트 발생
+                // 3c. keypress 이벤트 발생
                 el.dispatchEvent(new KeyboardEvent('keypress', {
                     key: key,
                     keyCode: keyCode,
@@ -1217,7 +1293,7 @@
                     cancelable: true
                 }));
                 
-                // 3c. 엘리먼트 속성에 따라 실제 값을 순차 대입
+                // 3d. 엘리먼트 속성에 따라 실제 값을 순차 대입
                 if (el.contentEditable === 'true') {
                     accumulatedValue += char;
                     el.textContent = accumulatedValue;
@@ -1226,10 +1302,10 @@
                     setNativeValue(el, accumulatedValue);
                 }
                 
-                // 3d. input 이벤트 발생 (React/Vue 가 상태 변화를 즉시 캐치함)
+                // 3e. input 이벤트 발생
                 el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
                 
-                // 3e. keyup 이벤트 발생
+                // 3f. keyup 이벤트 발생
                 el.dispatchEvent(new KeyboardEvent('keyup', {
                     key: key,
                     keyCode: keyCode,
@@ -1238,8 +1314,9 @@
                     cancelable: true
                 }));
                 
-                // 3f. 글자 간 불규칙한 인간 타이핑 딜레이 모사 (35ms ~ 75ms 사이)
-                const randomDelay = 35 + Math.random() * 40;
+                // 3g. 글자 간 불규칙한 인간 타이핑 딜레이 모사 (문장 부호는 느리게)
+                const isPunctuation = /[.,!?;:]/.test(char);
+                const randomDelay = isPunctuation ? (180 + Math.random() * 220) : (45 + Math.random() * 50);
                 await new Promise(r => setTimeout(r, randomDelay));
             }
             
@@ -1256,7 +1333,7 @@
             
             // 5. 블러 처리 및 포커스 아웃
             el.blur();
-            dispatchHumanEvents(el, ['blur', 'focusout']);
+            await dispatchHumanEvents(el, ['blur', 'focusout']);
             await new Promise(r => setTimeout(r, 40));
         }
 
