@@ -373,7 +373,7 @@
             }
 
             if (currentForm) {
-                logDev("🎯 [Discovery] Optimal form secured (Ultra Polling)", "success");
+                logDev("🎯 Step 2: Contact form discovered. Preparing submission...", "success");
                 sessionStorage.removeItem('xpider_recursion_debt');
                 sessionStorage.removeItem('xpider_guessed_paths');
                 
@@ -405,7 +405,7 @@
             logDev("🕵️ [Discovery] Scanning DOM for contact links...");
             const bestLink = findBestContactLink();
             if (bestLink && normalizeUrl(bestLink) !== normalizeUrl(currentUrl)) {
-                logDev(`🎯 [Discovery] Best contact link found: ${bestLink}`, "success");
+                logDev(`🎯 Step 1: Contact page link found! Navigating to: ${bestLink}`, "success");
                 await safeNavigate(bestLink, template);
                 return;
             }
@@ -463,7 +463,7 @@
 
     async function fillAndSubmit(form, template, speed) {
         try {
-            logDev("📝 [Action] Initiating hyper-mapping sequence...");
+            logDev("🛠️ Step 3: Registering message template to form fields...", "info");
             const result = await fillFormIntelligent(form, template, speed);
             if (!result.filledAny) throw new Error("Zero-mapping: No usable fields found.");
             
@@ -777,29 +777,451 @@
     }
 
     async function fillFormIntelligent(form, tpl, speed) {
-        logDev("🛠️ [Action] Profiling fields for intelligent mapping...");
+        logDev("🛠️ [Action][HyperEngine v4.0] 초강력 폼 자동 등록기 시작...");
         let filledFields = 0;
-        const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), textarea, select'));
 
+        // ============================================================
+        // [HyperEngine v4.0] React/Vue/Angular 네이티브 값 세터 유틸
+        // ============================================================
+        function setNativeValue(el, val) {
+            try {
+                const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype
+                            : el.tagName === 'SELECT' ? HTMLSelectElement.prototype
+                            : HTMLInputElement.prototype;
+                const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value');
+                if (nativeSetter && nativeSetter.set) {
+                    nativeSetter.set.call(el, val);
+                } else {
+                    el.value = val;
+                }
+            } catch (e) {
+                el.value = val;
+            }
+        }
+
+        // ============================================================
+        // [v4.0] 전체 이벤트 시퀀스 디스패처 - 사람처럼 행동
+        // ============================================================
+        function dispatchHumanEvents(el, eventNames) {
+            eventNames.forEach(evtName => {
+                try {
+                    if (evtName.startsWith('pointer')) {
+                        el.dispatchEvent(new PointerEvent(evtName, { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse' }));
+                    } else if (evtName.startsWith('mouse') || evtName === 'click') {
+                        const rect = el.getBoundingClientRect();
+                        el.dispatchEvent(new MouseEvent(evtName, {
+                            bubbles: true, cancelable: true, view: window,
+                            clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2
+                        }));
+                    } else if (evtName.startsWith('key')) {
+                        el.dispatchEvent(new KeyboardEvent(evtName, { bubbles: true, cancelable: true }));
+                    } else if (evtName.startsWith('focus') || evtName === 'blur') {
+                        el.dispatchEvent(new FocusEvent(evtName, { bubbles: true }));
+                    } else {
+                        el.dispatchEvent(new Event(evtName, { bubbles: true, cancelable: true }));
+                    }
+                } catch(e) {}
+            });
+        }
+
+        const FULL_CLICK_SEQUENCE = [
+            'pointerover', 'pointerenter', 'mouseover', 'mouseenter',
+            'pointermove', 'mousemove',
+            'pointerdown', 'mousedown', 'focus',
+            'pointerup', 'mouseup', 'click'
+        ];
+
+        // ============================================================
+        // [v4.0] SELECT 드롭다운 강제 선택 - 네이티브 <select>
+        // ============================================================
+        async function applySelect(el, preferredKeywords = []) {
+            if (!el || el.tagName !== 'SELECT') return false;
+            if (el.options.length <= 1) return false;
+            // 이미 유효한 값이 선택된 경우 스킵
+            if (el.selectedIndex > 0 && el.options[el.selectedIndex].value) {
+                logDev(`   - [Select-Skip] 이미 선택됨: "${el.options[el.selectedIndex].text}"`);
+                return false;
+            }
+
+            const contactKeywords = [...(preferredKeywords || []),
+                'inquiry', 'general', 'other', 'contact', 'question', 'sales', 'business',
+                '문의', '일반', '기타', '고객', '상담', 'info', 'support', 'partnership',
+                'お問い合わせ', '質問', '提案', '咨询', '合作',
+                'consulta', 'información', 'anfrage', 'demande'
+            ];
+
+            let targetIdx = -1;
+
+            // 1순위: 키워드 매칭
+            for (let i = 1; i < el.options.length; i++) {
+                if (el.options[i].disabled) continue;
+                const optText = (el.options[i].text || '').toLowerCase();
+                const optVal = (el.options[i].value || '').toLowerCase();
+                if (contactKeywords.some(k => optText.includes(k) || optVal.includes(k))) {
+                    targetIdx = i;
+                    break;
+                }
+            }
+
+            // 2순위: 유효한 첫 번째 옵션
+            if (targetIdx < 0) {
+                for (let i = 1; i < el.options.length; i++) {
+                    if (!el.options[i].disabled && el.options[i].value && el.options[i].value !== '') {
+                        targetIdx = i;
+                        break;
+                    }
+                }
+            }
+            if (targetIdx < 0 && el.options.length > 1) targetIdx = 1;
+            if (targetIdx < 0) return false;
+
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await new Promise(r => setTimeout(r, Math.floor(speed.field * 0.4)));
+
+            el.focus();
+            dispatchHumanEvents(el, ['mousedown']);
+            await new Promise(r => setTimeout(r, 60));
+
+            // 네이티브 setter를 사용해 React 등의 controlled component 우회
+            const nativeSelectSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+            if (nativeSelectSetter && nativeSelectSetter.set) {
+                nativeSelectSetter.set.call(el, el.options[targetIdx].value);
+            }
+            el.selectedIndex = targetIdx;
+
+            dispatchHumanEvents(el, ['input', 'change', 'mouseup', 'click']);
+            el.blur();
+
+            logDev(`   - [Select✅] 드롭다운 선택: "${el.options[targetIdx].text}"`);
+            filledFields++;
+            return true;
+        }
+
+        // ============================================================
+        // [v4.0] 커스텀 드롭다운 처리 (React Select, MUI, Ant Design 등)
+        // div/span 기반 커스텀 셀렉트를 실제 마우스 클릭으로 조작
+        // ============================================================
+        async function applyCustomDropdown(container) {
+            if (!container) return false;
+            
+            const CUSTOM_SELECTORS = [
+                // React Select
+                '[class*="react-select"]', '[class*="css-"][class*="control"]',
+                // MUI / Material UI
+                '[class*="MuiSelect"]', '[class*="MuiInputBase"]', '.MuiSelect-select',
+                // Ant Design
+                '.ant-select', '.ant-select-selector',
+                // Generic custom selects
+                '[class*="custom-select"]', '[class*="dropdown"]', '[class*="select-wrapper"]',
+                '[role="listbox"]', '[role="combobox"]',
+                // Wix
+                '[data-testid*="dropdown"]', '[class*="dropdown"]'
+            ];
+
+            const customSelects = [];
+            CUSTOM_SELECTORS.forEach(sel => {
+                try {
+                    const found = container.querySelectorAll(sel);
+                    found.forEach(el => {
+                        if (elementIsVisible(el) && !customSelects.includes(el)) {
+                            customSelects.push(el);
+                        }
+                    });
+                } catch(e) {}
+            });
+
+            let handled = 0;
+            for (const csEl of customSelects) {
+                try {
+                    // 이미 값이 선택되어 있는지 체크
+                    const currentText = (csEl.textContent || '').toLowerCase().trim();
+                    const placeholders = ['select', 'choose', '선택', '選択', '请选择', '--', '...'];
+                    const isPlaceholder = placeholders.some(p => currentText.startsWith(p)) || currentText.length < 2;
+                    if (!isPlaceholder) continue; // 이미 선택됨
+
+                    csEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    await new Promise(r => setTimeout(r, 100));
+
+                    // 드롭다운 열기 (트리거 클릭)
+                    const trigger = csEl.querySelector('[class*="indicator"], [class*="arrow"], svg, [class*="trigger"]') || csEl;
+                    dispatchHumanEvents(trigger, FULL_CLICK_SEQUENCE);
+                    await new Promise(r => setTimeout(r, 400));
+
+                    // 옵션 리스트 탐색 (전역 검색 - 포탈 렌더링 대응)
+                    const optionSelectors = [
+                        '[class*="option"]', '[role="option"]',
+                        '[class*="menu-item"]', '[class*="MenuItem"]',
+                        'li[class*="item"]', '.ant-select-item',
+                        '[data-value]', '[class*="listbox"] > *'
+                    ];
+
+                    let options = [];
+                    // 먼저 드롭다운 컨테이너 내부 탐색
+                    optionSelectors.forEach(sel => {
+                        try {
+                            const found = csEl.querySelectorAll(sel);
+                            found.forEach(o => { if (elementIsVisible(o) && !options.includes(o)) options.push(o); });
+                        } catch(e) {}
+                    });
+
+                    // 포탈 렌더링 대응: body 직하의 최근 열린 메뉴 탐색
+                    if (options.length === 0) {
+                        const portalMenus = document.querySelectorAll(
+                            '[class*="menu"], [class*="dropdown-list"], [class*="listbox"], [role="listbox"], .ant-select-dropdown'
+                        );
+                        for (const menu of portalMenus) {
+                            if (!elementIsVisible(menu)) continue;
+                            optionSelectors.forEach(sel => {
+                                try {
+                                    const found = menu.querySelectorAll(sel);
+                                    found.forEach(o => { if (elementIsVisible(o) && !options.includes(o)) options.push(o); });
+                                } catch(e) {}
+                            });
+                        }
+                    }
+
+                    if (options.length === 0) {
+                        // 드롭다운 닫기 시도
+                        dispatchHumanEvents(trigger, ['click']);
+                        continue;
+                    }
+
+                    // 키워드 매칭으로 최적 옵션 선택
+                    const preferredKeywords = ['inquiry', 'general', 'other', 'contact', '문의', '일반', '기타', '고객', 'sales', 'business', 'info'];
+                    let targetOption = null;
+
+                    for (const opt of options) {
+                        const optText = (opt.textContent || '').toLowerCase().trim();
+                        if (preferredKeywords.some(k => optText.includes(k))) {
+                            targetOption = opt;
+                            break;
+                        }
+                    }
+
+                    // 키워드 매칭 실패 시 첫 번째 유효 옵션
+                    if (!targetOption) {
+                        targetOption = options.find(opt => {
+                            const text = (opt.textContent || '').trim();
+                            return text.length > 0 && !placeholders.some(p => text.toLowerCase().startsWith(p));
+                        }) || options[0];
+                    }
+
+                    if (targetOption) {
+                        dispatchHumanEvents(targetOption, FULL_CLICK_SEQUENCE);
+                        await new Promise(r => setTimeout(r, 200));
+                        logDev(`   - [CustomSelect✅] 커스텀 드롭다운 선택: "${(targetOption.textContent || '').trim().substring(0, 30)}"`);
+                        filledFields++;
+                        handled++;
+                    }
+                } catch (e) {
+                    logDev(`   - [CustomSelect⚠️] 처리 실패: ${e.message}`, 'warning');
+                }
+            }
+            return handled > 0;
+        }
+
+        // ============================================================
+        // [v4.0] 라디오 버튼 강제 선택 - label/wrapper 클릭 포함
+        // ============================================================
+        async function applyRadio(radioEl) {
+            if (!radioEl) return;
+            // 이미 체크된 경우 스킵
+            if (radioEl.checked) return;
+
+            radioEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await new Promise(r => setTimeout(r, 50));
+
+            // 1차: 네이티브 라디오 직접 클릭
+            radioEl.focus();
+            dispatchHumanEvents(radioEl, FULL_CLICK_SEQUENCE);
+
+            // 네이티브 checked setter
+            const nativeCheckedSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked');
+            if (nativeCheckedSetter && nativeCheckedSetter.set) {
+                nativeCheckedSetter.set.call(radioEl, true);
+            } else {
+                radioEl.checked = true;
+            }
+            dispatchHumanEvents(radioEl, ['input', 'change']);
+
+            // 2차: 직접 클릭으로 안 됐으면 label 클릭 시도
+            if (!radioEl.checked) {
+                const label = radioEl.id
+                    ? document.querySelector(`label[for="${radioEl.id}"]`)
+                    : radioEl.closest('label');
+                if (label) {
+                    dispatchHumanEvents(label, FULL_CLICK_SEQUENCE);
+                    await new Promise(r => setTimeout(r, 50));
+                }
+            }
+
+            // 3차: 부모 wrapper 클릭 (Material UI 등)
+            if (!radioEl.checked) {
+                const wrapper = radioEl.closest('[class*="radio"], [class*="Radio"], [role="radio"]');
+                if (wrapper && wrapper !== radioEl) {
+                    dispatchHumanEvents(wrapper, FULL_CLICK_SEQUENCE);
+                }
+            }
+
+            radioEl.blur();
+            logDev(`   - [Radio✅] 라디오 클릭: name="${radioEl.name}" value="${radioEl.value}"`);
+        }
+
+        // ============================================================
+        // [v4.0] 체크박스 강제 체크 - label/wrapper 클릭 포함
+        // ============================================================
+        async function applyCheckbox(cbEl) {
+            if (!cbEl) return;
+            if (cbEl.checked) return;
+
+            cbEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await new Promise(r => setTimeout(r, 40));
+
+            // 1차: 네이티브 체크박스 직접 클릭
+            cbEl.focus();
+            dispatchHumanEvents(cbEl, FULL_CLICK_SEQUENCE);
+
+            const nativeCheckedSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked');
+            if (nativeCheckedSetter && nativeCheckedSetter.set) {
+                nativeCheckedSetter.set.call(cbEl, true);
+            } else {
+                cbEl.checked = true;
+            }
+            dispatchHumanEvents(cbEl, ['input', 'change']);
+
+            // 2차: label 클릭
+            if (!cbEl.checked) {
+                const label = cbEl.id
+                    ? document.querySelector(`label[for="${cbEl.id}"]`)
+                    : cbEl.closest('label');
+                if (label) {
+                    dispatchHumanEvents(label, FULL_CLICK_SEQUENCE);
+                    await new Promise(r => setTimeout(r, 40));
+                }
+            }
+
+            // 3차: wrapper 클릭 (MUI Checkbox 등)
+            if (!cbEl.checked) {
+                const wrapper = cbEl.closest('[class*="checkbox"], [class*="Checkbox"], [role="checkbox"]');
+                if (wrapper && wrapper !== cbEl) {
+                    dispatchHumanEvents(wrapper, FULL_CLICK_SEQUENCE);
+                }
+            }
+
+            cbEl.blur();
+            logDev(`   - [Checkbox✅] 체크박스 체크: "${cbEl.name || cbEl.id || ''}"`);
+        }
+
+        // ============================================================
+        // [v4.0] 커스텀 체크박스/라디오 (div/span 기반) 클릭
+        // ============================================================
+        async function applyCustomCheckableElements(container) {
+            const CUSTOM_CHECK_SELECTORS = [
+                '[role="checkbox"]:not([aria-checked="true"])',
+                '[role="radio"]:not([aria-checked="true"])',
+                '[role="switch"]:not([aria-checked="true"])',
+                '[class*="custom-checkbox"]:not(.checked)',
+                '[class*="custom-radio"]:not(.checked)'
+            ];
+
+            let handled = 0;
+            for (const sel of CUSTOM_CHECK_SELECTORS) {
+                try {
+                    const elements = container.querySelectorAll(sel);
+                    for (const el of elements) {
+                        if (!elementIsVisible(el)) continue;
+
+                        // 약관/동의 관련 체크박스만 자동 체크
+                        const context = (el.textContent || el.getAttribute('aria-label') || '').toLowerCase();
+                        const parentText = (el.parentElement?.textContent || '').toLowerCase().substring(0, 200);
+                        const combined = context + ' ' + parentText;
+
+                        const isTerms = ['agree', 'terms', 'policy', 'consent', 'accept', 'privacy',
+                            '동의', '약관', '규정', '개인정보', '수집', '이용약관', 'gdpr'
+                        ].some(k => combined.includes(k));
+
+                        // role="radio" 는 그룹 내 첫 번째를 선택
+                        const isRadio = el.getAttribute('role') === 'radio';
+
+                        if (isTerms || isRadio) {
+                            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            await new Promise(r => setTimeout(r, 60));
+                            dispatchHumanEvents(el, FULL_CLICK_SEQUENCE);
+
+                            // aria-checked 업데이트 시도
+                            if (el.getAttribute('aria-checked') !== 'true') {
+                                el.setAttribute('aria-checked', 'true');
+                            }
+
+                            await new Promise(r => setTimeout(r, 100));
+                            logDev(`   - [CustomCheck✅] ${isRadio ? '라디오' : '체크박스'} 클릭: "${context.substring(0, 30)}"`);
+                            filledFields++;
+                            handled++;
+
+                            // role="radio"는 그룹 당 하나만
+                            if (isRadio) break;
+                        }
+                    }
+                } catch(e) {}
+            }
+            return handled;
+        }
+
+        // ============================================================
+        // [v4.0] 텍스트/이메일/전화 필드 값 입력 (사람처럼 타이핑)
+        // ============================================================
+        const applyVal = async (el, val, matchedAttr) => {
+            if (!val || !el) return;
+            if (el.tagName === 'SELECT') {
+                await applySelect(el);
+                return;
+            }
+
+            // 이미 값이 있으면 스킵
+            const currentVal = el.contentEditable === 'true' ? (el.textContent || '') : (el.value || '');
+            if (currentVal.trim() !== '') return;
+
+            await new Promise(r => setTimeout(r, speed.field));
+
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await new Promise(r => setTimeout(r, 40));
+
+            el.focus();
+            dispatchHumanEvents(el, ['focusin', 'click']);
+
+            if (el.contentEditable === 'true') {
+                el.textContent = val;
+                dispatchHumanEvents(el, ['input', 'change', 'keydown', 'keyup']);
+            } else {
+                setNativeValue(el, val);
+                dispatchHumanEvents(el, ['input', 'change', 'keydown', 'keyup', 'keypress']);
+            }
+
+            el.blur();
+            dispatchHumanEvents(el, ['blur', 'focusout']);
+            logDev(`   - [Input✅] "${(matchedAttr || '').toString().substring(0,20)}" | Val: ${val.substring(0, 20)}...`);
+            filledFields++;
+        };
+
+        // 패턴 매칭 함수
         const matchField = async (patterns, val, el) => {
             if (!val) return false;
-            
             const label = getLabelFor(el).toLowerCase();
             const placeholder = (el.placeholder || '').toLowerCase();
             const name = (el.name || '').toLowerCase();
             const id = (el.id || '').toLowerCase();
             const cls = (el.className || '').toString().toLowerCase();
-            
+            const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+            const autocomplete = (el.getAttribute('autocomplete') || '').toLowerCase();
             const isGenericId = !id || id === 'null-field' || /^\d+$/.test(id) || id.includes('input');
-            const combined = isGenericId ? `${label} ${placeholder} ${cls}` : `${label} ${placeholder} ${name} ${id} ${cls}`;
-            
-            if (isGenericId && label) {
-                if (patterns.some(p => p.test(label))) {
-                    await applyVal(el, val, patterns.find(p => p.test(label)));
-                    return true;
-                }
-            }
+            const combined = isGenericId
+                ? `${label} ${placeholder} ${cls} ${ariaLabel} ${autocomplete}`
+                : `${label} ${placeholder} ${name} ${id} ${cls} ${ariaLabel} ${autocomplete}`;
 
+            if (isGenericId && label && patterns.some(p => p.test(label))) {
+                await applyVal(el, val, patterns.find(p => p.test(label)));
+                return true;
+            }
             if (patterns.some(p => p.test(combined))) {
                 await applyVal(el, val, patterns.find(p => p.test(combined)));
                 return true;
@@ -807,57 +1229,99 @@
             return false;
         };
 
-        const applyVal = async (el, val, matchedAttr) => {
-            if (el.tagName === 'SELECT') {
-                if (el.options.length > 1) {
-                    const randomIndex = Math.floor(Math.random() * (el.options.length - 1)) + 1;
-                    el.selectedIndex = randomIndex;
-                    logDev(`   - [Select] Matched "${matchedAttr}" | Picked: ${el.options[randomIndex].text}`);
-                }
-            } else if (!el.value) {
-                // [v18.7.5] Intelligent Pacing: wait between field entry
-                await new Promise(r => setTimeout(r, speed.field));
-                
-                el.focus();
-                el.value = val;
-                el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-                el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-                el.blur();
-                logDev(`   - [Input] Matched "${matchedAttr}" | Val: ${val.substring(0, 15)}...`);
-                filledFields++;
-            }
+        // 템플릿 유효값 수집
+        const templateVals = [
+            tpl.firstName, tpl.lastName, tpl.name, tpl.email,
+            tpl.phone, tpl.subject, tpl.message
+        ].filter(v => typeof v === 'string' && v.trim() !== '');
+
+        const getRandomTemplateVal = () => {
+            if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
+            return "Inquiry";
         };
 
+        // ── 확장된 honeypot 판정 (v4.0: 오탐 방지 강화) ──
+        function isHoneypotV4(el) {
+            // 명시적 허니팟 표지
+            const idOrName = ((el.id || '') + ' ' + (el.name || '')).toLowerCase();
+            const honeypotKeywords = ['honeypot', 'website_url', 'trap', 'bottom_field', 'h-captcha-response', 'g-recaptcha-response'];
+            if (honeypotKeywords.some(k => idOrName.includes(k))) return true;
+
+            // tab-reachable이거나 aria-hidden=false이면 허니팟 아님
+            if (el.tabIndex >= 0 && el.getAttribute('aria-hidden') !== 'true') {
+                // 실제 크기가 0이면 허니팟
+                const rect = el.getBoundingClientRect();
+                if (rect.width < 1 && rect.height < 1) return true;
+                return false;
+            }
+
+            // 시각적 비가시 판정 (기본)
+            if (!elementIsVisible(el)) return true;
+
+            return false;
+        }
+
+        // ── 1단계: 모든 입력란 수집 (form 내부 + 확장 탐색) ──
+        logDev("🎯 [HyperEngine v4.0] Phase 0 - 입력 필드 전수 수집...");
+        let inputs = Array.from(queryAllInputs(form));
+
+        // form 태그 외부에 있는 관련 필드 추가 탐색
+        if (form.tagName !== 'BODY' && form.tagName !== 'HTML') {
+            // form 근처의 형제/부모 요소에서 추가 필드 탐색
+            const formParent = form.parentElement;
+            if (formParent) {
+                const nearbyInputs = Array.from(queryAllInputs(formParent));
+                nearbyInputs.forEach(inp => {
+                    if (!inputs.includes(inp)) inputs.push(inp);
+                });
+            }
+        }
+
+        // 라디오/체크박스 명시적 수집 (queryAllInputs가 누락할 수 있으므로)
+        const allRadios = Array.from(queryAllDeep('input[type="radio"]', form));
+        const allCheckboxes = Array.from(queryAllDeep('input[type="checkbox"]', form));
+        allRadios.forEach(r => { if (!inputs.includes(r)) inputs.push(r); });
+        allCheckboxes.forEach(c => { if (!inputs.includes(c)) inputs.push(c); });
+
+        logDev(`   [v4.0] 총 ${inputs.length}개 입력 필드 발견 (radio: ${allRadios.length}, checkbox: ${allCheckboxes.length})`);
+
+        // ── 2단계: 네이티브 SELECT 드롭다운 전수 처리 ──
+        logDev("🎯 [HyperEngine v4.0] Phase 1 - 네이티브 드롭다운 전수 처리...");
         for (const el of inputs) {
-            if (isHoneypot(el)) continue;
+            if (isHoneypotV4(el)) continue;
+            if (el.tagName === 'SELECT') await applySelect(el);
+        }
 
-            if (el.type === 'checkbox' || el.type === 'radio') {
+        // ── 3단계: 커스텀 드롭다운 처리 (div/span 기반) ──
+        logDev("🎯 [HyperEngine v4.0] Phase 2 - 커스텀 드롭다운 처리...");
+        await applyCustomDropdown(form);
+
+        // ── 4단계: 약관/동의 체크박스 우선 처리 ──
+        logDev("🎯 [HyperEngine v4.0] Phase 3 - 약관/동의 체크박스 처리...");
+        for (const el of inputs) {
+            if (isHoneypotV4(el)) continue;
+            if (el.type === 'checkbox') {
                 const labelText = getLabelFor(el).toLowerCase();
-                const containerText = (el.parentElement?.textContent || '').toLowerCase();
-                const termsKeywords = ['agree', 'terms', 'policy', 'consento', '동의', '규정', '약관'];
-                
-                if (termsKeywords.some(k => labelText.includes(k) || containerText.includes(k))) {
-                    if (!el.checked) {
-                        el.click();
-                        el.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
+                const containerText = (el.closest('div, label, span, p')?.textContent || '').toLowerCase().substring(0, 300);
+                const combined = labelText + ' ' + containerText;
+                const termsKeywords = [
+                    'agree', 'terms', 'policy', 'consent', 'accept', 'privacy',
+                    '동의', '규정', '약관', '개인정보', '수집', '이용',
+                    'gdpr', 'einwilligung', 'datenschutz', 'consentement', 'aceptar'
+                ];
+                if (termsKeywords.some(k => combined.includes(k))) {
+                    await applyCheckbox(el);
+                    filledFields++;
                 }
-                continue;
             }
+        }
 
-            if (el.tagName === 'SELECT') {
-                if (el.options.length > 1 && (el.selectedIndex <= 0)) {
-                    for (let i = 1; i < el.options.length; i++) {
-                        if (el.options[i].value && !el.options[i].disabled) {
-                            el.selectedIndex = i;
-                            el.dispatchEvent(new Event('change', { bubbles: true }));
-                            logDev(`   - [Select] Selected option: ${el.options[i].text}`);
-                            break;
-                        }
-                    }
-                }
-                continue;
-            }
+        // ── 5단계: 텍스트 필드 패턴 매칭 ──
+        logDev("🎯 [HyperEngine v4.0] Phase 4 - 텍스트 필드 패턴 매칭...");
+        for (const el of inputs) {
+            if (isHoneypotV4(el)) continue;
+            if (el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') continue;
+            if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button' || el.type === 'image' || el.type === 'file') continue;
 
             if (await matchField(FIELD_PATTERNS.firstName, tpl.firstName || tpl.name, el)) continue;
             if (await matchField(FIELD_PATTERNS.lastName, tpl.lastName, el)) continue;
@@ -868,45 +1332,184 @@
             if (await matchField(FIELD_PATTERNS.message, tpl.message, el)) continue;
         }
 
-        const messageChunks = tpl.message.split(/[.!?\n]+/).map(s => s.trim()).filter(s => s.length > 5);
-        let chunkIdx = 0;
-
+        // ── 6단계: 텍스트 폴백 - 여전히 빈 필드 강제 채우기 ──
+        logDev("🎯 [HyperEngine v4.0] Phase 5 - 빈 필드 강제 채우기...");
         for (const el of inputs) {
-            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                if (!el.value && !isHoneypot(el) && el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'submit') {
-                    if (el.tagName === 'TEXTAREA') {
-                        await applyVal(el, tpl.message, "DynamicFill-Message");
-                    } else {
-                        const chunk = messageChunks[chunkIdx % messageChunks.length] || tpl.subject || "Inquiry";
-                        await applyVal(el, chunk.substring(0, 100), "DynamicFill-Fragment");
-                        chunkIdx++;
+            if (isHoneypotV4(el)) continue;
+            if (el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') continue;
+            if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button' || el.type === 'image' || el.type === 'file') continue;
+
+            const currentVal = el.contentEditable === 'true' ? (el.textContent || '') : (el.value || '');
+            if (currentVal.trim() !== '') continue;
+
+            if (el.tagName === 'TEXTAREA' || el.contentEditable === 'true') {
+                await applyVal(el, tpl.message || getRandomTemplateVal(), 'Fallback-Message');
+            } else {
+                const ph = (el.placeholder || '').toLowerCase();
+                const nm = (el.name || '').toLowerCase();
+                const tp = (el.type || '').toLowerCase();
+                const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+                const autocomp = (el.getAttribute('autocomplete') || '').toLowerCase();
+                const label = getLabelFor(el).toLowerCase();
+                const hint = `${ph} ${nm} ${ariaLabel} ${autocomp} ${label}`;
+
+                let val;
+                if (tp === 'email' || hint.includes('email') || hint.includes('mail')) val = tpl.email;
+                else if (tp === 'tel' || hint.includes('phone') || hint.includes('tel') || hint.includes('mobile') || hint.includes('전화') || hint.includes('연락처')) val = tpl.phone;
+                else if (tp === 'number' && (hint.includes('zip') || hint.includes('postal') || hint.includes('우편'))) val = '00000';
+                else if (hint.includes('first')) val = tpl.firstName || tpl.name;
+                else if (hint.includes('last') || hint.includes('surname') || hint.includes('family')) val = tpl.lastName || tpl.name;
+                else if (hint.includes('name') || hint.includes('이름') || hint.includes('성함') || hint.includes('氏名')) val = tpl.name;
+                else if (hint.includes('subject') || hint.includes('제목') || hint.includes('title') || hint.includes('件名')) val = tpl.subject;
+                else if (hint.includes('company') || hint.includes('회사') || hint.includes('org') || hint.includes('회사명')) val = (tpl.name || 'Company') + ' Inc.';
+                else if (hint.includes('address') || hint.includes('주소')) val = 'N/A';
+                else if (hint.includes('zip') || hint.includes('postal') || hint.includes('우편')) val = '00000';
+                else if (hint.includes('city') || hint.includes('도시') || hint.includes('시/군/구')) val = 'Seoul';
+                else if (hint.includes('state') || hint.includes('province') || hint.includes('시/도')) val = 'Seoul';
+                else if (hint.includes('country') || hint.includes('국가')) val = 'Korea';
+                else if (hint.includes('website') || hint.includes('url') || hint.includes('homepage') || hint.includes('홈페이지')) val = '';  // 웹사이트 필드는 빈칸 허용
+                else if (tp === 'url') val = ''; // URL 필드는 건너뛰기
+                else val = getRandomTemplateVal().substring(0, 100);
+
+                if (val) await applyVal(el, val, 'Fallback-SmartHint');
+            }
+        }
+
+        // ── 7단계: 라디오 버튼 전수 - 미선택 그룹 처리 ──
+        logDev("🎯 [HyperEngine v4.0] Phase 6 - 라디오 버튼 미선택 그룹 처리...");
+        try {
+            const radioElements = Array.from(queryAllDeep('input[type="radio"]', form)).filter(r => !isHoneypotV4(r));
+            const radioGroups = {};
+            radioElements.forEach(radio => {
+                const grpKey = radio.name || `_unnamed_${radio.id || Math.random()}`;
+                if (!radioGroups[grpKey]) radioGroups[grpKey] = [];
+                radioGroups[grpKey].push(radio);
+            });
+
+            for (const name in radioGroups) {
+                const group = radioGroups[name];
+                const isChecked = group.some(r => r.checked);
+                if (!isChecked && group.length > 0) {
+                    const validRadios = group.filter(r => !r.disabled);
+                    if (validRadios.length === 0) continue;
+
+                    // 키워드 매칭으로 최적 라디오 선택
+                    const preferredKeywords = ['inquiry', 'general', 'other', 'yes', '문의', '일반', '기타', '예', 'oui', 'ja', 'はい', '是'];
+                    let target = null;
+                    for (const radio of validRadios) {
+                        const radioLabel = getLabelFor(radio).toLowerCase();
+                        const radioVal = (radio.value || '').toLowerCase();
+                        if (preferredKeywords.some(k => radioLabel.includes(k) || radioVal.includes(k))) {
+                            target = radio;
+                            break;
+                        }
+                    }
+                    // 키워드 매칭 실패 시 첫 번째 선택
+                    if (!target) target = validRadios[0];
+                    if (target) {
+                        await applyRadio(target);
+                        filledFields++;
                     }
                 }
             }
+        } catch (e) {
+            logDev(`⚠️ [Radio Phase] Error: ${e.message}`, 'warning');
         }
 
+        // ── 8단계: 일반 체크박스 전수 처리 (필수 필드만) ──
+        logDev("🎯 [HyperEngine v4.0] Phase 7 - 필수 체크박스 처리...");
+        try {
+            const checkboxElements = Array.from(queryAllDeep('input[type="checkbox"]', form)).filter(cb => !isHoneypotV4(cb));
+            for (const cb of checkboxElements) {
+                if (cb.checked) continue;
+
+                // 필수 체크박스 판별 (required 속성 또는 asterisk 표시)
+                const isRequired = cb.required || cb.getAttribute('aria-required') === 'true';
+                const labelText = getLabelFor(cb).toLowerCase();
+                const containerText = (cb.closest('div, label, span, li')?.textContent || '').toLowerCase().substring(0, 300);
+                const hasAsterisk = containerText.includes('*') || containerText.includes('필수');
+
+                // 뉴스레터/마케팅 체크박스는 스킵
+                const marketingKeywords = ['newsletter', 'marketing', 'subscribe', 'promotion', 'offer', '뉴스레터', '광고', '마케팅', '프로모션'];
+                const isMarketing = marketingKeywords.some(k => labelText.includes(k) || containerText.includes(k));
+
+                if ((isRequired || hasAsterisk) && !isMarketing) {
+                    await applyCheckbox(cb);
+                    filledFields++;
+                }
+            }
+        } catch (e) {
+            logDev(`⚠️ [Checkbox Phase] Error: ${e.message}`, 'warning');
+        }
+
+        // ── 9단계: 커스텀 체크박스/라디오 (div/span 기반 ARIA) 처리 ──
+        logDev("🎯 [HyperEngine v4.0] Phase 8 - 커스텀 ARIA 체크박스/라디오 처리...");
+        await applyCustomCheckableElements(form);
+
+        // ── 10단계: 브루트포스 - contentEditable / role=textbox 탐색 ──
         if (filledFields < 2) {
-            logDev("🛠️ [Supreme-X 4.0] High-confidence matching limited. Engaging Brute-Force Injector...");
-            const allFieldTypes = queryAllInputs(form); 
-            for (const inp of allFieldTypes) {
-                if (inp.value) continue;
-                
-                const role = inp.getAttribute('role') || '';
-                const isText = inp.tagName === 'TEXTAREA' || role === 'textbox' || inp.contentEditable === 'true';
-                
-                if (isText) {
-                    await applyVal(inp, tpl.message, "BruteForce-Message");
-                } else {
-                    const ph = (inp.placeholder || '').toLowerCase();
-                    const n = (inp.name || '').toLowerCase();
-                    const combined = `${ph} ${n}`;
-                    
-                    if (combined.includes('email')) await applyVal(inp, tpl.email, "BruteForce-Email");
-                    else if (combined.includes('name')) await applyVal(inp, (tpl.firstName || tpl.name), "BruteForce-Name");
+            logDev("🛠️ [HyperEngine v4.0] Phase 9 - BruteForce contentEditable/role=textbox...");
+            const contentEditables = Array.from(queryAllDeep('[contenteditable="true"], [role="textbox"], [role="searchbox"], [role="combobox"]', form));
+            for (const inp of contentEditables) {
+                if (isHoneypotV4(inp)) continue;
+                const text = (inp.textContent || '').trim();
+                if (text === '' || text === inp.getAttribute('placeholder')) {
+                    await applyVal(inp, tpl.message || getRandomTemplateVal(), 'BruteForce-ContentEditable');
                 }
             }
         }
 
+        // ── 11단계: 멀티 단계 폼(wizard) 감지 ──
+        try {
+            const nextBtnKeywords = ['next', 'continue', '다음', '次へ', '下一步', 'weiter', 'suivant', 'siguiente', 'step'];
+            const allButtons = Array.from(form.querySelectorAll('button, [role="button"], input[type="button"]'));
+            const nextBtn = allButtons.find(btn => {
+                const text = (btn.textContent || btn.value || '').toLowerCase().trim();
+                return nextBtnKeywords.some(k => text.includes(k)) && text.length < 20;
+            });
+
+            if (nextBtn && filledFields > 0) {
+                logDev("🔄 [HyperEngine v4.0] 멀티 단계 폼 감지! 'Next' 버튼 클릭...");
+                nextBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                await new Promise(r => setTimeout(r, 200));
+                dispatchHumanEvents(nextBtn, FULL_CLICK_SEQUENCE);
+                await new Promise(r => setTimeout(r, 800));
+
+                // 새로운 필드가 나타났으면 재귀적으로 채우기
+                const newInputs = Array.from(queryAllInputs(form)).filter(inp => !isHoneypotV4(inp));
+                const emptyNewInputs = newInputs.filter(inp => {
+                    if (inp.type === 'checkbox' || inp.type === 'radio' || inp.tagName === 'SELECT') return false;
+                    const val = inp.contentEditable === 'true' ? (inp.textContent || '') : (inp.value || '');
+                    return val.trim() === '';
+                });
+
+                if (emptyNewInputs.length > 0) {
+                    logDev(`   [v4.0] 2단계 폼에서 ${emptyNewInputs.length}개 빈 필드 발견. 추가 입력 진행...`);
+                    for (const el of emptyNewInputs) {
+                        if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button') continue;
+                        if (await matchField(FIELD_PATTERNS.email, tpl.email, el)) continue;
+                        if (await matchField(FIELD_PATTERNS.name, tpl.name, el)) continue;
+                        if (await matchField(FIELD_PATTERNS.phone, tpl.phone, el)) continue;
+                        if (await matchField(FIELD_PATTERNS.message, tpl.message, el)) continue;
+
+                        // 폴백
+                        if (el.tagName === 'TEXTAREA' || el.contentEditable === 'true') {
+                            await applyVal(el, tpl.message || getRandomTemplateVal(), 'Step2-Fallback');
+                        } else {
+                            const hint = `${(el.placeholder || '')} ${(el.name || '')} ${getLabelFor(el)}`.toLowerCase();
+                            let val = tpl.name;
+                            if (hint.includes('email')) val = tpl.email;
+                            else if (hint.includes('phone') || hint.includes('tel')) val = tpl.phone;
+                            if (val) await applyVal(el, val, 'Step2-SmartHint');
+                        }
+                    }
+                }
+            }
+        } catch (e) {
+            logDev(`⚠️ [Wizard Phase] Error: ${e.message}`, 'warning');
+        }
+
+        logDev(`✅ [HyperEngine v4.0] 폼 작성 완료 - 입력 필드 ${filledFields}개 처리됨`);
         return { filledAny: filledFields > 0 };
     }
 

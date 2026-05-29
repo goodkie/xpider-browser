@@ -474,21 +474,43 @@ function bindEvents() {
         });
     }
 
-    // [v18.47.0] Wit.ai Link - 크롬 익스텐션 팝업에서 새 탭으로 열기
-    // 일반 <a target="_blank"> 는 팝업 내에서 동작하지 않으므로 JS로 처리
+    // [v19.1.0] Wit.ai Link - Electron 환경에서 시스템 기본 브라우저로 외부 링크 열기
+    // chrome.tabs.create는 내부 webview에서 URL을 열어 작동하지 않음
+    // shell.openExternal IPC 경로를 사용하여 시스템 브라우저에서 안정적으로 열기
     const witAiLink = document.getElementById('wit-ai-link');
     if (witAiLink) {
         witAiLink.addEventListener('click', (e) => {
             e.preventDefault();
+            e.stopPropagation();
             const url = witAiLink.href || 'https://wit.ai';
+            // 1순위: Electron IPC 직접 호출 (open-wit-external-link → main.js shell.openExternal)
             try {
-                chrome.tabs.create({ url: url });
-            } catch (err) {
-                // Electron 환경 또는 비표준 환경 폴백
+                window.postMessage({ type: 'XPIDER_SEND', channel: 'open-wit-external-link', data: url }, '*');
+            } catch (err1) {
+                console.warn('[Wit.ai Link] XPIDER_SEND failed, trying fallbacks:', err1);
+            }
+            // 2순위: window.open (setWindowOpenHandler가 wit.ai를 shell.openExternal로 처리)
+            try {
                 window.open(url, '_blank');
+            } catch (err2) {
+                console.warn('[Wit.ai Link] window.open failed:', err2);
             }
         });
     }
+    // [v19.1.0] 모든 premium-link 클래스의 외부 링크도 동일한 방식으로 처리
+    document.querySelectorAll('a.premium-link, a[target="_blank"]').forEach(link => {
+        if (link.id === 'wit-ai-link') return; // 이미 위에서 처리
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const url = link.href;
+            if (!url || url === '#') return;
+            try {
+                window.postMessage({ type: 'XPIDER_SEND', channel: 'auth-open-external', data: url }, '*');
+            } catch (err) {}
+            try { window.open(url, '_blank'); } catch (err) {}
+        });
+    });
 
     // [v2.4.0] Template Save Buttons - Combined
     ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {

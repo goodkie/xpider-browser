@@ -9,8 +9,30 @@ let campaignPaused = false;
 let successCount = 0;
 let totalTargets = 0;
 let i18nData = null;
-let lastLogMessage = "Ready..."; // [v2.5.5] For 3-line monitor
-let remainingTargets = 0;          // [v2.5.5] For 3-line monitor
+let lastLogMessage = "Ready...";
+let remainingTargets = 0;
+
+// [v19.0] XPIDER_INVOKE: Direct IPC bridge to main process (bypasses background.js)
+function xpiderInvoke(channel, args) {
+    return new Promise((resolve, reject) => {
+        const id = Date.now().toString() + Math.random().toString(36).slice(2);
+        const handler = (e) => {
+            if (e.data && e.data.type === 'XPIDER_RESPONSE' && e.data.id === id) {
+                window.removeEventListener('message', handler);
+                if (e.data.error) reject(new Error(e.data.error));
+                else resolve(e.data.result);
+            }
+        };
+        window.addEventListener('message', handler);
+        window.postMessage({ type: 'XPIDER_INVOKE', channel, args, id }, '*');
+        // Safety timeout
+        setTimeout(() => {
+            window.removeEventListener('message', handler);
+            reject(new Error(`IPC timeout: ${channel}`));
+        }, 30000);
+    });
+}
+
 
 // [v1.1.1] Global error handler for debugging
 window.onerror = function(msg, url, line) {
@@ -26,81 +48,163 @@ window.onerror = function(msg, url, line) {
     return false;
 };
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
+    // ── [VITAL] Step 0: Register messaging listener IMMEDIATELY and SYNCHRONOUSLY
+    // Ensures that we never miss SENDER_LOG or UPDATE_STATS events, even if translations or settings load slowly.
+    
+    // 1. Direct Chrome Runtime message listener (Custom bridge fallback)
     try {
-        // [v2.2.0] Maintain port to detect closure for Auto-Stop
-        chrome.runtime.connect({ name: 'xpider_popup' });
-
-        await initLocalizer();
-        bindEvents();
-        await loadSettings();
-        await loadBlackBoxLogs(); // [v18.10.0] Restore persistent logs on reopen
-        
-        // [v18.10.0] Passive Keep-Alive from UI
-        setInterval(() => {
-            chrome.runtime.sendMessage({ action: 'UI_HEARTBEAT' }).catch(() => {});
-        }, 30000);
-
-        // [v1.3.8] Restore Real-time log listener
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            if (!request) return;
             if (request.action === 'SENDER_LOG') {
                 addLog(request.message, request.logType);
             } else if (request.action === 'UPDATE_STATS') {
                 updateRealTimeStatus(request.data);
             }
         });
+        console.log("✅ [Popup] Real-time messaging listener registered via chrome.runtime.");
+    } catch(e) { console.error('[Popup] Fatal: onMessage listener failed:', e); }
 
-        // [v1.6.5] Playback Speed Slider Listener
-        const delayInput = document.getElementById('delay-input');
-        if (delayInput) {
-            delayInput.addEventListener('input', updateSpeedLabel);
-        }
-
-        console.log("✅ X PIDER Sender Pro initialized.");
-
-        // [v18.28.0] State Handshake: Restore progress or reset UI on start
-        chrome.runtime.sendMessage({ action: 'GET_STATE' }, (response) => {
-            if (response && response.success) {
-                if (response.isActive) {
-                    campaignActive = true;
-                    totalTargets = response.totalTargets;
-                    successCount = response.successCount;
-                    remainingTargets = response.remainingCount;
-                    campaignPaused = !!response.isPaused; // [v18.7] Sync pause state
-                    
-                    document.getElementById('status-box').classList.remove('hidden');
-                    document.getElementById('multi-actions').classList.remove('hidden');
-                    document.getElementById('start-btn').classList.add('hidden');
-                    
-                    updateRealTimeStatus({
-                        successCount: successCount,
-                        remainingCount: remainingTargets
-                    });
-                    
-                    // [v18.7] Update pause button UI state on restore
-                    const btn = document.getElementById('pause-btn');
-                    const langSelect = document.getElementById('language-select');
-                    const lang = langSelect ? langSelect.value : 'en';
-                    const dict = i18nData[lang] || i18nData['en'] || {};
-                    if (btn) {
-                        if (campaignPaused) {
-                            btn.textContent = dict.btn_resume || "▶️ Resume";
-                            btn.style.backgroundColor = "#22c55e";
-                        } else {
-                            btn.textContent = dict.btn_pause || "⏸️ Pause";
-                            btn.style.backgroundColor = "#f59e0b";
-                        }
-                    }
-                } else {
-                    // Reset to clean start state
-                    campaignActive = false;
-                    document.getElementById('start-btn').classList.remove('hidden');
-                    document.getElementById('multi-actions').classList.add('hidden');
+    // 2. [VITAL 2차 방어벽] Direct window postMessage listener
+    // Electron renderer_ui가 executeJavaScript로 window.postMessage릴레이를 보낼 때 직접 가로채어 수신
+    try {
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'runtime-on-message') {
+                const request = event.data.data;
+                if (!request) return;
+                console.log("📥 [Popup postMessage Relay] Received action:", request.action);
+                if (request.action === 'SENDER_LOG') {
+                    addLog(request.message, request.logType);
+                } else if (request.action === 'UPDATE_STATS') {
+                    updateRealTimeStatus(request.data);
                 }
             }
         });
-        
-        // [v18.23.0] Emergency Engine Recovery: Reload extension to wake up frozen worker
+        console.log("✅ [Popup] Dual-path postMessage real-time listener active.");
+    } catch(e) { console.error('[Popup] Fatal: postMessage listener failed:', e); }
+
+    // ── Step 1: Bind ALL events FIRST (no async, cannot fail) ──
+    try { bindEvents(); } catch(e) { console.error('[Popup] bindEvents failed:', e); }
+    
+    // ── Step 2: Connect to runtime (non-critical, ignore errors) ──
+    try { chrome.runtime.connect({ name: 'xpider_popup' }); } catch(e) {}
+
+    // Execute all asynchronous/slower initializations in background to prevent hanging
+    initializeAsyncComponents();
+});
+
+async function initializeAsyncComponents() {
+    // ── Step 3: Load localizer ──
+    try { await initLocalizer(); } catch(e) { console.error('[Popup] initLocalizer failed:', e); }
+
+    // ── Step 4: Load settings ──
+    try { await loadSettings(); } catch(e) { console.error('[Popup] loadSettings failed:', e); }
+
+    // ── Step 5: Restore persistent logs ──
+    try { await loadBlackBoxLogs(); } catch(e) {}
+
+    // ── Step 6: Passive Keep-Alive heartbeat ──
+    try {
+        setInterval(() => {
+            chrome.runtime.sendMessage({ action: 'UI_HEARTBEAT' }).catch(() => {});
+        }, 30000);
+    } catch(e) {}
+
+    // ── Step 8: Speed slider ──
+    try {
+        const delayInput = document.getElementById('delay-input');
+        if (delayInput) delayInput.addEventListener('input', updateSpeedLabel);
+    } catch(e) {}
+
+    console.log("✅ X PIDER Sender Pro initialized.");
+
+    // ── Step 9: State Handshake (Directly with Native Campaign Engine) ──
+    try {
+        xpiderInvoke('xpider-campaign-get-state', {}).then(response => {
+            if (response && response.success && response.isActive) {
+                campaignActive = true;
+                totalTargets = response.totalTargets;
+                successCount = response.successCount;
+                remainingTargets = response.remainingCount;
+                campaignPaused = !!response.isPaused;
+                
+                const completedCount = response.completedCount || 0;
+                
+                document.getElementById('status-box').classList.remove('hidden');
+                document.getElementById('multi-actions').classList.remove('hidden');
+                document.getElementById('start-btn').classList.add('hidden');
+                
+                updateRealTimeStatus({
+                    successCount: successCount,
+                    completedCount: completedCount,
+                    remainingCount: remainingTargets,
+                    totalTargets: totalTargets
+                });
+                
+                const btn = document.getElementById('pause-btn');
+                const langSelect = document.getElementById('language-select');
+                const lang = langSelect ? langSelect.value : 'en';
+                const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
+                if (btn) {
+                    if (campaignPaused) {
+                        btn.textContent = dict.btn_resume || "▶️ Resume";
+                        btn.style.backgroundColor = "#22c55e";
+                    } else {
+                        btn.textContent = dict.btn_pause || "⏸️ Pause";
+                        btn.style.backgroundColor = "#f59e0b";
+                    }
+                }
+            } else {
+                campaignActive = false;
+                document.getElementById('start-btn').classList.remove('hidden');
+                document.getElementById('multi-actions').classList.add('hidden');
+            }
+        }).catch(e => {
+            console.error('[Popup] Direct engine state check failed, falling back:', e);
+            // Fallback to legacy GET_STATE
+            chrome.runtime.sendMessage({ action: 'GET_STATE' }, (response) => {
+                if (response && response.success) {
+                    if (response.isActive) {
+                        campaignActive = true;
+                        totalTargets = response.totalTargets;
+                        successCount = response.successCount;
+                        remainingTargets = response.remainingCount;
+                        campaignPaused = !!response.isPaused;
+                        
+                        document.getElementById('status-box').classList.remove('hidden');
+                        document.getElementById('multi-actions').classList.remove('hidden');
+                        document.getElementById('start-btn').classList.add('hidden');
+                        
+                        updateRealTimeStatus({
+                            successCount: successCount,
+                            remainingCount: remainingTargets
+                        });
+                        
+                        const btn = document.getElementById('pause-btn');
+                        const langSelect = document.getElementById('language-select');
+                        const lang = langSelect ? langSelect.value : 'en';
+                        const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
+                        if (btn) {
+                            if (campaignPaused) {
+                                btn.textContent = dict.btn_resume || "▶️ Resume";
+                                btn.style.backgroundColor = "#22c55e";
+                            } else {
+                                btn.textContent = dict.btn_pause || "⏸️ Pause";
+                                btn.style.backgroundColor = "#f59e0b";
+                            }
+                        }
+                    } else {
+                        campaignActive = false;
+                        document.getElementById('start-btn').classList.remove('hidden');
+                        document.getElementById('multi-actions').classList.add('hidden');
+                    }
+                }
+            });
+        });
+    } catch(e) { console.error('[Popup] Direct state handshake failed:', e); }
+
+    // ── Step 10: Hard Reset Button ──
+    try {
         const hardResetBtn = document.getElementById('hard-reset-engine-btn');
         if (hardResetBtn) {
             hardResetBtn.addEventListener('click', () => {
@@ -109,25 +213,33 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         }
+    } catch(e) {}
 
-        // [v18.21.5] Pulse Check: Monitor background engine health in real-time
-        startPulseCheck();
-        
-        // Add status indicator to the footer
+    // ── Step 11: Engine status indicator ──
+    try {
         const footer = document.querySelector('.popup-footer');
         if (footer && !document.getElementById('engine-status-indicator')) {
             const span = document.createElement('span');
             span.id = 'engine-status-indicator';
-            span.style.fontSize = '0.7rem';
-            span.style.marginLeft = 'auto';
-            span.style.opacity = '0.8';
+            span.style.cssText = 'font-size:0.7rem;margin-left:auto;opacity:0.8';
             span.textContent = "Checking...";
             footer.appendChild(span);
         }
-    } catch (e) {
-        console.error("Initialization failed:", e);
-    }
-});
+    } catch(e) {}
+
+    // ── Step 12: Pulse check ──
+    try { startPulseCheck(); } catch(e) {}
+
+    // [v18.46.0] Audio STT API Key (Wit.ai) 최초 설정 여부 체크
+    chrome.storage.local.get(['xpider_stt_api_key'], (res) => {
+        if (!res.xpider_stt_api_key || res.xpider_stt_api_key.trim() === '') {
+            const setupModal = document.getElementById('stt-setup-modal-overlay');
+            if (setupModal) {
+                setupModal.classList.remove('hidden');
+            }
+        }
+    });
+}
 
 async function initLocalizer() {
     // Wait a bit to ensure translations.js is parsed if needed
@@ -157,6 +269,15 @@ function applyTranslations(lang) {
         let text = dict[key] || (i18nData['en'] ? i18nData['en'][key] : null) || key;
         
         if (key === 'status_finished') {
+            const parts = text.split('{count}');
+            const prefixText = parts[0] ? parts[0].trim() : 'Campaign Status:';
+            const suffixText = parts[1] ? parts[1].trim() : 'sent';
+            
+            el.textContent = prefixText;
+            
+            const suffixLabel = document.querySelector('.status-suffix');
+            if (suffixLabel) suffixLabel.textContent = suffixText;
+            
             updateRealTimeStatus({ successCount });
         } else {
             el.textContent = text;
@@ -186,16 +307,52 @@ function updateRealTimeStatus(data) {
     if (data.totalTargets !== undefined) {
         totalTargets = data.totalTargets;
     }
+    
+    let completedCount = 0;
+    if (data.completedCount !== undefined) {
+        completedCount = data.completedCount;
+    } else if (data.remainingCount !== undefined) {
+        completedCount = totalTargets - data.remainingCount;
+    }
+    if (completedCount < 0) completedCount = 0;
+    
+    // Update Completed count display
+    const completedDisplay = document.getElementById('completed-count-display');
+    if (completedDisplay) completedDisplay.textContent = completedCount;
+
     if (data.successCount !== undefined) {
         successCount = data.successCount;
         const display = document.getElementById('success-count-display');
         if (display) display.textContent = successCount;
+
+        // Refresh the label if it has a placeholder
+        const statusLabel = document.querySelector('[data-i18n="status_finished"]');
+        if (statusLabel) {
+            const lang = document.getElementById('language-select')?.value || 'en';
+            const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
+            let text = dict['status_finished'] || 'Campaign Status: {count} sent';
+            
+            const parts = text.split('{count}');
+            const prefixText = parts[0] ? parts[0].trim() : 'Campaign Status:';
+            const suffixText = parts[1] ? parts[1].trim() : 'sent';
+            
+            statusLabel.textContent = prefixText;
+            
+            const suffixLabel = document.querySelector('.status-suffix');
+            if (suffixLabel) {
+                suffixLabel.textContent = suffixText;
+            }
+        }
     }
     
     if (data.remainingCount !== undefined) {
         remainingTargets = data.remainingCount;
-        const processed = totalTargets - remainingTargets;
-        const progress = totalTargets > 0 ? Math.round((processed / totalTargets) * 100) : 0;
+        
+        // Update Remaining count display
+        const remainingDisplay = document.getElementById('remaining-count-display');
+        if (remainingDisplay) remainingDisplay.textContent = totalTargets - completedCount;
+
+        const progress = totalTargets > 0 ? Math.round((completedCount / totalTargets) * 100) : 0;
         updateProgress(progress);
         
         refreshStatusDetailUI();
@@ -203,7 +360,7 @@ function updateRealTimeStatus(data) {
         const countDisplay = document.getElementById('url-count-display');
         if (countDisplay) {
             const lang = document.getElementById('language-select')?.value || 'en';
-            const dict = i18nData[lang] || i18nData['en'] || {};
+            const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
             const remainingLabel = dict.remaining_suffix || 'remaining';
             countDisplay.textContent = `${remainingTargets} (${remainingLabel}) / ${totalTargets} URLs`;
         }
@@ -219,7 +376,7 @@ function refreshStatusDetailUI() {
     if (!statusDetail) return;
 
     const lang = document.getElementById('language-select')?.value || 'en';
-    const dict = i18nData[lang] || i18nData['en'] || {};
+    const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
     const suffix = dict.remaining_suffix || 'remaining.';
     
     // [v2.8.9] Simplified UI: Only show remaining count, remove log noise
@@ -234,7 +391,7 @@ function updateSpeedLabel() {
     const slider = document.getElementById('delay-input');
     const display = document.getElementById('speed-value-display');
     const lang = document.getElementById('language-select')?.value || 'en';
-    const dict = i18nData[lang] || i18nData['en'] || {};
+    const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
     
     if (!slider || !display) return;
     
@@ -291,6 +448,69 @@ function bindEvents() {
     
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     if (saveSettingsBtn) saveSettingsBtn.addEventListener('click', saveSettings);
+
+    // [v18.46.0] Wit.ai STT Key Setup Modal Save Button
+    const saveSetupSttBtn = document.getElementById('save-setup-stt-btn');
+    if (saveSetupSttBtn) {
+        saveSetupSttBtn.addEventListener('click', async () => {
+            const input = document.getElementById('setup-stt-key-input');
+            const key = input ? input.value.trim() : '';
+            if (key === '') {
+                alert("Please enter a valid Wit.ai Key.");
+                return;
+            }
+            
+            await chrome.storage.local.set({ xpider_stt_api_key: key });
+            const settingsInput = document.getElementById('audio-stt-key');
+            if (settingsInput) settingsInput.value = key;
+            
+            const setupModal = document.getElementById('stt-setup-modal-overlay');
+            if (setupModal) setupModal.classList.add('hidden');
+            
+            const langSelect = document.getElementById('language-select');
+            const lang = langSelect ? langSelect.value : 'en';
+            const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
+            alert(dict.msg_saved || "Saved!");
+        });
+    }
+
+    // [v19.1.0] Wit.ai Link - Electron 환경에서 시스템 기본 브라우저로 외부 링크 열기
+    // chrome.tabs.create는 내부 webview에서 URL을 열어 작동하지 않음
+    // shell.openExternal IPC 경로를 사용하여 시스템 브라우저에서 안정적으로 열기
+    const witAiLink = document.getElementById('wit-ai-link');
+    if (witAiLink) {
+        witAiLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const url = witAiLink.href || 'https://wit.ai';
+            // 1순위: Electron IPC 직접 호출 (open-wit-external-link → main.js shell.openExternal)
+            try {
+                window.postMessage({ type: 'XPIDER_SEND', channel: 'open-wit-external-link', data: url }, '*');
+            } catch (err1) {
+                console.warn('[Wit.ai Link] XPIDER_SEND failed, trying fallbacks:', err1);
+            }
+            // 2순위: window.open (setWindowOpenHandler가 wit.ai를 shell.openExternal로 처리)
+            try {
+                window.open(url, '_blank');
+            } catch (err2) {
+                console.warn('[Wit.ai Link] window.open failed:', err2);
+            }
+        });
+    }
+    // [v19.1.0] 모든 premium-link 클래스의 외부 링크도 동일한 방식으로 처리
+    document.querySelectorAll('a.premium-link, a[target="_blank"]').forEach(link => {
+        if (link.id === 'wit-ai-link') return; // 이미 위에서 처리
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const url = link.href;
+            if (!url || url === '#') return;
+            try {
+                window.postMessage({ type: 'XPIDER_SEND', channel: 'auth-open-external', data: url }, '*');
+            } catch (err) {}
+            try { window.open(url, '_blank'); } catch (err) {}
+        });
+    });
 
     // [v2.4.0] Template Save Buttons - Combined
     ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
@@ -369,6 +589,8 @@ function bindEvents() {
     if (clearListBtn) {
         clearListBtn.addEventListener('click', clearCampaignQueue);
     }
+    
+
 }
 
 function toggleCaptchaApiVisibility() {
@@ -389,6 +611,28 @@ function toggleCaptchaApiVisibility() {
     if (sttGroup) sttGroup.style.display = (enabled && isAudio) ? 'block' : 'none';
 }
 
+function renderUrlsPreview(urls) {
+    const previewArea = document.getElementById('file-urls-preview');
+    const previewList = document.getElementById('preview-list');
+    if (!previewArea || !previewList) return;
+
+    previewList.innerHTML = '';
+    if (!urls || urls.length === 0) {
+        previewArea.classList.add('hidden');
+        return;
+    }
+
+    urls.forEach(url => {
+        const div = document.createElement('div');
+        div.className = 'preview-item';
+        div.textContent = url;
+        div.title = url;
+        previewList.appendChild(div);
+    });
+
+    previewArea.classList.remove('hidden');
+}
+
 async function handleFileUpload(e) {
     e.preventDefault();
     const file = e.target.files ? e.target.files[0] : e.dataTransfer.files[0];
@@ -398,27 +642,28 @@ async function handleFileUpload(e) {
     if (nameDisplay) nameDisplay.textContent = file.name;
     
     const text = await file.text();
-    const urlRegex = /(https?:\/\/[^\s,]+)/g;
-    const matches = text.match(urlRegex) || [];
+    // [Precision Scraper] Matches both standard URLs and raw domains (e.g. google.com, www.test.com/contact)
+    const urlRegex = /(https?:\/\/[^\s,]+)|((?:www\.)?[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}(?:\/[^\s,]*)?)/g;
+    let matches = text.match(urlRegex) || [];
     
-    // [v1.3.1] Extended Global Blacklist
-    const blacklist = [
-        // Social Media & Messaging
-        'facebook.com', 'instagram.com', 'twitter.com', 'x.com', 'linkedin.com', 'youtube.com', 
-        'tiktok.com', 'pinterest.com', 'snapchat.com', 'whatsapp.com', 't.me', 'wa.me', 'discord.gg',
-        
-        // Portals & Search Engines
-        'google.com', 'naver.com', 'daum.net', 'yahoo.com', 'bing.com', 'baidu.com', 'duckduckgo.com',
-        
-        // Government & Public institutions
-        '.gov', '.go.kr', '.mil', '.edu', '.ac.kr',
-        
-        // Hosting & Website Builders (Generic)
-        'godaddy.com', 'wix.com', 'shopify.com', 'squarespace.com', 'wordpress.com', 'bluehost.com', 'namecheap.com',
-        
-        // Misc / Non-business
-        'wikipedia.org', 'archive.org', 'mapquest.com', 'yelp.com', 'tripadvisor.com'
-    ];
+    // Normalize matched strings into valid https URLs
+    matches = matches.map(u => {
+        u = u.trim().replace(/[.,;)]+$/, '');
+        if (u && !u.startsWith('http')) {
+            u = 'https://' + u;
+        }
+        return u;
+    }).filter(u => {
+        try {
+            new URL(u);
+            return true;
+        } catch(err) {
+            return false;
+        }
+    });
+    
+    // [v1.3.1] 3333 Global Blacklist (Portals, Gov, Org, etc.)
+    const blacklist = window.XPIDER_BLACKLIST || [];
     
     campaignQueue = [...new Set(matches)].filter(url => {
         const lowerUrl = url.toLowerCase();
@@ -434,6 +679,9 @@ async function handleFileUpload(e) {
     
     // [v1.2.0] Save to Permanent Lists
     await saveListToStorage(file.name, campaignQueue);
+
+    // Show URLs Preview in UI
+    renderUrlsPreview(campaignQueue);
 
     chrome.storage.local.set({ 
         xpider_queue: campaignQueue,
@@ -494,6 +742,9 @@ async function updateSavedListsUI() {
             if (countDisplay) countDisplay.textContent = `${campaignQueue.length} URLs found`;
             document.getElementById('file-info').classList.remove('hidden');
             document.getElementById('status-box').classList.remove('hidden');
+
+            // Show URLs Preview in UI
+            renderUrlsPreview(campaignQueue);
             
             addLog(`Loaded saved list: ${list.name} (${list.urls.length} URLs)`, 'info');
             await chrome.storage.local.set({ xpider_queue: campaignQueue, xpider_success: 0, xpider_total: totalTargets });
@@ -515,124 +766,69 @@ async function updateSavedListsUI() {
 }
 
 /**
- * [v2.2.0] Save current message setup as a template
+ * [v19.0] Save template via native OS Save-As dialog (path + filename choosable)
  */
 async function saveTemplateChanges() {
-    const now = new Date();
-    const versionStr = `[v${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}]`;
-    
-    const messageEl = document.getElementById('tpl-message');
-    let message = messageEl.value;
-    
-    // [v2.4.0] Update version in body if requested
-    const versionPattern = /\[v\d{4}\.\d{2}\.\d{2}\]/;
-    if (versionPattern.test(message)) {
-        message = message.replace(versionPattern, versionStr);
-    } else {
-        message += `\n\n${versionStr}`;
-    }
-    messageEl.value = message;
-
     const tpl = {
-        firstName: document.getElementById('tpl-first-name').value,
-        lastName: document.getElementById('tpl-last-name').value,
-        name: document.getElementById('tpl-name').value,
-        email: document.getElementById('tpl-email').value,
-        phone: document.getElementById('tpl-phone').value,
-        subject: document.getElementById('tpl-subject').value,
-        message: message
+        firstName: document.getElementById('tpl-first-name').value.trim(),
+        lastName:  document.getElementById('tpl-last-name').value.trim(),
+        name:      document.getElementById('tpl-name').value.trim(),
+        email:     document.getElementById('tpl-email').value.trim(),
+        phone:     document.getElementById('tpl-phone').value.trim(),
+        subject:   document.getElementById('tpl-subject').value.trim(),
+        message:   document.getElementById('tpl-message').value.trim()
     };
 
-    const data = await chrome.storage.local.get(['xpider_tpl_lib']);
-    const lib = data.xpider_tpl_lib || [];
-    
-    // Check if current name exists to overwrite or create new
-    const existingIndex = lib.findIndex(t => t.templateName === (tpl.name || 'My Template'));
-    
-    if (existingIndex > -1) {
-        lib[existingIndex] = { ...tpl, templateName: tpl.name || 'My Template' };
-    } else {
-        lib.push({ ...tpl, templateName: tpl.name || 'My Template' });
+    if (!tpl.message && !tpl.subject) return alert('Please enter at least a Subject or Message.');
+
+    const safeName = (tpl.subject || tpl.name || 'XPIDER_Template').replace(/[<>:"/\\|?*]/g, '_');
+    const defaultName = `${safeName}_template.txt`;
+    const content = buildTemplateFileContent(tpl);
+
+    addLog('📁 Opening Save As dialog...', 'info');
+    const result = await xpiderInvoke('xpider-show-save-dialog', { defaultName, content });
+
+    if (!result || !result.success) {
+        if (result && result.reason !== 'cancelled') addLog(`❌ Save failed: ${result.reason}`, 'error');
+        return;
     }
 
-    // [v18.45.0] Export to local file with 'Save As' dialog as requested
-    downloadTemplateFile(tpl);
-    
-    // Provide feedback
+    // Save to recent history
+    const historyItem = { ...tpl, fileName: result.fileName, filePath: result.filePath, timestamp: new Date().toISOString() };
+    const data = await chrome.storage.local.get(['xpider_recent_templates']);
+    let recent = data.xpider_recent_templates || [];
+    // Remove duplicate by filePath
+    recent = recent.filter(t => t.filePath !== result.filePath);
+    recent.unshift(historyItem);
+    if (recent.length > 6) recent = recent.slice(0, 6);
+    await chrome.storage.local.set({ xpider_recent_templates: recent });
+
+    await updateTemplateDropdown();
+
     ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
         const btn = document.getElementById(id);
-        if (btn) {
-            const originalText = btn.textContent;
-            btn.textContent = "Saved!";
-            setTimeout(() => btn.textContent = originalText, 1500);
-        }
+        if (btn) { const t = btn.textContent; btn.textContent = '✅ Saved!'; setTimeout(() => btn.textContent = t, 1800); }
     });
-
-    addLog(`Export initiated: ${tpl.name || 'Template'}`, 'info');
+    addLog(`✅ Template saved: ${result.fileName}`, 'success');
 }
 
-/**
- * [v18.45.0] Upgraded to use chrome.downloads for 'Save As' dialog and history tracking
- */
-function downloadTemplateFile(tpl) {
-    const safeName = (tpl.name || 'XPIDER_Template').replace(/[<>:"/\\|?*]/g, '_');
-    const filename = `${safeName}_template.txt`;
-    
-    const content = `[XPIDER MESSAGE TEMPLATE]
+function buildTemplateFileContent(tpl) {
+    return `[XPIDER MESSAGE TEMPLATE]
 -----------------------------------------
-Target Full Name: ${tpl.name || 'N/A'}
-First Name:       ${tpl.firstName || 'N/A'}
-Last Name:        ${tpl.lastName || 'N/A'}
-Email:            ${tpl.email || 'N/A'}
-Phone:            ${tpl.phone || 'N/A'}
-Subject:          ${tpl.subject || 'N/A'}
+Full Name:  ${tpl.name || 'N/A'}
+First Name: ${tpl.firstName || 'N/A'}
+Last Name:  ${tpl.lastName || 'N/A'}
+Email:      ${tpl.email || 'N/A'}
+Phone:      ${tpl.phone || 'N/A'}
+Subject:    ${tpl.subject || 'N/A'}
 
 [MESSAGE BODY]
 -----------------------------------------
 ${tpl.message || ''}
 -----------------------------------------
 Generated by XPIDER AutoForm Sender Pro
+Saved: ${new Date().toLocaleString()}
 `;
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const reader = new FileReader();
-    
-    reader.onloadend = function() {
-        const dataUrl = reader.result;
-        
-        // Use Chrome Downloads API to show 'Save As' dialog
-        chrome.downloads.download({
-            url: dataUrl,
-            filename: filename,
-            saveAs: true
-        }, async (downloadId) => {
-            if (downloadId) {
-                // Track this export in our custom history
-                const data = await chrome.storage.local.get(['xpider_export_history']);
-                const history = data.xpider_export_history || [];
-                
-                const historyItem = {
-                    ...tpl,
-                    filename: filename,
-                    timestamp: new Date().toISOString()
-                };
-                
-                // Keep unique by suggested filename, most recent first
-                const existingIdx = history.findIndex(h => h.filename === filename);
-                if (existingIdx > -1) history.splice(existingIdx, 1);
-                history.unshift(historyItem);
-                
-                // Limit history to last 50 items
-                if (history.length > 50) history.pop();
-                
-                await chrome.storage.local.set({ xpider_export_history: history });
-                await updateTemplateDropdown();
-                addLog(`File saved and tracked in history: ${filename}`, 'success');
-            }
-        });
-    };
-    
-    reader.readAsDataURL(blob);
 }
 
 async function addSingleUrl() {
@@ -645,13 +841,46 @@ async function addSingleUrl() {
     try {
         new URL(url); // Validation
         
+        // [v1.3.5] Apply Blacklist to manual entries as well
+        const lowerUrl = url.toLowerCase();
+        const blacklist = window.XPIDER_BLACKLIST || [];
+        if (blacklist.some(domain => lowerUrl.includes(domain))) {
+            addLog(`⚠️ Blacklisted domain: ${url}`, 'warning');
+            input.value = '';
+            return;
+        }
+        
+        // Add to ACTIVE queue
+        if (!campaignQueue.includes(url)) {
+            campaignQueue.push(url);
+            totalTargets = campaignQueue.length;
+            const countDisplay = document.getElementById('url-count-display');
+            if (countDisplay) {
+                const lang = document.getElementById('language-select')?.value || 'en';
+                const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
+                const suffix = dict.remaining_suffix || 'URLs';
+                countDisplay.textContent = `${totalTargets} ${suffix}`;
+            }
+            const fileInfo = document.getElementById('file-info');
+            if (fileInfo) fileInfo.classList.remove('hidden');
+
+            // Show URLs Preview in UI for manually added items as well
+            renderUrlsPreview(campaignQueue);
+            
+            // Sync active queue to storage so background can access if needed
+            chrome.storage.local.set({ 
+                xpider_queue: campaignQueue,
+                xpider_total: totalTargets
+            });
+        }
+        
         // [v1.2.1] NEW: Save to Permanent "Manual Entries" List
         const lang = document.getElementById('language-select')?.value || 'en';
-        const dict = i18nData[lang] || i18nData['en'] || {};
+        const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData ? i18nData['en'] : {});
         const manualListName = dict.list_manual_entries || 'Manual Entries';
         
-        const data = await chrome.storage.local.get(['xpider_saved_lists']);
-        let lists = data.xpider_saved_lists || [];
+        const storageData = await chrome.storage.local.get(['xpider_saved_lists']);
+        let lists = Array.isArray(storageData.xpider_saved_lists) ? storageData.xpider_saved_lists : [];
         
         let manualList = lists.find(l => l.name === manualListName);
         if (!manualList) {
@@ -666,20 +895,22 @@ async function addSingleUrl() {
         }
         
         await chrome.storage.local.set({ xpider_saved_lists: lists });
-        await updateSavedListsUI();
+        if (typeof updateSavedListsUI === 'function') {
+            await updateSavedListsUI();
+        }
         
         addLog(`Manual URL saved: ${url}`, 'info');
         input.value = '';
     } catch (e) {
-        addLog(`Invalid URL format: ${url}`, 'error');
+        console.error("[AddSingleUrl Error]", e);
+        addLog(`❌ URL Add Error: ${e.message} (${url})`, 'error');
     }
 }
 
-function startCampaign() {
-    // If input has value, add it before starting if empty queue
+async function startCampaign() {
     const manualInput = document.getElementById('manual-url-input');
     if (manualInput && manualInput.value.trim() && campaignQueue.length === 0) {
-        addSingleUrl();
+        await addSingleUrl();
     }
 
     if (campaignQueue.length === 0) return alert("Please upload a file or enter a URL first.");
@@ -699,97 +930,53 @@ function startCampaign() {
     campaignActive = true;
     campaignPaused = false;
     successCount = 0;
-    // Reset Stats for fresh start
-    successCount = 0;
     updateRealTimeStatus({ successCount: 0, remainingCount: campaignQueue.length });
     updateProgress(0);
-    
+
     setTimeout(() => {
         document.getElementById('status-box').classList.remove('hidden');
         document.getElementById('multi-actions').classList.remove('hidden');
         document.getElementById('start-btn').classList.add('hidden');
     }, 100);
 
-    // [v2.5.0] Auto-scroll to status board
     const statusBox = document.getElementById('status-box');
-    if (statusBox) {
-        statusBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    if (statusBox) statusBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
     const delayInput = document.getElementById('delay-input');
     const level = parseInt(delayInput ? delayInput.value : 6);
-    // [v18.7.0] Slower Tempo Range: 0 (60s) to 9 (3s). Normal (6) is 10s.
     const levelToMs = [60000, 45000, 30000, 25000, 20000, 15000, 10000, 7000, 5000, 3000];
     const delayMs = levelToMs[level] || 10000;
 
-    // Delegate to background
-    const messagePayload = {
-        action: 'START_CAMPAIGN',
+    // [v19.0] Use XPIDER_INVOKE bridge directly to main process (bypasses background.js)
+    addLog("[System] Sending to Native Engine...", "debug");
+    xpiderInvoke('xpider-campaign-start', {
         queue: campaignQueue,
-        template: saveTemplate(), // [v18.20.0] Ensure latest UI data is sent
-        delayMs: delayMs
-    };
-
-    // [v18.25.0] Deep Diagnostic Timeout: Read engine blackbox on stall
-    const bootTimeout = setTimeout(() => {
-        chrome.storage.local.get(['xpider_boot_step', 'xpider_boot_ts', 'xpider_boot_error'], (data) => {
-            const step = data.xpider_boot_step || 'unknown';
-            const error = data.xpider_boot_error;
-            const timeAgo = data.xpider_boot_ts ? Math.round((Date.now() - data.xpider_boot_ts) / 1000) : '?';
-            
-            addLog(`⚠️ [System] Connection stall detected (6s). Engine is non-responsive.`, "error");
-            addLog(`📝 Internal State: [${step}] (last activity: ${timeAgo}s ago)`, "debug");
-            if (error) addLog(`❌ Boot Error: ${error}`, "error");
-            addLog(`💡 Suggestion: Click '⚙️ Settings' -> 'Emergency Recovery' to force restart the engine.`, "info");
-        });
-    }, 6000);
-
-    try {
-        chrome.runtime.sendMessage(messagePayload, (response) => {
-            clearTimeout(bootTimeout);
-            
-            if (chrome.runtime.lastError) {
-                console.error("[Handshake Error]", chrome.runtime.lastError.message);
-                addLog(`❌ [System] Connection failed: ${chrome.runtime.lastError.message}`, "error");
-                return;
-            }
-
-            if (response && response.success) {
-                console.log("Campaign orchestrated by background.");
-                addLog("[System] Engine responded. Starting sending loop...", "debug");
-            } else {
-                const err = (response && response.error) ? response.error : "Unknown background error";
-                addLog(`❌ [Engine Error] ${err}`, "error");
-            }
-        });
-    } catch (e) {
-        clearTimeout(bootTimeout);
+        template: currentTpl,
+        delayMs
+    }).then(response => {
+        if (response && response.success) {
+            addLog("✅ [Native Engine] Campaign started!", "success");
+        } else {
+            addLog(`❌ [Native Engine] Start failed`, "error");
+        }
+    }).catch(e => {
         addLog(`❌ [Fatal Error] ${e.message}`, "error");
-    }
+    });
 }
 
 function togglePause() {
     campaignPaused = !campaignPaused;
     const btn = document.getElementById('pause-btn');
-    const langSelect = document.getElementById('language-select');
-    const lang = langSelect ? langSelect.value : 'en';
+    const lang = document.getElementById('language-select')?.value || 'en';
     const dict = i18nData[lang] || i18nData['en'] || {};
-    
-    // [v18.7] Send command to background engine
-    const action = campaignPaused ? 'PAUSE_CAMPAIGN' : 'RESUME_CAMPAIGN';
-    chrome.runtime.sendMessage({ action: action }, (response) => {
-        if (chrome.runtime.lastError) {
-             console.error("[Pause Error]", chrome.runtime.lastError);
-             return;
-        }
-        console.log(`Campaign ${campaignPaused ? 'Paused' : 'Resumed'}`);
-    });
+
+    const action = campaignPaused ? 'xpider-campaign-pause' : 'xpider-campaign-resume';
+    xpiderInvoke(action, {}).catch(e => console.error('[Pause Error]', e));
 
     if (btn) {
         btn.textContent = campaignPaused ? (dict.btn_resume || "▶️ Resume") : (dict.btn_pause || "⏸️ Pause");
-        btn.style.backgroundColor = campaignPaused ? "#22c55e" : "#f59e0b"; // Visual cue
+        btn.style.backgroundColor = campaignPaused ? "#22c55e" : "#f59e0b";
     }
-    
     refreshStatusDetailUI();
 }
 
@@ -797,8 +984,7 @@ function stopCampaign() {
     campaignActive = false;
     document.getElementById('start-btn').classList.remove('hidden');
     document.getElementById('multi-actions').classList.add('hidden');
-    
-    chrome.runtime.sendMessage({ action: 'STOP_CAMPAIGN' });
+    xpiderInvoke('xpider-campaign-stop', {}).catch(e => console.error('[Stop Error]', e));
     addLog("Campaign stopped by user.", "stop");
 }
 
@@ -849,6 +1035,37 @@ function updateProgress(percent) {
     }
 }
 
+let localLogQueue = [];
+let localLogSaveTimer = null;
+
+function saveBlackBoxLog(message, type, timestamp) {
+    localLogQueue.push({ message, type, timestamp });
+    if (localLogQueue.length > 150) localLogQueue.shift();
+
+    const isCritical = ['start', 'stop', 'complete', 'error', 'success'].includes(type);
+
+    const saveBatch = () => {
+        try {
+            chrome.storage.local.get(['xpider_blackbox_logs'], (data) => {
+                const logs = data.xpider_blackbox_logs || [];
+                const combined = [...logs, ...localLogQueue].slice(-300); // Max 300 logs
+                chrome.storage.local.set({ xpider_blackbox_logs: combined });
+                localLogQueue = [];
+            });
+        } catch (e) {
+            console.error('[BlackBox Save Error]', e);
+        }
+    };
+
+    if (isCritical) {
+        if (localLogSaveTimer) clearTimeout(localLogSaveTimer);
+        saveBatch();
+    } else {
+        if (localLogSaveTimer) clearTimeout(localLogSaveTimer);
+        localLogSaveTimer = setTimeout(saveBatch, 1500);
+    }
+}
+
 function addLog(msg, type = 'info', forcedTime = null) {
     const container = document.getElementById('log-container');
     if (!container) return;
@@ -885,6 +1102,11 @@ function addLog(msg, type = 'info', forcedTime = null) {
     
     container.appendChild(logEntry);
     container.scrollTop = container.scrollHeight;
+
+    // Persist real-time logs to chrome storage blackbox
+    if (!forcedTime) {
+        saveBlackBoxLog(msg, type, time);
+    }
 }
 
 function saveTemplate() {
@@ -921,76 +1143,65 @@ async function loadBlackBoxLogs() {
 
 // [v1.7.0] Advanced Template Library Logic
 async function saveTemplateToLibrary() {
-    const tpl = saveTemplate();
-    if (!tpl.subject && !tpl.message) return alert("Please enter at least a subject or message.");
-    
-    const name = tpl.subject || `Template_${new Date().toLocaleTimeString()}`;
-    const data = await chrome.storage.local.get(['xpider_tpl_library']);
-    let library = data.xpider_tpl_library || [];
-    
-    // Replace if exists with same name, or add new
-    const idx = library.findIndex(t => t.subject === tpl.subject && tpl.subject !== '');
-    if (idx > -1) {
-        library[idx] = tpl;
-    } else {
-        library.push(tpl);
-    }
-    
-    await chrome.storage.local.set({ xpider_tpl_library: library });
-    await updateTemplateDropdown();
-    
-    const lang = document.getElementById('language-select')?.value || 'en';
-    const dict = i18nData[lang] || i18nData['en'] || {};
-    alert(dict.msg_tpl_saved || "Template saved!");
+    await saveTemplateChanges();
 }
 
+/**
+ * [v19.0] Update dropdown with last 6 recently saved templates
+ */
 async function updateTemplateDropdown() {
     const select = document.getElementById('tpl-library-select');
     if (!select) return;
-    
-    // [v18.45.0] Shift from internal library to Export History
-    const data = await chrome.storage.local.get(['xpider_export_history']);
-    const history = data.xpider_export_history || [];
-    
+
     const lang = document.getElementById('language-select')?.value || 'en';
-    const dict = i18nData[lang] || i18nData['en'] || {};
-    
-    // Clear and add "Select Template" option (Empty by default as requested)
-    select.innerHTML = `<option value="" disabled selected>${dict.label_select_template || 'Select Template'}</option>`;
-    
-    if (history.length === 0) return;
-    
-    history.forEach((tpl, idx) => {
-        const option = document.createElement('option');
-        option.value = idx;
-        // Show filename as the history item label
-        option.textContent = tpl.filename || tpl.subject || `Template ${idx + 1}`;
-        select.appendChild(option);
+    const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData ? i18nData['en'] : {});
+
+    select.innerHTML = `<option value="" disabled selected>${dict.label_select_template || '📂 Select Template'}</option>`;
+
+    const data = await chrome.storage.local.get(['xpider_recent_templates']);
+    const recent = (data.xpider_recent_templates || []).slice(0, 6);
+
+    if (recent.length === 0) {
+        const opt = document.createElement('option');
+        opt.disabled = true;
+        opt.textContent = '— No recent templates —';
+        select.appendChild(opt);
+        return;
+    }
+
+    recent.forEach((tpl, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        const date = tpl.timestamp ? new Date(tpl.timestamp).toLocaleDateString() : '';
+        const label = tpl.fileName || tpl.subject || `Template ${idx + 1}`;
+        opt.textContent = `${label}${date ? '  · ' + date : ''}`;
+        select.appendChild(opt);
     });
 }
 
+/**
+ * [v19.0] Load selected template from dropdown into the form
+ */
 function loadTemplateFromLibrary() {
     const select = document.getElementById('tpl-library-select');
-    const idx = select.value;
-    if (idx === "") return;
-    
-    // [v18.45.0] Load from Export History
-    chrome.storage.local.get(['xpider_export_history'], (data) => {
-        const history = data.xpider_export_history || [];
-        const tpl = history[idx];
-        if (tpl) {
-            document.getElementById('tpl-first-name').value = tpl.firstName || '';
-            document.getElementById('tpl-last-name').value = tpl.lastName || '';
-            document.getElementById('tpl-name').value = tpl.name || '';
-            document.getElementById('tpl-email').value = tpl.email || '';
-            document.getElementById('tpl-phone').value = tpl.phone || '';
-            document.getElementById('tpl-subject').value = tpl.subject || '';
-            document.getElementById('tpl-message').value = tpl.message || '';
-            
-            // Sync as active tpl for campaign
-            chrome.storage.local.set({ xpider_tpl: tpl });
-            addLog(`Restored from history: ${tpl.filename}`, 'info');
-        }
+    const idx = select?.value;
+    if (idx === '' || idx === null || idx === undefined) return;
+
+    chrome.storage.local.get(['xpider_recent_templates'], (data) => {
+        const recent = data.xpider_recent_templates || [];
+        const tpl = recent[parseInt(idx)];
+        if (!tpl) return;
+
+        document.getElementById('tpl-first-name').value = tpl.firstName || '';
+        document.getElementById('tpl-last-name').value  = tpl.lastName  || '';
+        document.getElementById('tpl-name').value        = tpl.name      || '';
+        document.getElementById('tpl-email').value       = tpl.email     || '';
+        document.getElementById('tpl-phone').value       = tpl.phone     || '';
+        document.getElementById('tpl-subject').value     = tpl.subject   || '';
+        document.getElementById('tpl-message').value     = tpl.message   || '';
+
+        chrome.storage.local.set({ xpider_tpl: tpl });
+        addLog(`✅ Loaded template: ${tpl.fileName || tpl.subject || 'Template'}`, 'success');
     });
 }
 
@@ -1192,6 +1403,20 @@ async function loadSettings() {
     await updateTemplateDropdown();
 }
 
+// ─── [XPIDER] Browser Language-Change Broadcast Listener ──────────────
+// When the XPIDER browser language setting changes, this extension updates instantly.
+window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'XPIDER_EVENT' && event.data.name === 'language-change') {
+        const lang = event.data.data && event.data.data.lang;
+        if (lang && typeof applyTranslations === 'function') {
+            applyTranslations(lang);
+            const langSelect = document.getElementById('language-select');
+            if (langSelect) langSelect.value = lang;
+            chrome.storage.local.set({ xpider_lang: lang });
+        }
+    }
+});
+
 async function clearCampaignQueue() {
     // 1. Reset campaign queue and counts
     campaignQueue = [];
@@ -1233,3 +1458,5 @@ async function clearCampaignQueue() {
     // 6. Log success
     addLog("Business URLs list cleared.", "stop");
 }
+
+

@@ -5,8 +5,97 @@
 // [v18.25.0] Boot Diagnostic Telemetry: Track SW startup steps in real-time
 function markBoot(step) {
     console.log(`[BootStep] ${step}`);
-    chrome.storage.local.set({ xpider_boot_step: step, xpider_boot_ts: Date.now() });
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ xpider_boot_step: step, xpider_boot_ts: Date.now() }).catch(() => {});
+    }
 }
+
+// [v18.26.0] Global Error Listener for registration/runtime crashes
+self.onerror = function(message, source, lineno, colno, error) {
+    const errInfo = `[SW Error] ${message} at ${source}:${lineno}`;
+    console.error(errInfo);
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ xpider_boot_error: errInfo, xpider_boot_ts: Date.now() });
+    }
+};
+
+// [v1.2.0] Global Campaign State Registry (Ensures availability across all scopes)
+let campaignState = {
+    isActive: false,
+    queue: [],
+    template: null,
+    successCount: 0,
+    totalTargets: 0,
+    delayMs: 12000,
+    isPaused: false,
+    activeTimeoutId: null,
+    currentTabId: null,
+    visitedUrls: [],
+    successfulUrls: [],
+    sessionId: 0,
+    isLoopRunning: false,
+    lastActionTime: Date.now(),
+    isInitialized: false,
+    targetResolve: null,
+    targetReady: null
+};
+
+// [v18.35.0] Mission-Critical API Wrapper: Native bridge for missing APIs
+const safeTabs = {
+    create: (opts) => {
+        if (chrome.tabs?.create) return chrome.tabs.create(opts);
+        return new Promise(resolve => {
+            chrome.runtime.sendMessage({ action: 'NATIVE_TABS_CREATE', opts }, (res) => resolve(res || { id: Date.now() }));
+        });
+    },
+    remove: (id) => {
+        if (id && chrome.tabs?.remove) return chrome.tabs.remove(id);
+        return new Promise(resolve => {
+            chrome.runtime.sendMessage({ action: 'NATIVE_TABS_REMOVE', tabId: id }, () => resolve());
+        });
+    },
+    get: (id) => {
+        if (id && chrome.tabs?.get) return chrome.tabs.get(id);
+        return new Promise(resolve => {
+            chrome.runtime.sendMessage({ action: 'NATIVE_TABS_GET', tabId: id }, (res) => resolve(res || { id, url: '' }));
+        });
+    },
+    update: (id, props) => {
+        if (chrome.tabs?.update) {
+            if (id) return chrome.tabs.update(id, props);
+            return chrome.tabs.update(props);
+        }
+        return new Promise(resolve => {
+            chrome.runtime.sendMessage({ action: 'NATIVE_TABS_UPDATE', tabId: id, props }, (res) => resolve(res));
+        });
+    },
+    sendMessage: (id, msg) => {
+        if (id && chrome.tabs?.sendMessage) return chrome.tabs.sendMessage(id, msg);
+        return new Promise(resolve => {
+            chrome.runtime.sendMessage({ action: 'NATIVE_TABS_SEND_MESSAGE', tabId: id, message: msg }, (res) => resolve(res));
+        });
+    },
+    onUpdated: chrome.tabs?.onUpdated || { 
+        addListener: (cb) => {
+            chrome.runtime.onMessage.addListener((m) => {
+                if (m.action === 'NATIVE_TAB_UPDATED_EVENT') cb(m.tabId, m.changeInfo, m.tab);
+            });
+        }, 
+        removeListener: () => {} 
+    }
+};
+
+// [v18.35.0] Scripting Bridge
+const safeScripting = {
+    executeScript: (opts) => {
+        if (chrome.scripting?.executeScript) return chrome.scripting.executeScript(opts);
+        return new Promise(resolve => {
+            chrome.runtime.sendMessage({ action: 'NATIVE_SCRIPTING_EXECUTE', opts }, (res) => resolve(res));
+        });
+    }
+};
+
+let bootPromise = null;
 
 // [v18.25.0] Global Logging Core: Moved to top to prevent TDZ errors during boot
 let logQueue = [];
@@ -49,160 +138,150 @@ function logBg(tabId, msg, type = 'info') {
     }
 }
 
-// [v1.2.0] Campaign State Registry (Moved to Top-Level for global scope access)
-try {
-    markBoot("initializing_solver_core");
-    class XpiderSolverCore {
-        constructor(config = {}) {
-            this.config = {
-                witAiKey: config.witAiKey || null,
-                twoCaptchaKey: config.twoCaptchaKey || null,
-                nopeChaKey: config.nopeChaKey || null,
-                ...config
-            };
-        }
+class XpiderSolverCore {
+    constructor(config = {}) {
+        this.config = {
+            witAiKey: config.witAiKey || null,
+            twoCaptchaKey: config.twoCaptchaKey || null,
+            nopeChaKey: config.nopeChaKey || null,
+            ...config
+        };
+    }
 
-        async transcribeAudio(audioData, audioUrl = null) {
-            if (!this.config.witAiKey) throw new Error("Wit.ai API Key missing in configuration.");
-            try {
-                const audioBlob = this._dataURLtoBlob(audioData);
-                const apiRes = await fetch("https://api.wit.ai/speech", {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${this.config.witAiKey}`,
-                        "Content-Type": "audio/mpeg3"
-                    },
-                    body: audioBlob
-                });
-                if (!apiRes.ok) throw new Error(`Wit.ai Error (${apiRes.status})`);
-                const rawText = await apiRes.text();
-                let result = null;
-                const textMatch = rawText.match(/"text"\s*:\s*"([^"]+)"/g);
-                if (textMatch && textMatch.length > 0) {
-                    const lastMatch = textMatch[textMatch.length - 1];
-                    const valueMatch = lastMatch.match(/"text"\s*:\s*"([^"]+)"/);
-                    if (valueMatch && valueMatch[1]) result = valueMatch[1];
-                }
-                if (!result) {
-                    const lines = rawText.trim().split(/[\r\n]+/).filter(l => l.trim());
-                    for (let i = lines.length - 1; i >= 0; i--) {
-                        try {
-                            const parsed = JSON.parse(lines[i]);
-                            if (parsed.text) { result = parsed.text; break; }
-                            if (parsed._text) { result = parsed._text; break; }
-                        } catch (e) { continue; }
-                    }
-                }
-                if (result) return result;
-                throw new Error("Failed to parse Wit.ai response.");
-            } catch (e) {
-                console.error("[XpiderSolverCore] Transcription failed:", e.message);
-                throw e;
+    async transcribeAudio(audioData, audioUrl = null) {
+        // [v18.46.0] 동적으로 최신 Wit.ai API Key 로드
+        const storage = await new Promise(resolve => {
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.get(['xpider_stt_api_key'], resolve);
+            } else {
+                resolve({});
             }
-        }
-
-        async solveNopeCha(siteKey, pageUrl) {
-            if (!this.config.nopeChaKey) throw new Error("NopeCHA API Key missing.");
-            const res = await fetch(`https://api.nopecha.com/token?key=${this.config.nopeChaKey}&type=recaptcha&sitekey=${siteKey}&url=${pageUrl}`);
-            const data = await res.json();
-            if (!data || data.error) throw new Error(`NopeCHA Error: ${data?.message || 'Unknown'}`);
-            return data.data;
-        }
-
-        async solve2Captcha(siteKey, pageUrl) {
-            if (!this.config.twoCaptchaKey) throw new Error("2Captcha API Key missing.");
-            const res = await fetch(`https://2captcha.com/in.php?key=${this.config.twoCaptchaKey}&method=userrecaptcha&googlekey=${siteKey}&pageurl=${pageUrl}&json=1`);
-            const data = await res.json();
-            if (data.status !== 1) throw new Error(`2Captcha Error: ${data.request}`);
-            const taskId = data.request;
-            for (let i = 0; i < 40; i++) {
-                await new Promise(r => setTimeout(r, 5000));
-                const checkRes = await fetch(`https://2captcha.com/res.php?key=${this.config.twoCaptchaKey}&action=get&id=${taskId}&json=1`);
-                const checkData = await checkRes.json();
-                if (checkData.status === 1) return checkData.request;
-                if (checkData.request !== "CAPCHA_NOT_READY") throw new Error(`2Captcha Error: ${checkData.request}`);
+        });
+        const activeKey = storage.xpider_stt_api_key || this.config.witAiKey;
+        
+        if (!activeKey) throw new Error("Wit.ai API Key missing in configuration.");
+        try {
+            const audioBlob = this._dataURLtoBlob(audioData);
+            const apiRes = await fetch("https://api.wit.ai/speech", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${activeKey}`,
+                    "Content-Type": "audio/mpeg3"
+                },
+                body: audioBlob
+            });
+            if (!apiRes.ok) throw new Error(`Wit.ai Error (${apiRes.status})`);
+            const rawText = await apiRes.text();
+            let result = null;
+            const textMatch = rawText.match(/"text"\s*:\s*"([^"]+)"/g);
+            if (textMatch && textMatch.length > 0) {
+                const lastMatch = textMatch[textMatch.length - 1];
+                const valueMatch = lastMatch.match(/"text"\s*:\s*"([^"]+)"/);
+                if (valueMatch && valueMatch[1]) result = valueMatch[1];
             }
-            throw new Error("2Captcha Timeout");
-        }
-
-        _dataURLtoBlob(dataurl) {
-            const arr = dataurl.split(',');
-            const mime = arr[0].match(/:(.*?);/)[1];
-            const bstr = atob(arr[1]);
-            let n = bstr.length;
-            const u8arr = new Uint8Array(n);
-            while (n--) u8arr[n] = bstr.charCodeAt(n);
-            return new Blob([u8arr], { type: mime });
+            if (!result) {
+                const lines = rawText.trim().split(/[\r\n]+/).filter(l => l.trim());
+                for (let i = lines.length - 1; i >= 0; i--) {
+                    try {
+                        const parsed = JSON.parse(lines[i]);
+                        if (parsed.text) { result = parsed.text; break; }
+                        if (parsed._text) { result = parsed._text; break; }
+                    } catch (e) { continue; }
+                }
+            }
+            if (result) return result;
+            throw new Error("Failed to parse Wit.ai response.");
+        } catch (e) {
+            console.error("[XpiderSolverCore] Transcription failed:", e.message);
+            throw e;
         }
     }
 
-    markBoot("solver_instantiation");
-    const solver = new XpiderSolverCore();
-    console.log("[X PIDER] Background script initializing (Unified Mode)...");
+    async solveNopeCha(siteKey, pageUrl) {
+        if (!this.config.nopeChaKey) throw new Error("NopeCHA API Key missing.");
+        const res = await fetch(`https://api.nopecha.com/token?key=${this.config.nopeChaKey}&type=recaptcha&sitekey=${siteKey}&url=${pageUrl}`);
+        const data = await res.json();
+        if (!data || data.error) throw new Error(`NopeCHA Error: ${data?.message || 'Unknown'}`);
+        return data.data;
+    }
 
-    markBoot("side_panel_config");
+    async solve2Captcha(siteKey, pageUrl) {
+        if (!this.config.twoCaptchaKey) throw new Error("2Captcha API Key missing.");
+        const res = await fetch(`https://2captcha.com/in.php?key=${this.config.twoCaptchaKey}&method=userrecaptcha&googlekey=${siteKey}&pageurl=${pageUrl}&json=1`);
+        const data = await res.json();
+        if (data.status !== 1) throw new Error(`2Captcha Error: ${data.request}`);
+        const taskId = data.request;
+        for (let i = 0; i < 40; i++) {
+            await new Promise(r => setTimeout(r, 5000));
+            const checkRes = await fetch(`https://2captcha.com/res.php?key=${this.config.twoCaptchaKey}&action=get&id=${taskId}&json=1`);
+            const checkData = await checkRes.json();
+            if (checkData.status === 1) return checkData.request;
+            if (checkData.request !== "CAPCHA_NOT_READY") throw new Error(`2Captcha Error: ${checkData.request}`);
+        }
+        throw new Error("2Captcha Timeout");
+    }
+
+    _dataURLtoBlob(dataurl) {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)[1];
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) u8arr[n] = bstr.charCodeAt(n);
+        return new Blob([u8arr], { type: mime });
+    }
+}
+
+markBoot("solver_instantiation");
+const solver = new XpiderSolverCore();
+console.log("[X PIDER] Background script initializing (Unified Mode)...");
+
+markBoot("side_panel_config");
+chrome.runtime.onInstalled.addListener(() => {
     if (typeof chrome.sidePanel !== 'undefined' && chrome.sidePanel.setPanelBehavior) {
         chrome.sidePanel
           .setPanelBehavior({ openPanelOnActionClick: true })
           .catch((error) => console.error("[SidePanel Error]", error));
     }
+});
 
-    markBoot("campaign_state_init");
-    let campaignState = {
-        isActive: false,
-        queue: [],
-        template: null,
-        successCount: 0,
-        totalTargets: 0,
-        delayMs: 12000,
-        isPaused: false,
-        activeTimeoutId: null,
-        currentTabId: null,
-        visitedUrls: [],
-        successfulUrls: [],
-        sessionId: 0,
-        isLoopRunning: false,
-        lastActionTime: Date.now(),
-        isInitialized: false,
-        targetResolve: null,
-        targetReady: null,
-        isPaused: false // [v18.7] Track pause state
-    };
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        switch (request.action) {
-            case 'SEND_MESSAGE':
-                handleSendMessage(request.url, request.template, sendResponse);
-                return true;
+markBoot("campaign_state_init");
 
-            case 'GET_BOOT_LOG':
-                chrome.storage.local.get(['xpider_boot_step', 'xpider_boot_ts'], (data) => {
-                    sendResponse({ 
-                        step: data.xpider_boot_step || 'unknown',
-                        ts: data.xpider_boot_ts || 0,
-                        now: Date.now()
-                    });
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    switch (request.action) {
+        case 'SEND_MESSAGE':
+            handleSendMessage(request.url, request.template, sendResponse);
+            return true;
+
+        case 'GET_BOOT_LOG':
+            chrome.storage.local.get(['xpider_boot_step', 'xpider_boot_ts'], (data) => {
+                sendResponse({ 
+                    step: data.xpider_boot_step || 'unknown',
+                    ts: data.xpider_boot_ts || 0,
+                    now: Date.now()
                 });
-                return true;
+            });
+            return true;
 
-            case 'START_CAMPAIGN':
-                // [v18.25.0] Total Decoupling: Respond first, boot async
-                sendResponse({ success: true, status: 'acknowledged' });
-                (async () => {
-                    try {
-                        if (bootPromise) {
-                            // Wait max 1s for boot to finish during a fresh start message
-                            await Promise.race([
-                                bootPromise,
-                                new Promise(res => setTimeout(res, 1000))
-                            ]).catch(() => {});
-                        }
-                        await startCampaignOrchestrator(request.queue, request.template, request.delayMs);
-                    } catch (e) {
-                        console.error("[StartError]", e);
-                        logBg(null, `❌ Engine failed to start: ${e.message}`, "error");
+        case 'START_CAMPAIGN':
+            // [v18.25.0] Total Decoupling: Respond first, boot async
+            sendResponse({ success: true, status: 'acknowledged' });
+            (async () => {
+                try {
+                    if (bootPromise) {
+                        // Wait max 1s for boot to finish during a fresh start message
+                        await Promise.race([
+                            bootPromise,
+                            new Promise(res => setTimeout(res, 1000))
+                        ]).catch(() => {});
                     }
-                })();
-                return true;
+                    await startCampaignOrchestrator(request.queue, request.template, request.delayMs);
+                } catch (e) {
+                    console.error("[StartError]", e);
+                    logBg(null, `❌ Engine failed to start: ${e.message}`, "error");
+                }
+            })();
+            return true;
 
         case 'PING':
             sendResponse({ success: true, timestamp: Date.now() });
@@ -267,8 +346,6 @@ try {
             campaignState.isPaused = false;
             logBg(null, "▶️ Campaign RESUMED by user.", "info");
             sendResponse({ success: true });
-            // [v18.7] If loop is waiting on a timeout, we may need to nudge it. 
-            // In our current architecture, processNextCampaignTarget handles the wait via setTimeout.
             return true;
 
         default:
@@ -291,6 +368,9 @@ function normalizeUrl(url) {
 async function startCampaignOrchestrator(queue, template, delayMs) {
     // [v18.17.0] Emergency Diagnostic Sequence
     logBg(null, "[Boot] Orchestrator entered.", "debug");
+    
+    // [URL 세션 시작] 여분의 브라우저 새 탭 일괄 닫기 트리거
+    chrome.runtime.sendMessage({ action: 'CLOSE_ALL_EXTRA_TABS' }).catch(() => {});
 
     try {
         // [v18.18.5] Deep Sanitization: Re-initialize the registry to avoid cross-session pollution
@@ -342,11 +422,11 @@ async function startCampaignOrchestrator(queue, template, delayMs) {
     }
 }
 
-// [v18.8.0] Initialization: Restore state on worker startup
-bootPromise = restoreCampaignState();
-
 function stopCampaignOrchestrator() {
     campaignState.isActive = false;
+    
+    // [URL 세션 중단] 여분의 브라우저 새 탭 일괄 닫기 트리거
+    chrome.runtime.sendMessage({ action: 'CLOSE_ALL_EXTRA_TABS' }).catch(() => {});
     
     // [v18.8.0] Persistence: Clear stored active state
     chrome.storage.local.set({ xpider_isActive: false });
@@ -409,6 +489,8 @@ async function processNextCampaignTarget(loopSessionId) {
             if (campaignState.isActive) {
                 logBg(null, "Campaign finished!", "complete");
                 campaignState.isActive = false;
+                // [URL 세션 성공 완료] 여분의 브라우저 새 탭 일괄 닫기 트리거
+                chrome.runtime.sendMessage({ action: 'CLOSE_ALL_EXTRA_TABS' }).catch(() => {});
             }
             campaignState.isLoopRunning = false;
             return;
@@ -427,6 +509,7 @@ async function processNextCampaignTarget(loopSessionId) {
         if (chrome.alarms) chrome.alarms.create(`xpider_timeout_${currentSession}`, { delayInMinutes: 3 });
 
         const result = await Promise.race([
+
             orchestrateSending(targetUrl, campaignState.template),
             new Promise((_, reject) => {
                 setTimeout(() => reject(new Error("Local Session Timeout")), 180000);
@@ -441,7 +524,7 @@ async function processNextCampaignTarget(loopSessionId) {
             if (campaignState.currentTabId) {
                 const orphanId = campaignState.currentTabId;
                 campaignState.currentTabId = null; // Clear first to prevent race
-                chrome.tabs.remove(orphanId).catch(() => {});
+                safeTabs.remove(orphanId).catch(() => {});
             }
         });
         
@@ -580,7 +663,7 @@ const PROACTIVE_PATHS = (() => {
 
 
 async function scanContactPaths(baseUrl, tabId) {
-    logBg(tabId, "Sniper Mode active. Pre-scanning 100+ candidates...", "info");
+    logBg(tabId, "Step 1: Sniper Mode active. Searching for contact page...", "info");
     const validPaths = [];
     const pool = PROACTIVE_PATHS.slice(0, 50); // Limit to top 50 for speed
 
@@ -619,7 +702,7 @@ async function orchestrateSending(urlInput, template) {
     let targetUrl = urlInput.trim();
     if (!targetUrl.startsWith('http')) targetUrl = 'https://' + targetUrl;
 
-    const tab = await chrome.tabs.create({ url: 'about:blank', active: false });
+    const tab = await safeTabs.create({ url: 'about:blank', active: false });
     const tabId = tab.id;
     campaignState.currentTabId = tabId;
 
@@ -645,8 +728,8 @@ async function orchestrateSending(urlInput, template) {
     let pathIdx = 0;
     let baseUrl;
     let currentAttemptUrl = targetUrl; // [v2.9.7] Track intended path for redirect detection
-    let visitedRedirects = []; // [v18.26.2] Fixed: Replace sessionStorage with local var for SW
-    let lastInjectedUrl = '';  // [v18.27.0] Track last injected path to handle SPA navigation
+    let visitedRedirects = []; 
+    let lastInjectedUrl = '';  
 
     const broadcastStats = () => {
         chrome.runtime.sendMessage({
@@ -663,12 +746,11 @@ async function orchestrateSending(urlInput, template) {
         const u = new URL(targetUrl);
         baseUrl = u.origin;
     } catch (e) {
-        chrome.tabs.remove(tabId).catch(() => {});
+        safeTabs.remove(tabId).catch(() => {});
         return { success: false, error: "Invalid URL" };
     }
 
     const finish = async (res) => {
-        // [v18.26.0] Intelligent Rotation: If no form on current path, try next candidate before finishing domain
         if (res && !res.success && res.error === "NO_FORM_ON_PAGE") {
             logBg(tabId, `⚠️ [Engine] No form on current path. Advancing to next candidate...`, "warning");
             tryNext();
@@ -678,7 +760,6 @@ async function orchestrateSending(urlInput, template) {
         if (isFinished) return;
         isFinished = true;
         
-        // [v18.24.5] Unified Cleanup: Clear global refs
         if (campaignState.currentTabId === tabId) {
             campaignState.currentTabId = null;
         }
@@ -686,10 +767,10 @@ async function orchestrateSending(urlInput, template) {
         campaignState.targetReady = null;
 
         if (res && res.success) {
-            campaignState.successCount++; // [v18.28.0] Increment immediately
-            broadcastStats(); // [v18.28.0] Push to UI immediately
+            campaignState.successCount++; 
+            broadcastStats(); 
             try {
-                const finalTab = await chrome.tabs.get(tabId);
+                const finalTab = await safeTabs.get(tabId);
                 const norm = normalizeUrl(finalTab.url || '');
                 if (!campaignState.successfulUrls.includes(norm)) campaignState.successfulUrls.push(norm);
             } catch(e) {}
@@ -698,7 +779,7 @@ async function orchestrateSending(urlInput, template) {
         if (chrome.alarms) chrome.alarms.clear(`xpider_watchdog_${tabId}_${currentSession}`);
         if (injectionTimer) clearTimeout(injectionTimer);
         if (pollerTimer) clearInterval(pollerTimer);
-        chrome.tabs.onUpdated.removeListener(navWatcher);
+        safeTabs.onUpdated.removeListener(navWatcher);
 
         if (res && res.success) {
             logBg(tabId, "✨ [Engine] Submission confirmed. Tab will close shortly...", "success");
@@ -707,7 +788,7 @@ async function orchestrateSending(urlInput, template) {
             await new Promise(r => setTimeout(r, 1000));
         }
 
-        chrome.tabs.remove(tabId).catch(() => {});
+        safeTabs.remove(tabId).catch(() => {});
         resolveRef(res);
     };
 
@@ -720,7 +801,7 @@ async function orchestrateSending(urlInput, template) {
         
         if (injectionTimer) clearTimeout(injectionTimer);
         logBg(tabId, "Extraction focus secured. Mapping template fields...", "info");
-        chrome.tabs.sendMessage(tabId, { 
+        safeTabs.sendMessage(tabId, { 
             action: 'START_SENDING', 
             template: template, 
             delayMs: campaignState.delayMs,
@@ -735,17 +816,15 @@ async function orchestrateSending(urlInput, template) {
             
             const norm = normalizeUrl(statusInfo.url || '');
             
-            // [v18.27.5] Intelligent Unlock: If URL path changed significantly, release the lock and re-inject
             if (statusInfo.url && norm !== lastInjectedUrl) {
                 if (isFocusSecured) {
                     logBg(tabId, "🔓 [Engine] URL path changed. Resetting focus lock for SPA re-injection.", "debug");
                     isFocusSecured = false;
                 }
                 logBg(tabId, "🔄 [Engine] Internal navigation detected (SPA). Preparing re-injection...", "debug");
-                startInjection(1500); // 1.5s buffer for SPA rendering
+                startInjection(1500); 
             }
 
-            // [v18.26.0] Infinite Redirect Protection: Skip if redirected to an already-failed page
             if (norm && !isFocusSecured && statusInfo.status === 'complete') {
                  if (campaignState.successfulUrls.includes(norm)) {
                     logBg(tabId, "⏭️ [Engine] Redirected to success page. Skipping.", "success");
@@ -759,11 +838,10 @@ async function orchestrateSending(urlInput, template) {
         }
     };
 
-    // [v18.24.0] Global Signal Attachment
     campaignState.targetResolve = finish;
     campaignState.targetReady = secureFocus;
 
-    chrome.tabs.onUpdated.addListener(navWatcher);
+    safeTabs.onUpdated.addListener(navWatcher);
 
     const startInjection = (delay) => {
         if (isFinished || isFocusSecured) return;
@@ -771,9 +849,8 @@ async function orchestrateSending(urlInput, template) {
         injectionTimer = setTimeout(async () => {
             if (isFinished || isFocusSecured) return;
             try {
-                const targetTab = await chrome.tabs.get(tabId);
+                const targetTab = await safeTabs.get(tabId);
                 
-                // [v18.26.0] Content Security: Avoid re-injecting into formless redirects
                 const normalizedCurrent = normalizeUrl(targetTab.url || '');
                 if (visitedRedirects.includes(normalizedCurrent) && normalizedCurrent !== lastInjectedUrl) {
                     logBg(tabId, "⏭️ [Engine] Redirected to formless page. Moving to next candidate.", "info");
@@ -781,7 +858,7 @@ async function orchestrateSending(urlInput, template) {
                     return;
                 }
                 if (!visitedRedirects.includes(normalizedCurrent)) visitedRedirects.push(normalizedCurrent);
-                lastInjectedUrl = normalizedCurrent; // [v18.27.0] Update injection registry
+                lastInjectedUrl = normalizedCurrent; 
 
                 if (!targetTab.url || targetTab.url.startsWith('about:')) {
                     logBg(tabId, "Handshaking... (Waiting for site response)", "debug");
@@ -792,8 +869,8 @@ async function orchestrateSending(urlInput, template) {
                     return; 
                 }
                 
-                await chrome.scripting.executeScript({ target: { tabId }, files: ['content-script.js'] });
-                chrome.scripting.executeScript({ target: { tabId }, files: ['solver-content.js'] }).catch(() => {});
+                await safeScripting.executeScript({ target: { tabId }, files: ['content-script.js'] });
+                safeScripting.executeScript({ target: { tabId }, files: ['solver-content.js'] }).catch(() => {});
                 startPolling();
             } catch (e) {
                 logBg(tabId, `❌ [InfectError] ${e.message}`, "error");
@@ -811,7 +888,7 @@ async function orchestrateSending(urlInput, template) {
                 return;
             }
             try {
-                const r = await chrome.scripting.executeScript({ target: { tabId }, func: () => window.__xpider_initialized });
+                const r = await safeScripting.executeScript({ target: { tabId }, func: () => window.__xpider_initialized });
                 if (r && r[0] && r[0].result) secureFocus();
             } catch (e) {}
         }, 1500);
@@ -822,18 +899,8 @@ async function orchestrateSending(urlInput, template) {
         if (baseUrl.includes('teamusatkd.com')) baseUrl = "https://teamusatkd.com";
 
         if (pathIdx >= validPaths.length) {
-            // [v18.26.1] Final Stand: Try the domain root if all candidates failed
-            const rootNorm = normalizeUrl(baseUrl);
-            const visited = JSON.parse(sessionStorage.getItem('xpider_visited_final') || '[]');
-            
-            if (!visited.includes(rootNorm)) {
-                logBg(tabId, "🚩 [Final Stand] All candidates exhausted. Checking homepage root...", "info");
-                validPaths.push("");
-                // Fall through to execution below
-            } else {
-                finish({ success: false, error: "Paths exhausted" });
-                return;
-            }
+            finish({ success: false, error: "Paths exhausted" });
+            return;
         }
 
         const fullUrl = baseUrl + validPaths[pathIdx++];
@@ -848,10 +915,9 @@ async function orchestrateSending(urlInput, template) {
         isFocusSecured = false;
         currentAttemptUrl = fullUrl; 
         logBg(tabId, `Connecting to [${fullUrl}]...`, "visit");
-        chrome.tabs.update(tabId, { url: fullUrl });
+        safeTabs.update(tabId, { url: fullUrl });
     };
 
-    // Initial Start
     scanContactPaths(baseUrl, tabId).then(paths => {
         if (isFinished) return;
         validPaths.push(...paths);
@@ -865,7 +931,6 @@ async function orchestrateSending(urlInput, template) {
     return resultPromise;
 }
 
-// [v18.14.0] Persistence Recovery: Core functions to save/load engine state
 async function saveCampaignState() {
     return new Promise((resolve) => {
         try {
@@ -892,26 +957,8 @@ async function saveCampaignState() {
     });
 }
 
-markBoot("global_functions_defined");
-markBoot("worker_online");
-
-} catch (bootErr) {
-    console.error("[CriticalBootError]", bootErr);
-    if (typeof chrome.storage !== 'undefined' && chrome.storage.local) {
-        chrome.storage.local.set({ 
-            xpider_boot_error: bootErr.message,
-            xpider_boot_stack: bootErr.stack,
-            xpider_boot_ts: Date.now()
-        });
-    }
-}
-
-// [v18.8.0] Initialization: Restore state on worker startup
-bootPromise = restoreCampaignState();
-
 async function restoreCampaignState() {
     markBoot("restoring_campaign_state");
-    // [v18.16.0] Boot Guard: Skip if already initialized by a message
     if (campaignState.isInitialized) return;
     campaignState.isInitialized = true;
     console.log("[Boot] Initializing campaign state...");
@@ -942,7 +989,6 @@ async function restoreCampaignState() {
                         
                         logBg(null, `Restored previous active campaign: ${campaignState.queue.length} targets remaining.`, "info");
                         
-                        // Resume if not already running
                         if (!campaignState.isLoopRunning) processNextCampaignTarget(campaignState.sessionId);
                     }
                     markBoot("restore_complete");
@@ -959,3 +1005,11 @@ async function restoreCampaignState() {
         }
     });
 }
+
+markBoot("global_functions_defined");
+markBoot("worker_online");
+
+// [v18.26.0] Delayed Restore: Prevent boot-time message collisions
+setTimeout(() => {
+    bootPromise = restoreCampaignState();
+}, 500);

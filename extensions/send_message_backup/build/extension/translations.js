@@ -64,7 +64,14 @@ var I18N_DATA = {
         "label_select_template": "Select Template",
         "msg_tpl_saved": "Template saved!",
         "msg_tpl_deleted": "Template deleted.",
-        "remaining_suffix": "remaining."
+        "remaining_suffix": "remaining.",
+        "preview_header": "Uploaded URLs:",
+        "btn_clear_list": "Clear List",
+        "stt_setup_title": "Audio STT Key Required",
+        "stt_setup_desc": "To bypass CAPTCHAs, you must configure a Wit.ai Server Access Token. Wit.ai provides high-accuracy speech transcription for free.",
+        "stt_setup_link_text": "Get your free Wit.ai API Key here",
+        "stt_setup_placeholder": "Enter your Wit.ai Server Access Token",
+        "stt_setup_btn_save": "Save & Continue"
     },
     "ko": {
         "app_title": "XPIDER AutoForm Sender Pro",
@@ -131,7 +138,14 @@ var I18N_DATA = {
         "label_select_template": "템플릿 선택",
         "msg_tpl_saved": "템플릿이 저장되었습니다!",
         "msg_tpl_deleted": "템플릿이 삭제되었습니다.",
-        "remaining_suffix": "남음."
+        "remaining_suffix": "남음.",
+        "preview_header": "업로드된 URL 목록:",
+        "btn_clear_list": "목록 비우기",
+        "stt_setup_title": "음성 STT 키 (Wit.ai) 설정",
+        "stt_setup_desc": "캡차 자동 우회를 가동하려면 Wit.ai API 키(Server Access Token)가 필요합니다. Wit.ai는 정확하고 빠른 음성 변환(STT)을 무료로 무제한 제공합니다.",
+        "stt_setup_link_text": "Wit.ai 무료 API 키 생성 가이드 바로가기",
+        "stt_setup_placeholder": "Wit.ai Server Access Token을 입력하세요",
+        "stt_setup_btn_save": "저장하고 시작하기"
     },
     "ja": {
         "app_title": "XPIDER AutoForm Sender Pro",
@@ -171,7 +185,13 @@ var I18N_DATA = {
         "captcha_popup_title": "キャプチャ検出",
         "captcha_popup_msg": "解決後、自動的に再開されます。",
         "msg_saved": "✅ 保存完了！",
-        "remaining_suffix": "残り"
+        "remaining_suffix": "残り",
+        "btn_clear_list": "リスト初期化",
+        "stt_setup_title": "音声STTキー(Wit.ai)の設定",
+        "stt_setup_desc": "キャプチャを自動的にバイパスするには、Wit.ai APIキー(Server Access Token)を設定する必要があります。Wit.aiは高精度な音声書き起こしを無料で提供します。",
+        "stt_setup_link_text": "無料のWit.ai APIキーをここで取得する",
+        "stt_setup_placeholder": "Wit.ai Server Access Tokenを入力してください",
+        "stt_setup_btn_save": "保存して続ける"
     },
     "zh": {
         "app_title": "XPIDER AutoForm Sender Pro",
@@ -231,7 +251,13 @@ var I18N_DATA = {
         "label_saved_lists": "管理已保存列表",
         "btn_delete_list": "🗑️ 删除列表",
         "msg_list_deleted": "列表已成功删除。",
-        "remaining_suffix": "剩余"
+        "remaining_suffix": "剩余",
+        "btn_clear_list": "清除列表",
+        "stt_setup_title": "设置语音 STT 密钥 (Wit.ai)",
+        "stt_setup_desc": "要自动绕过验证码，您需要配置 Wit.ai API 密钥 (Server Access Token)。Wit.ai 免费提供高精度的语音识别 (STT) 服务。",
+        "stt_setup_link_text": "在此处获取免费的 Wit.ai API 密钥",
+        "stt_setup_placeholder": "请输入您的 Wit.ai Server Access Token",
+        "stt_setup_btn_save": "保存并继续"
     }
     // Spanish, German, French, Italian, Portuguese, Indonesian sections can be added similarly
 };

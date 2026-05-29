@@ -8,21 +8,20 @@
 </head>
 <body class="side-panel-mode">
     <div class="app-container">
-        <header>
-            <div class="header-banner">
-                <img src="banner.jpg" alt="X{IDER" class="app-banner">
-            </div>
+        <header class="premium-header">
             <div class="header-main">
-                <h1>
-                    <span data-i18n="app_title">XPIDER AutoForm Sender Pro</span>
-                    <span class="version">v1.1.0</span>
-                </h1>
+                <div class="title-container">
+                    <img src="icons/icon128.png" alt="Icon" class="app-icon-large">
+                    <div class="text-group">
+                        <h1 class="main-title" data-i18n="app_title">XPIDER AutoForm</h1>
+                        <h2 class="sub-title">Sender Pro <span class="version-tag">v1.1.0</span></h2>
+                    </div>
+                </div>
                 <div class="header-actions">
                     <button id="settings-toggle" class="gear-btn icon-only" title="Settings">⚙️</button>
-                    <!-- [v2.2.0] Removed X button as requested -->
                 </div>
             </div>
-            <p class="subtitle" data-i18n="app_subtitle">Automated Contact Form Messenger</p>
+            <p class="subtitle" data-i18n="app_subtitle">The Next-Gen AI Form Submission Engine</p>
         </header>
 
         <main>
@@ -39,17 +38,34 @@
                 </div>
             </div>
 
+            <!-- Wit.ai Initial Setup Modal -->
+            <div id="stt-setup-modal-overlay" class="modal-overlay hidden">
+                <div class="captcha-friendly-modal">
+                    <h2 data-i18n="stt_setup_title">Audio STT Key Required</h2>
+                    <p data-i18n="stt_setup_desc">To bypass CAPTCHAs, you must configure a Wit.ai Server Access Token. Wit.ai provides high-accuracy speech transcription for free.</p>
+                    <div style="margin: 15px 0; text-align: center;">
+                        <a href="https://wit.ai" target="_blank" class="premium-link" id="wit-ai-link" style="color: #00ffcc; text-decoration: underline; font-weight: bold;" data-i18n="stt_setup_link_text">Get your free Wit.ai API Key here</a>
+                    </div>
+                    <div style="margin: 15px 0; width: 100%;">
+                        <input type="text" id="setup-stt-key-input" class="premium-input" data-i18n-placeholder="stt_setup_placeholder" placeholder="Enter your Wit.ai Server Access Token" style="text-align: center; width: 90%; display: block; margin: 0 auto;">
+                    </div>
+                    <div class="modal-buttons" style="display: flex; gap: 10px; justify-content: center; width: 100%;">
+                        <button id="save-setup-stt-btn" class="primary-btn" data-i18n="stt_setup_btn_save">Save & Continue</button>
+                    </div>
+                </div>
+            </div>
+
             <div class="tabs" id="main-tabs">
-                <button class="tab-btn active" data-tab="campaign" data-i18n="tab_campaign">캠페인</button>
-                <button class="tab-btn" data-tab="template" data-i18n="tab_template">템플릿</button>
+                <button class="tab-btn active" data-tab="campaign" data-i18n="tab_campaign">Campaign</button>
+                <button class="tab-btn" data-tab="template" data-i18n="tab_template">Message Template</button>
             </div>
 
             <div class="tab-content active" id="campaign-tab">
                 <!-- Single URL Input Section -->
                 <div class="manual-input-section">
-                    <label data-i18n="label_manual_url">싱글 URL 직접 입력</label>
+                    <label data-i18n="label_manual_url">Single URL Entry</label>
                     <div class="input-with-button">
-                        <input type="text" id="manual-url-input" class="premium-input url-input-yellow" data-i18n-placeholder="placeholder_manual_url" placeholder="추가할 웹사이트 주소를 입력하세요">
+                        <input type="text" id="manual-url-input" class="premium-input url-input-yellow" data-i18n-placeholder="placeholder_manual_url" placeholder="Enter a website URL to add">
                         <button id="add-url-btn" class="plus-btn-flat" title="Add">+</button>
                     </div>
                 </div>
@@ -61,8 +77,15 @@
                         <input type="file" id="file-input" accept=".csv,.txt" hidden>
                     </label>
                     <div id="file-info" class="file-info hidden">
-                        <span id="filename-display">No file selected</span>
-                        <span id="url-count-display">0 URLs found</span>
+                        <div class="file-info-text">
+                            <span id="filename-display">No file selected</span>
+                            <span id="url-count-display">0 URLs found</span>
+                        </div>
+                        <button id="clear-list-btn" class="clear-btn-premium" data-i18n="btn_clear_list">Clear List</button>
+                    </div>
+                    <div id="file-urls-preview" class="file-urls-preview hidden">
+                        <div class="preview-header" data-i18n="preview_header">Uploaded URLs:</div>
+                        <div id="preview-list" class="preview-list"></div>
                     </div>
                 </div>
 
@@ -79,8 +102,8 @@
 
                 <div class="control-group speed-slider-group">
                     <div class="slider-label-box">
-                        <label data-i18n="label_delay">재생 속도 (Playback Speed)</label>
-                        <span id="speed-value-display" class="neon-yellow-text">Level 6 <small data-i18n="speed_normal">(정상)</small></span>
+                        <label data-i18n="label_delay">Playback Speed</label>
+                        <span id="speed-value-display" class="neon-yellow-text">Level 6 <small data-i18n="speed_normal">(Normal)</small></span>
                     </div>
                     <input type="range" id="delay-input" value="6" min="0" max="9" step="1" class="premium-slider">
                     
@@ -89,7 +112,7 @@
                             <input type="checkbox" id="random-delay-toggle">
                             <span class="slider-small round"></span>
                         </label>
-                        <span class="checkbox-label" data-i18n="speed_variation">무작위 변화 스피드</span>
+                        <span class="checkbox-label" data-i18n="speed_variation">Random Variation</span>
                     </div>
                 </div>
             </div>
@@ -112,31 +135,31 @@
 
                 <div class="template-grid">
                     <div class="input-group">
-                        <label data-i18n="label_first_name">이름 (First Name)</label>
+                        <label data-i18n="label_first_name">First Name</label>
                         <input type="text" id="tpl-first-name" class="premium-input" placeholder="First Name">
                     </div>
                     <div class="input-group">
-                        <label data-i18n="label_last_name">성 (Last Name)</label>
+                        <label data-i18n="label_last_name">Last Name</label>
                         <input type="text" id="tpl-last-name" class="premium-input" placeholder="Last Name">
                     </div>
                     <div class="input-group">
-                        <label data-i18n="label_name">전체 성함 (Full Name)</label>
+                        <label data-i18n="label_name">Full Name</label>
                         <input type="text" id="tpl-name" class="premium-input" placeholder="Full Name">
                     </div>
                     <div class="input-group">
-                        <label data-i18n="label_email">이메일</label>
+                        <label data-i18n="label_email">Your Email</label>
                         <input type="text" id="tpl-email" class="premium-input" placeholder="sender@example.com">
                     </div>
                     <div class="input-group full-width">
-                        <label data-i18n="label_phone">전화번호 (Phone)</label>
+                        <label data-i18n="label_phone">Phone</label>
                         <input type="text" id="tpl-phone" class="premium-input" placeholder="+1-234-567-8900">
                     </div>
                     <div class="input-group full-width">
-                        <label data-i18n="label_subject">제목</label>
+                        <label data-i18n="label_subject">Subject</label>
                         <input type="text" id="tpl-subject" class="premium-input" placeholder="Message Subject">
                     </div>
                     <div class="input-group full-width">
-                        <label data-i18n="label_message">본문</label>
+                        <label data-i18n="label_message">Message Body</label>
                         <textarea id="tpl-message" class="premium-textarea" placeholder="Enter your message here..."></textarea>
                     </div>
                     <!-- [v18.55.0] Cleaned up Redundant Save Buttons -->
@@ -150,7 +173,7 @@
             <div id="settings-overlay" class="overlay hidden">
                 <div class="settings-panel">
                     <div class="settings-header">
-                        <h2 data-i18n="tab_settings">설정</h2>
+                        <h2 data-i18n="tab_settings">Settings</h2>
                         <button id="settings-close" class="close-btn">&times;</button>
                     </div>
                     <div class="settings-scroll-content">
@@ -182,25 +205,25 @@
 
                         <!-- Captcha Method (Dynamic) -->
                         <div class="settings-group" id="captcha-method-group" style="display: none;">
-                            <label data-i18n="label_captcha_method">해결 방식</label>
+                            <label data-i18n="label_captcha_method">Solving Method</label>
                             <select id="captcha-method-select" class="premium-select">
-                                <option value="audio" data-i18n="method_audio">음성 우회 (무료)</option>
-                                <option value="api" data-i18n="method_api">2Captcha API (유료)</option>
-                                <option value="nopecha" data-i18n="method_nopecha">NopeCHA API (빠른 AI)</option>
-                                <option value="native" data-i18n="method_native">브라우저 내장 (무료)</option>
+                                <option value="audio" data-i18n="method_audio">AI Audio Bypass (High Stability)</option>
+                                <option value="api" data-i18n="method_api">2Captcha API (Paid)</option>
+                                <option value="nopecha" data-i18n="method_nopecha">NopeCHA API (Fast AI)</option>
+                                <option value="native" data-i18n="method_native">Browser Native (Free/Zero-Key)</option>
                             </select>
                         </div>
 
                         <!-- API Key Input (Dynamic) -->
                         <div class="settings-group" id="captcha-api-group" style="display: none;">
-                            <label data-i18n="label_captcha_api_key">Service API 키</label>
+                            <label data-i18n="label_captcha_api_key">Service API Key</label>
                             <input type="text" id="captcha-api-key" class="premium-input" placeholder="Enter API Key">
                             <p class="settings-subtip" id="api-link-tip"></p>
                         </div>
 
                         <!-- Wit.ai Key Input (Dynamic) -->
                         <div class="settings-group" id="audio-stt-group" style="display: none;">
-                            <label data-i18n="label_stt_api_key">음성 STT 키 (Wit.ai)</label>
+                            <label data-i18n="label_stt_api_key">Audio STT Key (Wit.ai)</label>
                             <input type="text" id="audio-stt-key" class="premium-input" placeholder="Enter Wit.ai Key">
                             <p class="settings-subtip" data-i18n="stt_service_tip"></p>
                         </div>
@@ -212,14 +235,14 @@
                                 <input type="checkbox" id="stealth-mode-toggle">
                                 <span class="slider round"></span>
                             </label>
-                            <p class="settings-subtip" data-i18n="stealth_tip">사람의 움직임을 분석/모방하여 캡차 차단을 우회합니다.</p>
+                            <p class="settings-subtip" data-i18n="stealth_tip">Mimics human behavior to avoid detection.</p>
                         </div>
 
                         <!-- [v18.23.0] Emergency Recovery Tools -->
                         <div class="settings-group emergency-group">
                             <label data-i18n="label_emergency_tools">Emergency Recovery</label>
-                            <button id="hard-reset-engine-btn" class="danger-btn-small" data-i18n="btn_hard_reset">엔진 상시 정체 시 강제 재시작</button>
-                            <p class="settings-subtip" data-i18n="reset_tip">엔진이 6초 이상 응답하지 않을 때 클릭하세요. (확장 프로그램이 다시 로드됩니다)</p>
+                            <button id="hard-reset-engine-btn" class="danger-btn-small" data-i18n="btn_hard_reset">Force Engine Restart</button>
+                            <p class="settings-subtip" data-i18n="reset_tip">Click if the engine stalls for more than 6 seconds.</p>
                         </div>
 
                         <button id="save-settings-btn" class="primary-btn" data-i18n="btn_save_settings">Save Settings</button>
@@ -237,28 +260,37 @@
 
             <div id="status-box" class="hidden">
                 <div class="status-header">
-                    <span id="status-title" data-i18n="status_title">진행 상황</span>
+                    <span id="status-title" data-i18n="status_title">Live Progress</span>
                     <span id="progress-text">0%</span>
                 </div>
                 <div id="status-detail" class="status-detail">Ready...</div>
                 <div class="progress-bar-bg">
                     <div id="progress-bar"></div>
                 </div>
-                <!-- Stats Area: XSpider Yellow/Red Neon 3-Line Style -->
+                <!-- Stats Area: Modern Premium Neon Grid -->
                 <div class="stats-premium-box stats-yellow-neon">
-                    <div id="stats-info" class="stats-info">
-                        <div class="stats-line-1 neon-yellow-text" data-i18n="status_finished">Campaign Status:</div>
-                        <div class="stats-line-2">
-                            <span id="success-count-display">0</span>
+                    <div class="stats-grid-premium">
+                        <div class="stats-card-premium">
+                            <div class="stats-card-label neon-green-text">SUCCESS</div>
+                            <div class="stats-card-value" id="success-count-display">0</div>
                         </div>
-                        <div class="stats-line-3 status-suffix neon-yellow-text">sent</div>
+                        <div class="stats-card-premium">
+                            <div class="stats-card-label neon-blue-text">COMPLETED</div>
+                            <div class="stats-card-value" id="completed-count-display">0</div>
+                        </div>
+                        <div class="stats-card-premium">
+                            <div class="stats-card-label neon-yellow-text">REMAINING</div>
+                            <div class="stats-card-value" id="remaining-count-display">0</div>
+                        </div>
                     </div>
                 </div>
                 <div id="log-container"></div>
+
             </div>
         </main>
     </div>
     <script src="translations.js"></script>
+    <script src="blacklist_data.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>
