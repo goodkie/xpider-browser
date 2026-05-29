@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "XPIDER AutoForm Sender Pro",
-  "version": "1.1.69",
+  "version": "1.1.70",
   "description": "웹사이트의 문의 양식(Contact Form)을 자동으로 감지하고 메시지를 대량 발송하는 강력한 폼 마케팅 엔진입니다.",
   "permissions": [
     "storage",
@@ -36,12 +36,21 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.google.com/recaptcha/*"
+        "*://*.google.com/recaptcha/*",
+        "*://*.google.co.kr/recaptcha/*",
+        "*://*.recaptcha.net/*",
+        "*://*.hcaptcha.com/*",
+        "*://*.cloudflare.com/turnstile/*",
+        "*://challenges.cloudflare.com/*",
+        "*://*.google.com/sorry/*",
+        "*://*.google.co.kr/sorry/*"
       ],
       "js": [
         "solver-content.js"
       ],
-      "all_frames": true
+      "all_frames": true,
+      "match_about_blank": true,
+      "run_at": "document_start"
     }
   ],
   "web_accessible_resources": [

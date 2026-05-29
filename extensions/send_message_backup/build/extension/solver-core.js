@@ -80,9 +80,10 @@ export class XpiderSolverCore {
     /**
      * Solve via NopeCHA Token API
      */
-    async solveNopeCha(siteKey, pageUrl) {
+    async solveNopeCha(siteKey, pageUrl, type = 'recaptcha') {
         if (!this.config.nopeChaKey) throw new Error("NopeCHA API Key missing.");
-        const res = await fetch(`https://api.nopecha.com/token?key=${this.config.nopeChaKey}&type=recaptcha&sitekey=${siteKey}&url=${pageUrl}`);
+        const nopechaType = type === 'turnstile' ? 'turnstile' : (type === 'hcaptcha' ? 'hcaptcha' : 'recaptcha');
+        const res = await fetch(`https://api.nopecha.com/token?key=${this.config.nopeChaKey}&type=${nopechaType}&sitekey=${siteKey}&url=${pageUrl}`);
         const data = await res.json();
         if (!data || data.error) throw new Error(`NopeCHA Error: ${data?.message || 'Unknown'}`);
         return data.data;
@@ -91,9 +92,20 @@ export class XpiderSolverCore {
     /**
      * Solve via 2Captcha API
      */
-    async solve2Captcha(siteKey, pageUrl) {
+    async solve2Captcha(siteKey, pageUrl, type = 'recaptcha') {
         if (!this.config.twoCaptchaKey) throw new Error("2Captcha API Key missing.");
-        const res = await fetch(`https://2captcha.com/in.php?key=${this.config.twoCaptchaKey}&method=userrecaptcha&googlekey=${siteKey}&pageurl=${pageUrl}&json=1`);
+        let method = 'userrecaptcha';
+        let extraParams = '';
+        if (type === 'hcaptcha') {
+            method = 'hcaptcha';
+            extraParams = `&sitekey=${siteKey}`;
+        } else if (type === 'turnstile') {
+            method = 'turnstile';
+            extraParams = `&sitekey=${siteKey}`;
+        } else {
+            extraParams = `&googlekey=${siteKey}`;
+        }
+        const res = await fetch(`https://2captcha.com/in.php?key=${this.config.twoCaptchaKey}&method=${method}${extraParams}&pageurl=${pageUrl}&json=1`);
         const data = await res.json();
         if (data.status !== 1) throw new Error(`2Captcha Error: ${data.request}`);
         

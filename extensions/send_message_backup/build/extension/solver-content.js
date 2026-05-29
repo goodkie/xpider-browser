@@ -4,6 +4,72 @@
  */
 
 (function() {
+    // 🛡️ [XPIDER Stealth v2.0] Main World Stealth Patch Injection
+    try {
+        const injectScript = document.createElement('script');
+        injectScript.textContent = `(function() {
+            'use strict';
+            // 1. Navigator.prototype.webdriver 프로토타입 체인 완전 제거 및 false로 모킹
+            try { delete Navigator.prototype.webdriver; } catch(e) {}
+            try { if (navigator.hasOwnProperty('webdriver')) delete navigator.webdriver; } catch(e) {}
+            try {
+                var _d = Object.getOwnPropertyDescriptor(Navigator.prototype, 'webdriver');
+                if (_d) Object.defineProperty(Navigator.prototype, 'webdriver', { get: function() { return false; }, configurable: true, enumerable: true });
+            } catch(e) {}
+            
+            // 2. window.chrome 완전 모킹 (app / csi / loadTimes)
+            try {
+                if (!window.chrome) window.chrome = {};
+                if (!window.chrome.app) {
+                    window.chrome.app = {
+                        isInstalled: false,
+                        InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
+                        RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' },
+                        getDetails:     function getDetails()     { return null; },
+                        getIsInstalled: function getIsInstalled() { return false; },
+                        installState:   function installState(cb) { cb && cb('not_installed'); },
+                        runningState:   function runningState()   { return 'cannot_run'; }
+                    };
+                }
+                if (!window.chrome.csi) {
+                    window.chrome.csi = function csi() {
+                        var t = performance.timing || {};
+                        return { startE: t.navigationStart || Date.now(), onloadT: t.loadEventStart || Date.now(),
+                                 pageT: performance.now ? performance.now() : 0, tran: 15 };
+                    };
+                }
+                if (!window.chrome.loadTimes) {
+                    window.chrome.loadTimes = function loadTimes() {
+                        var t = performance.timing || {}; var ns = t.navigationStart || Date.now();
+                        return { requestTime: ns/1000, startLoadTime: ns/1000, commitLoadTime: (t.domLoading||ns)/1000,
+                            finishDocumentLoadTime: (t.domContentLoadedEventEnd||ns)/1000, finishLoadTime: (t.loadEventEnd||ns)/1000,
+                            firstPaintTime: 0, firstPaintAfterLoadTime: 0, navigationType: 'Other',
+                            wasFetchedViaSpdy: false, wasNpnNegotiated: true, npnNegotiatedProtocol: 'h2',
+                            wasAlternateProtocolAvailable: false, connectionInfo: 'h2' };
+                    };
+                }
+            } catch(e) {}
+            
+            // 3. Function.prototype.toString 네이티브 마스킹 (탐지 방어)
+            try {
+                var _orig = Function.prototype.toString; var _fns = new WeakSet();
+                [window.chrome.csi, window.chrome.loadTimes].forEach(function(f) { if (typeof f === 'function') _fns.add(f); });
+                if (window.chrome.app) ['getDetails','getIsInstalled','installState','runningState'].forEach(function(m) {
+                    if (typeof window.chrome.app[m] === 'function') _fns.add(window.chrome.app[m]);
+                });
+                Function.prototype.toString = function toString() {
+                    if (_fns.has(this)) return 'function ' + (this.name || '') + '() { [native code] }';
+                    return _orig.call(this);
+                };
+            } catch(e) {}
+        })();`;
+        (document.head || document.documentElement).appendChild(injectScript);
+        injectScript.remove();
+        console.log("🛡️ [XPIDER Stealth v2.0] Main World stealth injection applied successfully.");
+    } catch (e) {
+        console.warn("🛡️ [XPIDER Stealth] Main World stealth injection failed:", e);
+    }
+
     class XpiderSolverContent {
         constructor(options = {}) {
             this.options = {
@@ -53,6 +119,37 @@
             try { chrome.runtime.sendMessage({ action: 'XPIDER_LOG', message: msg }); } catch(e) {}
         }
 
+        triggerHumanLikeClick(el) {
+            try {
+                const rect = el.getBoundingClientRect();
+                const x = rect.left + rect.width / 2 + (Math.random() * 10 - 5);
+                const y = rect.top + rect.height / 2 + (Math.random() * 10 - 5);
+
+                const mousedown = new MouseEvent('mousedown', {
+                    bubbles: true, cancelable: true, view: window,
+                    clientX: x, clientY: y, button: 0, buttons: 1
+                });
+                const mouseup = new MouseEvent('mouseup', {
+                    bubbles: true, cancelable: true, view: window,
+                    clientX: x, clientY: y, button: 0, buttons: 1
+                });
+                const click = new MouseEvent('click', {
+                    bubbles: true, cancelable: true, view: window,
+                    clientX: x, clientY: y, button: 0
+                });
+
+                el.dispatchEvent(mousedown);
+                setTimeout(() => {
+                    el.dispatchEvent(mouseup);
+                    setTimeout(() => {
+                        el.dispatchEvent(click);
+                    }, Math.floor(Math.random() * 50) + 30);
+                }, Math.floor(Math.random() * 80) + 50);
+            } catch(e) {
+                try { el.click(); } catch(e2) {}
+            }
+        }
+
         async loop() {
             try {
                 const state = await chrome.storage.local.get(['captchaAttempts', 'captchaBlocked']);
@@ -73,14 +170,36 @@
                 }
                 this.lastAttemptTime = now;
 
-                // 1. Check for checkbox
-                const cb = document.querySelector('#recaptcha-anchor') || document.querySelector('.recaptcha-checkbox');
+                // [Auto STT API Key Fallback] 공용 무료 우회 키 자동 적용
+                const keys = await chrome.storage.local.get(['xpider_stt_api_key', 'audioSttKey', 'witKey']);
+                let activeKey = keys.xpider_stt_api_key || keys.audioSttKey || keys.witKey;
+                if (!activeKey || activeKey.trim() === '') {
+                    activeKey = '3T7NUX6UUPXHXGMDQLB7P23JSHYI2C7O';
+                    await chrome.storage.local.set({ 
+                        xpider_stt_api_key: activeKey, 
+                        audioSttKey: activeKey, 
+                        witKey: activeKey,
+                        captchaSolveEnabled: true 
+                    });
+                    this.log("🔑 [Auto STT] 공용 무료 우회 API 키 적용됨", "PROXY");
+                }
+
+                // 1. Check for checkbox (reCAPTCHA, hCaptcha, Turnstile)
+                const cb = document.querySelector('#recaptcha-anchor') || 
+                           document.querySelector('.recaptcha-checkbox') || 
+                           document.querySelector('#checkbox') || 
+                           document.querySelector('.h-captcha iframe') ||
+                           document.querySelector('input[type="checkbox"]') ||
+                           document.querySelector('.ctp-checkbox-container input') ||
+                           document.querySelector('#challenge-stage input[type="checkbox"]');
+                           
                 if (cb) {
-                    if (cb.getAttribute('aria-checked') === 'false') {
+                    const isChecked = cb.getAttribute('aria-checked') === 'true' || cb.checked === true;
+                    if (!isChecked) {
                         if (now - this.lastCheckboxClickTime > 5000) {
-                            this.log("Clicking checkbox...");
+                            this.log("Clicking challenge checkbox...", "CLICK");
                             this.lastCheckboxClickTime = now;
-                            cb.click();
+                            this.triggerHumanLikeClick(cb);
                         }
                     } else {
                         this.log("Solved!", "PASS");

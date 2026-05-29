@@ -1795,7 +1795,7 @@
     }
 
     async function waitForCaptchaSolved() {
-        const MAX_WAIT = 120; // [v17.7.0] Fixed: Re-defined missing constant
+        const MAX_WAIT = 120; // 2분(120초) 대기 시간 안정적으로 유지
         
         let autoSolveAttempted = false;
 
@@ -1803,9 +1803,11 @@
             await new Promise(r => setTimeout(r, 1000));
             
             const stillHasCaptcha = await checkForCaptcha();
-            const gResponse = document.querySelector('[name="g-recaptcha-response"]');
-            const hResponse = document.querySelector('[name="h-captcha-response"]');
-            const tResponse = document.querySelector('[name="cf-turnstile-response"]');
+            
+            // 모든 프레임과 폼 영역에서 캡챠 토큰 응답 필드 탐색
+            const gResponse = document.querySelector('[name="g-recaptcha-response"]') || document.querySelector('#g-recaptcha-response');
+            const hResponse = document.querySelector('[name="h-captcha-response"]') || document.querySelector('#h-captcha-response');
+            const tResponse = document.querySelector('[name="cf-turnstile-response"]') || document.querySelector('#cf-turnstile-response') || document.querySelector('[name="cf_challenge_response"]');
             
             // Auto-solve injection trigger
             if (stillHasCaptcha && !autoSolveAttempted) {
@@ -1814,10 +1816,15 @@
                 if (solved) continue; // Will be picked up by the next iteration's early exit check
             }
 
-            // [v17.5.0] Early Exit: If the response is filled OR the widget is gone, resume immediately
-            if (!stillHasCaptcha || (gResponse && gResponse.value) || (hResponse && hResponse.value) || (tResponse && tResponse.value)) {
-                logDev("🔑 [Security] Challenge solved or removed. Resuming sequence.", "success");
-                await new Promise(r => setTimeout(r, 1500));
+            // [Early Exit] 캡챠가 해결되었거나, 캡챠 창이 제거되었거나, 정답 토큰이 확보된 경우 즉각 복귀
+            const hasToken = (gResponse && gResponse.value && gResponse.value.trim() !== '') || 
+                             (hResponse && hResponse.value && hResponse.value.trim() !== '') || 
+                             (tResponse && tResponse.value && tResponse.value.trim() !== '');
+
+            if (!stillHasCaptcha || hasToken) {
+                logDev("🔑 [Security] Challenge solved or removed. Resuming sequence immediately.", "success");
+                // 0.5초(500ms)의 최소 안전 딜레이 후 즉각 복귀
+                await new Promise(r => setTimeout(r, 500));
                 return true;
             }
         }
