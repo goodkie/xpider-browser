@@ -354,7 +354,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         case 'SENDER_READY':
             // [v18.24.0] Direct Route: Handle content-script ready signal via global state
             if (sender.tab && sender.tab.id === campaignState.currentTabId && campaignState.targetReady) {
-                campaignState.targetReady(sender.tab.url);
+                campaignState.targetReady(sender.tab.url, true);
                 sendResponse({ success: true });
             }
             return true;
@@ -875,9 +875,9 @@ async function orchestrateSending(urlInput, template) {
         resolveRef(res);
     };
 
-    const secureFocus = (currentUrl) => {
+    const secureFocus = (currentUrl, force = false) => {
         const normalized = normalizeUrl(currentUrl || '');
-        if ((isFocusSecured && lastFocusedUrl === normalized) || isFinished) return;
+        if (!force && ((isFocusSecured && lastFocusedUrl === normalized) || isFinished)) return;
         
         isFocusSecured = true;
         lastFocusedUrl = normalized;
