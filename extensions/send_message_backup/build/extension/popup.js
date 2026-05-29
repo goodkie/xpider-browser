@@ -230,21 +230,43 @@ async function initializeAsyncComponents() {
     // ── Step 12: Pulse check ──
     try { startPulseCheck(); } catch(e) {}
 
-    // [v18.46.0] Audio STT API Key (Wit.ai) 최초 설정 여부 체크
-    chrome.storage.local.get(['xpider_stt_api_key', 'audioSttKey', 'witKey'], (res) => {
-        const latestKey = res.xpider_stt_api_key || res.audioSttKey || res.witKey || '';
-        if (latestKey.trim() === '') {
-            const setupModal = document.getElementById('stt-setup-modal-overlay');
-            if (setupModal) {
-                setupModal.classList.remove('hidden');
-            }
-        } else {
+    // [WitKey-Sync v3] Audio STT API Key (Wit.ai) 최초 설정 여부 체크
+    // 먼저 메인 프로세스 공유 스토리지에서 직접 읽기 (chrome.storage 격리 우회)
+    xpiderInvoke('xpider-ext-get-wit-key').then(res => {
+        const mainKey = (res && res.key) ? res.key : '';
+        console.log(`[WitKey-Sync v3] Sender init: MainProcess key = ${mainKey ? mainKey.substring(0, 8) + '...' : 'NONE'}`);
+        if (mainKey && mainKey.trim() !== '') {
             const sttKeyInput = document.getElementById('audio-stt-key');
-            if (sttKeyInput) sttKeyInput.value = latestKey;
+            if (sttKeyInput) sttKeyInput.value = mainKey;
             const setupInput = document.getElementById('setup-stt-key-input');
-            if (setupInput) setupInput.value = latestKey;
+            if (setupInput) setupInput.value = mainKey;
+            const setupModal = document.getElementById('stt-setup-modal-overlay');
+            if (setupModal) setupModal.classList.add('hidden');
+            // chrome.storage에도 동기화 (다른 로직 호환)
+            chrome.storage.local.set({ xpider_stt_api_key: mainKey, audioSttKey: mainKey, witKey: mainKey });
+        } else {
+            // IPC에서 키가 없으면 chrome.storage 폴백
+            _senderFallbackLoadKey();
         }
+    }).catch(() => {
+        // IPC 실패 시 chrome.storage 폴백
+        _senderFallbackLoadKey();
     });
+
+    function _senderFallbackLoadKey() {
+        chrome.storage.local.get(['xpider_stt_api_key', 'audioSttKey', 'witKey'], (res) => {
+            const latestKey = res.xpider_stt_api_key || res.audioSttKey || res.witKey || '';
+            if (latestKey.trim() === '') {
+                const setupModal = document.getElementById('stt-setup-modal-overlay');
+                if (setupModal) setupModal.classList.remove('hidden');
+            } else {
+                const sttKeyInput = document.getElementById('audio-stt-key');
+                if (sttKeyInput) sttKeyInput.value = latestKey;
+                const setupInput = document.getElementById('setup-stt-key-input');
+                if (setupInput) setupInput.value = latestKey;
+            }
+        });
+    }
 }
 
 async function initLocalizer() {
@@ -1393,6 +1415,13 @@ async function loadSettings() {
     if (document.getElementById('audio-stt-key')) {
         document.getElementById('audio-stt-key').value = data.xpider_stt_api_key || '';
     }
+    // [WitKey-Sync v3] 메인 프로세스에서 직접 키 읽기로 보정 (chrome.storage 격리 우회)
+    xpiderInvoke('xpider-ext-get-wit-key').then(res => {
+        const mainKey = (res && res.key) ? res.key : '';
+        if (mainKey && document.getElementById('audio-stt-key')) {
+            document.getElementById('audio-stt-key').value = mainKey;
+        }
+    }).catch(() => {});
     if (document.getElementById('stealth-mode-toggle')) {
         document.getElementById('stealth-mode-toggle').checked = (data.xpider_stealth_mode !== undefined) ? !!data.xpider_stealth_mode : true;
     }

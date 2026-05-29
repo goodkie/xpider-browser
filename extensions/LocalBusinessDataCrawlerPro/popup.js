@@ -1,5 +1,25 @@
 // [Extension Popup Script] v1.0.0 Pro
 
+// [WitKey-Sync v3] XPIDER_INVOKE: Direct IPC bridge to main process (bypasses chrome.storage isolation)
+function xpiderInvoke(channel, args) {
+    return new Promise((resolve, reject) => {
+        const id = Date.now().toString() + Math.random().toString(36).slice(2);
+        const handler = (e) => {
+            if (e.data && e.data.type === 'XPIDER_RESPONSE' && e.data.id === id) {
+                window.removeEventListener('message', handler);
+                if (e.data.error) reject(new Error(e.data.error));
+                else resolve(e.data.result);
+            }
+        };
+        window.addEventListener('message', handler);
+        window.postMessage({ type: 'XPIDER_INVOKE', channel, args, id }, '*');
+        setTimeout(() => {
+            window.removeEventListener('message', handler);
+            reject(new Error(`IPC timeout: ${channel}`));
+        }, 30000);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // [v18.1] STRICT Persistent Port Connection to detect popup closure instantly
     chrome.runtime.connect({ name: 'popup-ctrl' });
@@ -113,13 +133,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (captchaWitaiGroup) captchaWitaiGroup.style.display = solveEnabled ? 'block' : 'none';
             }
             
-            // [WitKey-Sync] 양쪽 키 중 최신값 적용 및 셋업 모달 상태 설정
-            const latestWitKey = storage.audioSttKey || storage.witKey || '';
+            // [WitKey-Sync v3] 양쪽 키 중 최신값 적용 및 셋업 모달 상태 설정
+            let latestWitKey = storage.audioSttKey || storage.witKey || '';
             if (audioSttKeyInput) audioSttKeyInput.value = latestWitKey;
             if (captchaWitKeyInput) captchaWitKeyInput.value = latestWitKey;
             if (captchaWitInputContainer) {
                 captchaWitInputContainer.style.display = latestWitKey ? 'none' : 'block';
             }
+            
+            // [WitKey-Sync v3] 메인 프로세스 공유 스토리지에서 직접 키를 가져와 보정 (chrome.storage 격리 우회)
+            xpiderInvoke('xpider-ext-get-wit-key').then(res => {
+                const mainKey = (res && res.key) ? res.key : '';
+                console.log(`[WitKey-Sync v3] Crawler initI18n: MainProcess key = ${mainKey ? mainKey.substring(0, 8) + '...' : 'NONE'}, localStorage key = ${latestWitKey ? latestWitKey.substring(0, 8) + '...' : 'NONE'}`);
+                const finalKey = mainKey || latestWitKey;
+                if (finalKey && finalKey !== latestWitKey) {
+                    if (audioSttKeyInput) audioSttKeyInput.value = finalKey;
+                    if (captchaWitKeyInput) captchaWitKeyInput.value = finalKey;
+                    if (captchaWitInputContainer) {
+                        captchaWitInputContainer.style.display = finalKey ? 'none' : 'block';
+                    }
+                    // chrome.storage에도 동기화 시도 (다른 로직 호환용)
+                    chrome.storage.local.set({ audioSttKey: finalKey, witKey: finalKey, xpider_stt_api_key: finalKey });
+                }
+            }).catch(err => console.warn('[WitKey-Sync v3] Crawler IPC key fetch failed:', err));
+
             if (stealthModeToggle) stealthModeToggle.checked = !!storage.stealthModeEnabled;
             if (vpnCheckToggle) vpnCheckToggle.checked = !!storage.vpnCheckEnabled;
             if (slowModeToggle) slowModeToggle.checked = !!storage.slowModeEnabled;
@@ -452,10 +489,12 @@ document.addEventListener('DOMContentLoaded', () => {
             chrome.storage.local.set({ 
                 witKey: val, 
                 audioSttKey: val, 
-                // [WitKey-Sync v2] Sender와 실시간 동기화를 위해 xpider_stt_api_key도 저장
+                // [WitKey-Sync v3] Sender와 실시간 동기화를 위해 xpider_stt_api_key도 저장
                 xpider_stt_api_key: val,
                 captchaSolveEnabled: true 
             }, () => {
+                // [WitKey-Sync v3] 메인 프로세스 공유 스토리지에 직접 동기화
+                xpiderInvoke('xpider-ext-sync-wit-key', { key: val }).catch(err => console.warn('[WitKey-Sync v3] Quick setup sync failed:', err));
                 // Sync settings fields if they exist
                 if (audioSttKeyInput) audioSttKeyInput.value = val;
                 if (captchaSolveToggle) captchaSolveToggle.checked = true;
@@ -516,12 +555,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     settingsToggle.addEventListener('click', () => {
         settingsOverlay.classList.remove('hidden');
-        // [WitKey-Sync] 설정창 오픈 시 최신 스토리지 값으로 Wit.ai Key 입력 필드 갱신
-        chrome.storage.local.get(['audioSttKey', 'witKey', 'xpider_stt_api_key'], (storage) => {
-            const latestKey = storage.audioSttKey || storage.witKey || storage.xpider_stt_api_key || '';
-            if (audioSttKeyInput && latestKey) {
-                audioSttKeyInput.value = latestKey;
+        // [WitKey-Sync v3] 설정창 오픈 시 메인 프로세스 공유 스토리지에서 직접 키 읽기 (chrome.storage 격리 우회)
+        xpiderInvoke('xpider-ext-get-wit-key').then(res => {
+            const mainKey = (res && res.key) ? res.key : '';
+            console.log(`[WitKey-Sync v3] Crawler settingsToggle: MainProcess key = ${mainKey ? mainKey.substring(0, 8) + '...' : 'NONE'}`);
+            if (audioSttKeyInput && mainKey) {
+                audioSttKeyInput.value = mainKey;
             }
+            if (captchaWitKeyInput && mainKey) {
+                captchaWitKeyInput.value = mainKey;
+            }
+        }).catch(err => {
+            // IPC 실패 시 chrome.storage 폴백
+            chrome.storage.local.get(['audioSttKey', 'witKey', 'xpider_stt_api_key'], (storage) => {
+                const latestKey = storage.audioSttKey || storage.witKey || storage.xpider_stt_api_key || '';
+                if (audioSttKeyInput && latestKey) audioSttKeyInput.value = latestKey;
+            });
         });
 
         // [WitKey-Sync v2] 설정창 오픈 후 #audio-stt-key 실시간 input 동기화 바인딩
@@ -533,8 +582,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 _crawlerDebounceTimer = setTimeout(() => {
                     const key = audioSttKeyInput.value.trim();
                     chrome.storage.local.set({ audioSttKey: key, witKey: key, xpider_stt_api_key: key }, () => {
-                        console.log(`[WitKey-Sync v2] Crawler 실시간 입력 동기화: ${key ? key.substring(0, 8) + '...' : 'NONE'}`);
+                        console.log(`[WitKey-Sync v3] Crawler 실시간 입력 동기화: ${key ? key.substring(0, 8) + '...' : 'NONE'}`);
                     });
+                    // [WitKey-Sync v3] 메인 프로세스 공유 스토리지에 직접 동기화
+                    xpiderInvoke('xpider-ext-sync-wit-key', { key }).catch(err => console.warn('[WitKey-Sync v3] Debounce sync failed:', err));
                 }, 600);
             });
         }
@@ -617,6 +668,11 @@ document.addEventListener('DOMContentLoaded', () => {
             proxyUser: proxyUser,
             proxyPass: proxyPass
         }, () => {
+            // [WitKey-Sync v3] 메인 프로세스 공유 스토리지에 직접 동기화 (chrome.storage 격리 우회)
+            xpiderInvoke('xpider-ext-sync-wit-key', { key: audioSttKey }).then(() => {
+                console.log(`[WitKey-Sync v3] Crawler saveSettings: Key synced to main process`);
+            }).catch(err => console.warn('[WitKey-Sync v3] Crawler save sync failed:', err));
+
             // 메인 프로세스에 스텔스 상태 전달
             window.postMessage({
                 type: 'XPIDER_SEND',
