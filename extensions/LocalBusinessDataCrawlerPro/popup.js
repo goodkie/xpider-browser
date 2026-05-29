@@ -506,6 +506,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     settingsToggle.addEventListener('click', () => {
         settingsOverlay.classList.remove('hidden');
+        // [WitKey-Sync] 설정창 오픈 시 최신 스토리지 값으로 Wit.ai Key 입력 필드 갱신
+        chrome.storage.local.get(['audioSttKey', 'witKey'], (storage) => {
+            const latestKey = storage.audioSttKey || storage.witKey || '';
+            if (audioSttKeyInput && latestKey) {
+                audioSttKeyInput.value = latestKey;
+            }
+        });
     });
 
     settingsClose.addEventListener('click', () => {
@@ -1463,8 +1470,33 @@ window.addEventListener('message', (event) => {
                 _closeCaptchaModal(true);
             }
         }
+
+        // [WitKey-Sync] AutoForm Sender Pro에서 Wit.ai Key 동기화 수신 → 설정 UI 입력 필드 즉시 업데이트
+        if (msg.action === 'UPDATE_WIT_KEY') {
+            const key = msg.key || '';
+            console.log(`[WitKey-Sync] Crawler Popup: Received UPDATE_WIT_KEY → auto-filling Settings UI`);
+
+            // 1) 설정 오버레이의 audioSttKey 입력 필드에 즉시 값 주입
+            const audioSttKeyInputEl = document.getElementById('audio-stt-key');
+            if (audioSttKeyInputEl) audioSttKeyInputEl.value = key;
+
+            // 2) CAPTCHA 모달 내 Quick Input에도 동기화
+            const captchaWitKeyInputEl = document.getElementById('captcha-wit-key-input');
+            if (captchaWitKeyInputEl) captchaWitKeyInputEl.value = key;
+
+            // 3) 로컬 스토리지도 직접 갱신 (popup.js에서도 재보장)
+            chrome.storage.local.set({ witKey: key, audioSttKey: key });
+
+            // 4) 사용자에게 시각적 피드백 (설정 오버레이가 열려있을 때)
+            const settingsOverlayEl = document.getElementById('settings-overlay');
+            if (settingsOverlayEl && !settingsOverlayEl.classList.contains('hidden') && audioSttKeyInputEl) {
+                audioSttKeyInputEl.style.boxShadow = '0 0 0 2px #34c759';
+                setTimeout(() => { audioSttKeyInputEl.style.boxShadow = ''; }, 2000);
+            }
+        }
     }
 });
+
 
 // --- [v3.3] CAPTCHA 강제 닫기 직접 채널 + 전용 폴링 ---
 // 경로C) main.js -> executeJavaScript -> extensionWebview.send('xpider-captcha-force-close')
