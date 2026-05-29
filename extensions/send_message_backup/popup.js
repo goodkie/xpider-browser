@@ -474,6 +474,22 @@ function bindEvents() {
         });
     }
 
+    // [v18.47.0] Wit.ai Link - 크롬 익스텐션 팝업에서 새 탭으로 열기
+    // 일반 <a target="_blank"> 는 팝업 내에서 동작하지 않으므로 JS로 처리
+    const witAiLink = document.getElementById('wit-ai-link');
+    if (witAiLink) {
+        witAiLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const url = witAiLink.href || 'https://wit.ai';
+            try {
+                chrome.tabs.create({ url: url });
+            } catch (err) {
+                // Electron 환경 또는 비표준 환경 폴백
+                window.open(url, '_blank');
+            }
+        });
+    }
+
     // [v2.4.0] Template Save Buttons - Combined
     ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
         const btn = document.getElementById(id);

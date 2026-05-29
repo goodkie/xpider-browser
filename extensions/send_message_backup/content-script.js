@@ -777,29 +777,204 @@
     }
 
     async function fillFormIntelligent(form, tpl, speed) {
-        logDev("🛠️ [Action] Profiling fields for intelligent mapping...");
+        logDev("🛠️ [Action][HyperEngine v3.0] 초지능 폼 자동 등록기 시작...");
         let filledFields = 0;
-        const inputs = Array.from(form.querySelectorAll('input:not([type="hidden"]), textarea, select'));
 
+        // ============================================================
+        // [HyperEngine v3.0] React/Vue/Angular 네이티브 값 세터 유틸
+        // 일반 el.value = x 는 React controlled-component에서 무시됨
+        // Object.getOwnPropertyDescriptor로 네이티브 setter를 강제 호출
+        // ============================================================
+        function setNativeValue(el, val) {
+            try {
+                const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+                const nativeInputValueSetter = Object.getOwnPropertyDescriptor(proto, 'value');
+                if (nativeInputValueSetter && nativeInputValueSetter.set) {
+                    nativeInputValueSetter.set.call(el, val);
+                } else {
+                    el.value = val;
+                }
+            } catch (e) {
+                el.value = val;
+            }
+        }
+
+        // ============================================================
+        // [HyperEngine v3.0] SELECT 드롭다운 강제 선택 - 마우스 이벤트까지
+        // ============================================================
+        async function applySelect(el, preferredKeywords = []) {
+            if (!el || el.tagName !== 'SELECT') return;
+            if (el.options.length <= 1) return;
+            if (el.selectedIndex > 0) {
+                logDev(`   - [Select-Skip] 이미 선택됨: "${el.options[el.selectedIndex].text}"`);
+                return;
+            }
+
+            // 1순위: 키워드 매칭 (inquiry, general, other 등)
+            let targetIdx = -1;
+            const contactKeywords = [...(preferredKeywords || []), 'inquiry', 'general', 'other', 'contact', 'question', '문의', '일반', '기타', '고객', 'info', 'support'];
+            for (let i = 1; i < el.options.length; i++) {
+                const optText = (el.options[i].text || '').toLowerCase();
+                const optVal = (el.options[i].value || '').toLowerCase();
+                if (contactKeywords.some(k => optText.includes(k) || optVal.includes(k)) && !el.options[i].disabled) {
+                    targetIdx = i;
+                    break;
+                }
+            }
+
+            // 2순위: 유효한 첫 번째 옵션 선택
+            if (targetIdx < 0) {
+                for (let i = 1; i < el.options.length; i++) {
+                    if (!el.options[i].disabled && el.options[i].value) {
+                        targetIdx = i;
+                        break;
+                    }
+                }
+            }
+            if (targetIdx < 0 && el.options.length > 1) targetIdx = 1;
+            if (targetIdx < 0) return;
+
+            // 마우스 클릭 시퀀스 시뮬레이션 (진짜 사람처럼)
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await new Promise(r => setTimeout(r, Math.floor(speed.field * 0.5)));
+
+            el.focus();
+            el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+            await new Promise(r => setTimeout(r, 80));
+
+            // React select용 네이티브 setter
+            const nativeSelectSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+            if (nativeSelectSetter && nativeSelectSetter.set) {
+                nativeSelectSetter.set.call(el, el.options[targetIdx].value);
+            } else {
+                el.selectedIndex = targetIdx;
+            }
+
+            // 이벤트 풀 시퀀스 - React, Vue, Angular, jQuery 모두 커버
+            ['input', 'change'].forEach(evtName => {
+                el.dispatchEvent(new Event(evtName, { bubbles: true, cancelable: true }));
+            });
+            el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+            el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+            el.blur();
+
+            logDev(`   - [Select✅] 드롭다운 선택 완료: "${el.options[targetIdx].text}"`);
+            filledFields++;
+        }
+
+        // ============================================================
+        // [HyperEngine v3.0] 라디오 버튼 강제 선택 - 마우스 클릭 시뮬레이션
+        // ============================================================
+        async function applyRadio(radioEl) {
+            if (!radioEl || radioEl.checked) return;
+            radioEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await new Promise(r => setTimeout(r, 60));
+
+            radioEl.focus();
+            // 포인터 이벤트 전체 체인 - 모든 JS 프레임워크 트리거
+            ['pointerover', 'pointerenter', 'mouseover', 'mouseenter', 'pointermove', 'mousemove',
+             'pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(evtName => {
+                const isPointer = evtName.startsWith('pointer');
+                const evt = isPointer
+                    ? new PointerEvent(evtName, { bubbles: true, cancelable: true, pointerId: 1 })
+                    : new MouseEvent(evtName, { bubbles: true, cancelable: true });
+                radioEl.dispatchEvent(evt);
+            });
+
+            // 네이티브 checked setter
+            const nativeCheckedSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked');
+            if (nativeCheckedSetter && nativeCheckedSetter.set) {
+                nativeCheckedSetter.set.call(radioEl, true);
+            } else {
+                radioEl.checked = true;
+            }
+            radioEl.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+            radioEl.blur();
+            logDev(`   - [Radio✅] 라디오 클릭: name="${radioEl.name}" value="${radioEl.value}"`);
+        }
+
+        // ============================================================
+        // [HyperEngine v3.0] 체크박스 강제 체크
+        // ============================================================
+        async function applyCheckbox(cbEl) {
+            if (!cbEl || cbEl.checked) return;
+            cbEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await new Promise(r => setTimeout(r, 50));
+
+            cbEl.focus();
+            ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(evtName => {
+                const isPointer = evtName.startsWith('pointer');
+                const evt = isPointer
+                    ? new PointerEvent(evtName, { bubbles: true, cancelable: true, pointerId: 1 })
+                    : new MouseEvent(evtName, { bubbles: true, cancelable: true });
+                cbEl.dispatchEvent(evt);
+            });
+            const nativeCheckedSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked');
+            if (nativeCheckedSetter && nativeCheckedSetter.set) {
+                nativeCheckedSetter.set.call(cbEl, true);
+            } else {
+                cbEl.checked = true;
+            }
+            cbEl.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+            cbEl.blur();
+            logDev(`   - [Checkbox✅] 체크박스 체크: "${cbEl.name || cbEl.id || ''}"`);
+        }
+
+        // ============================================================
+        // [HyperEngine v3.0] 텍스트/이메일/전화 필드 값 입력
+        // ============================================================
+        const applyVal = async (el, val, matchedAttr) => {
+            if (!val || !el) return;
+            if (el.tagName === 'SELECT') {
+                await applySelect(el);
+                return;
+            }
+
+            // 이미 값이 있으면 스킵 (단, contentEditable은 innerHTML 확인)
+            const currentVal = el.contentEditable === 'true' ? (el.textContent || '') : (el.value || '');
+            if (currentVal.trim() !== '') return;
+
+            await new Promise(r => setTimeout(r, speed.field));
+
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await new Promise(r => setTimeout(r, 50));
+
+            el.focus();
+            el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+            if (el.contentEditable === 'true') {
+                el.textContent = val;
+                el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+            } else {
+                setNativeValue(el, val);
+                // React/Vue가 감지하는 이벤트 시퀀스
+                el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+                el.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
+                el.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+            }
+
+            el.blur();
+            el.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+            logDev(`   - [Input✅] "${(matchedAttr || '').toString().substring(0,20)}" | Val: ${val.substring(0, 20)}...`);
+            filledFields++;
+        };
+
+        // 패턴 매칭 함수
         const matchField = async (patterns, val, el) => {
             if (!val) return false;
-            
             const label = getLabelFor(el).toLowerCase();
             const placeholder = (el.placeholder || '').toLowerCase();
             const name = (el.name || '').toLowerCase();
             const id = (el.id || '').toLowerCase();
             const cls = (el.className || '').toString().toLowerCase();
-            
             const isGenericId = !id || id === 'null-field' || /^\d+$/.test(id) || id.includes('input');
             const combined = isGenericId ? `${label} ${placeholder} ${cls}` : `${label} ${placeholder} ${name} ${id} ${cls}`;
-            
-            if (isGenericId && label) {
-                if (patterns.some(p => p.test(label))) {
-                    await applyVal(el, val, patterns.find(p => p.test(label)));
-                    return true;
-                }
-            }
 
+            if (isGenericId && label && patterns.some(p => p.test(label))) {
+                await applyVal(el, val, patterns.find(p => p.test(label)));
+                return true;
+            }
             if (patterns.some(p => p.test(combined))) {
                 await applyVal(el, val, patterns.find(p => p.test(combined)));
                 return true;
@@ -807,75 +982,46 @@
             return false;
         };
 
-        const applyVal = async (el, val, matchedAttr) => {
-            if (el.tagName === 'SELECT') {
-                if (el.options.length > 1) {
-                    const randomIndex = Math.floor(Math.random() * (el.options.length - 1)) + 1;
-                    el.selectedIndex = randomIndex;
-                    logDev(`   - [Select] Matched "${matchedAttr}" | Picked: ${el.options[randomIndex].text}`);
-                }
-            } else if (!el.value) {
-                // [v18.7.5] Intelligent Pacing: wait between field entry
-                await new Promise(r => setTimeout(r, speed.field));
-                
-                el.focus();
-                el.value = val;
-                el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-                el.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-                el.blur();
-                logDev(`   - [Input] Matched "${matchedAttr}" | Val: ${val.substring(0, 15)}...`);
-                filledFields++;
-            }
-        };
-
-        // 템플릿의 실존 유효 값들 수집
+        // 템플릿 유효값 수집
         const templateVals = [
-            tpl.firstName, tpl.lastName, tpl.name, tpl.email, 
+            tpl.firstName, tpl.lastName, tpl.name, tpl.email,
             tpl.phone, tpl.subject, tpl.message
         ].filter(v => typeof v === 'string' && v.trim() !== '');
 
         const getRandomTemplateVal = () => {
-            if (templateVals.length > 0) {
-                return templateVals[Math.floor(Math.random() * templateVals.length)];
-            }
+            if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
             return "Inquiry";
         };
 
+        // ── 1단계: shadow DOM + 표준 쿼리로 모든 입력란 수집 ──
+        const inputs = Array.from(queryAllInputs(form));
+
+        // ── 2단계: SELECT 드롭다운 전수 처리 ──
+        logDev("🎯 [HyperEngine] Phase 1 - 드롭다운 전수 처리...");
         for (const el of inputs) {
             if (isHoneypot(el)) continue;
+            if (el.tagName === 'SELECT') await applySelect(el);
+        }
 
-            if (el.type === 'checkbox' || el.type === 'radio') {
+        // ── 3단계: 약관/동의 체크박스 처리 ──
+        logDev("🎯 [HyperEngine] Phase 2 - 약관/동의 체크박스 처리...");
+        for (const el of inputs) {
+            if (isHoneypot(el)) continue;
+            if (el.type === 'checkbox') {
                 const labelText = getLabelFor(el).toLowerCase();
                 const containerText = (el.parentElement?.textContent || '').toLowerCase();
-                const termsKeywords = ['agree', 'terms', 'policy', 'consento', '동의', '규정', '약관'];
-                
+                const termsKeywords = ['agree', 'terms', 'policy', 'consent', '동의', '규정', '약관', 'privacy', 'accept'];
                 if (termsKeywords.some(k => labelText.includes(k) || containerText.includes(k))) {
-                    if (!el.checked) {
-                        el.click();
-                        el.dispatchEvent(new Event('change', { bubbles: true }));
-                    }
+                    await applyCheckbox(el);
                 }
-                continue;
             }
+        }
 
-            if (el.tagName === 'SELECT') {
-                if (el.options.length > 1 && (el.selectedIndex <= 0)) {
-                    const validOptions = [];
-                    for (let i = 1; i < el.options.length; i++) {
-                        const opt = el.options[i];
-                        if (opt.value && !opt.disabled) {
-                            validOptions.push({ opt, idx: i });
-                        }
-                    }
-                    if (validOptions.length > 0) {
-                        const chosen = validOptions[Math.floor(Math.random() * validOptions.length)];
-                        el.selectedIndex = chosen.idx;
-                        el.dispatchEvent(new Event('change', { bubbles: true }));
-                        logDev(`   - [Select-Random] Picked option: ${chosen.opt.text}`);
-                    }
-                }
-                continue;
-            }
+        // ── 4단계: 텍스트 필드 패턴 매칭 ──
+        logDev("🎯 [HyperEngine] Phase 3 - 텍스트 필드 패턴 매칭...");
+        for (const el of inputs) {
+            if (isHoneypot(el)) continue;
+            if (el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') continue;
 
             if (await matchField(FIELD_PATTERNS.firstName, tpl.firstName || tpl.name, el)) continue;
             if (await matchField(FIELD_PATTERNS.lastName, tpl.lastName, el)) continue;
@@ -886,82 +1032,95 @@
             if (await matchField(FIELD_PATTERNS.message, tpl.message, el)) continue;
         }
 
-        // [Fallback] 일반 입력란 무작위 대답을 템플릿 중 한 입력값으로 대체
+        // ── 5단계: 텍스트 폴백 - 여전히 빈 필드 채우기 ──
+        logDev("🎯 [HyperEngine] Phase 4 - 텍스트 폴백 (빈 필드 강제 채우기)...");
         for (const el of inputs) {
-            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                if (!el.value && !isHoneypot(el) && el.type !== 'hidden' && el.type !== 'checkbox' && el.type !== 'radio' && el.type !== 'submit') {
-                    if (el.tagName === 'TEXTAREA') {
-                        const val = tpl.message || getRandomTemplateVal();
-                        await applyVal(el, val, "Fallback-MessageVal");
-                    } else {
-                        const val = getRandomTemplateVal();
-                        await applyVal(el, val.substring(0, 100), "Fallback-RandomTemplateVal");
-                    }
-                }
+            if (isHoneypot(el)) continue;
+            if (el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') continue;
+            if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button' || el.type === 'image') continue;
+
+            const currentVal = el.contentEditable === 'true' ? (el.textContent || '') : (el.value || '');
+            if (currentVal.trim() !== '') continue;
+
+            if (el.tagName === 'TEXTAREA' || el.contentEditable === 'true') {
+                await applyVal(el, tpl.message || getRandomTemplateVal(), 'Fallback-Message');
+            } else {
+                // 필드 유형 힌트 기반 자동 선택
+                const ph = (el.placeholder || '').toLowerCase();
+                const nm = (el.name || '').toLowerCase();
+                const tp = (el.type || '').toLowerCase();
+                const hint = `${ph} ${nm}`;
+
+                let val;
+                if (tp === 'email' || hint.includes('email') || hint.includes('mail')) val = tpl.email;
+                else if (tp === 'tel' || hint.includes('phone') || hint.includes('tel') || hint.includes('mobile')) val = tpl.phone;
+                else if (hint.includes('first')) val = tpl.firstName || tpl.name;
+                else if (hint.includes('last') || hint.includes('surname')) val = tpl.lastName || tpl.name;
+                else if (hint.includes('name') || hint.includes('이름') || hint.includes('성함')) val = tpl.name;
+                else if (hint.includes('subject') || hint.includes('제목') || hint.includes('title')) val = tpl.subject;
+                else if (hint.includes('company') || hint.includes('회사') || hint.includes('org')) val = tpl.name + ' Inc.';
+                else if (hint.includes('address') || hint.includes('주소')) val = 'N/A';
+                else if (hint.includes('zip') || hint.includes('postal') || hint.includes('우편')) val = '00000';
+                else if (hint.includes('city') || hint.includes('도시')) val = 'Seoul';
+                else val = getRandomTemplateVal().substring(0, 100);
+
+                if (val) await applyVal(el, val, 'Fallback-SmartHint');
             }
         }
 
-        // [Fallback] 라디오 버튼 중 아무것도 선택되지 않은 그룹 무작위 자동 체크
+        // ── 6단계: 라디오 버튼 전수 - 미선택 그룹 처리 ──
+        logDev("🎯 [HyperEngine] Phase 5 - 라디오 버튼 미선택 그룹 처리...");
         try {
+            // form 내부 + shadow DOM 내부 라디오 모두 수집
+            const allRadios = Array.from(queryAllDeep('input[type="radio"]', form)).filter(r => !isHoneypot(r));
             const radioGroups = {};
-            form.querySelectorAll('input[type="radio"]').forEach(radio => {
-                if (isHoneypot(radio)) return;
-                const name = radio.name || 'unnamed-radio';
-                if (!radioGroups[name]) radioGroups[name] = [];
-                radioGroups[name].push(radio);
+            allRadios.forEach(radio => {
+                const grpKey = radio.name || `_unnamed_${radio.id || Math.random()}`;
+                if (!radioGroups[grpKey]) radioGroups[grpKey] = [];
+                radioGroups[grpKey].push(radio);
             });
-            
+
             for (const name in radioGroups) {
                 const group = radioGroups[name];
                 const isChecked = group.some(r => r.checked);
                 if (!isChecked && group.length > 0) {
-                    const randomRadio = group[Math.floor(Math.random() * group.length)];
-                    randomRadio.click();
-                    randomRadio.dispatchEvent(new Event('change', { bubbles: true }));
-                    logDev(`   - [Fallback-Radio] Randomly checked radio in group "${name}"`);
+                    // 첫 번째 유효 라디오 선택 (또는 무작위)
+                    const validRadios = group.filter(r => !r.disabled);
+                    const target = validRadios[Math.floor(Math.random() * validRadios.length)];
+                    if (target) await applyRadio(target);
                 }
             }
         } catch (e) {
-            logDev(`⚠️ [Fallback-Radio] Error: ${e.message}`, "warning");
+            logDev(`⚠️ [Radio Phase] Error: ${e.message}`, 'warning');
         }
 
-        // [Fallback] 체크박스 중 체크되지 않은 빈 항목 무작위 자동 체크 (70%의 높은 확률)
+        // ── 7단계: 체크박스 전수 - 미체크 항목 처리 (약관 외) ──
+        logDev("🎯 [HyperEngine] Phase 6 - 일반 체크박스 처리...");
         try {
-            form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                if (!cb.checked && !isHoneypot(cb)) {
-                    if (Math.random() > 0.3) {
-                        cb.click();
-                        cb.dispatchEvent(new Event('change', { bubbles: true }));
-                        logDev(`   - [Fallback-Checkbox] Checked checkbox "${cb.name || cb.id || ''}"`);
-                    }
+            const allCheckboxes = Array.from(queryAllDeep('input[type="checkbox"]', form)).filter(cb => !isHoneypot(cb));
+            for (const cb of allCheckboxes) {
+                if (!cb.checked && Math.random() > 0.3) {
+                    await applyCheckbox(cb);
                 }
-            });
+            }
         } catch (e) {
-            logDev(`⚠️ [Fallback-Checkbox] Error: ${e.message}`, "warning");
+            logDev(`⚠️ [Checkbox Phase] Error: ${e.message}`, 'warning');
         }
 
+        // ── 8단계: 브루트포스 - contentEditable / role=textbox 탐색 ──
         if (filledFields < 2) {
-            logDev("🛠️ [Supreme-X 4.0] High-confidence matching limited. Engaging Brute-Force Injector...");
-            const allFieldTypes = queryAllInputs(form); 
-            for (const inp of allFieldTypes) {
-                if (inp.value) continue;
-                
-                const role = inp.getAttribute('role') || '';
-                const isText = inp.tagName === 'TEXTAREA' || role === 'textbox' || inp.contentEditable === 'true';
-                
-                if (isText) {
-                    await applyVal(inp, tpl.message || getRandomTemplateVal(), "BruteForce-Message");
-                } else {
-                    const ph = (inp.placeholder || '').toLowerCase();
-                    const n = (inp.name || '').toLowerCase();
-                    const combined = `${ph} ${n}`;
-                    
-                    if (combined.includes('email')) await applyVal(inp, tpl.email, "BruteForce-Email");
-                    else if (combined.includes('name')) await applyVal(inp, (tpl.firstName || tpl.name || getRandomTemplateVal()), "BruteForce-Name");
+            logDev("🛠️ [HyperEngine] Phase 7 - BruteForce contentEditable/role=textbox 탐색...");
+            const contentEditables = Array.from(queryAllDeep('[contenteditable="true"], [role="textbox"], [role="searchbox"], [role="combobox"]', form));
+            for (const inp of contentEditables) {
+                if (isHoneypot(inp)) continue;
+                const text = (inp.textContent || '').trim();
+                if (text === '' || text === inp.getAttribute('placeholder')) {
+                    await applyVal(inp, tpl.message || getRandomTemplateVal(), 'BruteForce-ContentEditable');
                 }
             }
         }
 
+        logDev(`✅ [HyperEngine] 폼 작성 완료 - 입력 필드 ${filledFields}개 처리됨`);
         return { filledAny: filledFields > 0 };
     }
 
