@@ -267,5 +267,6 @@ var I18N_DATA = {
         "label_double_submit": "双重发送模式 (成功后再发一次)",
         "double_submit_tip": "提交成功后，对同一站点再次自动填写并提交表单。"
     }
+    }
     // Spanish, German, French, Italian, Portuguese, Indonesian sections can be added similarly
 };

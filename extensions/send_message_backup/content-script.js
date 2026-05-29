@@ -332,11 +332,9 @@
             const lastSubmittedPath = sessionStorage.getItem('xpider_last_submit_path');
             const lastSubmitTime = parseInt(sessionStorage.getItem('xpider_last_submit_time') || '0');
             const now = Date.now();
-            
-            // [v4.12.21] Double Submit 세션 정보 획득
             const submitCount = parseInt(sessionStorage.getItem('xpider_submit_count') || '0');
-
-            // If we are on a path that was just submitted (within 20s) (Skip if double submit is in progress)
+            
+            // If we are on a path that was just submitted (within 20s)
             if (submitCount === 0 && lastSubmittedPath && currentUrl.includes(lastSubmittedPath) && (now - lastSubmitTime) < 20000) {
                 logDev("🔄 [LoopGuard] Self-refresh detected. Waiting for actual success indicator...", "info");
                 setTimeout(() => detectSubmissionResult(null, template), 500); 
@@ -2150,32 +2148,27 @@
             // [v4.1] 성공 시 실시간 공란 감시 스위퍼 정지
             stopActiveEmptyFieldSweeper();
 
-            // [v4.12.21] 이중 제출(Double Submit) 모드 적용
-            try {
-                const config = await chrome.storage.local.get(['xpider_double_submit']);
-                if (config && config.xpider_double_submit === true) {
-                    const submitCount = parseInt(sessionStorage.getItem('xpider_submit_count') || '0');
-                    if (submitCount === 0) {
-                        logDev("✨ [Engine] Double Submit Active: 1st submission confirmed. Preparing 2nd submission...", "info");
-                        sessionStorage.setItem('xpider_submit_count', '1');
+            // [Double Submit] 이중 전송 모드 체크
+            const config = await chrome.storage.local.get(['xpider_double_submit']);
+            if (config && config.xpider_double_submit === true) {
+                const submitCount = parseInt(sessionStorage.getItem('xpider_submit_count') || '0');
+                if (submitCount === 0) {
+                    logDev("✨ [Engine] Double Submit Active: 1st submission confirmed. Preparing 2nd submission...", "info");
+                    sessionStorage.setItem('xpider_submit_count', '1');
+                    
+                    // Loop Guard 무력화를 위해 제출 기록 일시 삭제
+                    sessionStorage.removeItem('xpider_last_submit_path');
+                    sessionStorage.removeItem('xpider_last_submit_time');
+                    sessionStorage.setItem('xpider_initial_form_present', 'false');
+                    sessionStorage.setItem('xpider_pending_verify', 'false');
 
-                        // Loop Guard 및 검증 상태 일시 우회를 위해 세션 상태 초기화
-                        sessionStorage.removeItem('xpider_last_submit_path');
-                        sessionStorage.removeItem('xpider_last_submit_time');
-                        sessionStorage.setItem('xpider_initial_form_present', 'false');
-                        sessionStorage.setItem('xpider_pending_verify', 'false');
-
-                        // 사용자 비주얼 확인 및 안전을 위해 2.5초 대기 후 페이지 새로고침
-                        await new Promise(r => setTimeout(r, 2500));
-                        window.location.reload();
-                        return true;
-                    } else {
-                        logDev("✨ [Engine] Double Submit Complete: 2nd submission confirmed.", "success");
-                        sessionStorage.removeItem('xpider_submit_count');
-                    }
+                    await new Promise(r => setTimeout(r, 2500));
+                    window.location.reload();
+                    return true;
+                } else {
+                    logDev("✨ [Engine] Double Submit Complete: 2nd submission confirmed.", "success");
+                    sessionStorage.removeItem('xpider_submit_count');
                 }
-            } catch (err) {
-                console.error("Double submit processing error:", err);
             }
 
             // [v18.7.0] Success Visibility Buffer: Wait 3.5s so user can see the confirmation UI
@@ -2286,8 +2279,7 @@
         window._xpider_healed = false;
 
         logDev("❌ [Result] Submission verification timed out after 10s.", "error");
-        // 실패 시 이중 전송 세션도 같이 제거하여 부작용 방지
-        sessionStorage.removeItem('xpider_submit_count');
+        sessionStorage.removeItem('xpider_submit_count'); // 실패 시 이중 제출 세션도 정리
         finishCampaign(false, "Submission verification failed (Timeout - No success indicator found).");
         return false;
     }
