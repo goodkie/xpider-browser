@@ -105,7 +105,7 @@ const tpl=${tplJson};
 const P={
   firstName:[/first.?name/i,/given.?name/i,/이름/i,/名前/i],
   lastName:[/last.?name/i,/family.?name/i,/surname/i,/성(?!명|함)/i],
-  name:[/^name$/i,/full.?name/i,/성함/i,/your.?name/i,/contact.?name/i,/氏名/i,/姓名/i,/성명/i],
+  name:[/\bname\b/i,/full.?name/i,/your.*name/i,/contact.*name/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i],
   email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i],
   subject:[/subject/i,/title(?!.*name)/i,/제목/i,/件名/i,/主题/i,/topic/i,/heading/i],
   phone:[/phone/i,/mobile/i,/tel(?!eg)/i,/전화/i,/手机/i,/电话/i,/fax/i],
@@ -254,9 +254,14 @@ async function fill(c){
     if(el.tagName==='SELECT')continue;
     for(const k of['firstName','lastName','name','email','phone','subject','message']){
       if(used.has(k)&&k!=='message')continue;
+      
+      let val = tpl[k];
+      if (k === 'firstName' && (!val || val.trim() === '')) val = tpl.name; // firstName이 비어있으면 name을 폴백으로 사용
+      if (k === 'lastName' && (!val || val.trim() === '')) val = ''; // lastName이 비어있으면 빈칸
+      
       const c2=getFieldId(el);
-      if(tpl[k]&&P[k].some(r=>r.test(c2))){
-        if(await tv(el,tpl[k])){used.add(k);n++;await new Promise(r=>setTimeout(r,150));break;}
+      if(val && val.trim() !== '' && P[k].some(r=>r.test(c2))){
+        if(await tv(el,val)){used.add(k);n++;await new Promise(r=>setTimeout(r,150));break;}
       }
     }
   }
