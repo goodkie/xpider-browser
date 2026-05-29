@@ -1,8 +1,8 @@
 # XPIDER AutoForm Sender Pro 폼 자동작성 고도화 및 최초 STT 설정 팝업 Walkthrough
 
-## 🚀 [v4.12.3] 초강력 폼 자동완성 스위퍼 및 Your Name 누락 버그 완전 해결 패치
+## 🚀 [v4.12.4] 초지능 인간 입력 인터랙션 엔진 & 폼 에러 자가 복구기 & 실시간 공란 크롤러 패치
 
-메시지 템플릿의 **Your Name (Full Name) 정보가 누락되던 2가지 치명적 요인**을 정교하게 소거하고, 템플릿에 없는 뜻밖의 입력 폼이 난입해도 폼 제출 시 단 1개의 공란도 허용하지 않고 100% 강제 완성해 내는 **Super-BruteForce Final Target Sweeper(초강력 최종 스위퍼)**를 완벽하게 이식하였습니다.
+봇 방지 엔진을 완벽하게 우회하여 폼 자동 입력의 파괴력을 극대화할 수 있도록 **극사실주의적 인간 입력 인터랙션 엔진(Humanlike Interaction Engine)**과, 폼 제출 후 발생하는 붉은색 에러 필드를 실시간 정밀 치료해 주는 **자가 복구 엔진(Self-Healing Validation Recovery Engine)**, 그리고 상시 폼 내부 공란을 융단폭격 충전해 주는 **300ms 액티브 공란 감시 스위퍼(Active Empty Field Sweeper)**를 성공적으로 전격 이식하여 배포를 완수했습니다!
 
 ---
 

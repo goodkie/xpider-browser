@@ -1750,7 +1750,7 @@
     }
 
     // ============================================================
-    // [v4.1] 에러 하이라이트 감지 자가 복구기 (Self-Healing Validation Recovery Engine)
+    // [v4.2] 에러 하이라이트 감지 자가 복구기 (Self-Healing Validation Recovery Engine)
     // ============================================================
     async function selfHealErrorFields(form, tpl) {
         if (!form) return 0;
@@ -1759,26 +1759,76 @@
             const candidates = Array.from(queryAllInputs(form));
             const errorFields = [];
 
+            // 폼 내부 및 주변의 에러 메시지 텍스트 미리 확보 (Wix의 .Z0mg9X 등 포함)
+            const errorContainers = Array.from(document.querySelectorAll('.Z0mg9X, .TTK5ZL, [class*="error"], [id*="error"], .invalid-feedback, .error-notice, .error-message'));
+            const visibleErrorTexts = errorContainers
+                .filter(el => elementIsVisible(el))
+                .map(el => (el.textContent || '').trim().toLowerCase())
+                .filter(txt => txt.length > 0);
+
             for (const el of candidates) {
                 // 특수 버튼/파일 타입은 에러 판정에서 제외
                 if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button' || el.type === 'image' || el.type === 'file' || el.type === 'reset') continue;
                 
                 let isError = false;
                 
-                // A. 속성 검사: aria-invalid가 true
-                if (el.getAttribute('aria-invalid') === 'true') {
-                    isError = true;
+                // 1. HTML5 native :invalid 체크 및 aria-invalid 체크
+                try {
+                    if (el.matches(':invalid') || el.getAttribute('aria-invalid') === 'true' || el.getAttribute('data-state') === 'invalid') {
+                        isError = true;
+                    }
+                } catch(e) {}
+                
+                // 2. 조상 래퍼 클래스 트래버스 (최대 5레벨 위 조상까지 검사하여 invalid 클래스 마킹 확인 - Wix .tkHMZu 등 감지)
+                if (!isError) {
+                    let ancestor = el.parentElement;
+                    const errorKeywords = ['error', 'invalid', 'failed', 'danger', 'required', 'warning', 'err-', 'tkhmzu'];
+                    for (let depth = 0; depth < 5 && ancestor; depth++) {
+                        const ancestorClass = (ancestor.className || '').toString().toLowerCase();
+                        const ancestorId = (ancestor.id || '').toString().toLowerCase();
+                        const combinedAttr = `${ancestorClass} ${ancestorId}`;
+                        
+                        if (errorKeywords.some(k => combinedAttr.includes(k))) {
+                            isError = true;
+                            break;
+                        }
+                        ancestor = ancestor.parentElement;
+                    }
                 }
                 
-                // B. 클래스명 검사 (error, invalid 등)
-                const elClass = (el.className || '').toString().toLowerCase();
-                const parentClass = el.parentElement ? (el.parentElement.className || '').toString().toLowerCase() : '';
-                const errorKeywords = ['error', 'invalid', 'failed', 'danger', 'required', 'warning', 'err-'];
-                if (errorKeywords.some(k => elClass.includes(k) || parentClass.includes(k))) {
-                    isError = true;
+                // 3. 동적 에러 텍스트 연계 및 형제 노드 (.Z0mg9X) 검사
+                if (!isError) {
+                    // Wix 에러 텍스트 컴포넌트가 인풋 주변에 가시적으로 렌더링되어 있는지 검사
+                    const siblings = el.parentElement ? Array.from(el.parentElement.children) : [];
+                    const hasVisibleErrorSibling = siblings.some(sib => {
+                        const isErrorContainer = sib.classList.contains('Z0mg9X') || (sib.className || '').toString().toLowerCase().includes('error');
+                        return isErrorContainer && elementIsVisible(sib);
+                    });
+                    if (hasVisibleErrorSibling) {
+                        isError = true;
+                    }
+                }
+
+                // 4. 에러 메시지 텍스트 파싱을 통한 타깃 필드 매칭 (예: "email" 단어가 에러창에 보이면 이메일 인풋을 즉시 에러로 매핑)
+                if (!isError && visibleErrorTexts.length > 0) {
+                    const label = getLabelFor(el).toLowerCase();
+                    const ph = (el.placeholder || '').toLowerCase();
+                    const nm = (el.name || '').toLowerCase();
+                    const type = (el.type || '').toLowerCase();
+                    const hint = `${label} ${ph} ${nm} ${type}`;
+
+                    const keywordsToTest = ['email', 'phone', 'tel', 'name', 'message', 'subject', '이메일', '전화', '이름', '메시지', '제목', 'mail'];
+                    const matchedKeyword = keywordsToTest.find(k => hint.includes(k));
+                    
+                    if (matchedKeyword) {
+                        // 페이지 전반의 가시적 에러 메시지 중 해당 필드 명칭을 담은 에러 텍스트가 1개라도 존재하는 경우
+                        if (visibleErrorTexts.some(errText => errText.includes(matchedKeyword) || errText.includes('필수') || errText.includes('required') || errText.includes('invalid'))) {
+                            isError = true;
+                        }
+                    }
                 }
                 
-                // C. 시각적 빨간색 border/box-shadow 검사
+                // 5. 시각적 빨간색 border/box-shadow/background 변색 검사
                 if (!isError) {
                     const style = window.getComputedStyle(el);
                     const parentStyle = el.parentElement ? window.getComputedStyle(el.parentElement) : null;
@@ -1792,10 +1842,10 @@
                             const b = parseInt(match[3], 10);
                             return r > 150 && g < 90 && b < 90;
                         }
-                        return colorStr.includes('#ff0000') || colorStr.includes('red');
+                        return colorStr.includes('#ff0000') || colorStr.includes('red') || colorStr.includes('rgb(255, 64, 64)');
                     };
                     
-                    if (isRedColor(style.borderColor) || isRedColor(style.boxShadow) || 
+                    if (isRedColor(style.borderColor) || isRedColor(style.boxShadow) || isRedColor(style.outlineColor) ||
                         (parentStyle && (isRedColor(parentStyle.borderColor) || isRedColor(parentStyle.boxShadow)))) {
                         isError = true;
                     }
@@ -1807,10 +1857,10 @@
             }
 
             if (errorFields.length > 0) {
-                logDev(`⚠️ [Healer] 유효성 검사 에러 또는 빨간 하이라이트 입력란 ${errorFields.length}개 감지! 재입력을 수행합니다.`, 'warning');
+                logDev(`⚠️ [Healer] 정밀 에러 자가 복구 가동! 대상 필드 ${errorFields.length}개 발견.`, 'warning');
                 
                 for (const el of errorFields) {
-                    // 기존 값 청소
+                    // 1. 완벽한 값 초기화 (React/Vue 가상 DOM 내부까지 값 세터를 리셋)
                     if (el.contentEditable === 'true') {
                         el.textContent = '';
                     } else {
@@ -1818,9 +1868,10 @@
                         el.value = '';
                     }
                     el.dispatchEvent(new Event('input', { bubbles: true }));
-                    await new Promise(r => setTimeout(r, 100));
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 80));
 
-                    // 복구용 스마트 무작위 대안값 생성
+                    // 2. 복구용 다변화된 100% 새로운 스마트 무작위 값 대입
                     const label = getLabelFor(el).toLowerCase();
                     const ph = (el.placeholder || '').toLowerCase();
                     const nm = (el.name || '').toLowerCase();
@@ -1839,28 +1890,32 @@
 
                     let val = getRandomTemplateVal();
                     if (type === 'email' || hint.includes('email') || hint.includes('mail')) {
-                        const domains = ['gmail.com', 'outlook.com', 'yahoo.com', 'hotmail.com'];
-                        const randomUser = 'contact_' + Math.random().toString(36).substring(2, 8);
+                        // 이메일 패턴 완전 재생성
+                        const domains = ['gmail.com', 'outlook.com', 'yahoo.com', 'hotmail.com', 'naver.com', 'daum.net'];
+                        const randomUser = 'contact_pro_' + Math.random().toString(36).substring(2, 8);
                         val = `${randomUser}@${domains[Math.floor(Math.random() * domains.length)]}`;
-                    } else if (type === 'tel' || hint.includes('phone') || hint.includes('tel') || hint.includes('mobile') || hint.includes('전화')) {
-                        val = '010' + Math.floor(10000000 + Math.random() * 90000000);
-                    } else if (hint.includes('name') || hint.includes('이름') || hint.includes('氏명')) {
-                        val = (tpl.name || 'User') + Math.floor(Math.random() * 1000);
+                    } else if (type === 'tel' || hint.includes('phone') || hint.includes('tel') || hint.includes('mobile') || hint.includes('전화') || hint.includes('연락처')) {
+                        // 전화번호 패턴 재생성 (해외/국내 규격 유연 대조)
+                        val = '010' + Math.floor(20000000 + Math.random() * 80000000);
+                    } else if (hint.includes('name') || hint.includes('이름') || hint.includes('氏') || hint.includes('성함')) {
+                        val = (tpl.name || 'User') + '_' + Math.floor(100 + Math.random() * 900);
+                    } else if (hint.includes('subject') || hint.includes('제목') || hint.includes('title')) {
+                        val = (tpl.subject || 'Inquiry') + ' ' + Math.random().toString(36).substring(2, 6).toUpperCase();
                     }
 
-                    // 초지능 인간 타이핑 모사로 다시 재입력!
+                    // 3. 진짜 인간의 1자 단위 불규칙 타이핑 모사로 다시 재입력!
                     await typeHumanlike(el, val);
                     healedCount++;
                 }
             }
         } catch (e) {
-            logDev(`⚠️ [Healer] 복구 프로세스 오류: ${e.message}`, 'error');
+            logDev(`⚠️ [Healer] 에러 복구 루틴 중 오류 발생: ${e.message}`, 'error');
         }
         return healedCount;
     }
 
     // ============================================================
-    // [v4.1] 300ms 융단폭격형 실시간 공란 자동 메꾸기 크롤러 (Active Empty Field Sweeper)
+    // [v4.2] 150ms 융단폭격형 실시간 공란 자동 메꾸기 크롤러 (Active Empty Field Sweeper)
     // ============================================================
     let _activeSweeperTimer = null;
     function startActiveEmptyFieldSweeper(form, tpl) {
@@ -1876,6 +1931,7 @@
             return "Inquiry";
         };
 
+        // 150ms 초고속 주기로 단축하여 동적 렌더링에 실시간 대응
         _activeSweeperTimer = setInterval(async () => {
             try {
                 if (!form || !document.body.contains(form)) {
@@ -1883,13 +1939,47 @@
                     return;
                 }
 
+                // 폼 내의 모든 타깃 요소 수집
                 const candidates = Array.from(queryAllInputs(form));
+                
+                // 라디오 버튼 그룹들을 묶어서 체크 상태 조사
+                const radioGroups = {};
+
                 for (const el of candidates) {
                     if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button' || el.type === 'image' || el.type === 'file' || el.type === 'reset') continue;
                     
-                    if (el.type === 'checkbox' && el.checked) continue;
-                    if (el.type === 'radio' && el.checked) continue;
+                    // A. 라디오 버튼 실시간 공란 탐지 (동일 name 그룹 내에 아무도 체크되지 않은 경우 검출)
+                    if (el.type === 'radio') {
+                        const grpKey = el.name || `_unnamed_${el.id || Math.random()}`;
+                        if (!radioGroups[grpKey]) radioGroups[grpKey] = [];
+                        radioGroups[grpKey].push(el);
+                        continue; // 라디오 처리는 루프 아래에서 일괄 수행
+                    }
+
+                    // B. 필수 체크박스 미체크 상태 실시간 검출
+                    if (el.type === 'checkbox') {
+                        if (el.checked) continue;
+                        
+                        const isRequired = el.required || el.getAttribute('aria-required') === 'true';
+                        const containerText = (el.closest('div, label, span, li')?.textContent || '').toLowerCase();
+                        const hasAsterisk = containerText.includes('*') || containerText.includes('필수') || containerText.includes('agree');
+                        
+                        if (isRequired || hasAsterisk) {
+                            logDev(`⚡ [Sweeper] 필수 체크박스 미체크 감지 및 실시간 체크: <input type="checkbox" id="${el.id}">`);
+                            await applyCheckbox(el);
+                        }
+                        continue;
+                    }
                     
+                    // C. 셀렉트 박스 미선택 상태 실시간 검출
+                    if (el.tagName === 'SELECT') {
+                        if (el.selectedIndex > 0) continue;
+                        logDev(`⚡ [Sweeper] 미선택 드롭다운 감지 및 실시간 선택: <select id="${el.id}">`);
+                        await applySelect(el);
+                        continue;
+                    }
+
+                    // D. 텍스트 / contentEditable / role=textbox 실시간 검출
                     const currentVal = el.contentEditable === 'true' ? (el.textContent || '') : (el.value || '');
                     if (currentVal.trim() !== '') continue;
 
@@ -1898,18 +1988,27 @@
                     
                     if (el.tagName === 'TEXTAREA' || el.contentEditable === 'true' || el.getAttribute('role') === 'textbox') {
                         await applyVal(el, tpl.message || getRandomTemplateVal(), 'Sweeper-Message');
-                    } else if (el.tagName === 'SELECT') {
-                        await applySelect(el);
-                    } else if (el.type === 'checkbox') {
-                        await applyCheckbox(el);
-                    } else if (el.type === 'radio') {
-                        await applyRadio(el);
                     } else {
                         await applyVal(el, getRandomTemplateVal(), 'Sweeper-Text');
                     }
                 }
+
+                // 미선택 라디오 그룹 처리
+                for (const grpName in radioGroups) {
+                    const group = radioGroups[grpName];
+                    const isAnyChecked = group.some(r => r.checked);
+                    if (!isAnyChecked && group.length > 0) {
+                        const validRadios = group.filter(r => !r.disabled);
+                        if (validRadios.length > 0) {
+                            const targetRadio = validRadios[0];
+                            logDev(`⚡ [Sweeper] 미선택 라디오 그룹 [${grpName}] 감지 및 실시간 체크: <input type="radio" id="${targetRadio.id}">`);
+                            await applyRadio(targetRadio);
+                        }
+                    }
+                }
+
             } catch(e) {}
-        }, 300);
+        }, 150);
     }
 
     function stopActiveEmptyFieldSweeper() {
