@@ -71,7 +71,9 @@ var I18N_DATA = {
         "stt_setup_desc": "To bypass CAPTCHAs, you must configure a Wit.ai Server Access Token. Wit.ai provides high-accuracy speech transcription for free.",
         "stt_setup_link_text": "Get your free Wit.ai API Key here",
         "stt_setup_placeholder": "Enter your Wit.ai Server Access Token",
-        "stt_setup_btn_save": "Save & Continue"
+        "stt_setup_btn_save": "Save & Continue",
+        "label_double_submit": "Double Submit (Submit twice)",
+        "double_submit_tip": "Automatically submits the form one more time after a successful submission."
     },
     "ko": {
         "app_title": "XPIDER AutoForm Sender Pro",
@@ -145,7 +147,9 @@ var I18N_DATA = {
         "stt_setup_desc": "캡차 자동 우회를 가동하려면 Wit.ai API 키(Server Access Token)가 필요합니다. Wit.ai는 정확하고 빠른 음성 변환(STT)을 무료로 무제한 제공합니다.",
         "stt_setup_link_text": "Wit.ai 무료 API 키 생성 가이드 바로가기",
         "stt_setup_placeholder": "Wit.ai Server Access Token을 입력하세요",
-        "stt_setup_btn_save": "저장하고 시작하기"
+        "stt_setup_btn_save": "저장하고 시작하기",
+        "label_double_submit": "이중 전송 모드 (제출 성공 후 한 번 더 발송)",
+        "double_submit_tip": "제출이 성공하면, 동일한 사이트에 대해 폼 자동 작성 및 전송을 한 번 더 반복합니다."
     },
     "ja": {
         "app_title": "XPIDER AutoForm Sender Pro",
@@ -191,7 +195,9 @@ var I18N_DATA = {
         "stt_setup_desc": "キャプチャを自動的にバイパスするには、Wit.ai APIキー(Server Access Token)を設定する必要があります。Wit.aiは高精度な音声書き起こしを無料で提供します。",
         "stt_setup_link_text": "無料のWit.ai APIキーをここで取得する",
         "stt_setup_placeholder": "Wit.ai Server Access Tokenを入力してください",
-        "stt_setup_btn_save": "保存して続ける"
+        "stt_setup_btn_save": "保存して続ける",
+        "label_double_submit": "二重送信モード (成功後に再送信)",
+        "double_submit_tip": "送信が成功した場合、同じサイトに対してフォームの自動入力と送信をもう一度実行します。"
     },
     "zh": {
         "app_title": "XPIDER AutoForm Sender Pro",
@@ -257,7 +263,9 @@ var I18N_DATA = {
         "stt_setup_desc": "要自动绕过验证码，您需要配置 Wit.ai API 密钥 (Server Access Token)。Wit.ai 免费提供高精度的语音识别 (STT) 服务。",
         "stt_setup_link_text": "在此处获取免费的 Wit.ai API 密钥",
         "stt_setup_placeholder": "请输入您的 Wit.ai Server Access Token",
-        "stt_setup_btn_save": "保存并继续"
+        "stt_setup_btn_save": "保存并继续",
+        "label_double_submit": "双重发送模式 (成功后再发一次)",
+        "double_submit_tip": "提交成功后，对同一站点再次自动填写并提交表单。"
     }
     // Spanish, German, French, Italian, Portuguese, Indonesian sections can be added similarly
 };

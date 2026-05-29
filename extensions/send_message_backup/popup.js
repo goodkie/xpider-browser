@@ -1348,6 +1348,7 @@ async function saveSettings() {
     const apiKeyInput = document.getElementById('captcha-api-key');
     const sttKeyInput = document.getElementById('audio-stt-key');
     const stealthToggle = document.getElementById('stealth-mode-toggle');
+    const doubleSubmitToggle = document.getElementById('double-submit-toggle');
     const delayInput = document.getElementById('delay-input');
     const randomToggle = document.getElementById('random-delay-toggle');
 
@@ -1363,6 +1364,7 @@ async function saveSettings() {
         audioSttKey: sttKeyVal,
         witKey: sttKeyVal,
         xpider_stealth_mode: stealthToggle ? stealthToggle.checked : false,
+        xpider_double_submit: doubleSubmitToggle ? doubleSubmitToggle.checked : false,
         xpider_delay: delayInput ? delayInput.value : 6,
         xpider_random_delay: randomToggle ? randomToggle.checked : false
     };
@@ -1391,7 +1393,7 @@ async function saveSettings() {
 async function loadSettings() {
     const data = await chrome.storage.local.get([
         'xpider_lang', 'xpider_tpl', 'xpider_delay', 'xpider_queue', 'xpider_success', 'xpider_total',
-        'xpider_captcha_enabled', 'xpider_captcha_method', 'xpider_captcha_api_key', 'xpider_stt_api_key', 'xpider_stealth_mode'
+        'xpider_captcha_enabled', 'xpider_captcha_method', 'xpider_captcha_api_key', 'xpider_stt_api_key', 'xpider_stealth_mode', 'xpider_double_submit'
     ]);
     
     if (data.xpider_lang) {
@@ -1424,6 +1426,9 @@ async function loadSettings() {
     }).catch(() => {});
     if (document.getElementById('stealth-mode-toggle')) {
         document.getElementById('stealth-mode-toggle').checked = (data.xpider_stealth_mode !== undefined) ? !!data.xpider_stealth_mode : true;
+    }
+    if (document.getElementById('double-submit-toggle')) {
+        document.getElementById('double-submit-toggle').checked = !!data.xpider_double_submit;
     }
     
     const methodGroup = document.getElementById('captcha-method-group');
