@@ -231,12 +231,18 @@ async function initializeAsyncComponents() {
     try { startPulseCheck(); } catch(e) {}
 
     // [v18.46.0] Audio STT API Key (Wit.ai) 최초 설정 여부 체크
-    chrome.storage.local.get(['xpider_stt_api_key'], (res) => {
-        if (!res.xpider_stt_api_key || res.xpider_stt_api_key.trim() === '') {
+    chrome.storage.local.get(['xpider_stt_api_key', 'audioSttKey', 'witKey'], (res) => {
+        const latestKey = res.xpider_stt_api_key || res.audioSttKey || res.witKey || '';
+        if (latestKey.trim() === '') {
             const setupModal = document.getElementById('stt-setup-modal-overlay');
             if (setupModal) {
                 setupModal.classList.remove('hidden');
             }
+        } else {
+            const sttKeyInput = document.getElementById('audio-stt-key');
+            if (sttKeyInput) sttKeyInput.value = latestKey;
+            const setupInput = document.getElementById('setup-stt-key-input');
+            if (setupInput) setupInput.value = latestKey;
         }
     });
 }
@@ -1474,5 +1480,39 @@ async function clearCampaignQueue() {
     // 6. Log success
     addLog("Business URLs list cleared.", "stop");
 }
+
+// [WitKey-Sync] 실시간 스토리지 변경 시 UI 자동 업데이트 처리
+chrome.storage.onChanged.addListener((changes) => {
+    let newKey = null;
+    if (changes.xpider_stt_api_key && changes.xpider_stt_api_key.newValue !== undefined) {
+        newKey = changes.xpider_stt_api_key.newValue;
+    } else if (changes.audioSttKey && changes.audioSttKey.newValue !== undefined) {
+        newKey = changes.audioSttKey.newValue;
+    } else if (changes.witKey && changes.witKey.newValue !== undefined) {
+        newKey = changes.witKey.newValue;
+    }
+    
+    if (newKey !== null) {
+        console.log(`[WitKey-Sync] Sender Popup Storage changed → Syncing UI to new key: ${newKey ? newKey.substring(0, 8) + '...' : 'NONE'}`);
+        
+        // 1) 설정창의 STT API Key 입력창 갱신
+        const sttKeyInput = document.getElementById('audio-stt-key');
+        if (sttKeyInput) sttKeyInput.value = newKey;
+        
+        // 2) 최초 STT 설정 모달 입력 필드 갱신
+        const setupInput = document.getElementById('setup-stt-key-input');
+        if (setupInput) setupInput.value = newKey;
+        
+        // 3) 최초 STT 설정 모달 가시성 제어
+        const setupModal = document.getElementById('stt-setup-modal-overlay');
+        if (setupModal) {
+            if (newKey) {
+                setupModal.classList.add('hidden'); // 키가 존재하면 숨김
+            } else {
+                setupModal.classList.remove('hidden'); // 키가 없으면 노출
+            }
+        }
+    }
+});
 
 

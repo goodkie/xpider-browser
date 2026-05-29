@@ -1,5 +1,13 @@
 # XPIDER AutoForm Sender Pro 폼 자동작성 고도화 및 최초 STT 설정 팝업 Walkthrough
 
+## 🚀 [v4.12.14] Crawler Auto CAPTCHA 디폴트 'on' 세팅 및 Sender 실시간 onChanged 동기화 핫픽스
+
+전역 양방향 스토리지 동기화 시스템을 더욱 정밀화하여, 사용자가 둘 중 어느 곳에서 키를 저장하더라도 샌더와 크롤러 팝업창 및 백그라운드의 모든 Wit.ai key 입력창과 셋업 상태가 **실시간으로 즉각 갱신 및 완전 공유**되도록 연동을 완료하였으며, 신규 설치 시에도 캡차 자동 풀이가 활성화되도록 기본값을 보정했습니다!
+- **Auto CAPTCHA Solver 디폴트 'on' 보장**: 일렉트론 메인 스토리지(`main.js` extStorage) 기본값 및 크롤러 팝업(`popup.js`) 초기 구동 시 `captchaSolveEnabled` 설정이 없을 경우 기본적으로 디폴트 'on'(`true`) 및 관련 설정 패널이 노출되도록 강제 보정했습니다.
+- **Sender Pro 실시간 onChanged 동기화 장착**: `extensions/send_message_backup/popup.js` 및 빌드 경로(`build/extension/popup.js`)에 `chrome.storage.onChanged` 실시간 감지기를 전격 탑재하여, 크롤러에서 키를 변경하는 즉시 샌더 팝업창 내의 설정창 입력란, 모달 인풋란, 모달 가시성 상태가 **실시간으로 100% 자동 즉각 갱신 및 연동**되도록 조치하였습니다.
+
+---
+
 ## 🚀 [v4.12.13] Crawler Pro 팝업 UI 미니 셋업 모달 리스너 및 실시간 onChanged 스토리지 동기화 장착 핫픽스
 
 `XPIDER Pro - Local Business Data Crawler` 내부의 최초 셋업용 미니 팝업 모달에서 "저장" 버튼(`captchaWitSaveBtn`) 클릭 이벤트 리스너가 누락되어 있던 결함 및 `chrome.storage.onChanged` 실시간 스토리지 변경 감지기의 부재로 다른 익스텐션에서 동기화된 키가 즉각적으로 Crawler 팝업창에 반영되지 않던 버그를 정밀 분석하여 완전히 해결하였습니다!

@@ -107,9 +107,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (regionSelect) regionSelect.value = reg;
 
             if (captchaSolveToggle) {
-                captchaSolveToggle.checked = !!storage.captchaSolveEnabled;
+                const solveEnabled = storage.captchaSolveEnabled !== undefined ? !!storage.captchaSolveEnabled : true;
+                captchaSolveToggle.checked = solveEnabled;
                 // [v1.1.3] Wit.ai 그룹만 표시
-                if (captchaWitaiGroup) captchaWitaiGroup.style.display = storage.captchaSolveEnabled ? 'block' : 'none';
+                if (captchaWitaiGroup) captchaWitaiGroup.style.display = solveEnabled ? 'block' : 'none';
             }
             
             // [WitKey-Sync] 양쪽 키 중 최신값 적용 및 셋업 모달 상태 설정

@@ -3264,6 +3264,7 @@ if (fs.existsSync(storagePath)) {
 if (!extStorage.language)    extStorage.language    = 'en';
 if (!extStorage.xpider_lang) extStorage.xpider_lang = 'en';
 if (extStorage.autoSelect === undefined) extStorage.autoSelect = true;
+if (extStorage.captchaSolveEnabled === undefined) extStorage.captchaSolveEnabled = true;
 
 // [WitKey-Sync] 초기 실행 시 저장된 Wit.ai Key가 있다면 상호 동기화 및 전역 변수 초기화
 const initialWitKey = extStorage.xpider_stt_api_key || extStorage.witKey || extStorage.audioSttKey || '';
