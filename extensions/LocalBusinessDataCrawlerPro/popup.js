@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('[v68.0][Popup] I18N_DATA not found. translations.js might have failed to load.');
         }
 
-        chrome.storage.local.get(['language', 'region', 'captchaSolveEnabled', 'stealthModeEnabled', 'audioSttKey', 'proxyEnabled', 'proxyHost', 'proxyPort', 'proxyUser', 'proxyPass', 'showDiagnostics', 'autoClearSessionEnabled', 'stealthHeadersEnabled'], (storage) => {
+        chrome.storage.local.get(['language', 'region', 'captchaSolveEnabled', 'stealthModeEnabled', 'audioSttKey', 'witKey', 'proxyEnabled', 'proxyHost', 'proxyPort', 'proxyUser', 'proxyPass', 'showDiagnostics', 'autoClearSessionEnabled', 'stealthHeadersEnabled'], (storage) => {
             if (chrome.runtime.lastError || !storage) {
                 console.error('[v68.0][Popup] Storage access failed:', chrome.runtime.lastError);
                 return;
@@ -111,7 +111,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 // [v1.1.3] Wit.ai 그룹만 표시
                 if (captchaWitaiGroup) captchaWitaiGroup.style.display = storage.captchaSolveEnabled ? 'block' : 'none';
             }
-            if (audioSttKeyInput) audioSttKeyInput.value = storage.audioSttKey || '';
+            
+            // [WitKey-Sync] 양쪽 키 중 최신값 적용 및 셋업 모달 상태 설정
+            const latestWitKey = storage.audioSttKey || storage.witKey || '';
+            if (audioSttKeyInput) audioSttKeyInput.value = latestWitKey;
+            if (captchaWitKeyInput) captchaWitKeyInput.value = latestWitKey;
+            if (captchaWitInputContainer) {
+                captchaWitInputContainer.style.display = latestWitKey ? 'none' : 'block';
+            }
             if (stealthModeToggle) stealthModeToggle.checked = !!storage.stealthModeEnabled;
             if (vpnCheckToggle) vpnCheckToggle.checked = !!storage.vpnCheckEnabled;
             if (slowModeToggle) slowModeToggle.checked = !!storage.slowModeEnabled;
@@ -1493,6 +1500,59 @@ window.addEventListener('message', (event) => {
                 audioSttKeyInputEl.style.boxShadow = '0 0 0 2px #34c759';
                 setTimeout(() => { audioSttKeyInputEl.style.boxShadow = ''; }, 2000);
             }
+        }
+    }
+});
+
+// [WitKey-Sync] 최초 셋업 모달의 저장 버튼 리스너
+if (captchaWitSaveBtn) {
+    captchaWitSaveBtn.addEventListener('click', () => {
+        const key = captchaWitKeyInput ? captchaWitKeyInput.value.trim() : '';
+        if (!key) {
+            alert("Please enter a valid Wit.ai Key.");
+            return;
+        }
+        chrome.storage.local.set({
+            witKey: key,
+            audioSttKey: key
+        }, () => {
+            // 메인 프로세스에 IPC 동기화 전파
+            window.postMessage({
+                type: 'XPIDER_INVOKE',
+                channel: 'xpider-ext-sync-wit-key',
+                args: { key }
+            }, '*');
+            
+            // 설정 패널의 입력창에도 즉시 동기화
+            if (audioSttKeyInput) audioSttKeyInput.value = key;
+            
+            // 미니 셋업 컨테이너 숨김
+            if (captchaWitInputContainer) captchaWitInputContainer.style.display = 'none';
+            
+            // 시각적 피드백 효과
+            if (audioSttKeyInput) {
+                audioSttKeyInput.style.boxShadow = '0 0 0 2px #34c759';
+                setTimeout(() => { audioSttKeyInput.style.boxShadow = ''; }, 2000);
+            }
+        });
+    });
+}
+
+// [WitKey-Sync] 실시간 스토리지 변경 시 UI 자동 업데이트 처리
+chrome.storage.onChanged.addListener((changes) => {
+    let newKey = null;
+    if (changes.audioSttKey && changes.audioSttKey.newValue !== undefined) {
+        newKey = changes.audioSttKey.newValue;
+    } else if (changes.witKey && changes.witKey.newValue !== undefined) {
+        newKey = changes.witKey.newValue;
+    }
+    
+    if (newKey !== null) {
+        console.log(`[WitKey-Sync] Crawler Popup Storage changed → Syncing UI to new key: ${newKey ? newKey.substring(0, 8) + '...' : 'NONE'}`);
+        if (audioSttKeyInput) audioSttKeyInput.value = newKey;
+        if (captchaWitKeyInput) captchaWitKeyInput.value = newKey;
+        if (captchaWitInputContainer) {
+            captchaWitInputContainer.style.display = newKey ? 'none' : 'block';
         }
     }
 });

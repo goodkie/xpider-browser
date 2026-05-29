@@ -1,5 +1,14 @@
 # XPIDER AutoForm Sender Pro 폼 자동작성 고도화 및 최초 STT 설정 팝업 Walkthrough
 
+## 🚀 [v4.12.13] Crawler Pro 팝업 UI 미니 셋업 모달 리스너 및 실시간 onChanged 스토리지 동기화 장착 핫픽스
+
+`XPIDER Pro - Local Business Data Crawler` 내부의 최초 셋업용 미니 팝업 모달에서 "저장" 버튼(`captchaWitSaveBtn`) 클릭 이벤트 리스너가 누락되어 있던 결함 및 `chrome.storage.onChanged` 실시간 스토리지 변경 감지기의 부재로 다른 익스텐션에서 동기화된 키가 즉각적으로 Crawler 팝업창에 반영되지 않던 버그를 정밀 분석하여 완전히 해결하였습니다!
+- **초기화 및 셋업 모달 가시성 제어**: Crawler 팝업 구동 시 `witKey` 와 `audioSttKey` 를 모두 스캔하여 인풋 필드 양쪽에 안전하게 세팅하고, 이미 키가 존재하면 미니 모달을 숨기고 없으면 띄우도록 보강했습니다.
+- **저장 버튼 리스너 완비**: `captchaWitSaveBtn`에 대한 클릭 이벤트 핸들러를 완전히 탑재하여, 입력 필드에서 저장 시 로컬 스토리지에 즉시 쓰이고 메인 프로세스로 IPC 동기화 전파가 완벽히 이루어지도록 구축했습니다.
+- **실시간 storage.onChanged 리스너 장착**: 타 익스텐션(AutoForm Sender Pro)에서 저장한 Wit.ai key가 메인 스토리지로 변경될 때, 이를 실시간 감지하여 크롤러의 두 입력창과 셋업 모달 가시성을 즉각 갱신하는 브릿지를 성공적으로 이식하였습니다.
+
+---
+
 ## 🚀 [v4.12.12] Wit.ai API Key 전역 동기화 통합 및 배포 빌드 정합성 핫픽스 패치
 
 배포용 빌드 디렉토리(`build/extension`)에 Wit.ai API Key 전역 동기화(`UPDATE_WIT_KEY` 및 `xpider-ext-sync-wit-key` 연동)가 누락되어 일부 환경에서 연동이 작동하지 않던 버그를 정밀 해결하였습니다! 
