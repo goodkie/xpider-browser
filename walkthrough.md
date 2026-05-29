@@ -10,6 +10,16 @@
 
 본 패치는 Electron 브라우저에 직접 로드되는 실제 익스텐션 경로(`extensions/send_message_backup/`) 및 개발 소스 원본 경로(`send_message/`) **양측에 100% 동일하게 이식**하여 무결성을 보장하며, 최종적으로 **배포용 빌드 디렉토리(`extensions/send_message_backup/build/extension`)까지 완벽히 동기화**하여 잠재적 버그를 예방하였습니다.
 
+### 🛡️ Cloudflare 및 reCAPTCHA 봇 방지 체크포인트 자동 우회 (Bot Protection Auto-Bypass)
+* **대상 파일**:
+  - [content-script.js](file:///e:/vivpr/ai/full-xpider-full/extensions/send_message_backup/content-script.js)
+  - [background.js](file:///e:/vivpr/ai/full-xpider-full/extensions/send_message_backup/background.js)
+* **주요 변경 사항**:
+  - 기존에는 `waitForCaptchaSolved`가 단순히 120초를 대기하며 사용자가 직접 해결하기만을 기다렸습니다.
+  - 이제는 Cloudflare Turnstile, reCAPTCHA, hCaptcha 위젯이 감지되면 DOM에서 **Sitekey를 자동으로 추출**합니다.
+  - 확장 프로그램 팝업에 설정된 **서드파티 캡챠 솔버 API (NopeCHA, 2Captcha)**를 백그라운드(`background.js`)에서 자동으로 호출(`SOLVE_CAPTCHA`)하여 통과 토큰(Token)을 발급받습니다.
+  - 발급받은 토큰을 숨겨진 폼 필드(`cf-turnstile-response`, `g-recaptcha-response` 등)에 자동으로 주입(Inject)하고 이벤트를 발생시켜 체크포인트를 완벽하게 우회합니다.
+
 ### 0. 익스텐션 배포 빌드 디렉토리 동기화 완료
 * **대상 디렉토리**: [build/extension](file:///e:/vivpr/ai/full-xpider-full/extensions/send_message_backup/build/extension)
 * **주요 변경 사항**:

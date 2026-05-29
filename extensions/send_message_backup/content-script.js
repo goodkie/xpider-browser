@@ -1730,17 +1730,92 @@
         return captchaSelectors.some(s => document.querySelector(s) !== null);
     }
 
+    function extractCaptchaSitekey() {
+        const turnstileFrame = document.querySelector('iframe[src*="turnstile"]');
+        if (turnstileFrame) {
+            const match = turnstileFrame.src.match(/sitekey=([^&]+)/) || turnstileFrame.src.match(/k=([^&]+)/);
+            if (match) return { type: 'turnstile', sitekey: match[1] };
+            const wrapper = turnstileFrame.closest('.cf-turnstile') || document.querySelector('.cf-turnstile');
+            if (wrapper && wrapper.dataset.sitekey) return { type: 'turnstile', sitekey: wrapper.dataset.sitekey };
+        }
+
+        const recaptchaFrame = document.querySelector('iframe[src*="recaptcha"]');
+        if (recaptchaFrame) {
+            const match = recaptchaFrame.src.match(/k=([^&]+)/);
+            if (match) return { type: 'recaptcha', sitekey: match[1] };
+            const gDiv = document.querySelector('.g-recaptcha');
+            if (gDiv && gDiv.dataset.sitekey) return { type: 'recaptcha', sitekey: gDiv.dataset.sitekey };
+        }
+        
+        const hcaptchaFrame = document.querySelector('iframe[src*="hcaptcha"]');
+        if (hcaptchaFrame) {
+            const match = hcaptchaFrame.src.match(/sitekey=([^&]+)/);
+            if (match) return { type: 'hcaptcha', sitekey: match[1] };
+            const hDiv = document.querySelector('.h-captcha');
+            if (hDiv && hDiv.dataset.sitekey) return { type: 'hcaptcha', sitekey: hDiv.dataset.sitekey };
+        }
+        return null;
+    }
+
+    async function tryAutoSolveCaptcha() {
+        const captchaData = extractCaptchaSitekey();
+        if (!captchaData) return false;
+
+        return new Promise((resolve) => {
+            logDev(`🤖 [Security] Attempting auto-solve for ${captchaData.type}...`, 'info');
+            chrome.runtime.sendMessage({
+                action: 'SOLVE_CAPTCHA',
+                sitekey: captchaData.sitekey,
+                url: window.location.href,
+                type: captchaData.type
+            }, (response) => {
+                if (chrome.runtime.lastError || !response || !response.success) {
+                    logDev(`❌ Auto-solve failed: ${(response && response.error) ? response.error : 'Unknown'}`, 'error');
+                    resolve(false);
+                } else {
+                    logDev(`✅ Challenge solved! Injecting token...`, 'success');
+                    if (captchaData.type === 'turnstile') {
+                        const input = document.querySelector('[name="cf-turnstile-response"]');
+                        if (input) input.value = response.token;
+                    } else if (captchaData.type === 'recaptcha') {
+                        const input = document.querySelector('[name="g-recaptcha-response"]');
+                        if (input) input.value = response.token;
+                    } else if (captchaData.type === 'hcaptcha') {
+                        const input = document.querySelector('[name="h-captcha-response"]');
+                        if (input) input.value = response.token;
+                    }
+                    
+                    const injectedInput = document.querySelector(`[name*="-response"]`);
+                    if(injectedInput) injectedInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+                    resolve(true);
+                }
+            });
+        });
+    }
+
     async function waitForCaptchaSolved() {
         const MAX_WAIT = 120; // [v17.7.0] Fixed: Re-defined missing constant
+        
+        let autoSolveAttempted = false;
+
         for (let i = 0; i < MAX_WAIT; i++) {
             await new Promise(r => setTimeout(r, 1000));
             
             const stillHasCaptcha = await checkForCaptcha();
             const gResponse = document.querySelector('[name="g-recaptcha-response"]');
             const hResponse = document.querySelector('[name="h-captcha-response"]');
+            const tResponse = document.querySelector('[name="cf-turnstile-response"]');
             
+            // Auto-solve injection trigger
+            if (stillHasCaptcha && !autoSolveAttempted) {
+                autoSolveAttempted = true;
+                const solved = await tryAutoSolveCaptcha();
+                if (solved) continue; // Will be picked up by the next iteration's early exit check
+            }
+
             // [v17.5.0] Early Exit: If the response is filled OR the widget is gone, resume immediately
-            if (!stillHasCaptcha || (gResponse && gResponse.value) || (hResponse && hResponse.value)) {
+            if (!stillHasCaptcha || (gResponse && gResponse.value) || (hResponse && hResponse.value) || (tResponse && tResponse.value)) {
                 logDev("🔑 [Security] Challenge solved or removed. Resuming sequence.", "success");
                 await new Promise(r => setTimeout(r, 1500));
                 return true;

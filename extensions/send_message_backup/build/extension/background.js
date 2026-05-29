@@ -348,6 +348,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             sendResponse({ success: true });
             return true;
 
+        case 'SOLVE_CAPTCHA':
+            (async () => {
+                try {
+                    const storage = await new Promise(resolve => chrome.storage.local.get(['captchaMethod', 'captchaApiKey'], resolve));
+                    const method = storage.captchaMethod;
+                    const apiKey = storage.captchaApiKey;
+                    if (!method || !apiKey) {
+                        sendResponse({ success: false, error: "CAPTCHA solver API Key is missing in settings." });
+                        return;
+                    }
+                    
+                    solver.config.nopeChaKey = (method === 'nopecha') ? apiKey : null;
+                    solver.config.twoCaptchaKey = (method === 'api') ? apiKey : null;
+                    
+                    let token;
+                    if (method === 'nopecha') {
+                        token = await solver.solveNopeCha(request.sitekey, request.url);
+                    } else if (method === 'api') {
+                        token = await solver.solve2Captcha(request.sitekey, request.url);
+                    } else {
+                        throw new Error(`Unsupported solver method: ${method}`);
+                    }
+                    sendResponse({ success: true, token });
+                } catch (e) {
+                    sendResponse({ success: false, error: e.message });
+                }
+            })();
+            return true;
+
         default:
             return false;
     }
