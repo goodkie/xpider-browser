@@ -161,7 +161,9 @@ var I18N_DATA = {
         "label_auto_clear_session": "🧹 Auto-Clear Session on Start (Google Bypass)",
         "auto_clear_session_tip": "Clears cookies & cache before starting to prevent Google blocks.",
         "label_stealth_headers": "🛡️ Premium Stealth Headers & UA Spoofing",
-        "stealth_headers_tip": "Spoofs headers & client hints to act as a real retail browser."
+        "stealth_headers_tip": "Spoofs headers & client hints to act as a real retail browser.",
+        "btn_clear_results": "🧹 Clear Results",
+        "confirm_clear_results": "Are you sure you want to clear all collected results? This action cannot be undone."
     },
     "ko": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -327,7 +329,9 @@ var I18N_DATA = {
         "label_auto_clear_session": "🧹 수집 시작 시 세션 자동 초기화 (구글 우회)",
         "auto_clear_session_tip": "수집 시작 전 구글 차단을 방지하기 위해 쿠키 및 캐시를 완전히 비웁니다.",
         "label_stealth_headers": "🛡️ 프리미엄 스텔스 헤더 및 User-Agent 위장",
-        "stealth_headers_tip": "구글 검색 시 HTTP 헤더와 브라우저 지문을 실제 최신 크롬 브라우저처럼 위장합니다."
+        "stealth_headers_tip": "구글 검색 시 HTTP 헤더와 브라우저 지문을 실제 최신 크롬 브라우저처럼 위장합니다.",
+        "btn_clear_results": "🧹 결과 비우기",
+        "confirm_clear_results": "수집된 모든 결과를 비우시겠습니까? 이 작업은 되돌릴 수 없습니다."
     },
     "ja": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -421,7 +425,9 @@ var I18N_DATA = {
         "label_auto_clear_session": "🧹 起動時にセッション自動初期化 (Google回避)",
         "auto_clear_session_tip": "Googleブロックを防止するため、収集開始前にクッキーとキャッシュをクリアします。",
         "label_stealth_headers": "🛡️ プレミアムステルスヘッダー & UA偽装",
-        "stealth_headers_tip": "HTTPヘッダーとブラウザ指紋を実際の最新Chromeブラウザのように偽装します。"
+        "stealth_headers_tip": "HTTPヘッダーとブラウザ指紋を実際の最新Chromeブラウザのように偽装します。",
+        "btn_clear_results": "🧹 結果クリア",
+        "confirm_clear_results": "収集されたすべての結果をクリアしますか？この操作は取り消せません。"
     },
     "zh": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -511,7 +517,9 @@ var I18N_DATA = {
         "label_auto_clear_session": "🧹 启动时自动清除会话 (绕过谷歌限制)",
         "auto_clear_session_tip": "在开始采集前清除Cookie和缓存，以防止谷歌屏蔽。",
         "label_stealth_headers": "🛡️ 高级伪装请求头 & UA伪装",
-        "stealth_headers_tip": "将HTTP请求头和浏览器指纹伪装成真实的最新Chrome浏览器。"
+        "stealth_headers_tip": "将HTTP请求头和浏览器指纹伪装成真实的最新Chrome浏览器。",
+        "btn_clear_results": "🧹 清除结果",
+        "confirm_clear_results": "您确定要清除所有收集的结果吗？此操作无法撤销。"
     },
     "es": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -560,7 +568,9 @@ var I18N_DATA = {
         "region_kr": "Corea del Sur", "region_in": "India", "region_id": "Indonesia",
         "region_sg": "Singapur", "region_tw": "Taiwán", "region_tr": "Turquía",
         "region_sa": "Arabia Saudita", "region_ae": "EAU", "region_br": "Brasil",
-        "region_au": "Australia"
+        "region_au": "Australia",
+        "btn_clear_results": "🧹 Limpiar resultados",
+        "confirm_clear_results": "¿Está seguro de que desea limpiar todos los resultados recopilados? Esta acción no se puede deshacer."
     },
     "de": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -609,7 +619,9 @@ var I18N_DATA = {
         "region_kr": "Südkorea", "region_in": "Indien", "region_id": "Indonesien",
         "region_sg": "Singapur", "region_tw": "Taiwan", "region_tr": "Türkei",
         "region_sa": "Saudi-Arabien", "region_ae": "VAE", "region_br": "Brasilien",
-        "region_au": "Australien"
+        "region_au": "Australien",
+        "btn_clear_results": "🧹 Ergebnisse löschen",
+        "confirm_clear_results": "Möchten Sie wirklich alle erfassten Ergebnisse löschen? Dies kann nicht rückgängig gemacht werden."
     },
     "fr": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -658,7 +670,9 @@ var I18N_DATA = {
         "region_kr": "Corée du Sud", "region_in": "Inde", "region_id": "Indonésie",
         "region_sg": "Singapour", "region_tw": "Taïwan", "region_tr": "Turquie",
         "region_sa": "Arabie Saoudite", "region_ae": "EAU", "region_br": "Brésil",
-        "region_au": "Australie"
+        "region_au": "Australie",
+        "btn_clear_results": "🧹 Effacer les résultats",
+        "confirm_clear_results": "Voulez-vous vraiment effacer tous les résultats collectés ? Cette action est irréversible."
     },
     "it": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -707,7 +721,9 @@ var I18N_DATA = {
         "region_kr": "Corea del Sud", "region_in": "India", "region_id": "Indonesia",
         "region_sg": "Singapore", "region_tw": "Taiwan", "region_tr": "Turchia",
         "region_sa": "Arabia Saudita", "region_ae": "Emirati Arabi Uniti", "region_br": "Brasile",
-        "region_au": "Australia"
+        "region_au": "Australia",
+        "btn_clear_results": "🧹 Cancella risultati",
+        "confirm_clear_results": "Sei sicuro de voler cancellare tutti i risultati raccolti? Questa azione non può essere annullata."
     },
     "pt": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -756,7 +772,9 @@ var I18N_DATA = {
         "region_kr": "Coreia do Sul", "region_in": "Índia", "region_id": "Indonésia",
         "region_sg": "Singapura", "region_tw": "Taiwan", "region_tr": "Turquia",
         "region_sa": "Arábia Saudita", "region_ae": "Emirados Árabes Unidos", "region_br": "Brasil",
-        "region_au": "Austrália"
+        "region_au": "Austrália",
+        "btn_clear_results": "🧹 Limpar resultados",
+        "confirm_clear_results": "Tem certeza de que deseja limpar todos os resultados coletados? Esta ação não pode ser desfeita."
     },
     "id": {
         "app_title": "X PIDER Pro - Local Business Data Crawler",
@@ -805,6 +823,8 @@ var I18N_DATA = {
         "region_kr": "Korea Selatan", "region_in": "India", "region_id": "Indonesia",
         "region_sg": "Singapura", "region_tw": "Taiwan", "region_tr": "Turki",
         "region_sa": "Arab Saudi", "region_ae": "Uni Emirat Arab", "region_br": "Brasil",
-        "region_au": "Australia"
+        "region_au": "Australia",
+        "btn_clear_results": "🧹 Bersihkan Hasil",
+        "confirm_clear_results": "Apakah Anda yakin ingin menghapus semua hasil yang dikumpulkan? Tindakan ini tidak dapat dibatalkan."
     }
 };

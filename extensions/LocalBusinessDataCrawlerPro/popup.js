@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const downloadCsv = document.getElementById('download-csv');
     const downloadTxt = document.getElementById('download-txt');
     const downloadGs = document.getElementById('download-gs');
+    const clearResultsBtn = document.getElementById('clear-results-btn');
     const captchaModalOverlay = document.getElementById('captcha-modal-overlay');
     const captchaSolveToggle = document.getElementById('captcha-solve-toggle');
     // [v1.1.3] Hard Block Recovery UI
@@ -236,50 +237,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.statusDetail && statusDetail) {
                     statusDetail.textContent = res.statusDetail;
                 }
-                
-                // Restore Results Table
-                if (res.results && res.results.length > 0) {
-                    results = res.results;
-                    linkCountSpan.textContent = results.length;
-                    resultBox.classList.remove('hidden');
-                    resultTableBody.innerHTML = '';
-                    results.forEach(d => {
-                        const tr = document.createElement('tr');
-                        const targetOption = document.getElementById('collection-target')?.value || 'all';
-                        
-                        let html = `<td class="col-name">${d.name}</td>`;
-                        if (targetOption === 'all') {
-                            html += `<td class="col-addr">${d.address || '-'}</td>
-                                   <td class="col-url">${d.homepage ? `<a href="${d.homepage}" target="_blank">${d.homepage}</a>` : '-'}</td>
-                                   <td class="col-sns">${Array.isArray(d.sns) ? d.sns.join(', ') : (d.sns || '-')}</td>
-                                   <td class="col-email">${d.emails || '-'}</td>
-                                   <td class="col-phone">${d.phone || '-'}</td>`;
-                        } else if (targetOption === 'address') html += `<td class="col-addr">${d.address || '-'}</td>`;
-                        else if (targetOption === 'phone') html += `<td class="col-phone">${d.phone || '-'}</td>`;
-                        else if (targetOption === 'email') html += `<td class="col-email">${d.emails || '-'}</td>`;
-                        else if (targetOption === 'sns') html += `<td class="col-sns">${Array.isArray(d.sns) ? d.sns.join(', ') : (d.sns || '-')}</td>`;
-                        
-                        tr.innerHTML = html;
-                        resultTableBody.appendChild(tr);
-                    });
-                }
-
-                // Restore Logs
-                if (res.logs && res.logs.length > 0) {
-                    logContainer.innerHTML = '';
-                    res.logs.forEach(log => {
-                        const div = document.createElement('div');
-                        div.className = 'log-item';
-                        div.innerHTML = `<span class="log-time">[${log.time}]</span> <span class="log-msg">${log.message}</span>`;
-                        logContainer.appendChild(div);
-                    });
-                    logContainer.scrollTop = logContainer.scrollHeight;
-                }
 
                 // [v17.0] Ensure user sees the progress view
                 setTimeout(() => {
                     statusBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }, 300);
+            }
+
+            // [v4.12.25] Restore Results Table (Always, even if not currently searching)
+            if (res.results && res.results.length > 0) {
+                results = res.results;
+                linkCountSpan.textContent = results.length;
+                resultBox.classList.remove('hidden');
+                resultTableBody.innerHTML = '';
+                
+                // [v4.12.25] Real-time status sync on load
+                updateRealTimeStatus(results.length);
+                
+                results.forEach(d => {
+                    const tr = document.createElement('tr');
+                    const targetOption = document.getElementById('collection-target')?.value || 'all';
+                    
+                    let html = `<td class="col-name">${d.name}</td>`;
+                    if (targetOption === 'all') {
+                        html += `<td class="col-addr">${d.address || '-'}</td>
+                               <td class="col-url">${d.homepage ? `<a href="${d.homepage}" target="_blank">${d.homepage}</a>` : '-'}</td>
+                               <td class="col-sns">${Array.isArray(d.sns) ? d.sns.join(', ') : (d.sns || '-')}</td>
+                               <td class="col-email">${d.emails || '-'}</td>
+                               <td class="col-phone">${d.phone || '-'}</td>`;
+                    } else if (targetOption === 'address') html += `<td class="col-addr">${d.address || '-'}</td>`;
+                    else if (targetOption === 'phone') html += `<td class="col-phone">${d.phone || '-'}</td>`;
+                    else if (targetOption === 'email') html += `<td class="col-email">${d.emails || '-'}</td>`;
+                    else if (targetOption === 'sns') html += `<td class="col-sns">${Array.isArray(d.sns) ? d.sns.join(', ') : (d.sns || '-')}</td>`;
+                    
+                    tr.innerHTML = html;
+                    resultTableBody.appendChild(tr);
+                });
+            }
+
+            // [v4.12.25] Restore Logs (Always, if exists)
+            if (res.logs && res.logs.length > 0) {
+                logContainer.innerHTML = '';
+                res.logs.forEach(log => {
+                    const div = document.createElement('div');
+                    div.className = 'log-item';
+                    div.innerHTML = `<span class="log-time">[${log.time}]</span> <span class="log-msg">${log.message}</span>`;
+                    logContainer.appendChild(div);
+                });
+                logContainer.scrollTop = logContainer.scrollHeight;
             }
             
             // [v17.7] Sync CAPTCHA/Hard Block state
@@ -879,13 +884,21 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelBtn.classList.remove('hidden');
         cancelBtn.disabled = false;
         statusBox.classList.remove('hidden');
-        resultBox.classList.add('hidden');
+        
+        // [v4.12.25] Preserve previously collected results if not explicitly cleared
+        results = results || [];
+        if (results.length > 0) {
+            resultBox.classList.remove('hidden');
+            linkCountSpan.textContent = results.length;
+        } else {
+            resultBox.classList.add('hidden');
+            resultTableBody.innerHTML = '';
+            linkCountSpan.textContent = '0';
+        }
+        
         logContainer.innerHTML = '';
-        resultTableBody.innerHTML = '';
         progressBar.style.width = '0%';
         progressText.textContent = '0%';
-        linkCountSpan.textContent = '0';
-        results = [];
 
         addLog(dictionary ? dictionary.btn_start : 'Starting collection...');
 
@@ -896,14 +909,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (content.length === 0) {
             return alert(dictionary ? dictionary.alert_empty : 'Please enter content.');
         }
-
-        results = [];
-        resultTableBody.innerHTML = '';
-        logContainer.innerHTML = ''; 
-        progressBar.style.width = '0%';
-        progressText.textContent = '0%';
-        linkCountSpan.textContent = '0';
-        resultBox.classList.add('hidden');
 
         // [v66.11] Reset stats area UI
         const statsPrefix = document.getElementById('stats-prefix-span');
@@ -1432,6 +1437,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const modeLabel = targetOption !== 'all' ? `_${targetOption}` : '';
         downloadFile(tsvContent, `for_google_sheets${modeLabel}_${new Date().getTime()}.tsv`, 'text/tab-separated-values;charset=utf-8;');
     });
+
+    // [v4.12.25] 명시적 데이터 비우기 이벤트 바인딩
+    if (clearResultsBtn) {
+        clearResultsBtn.addEventListener('click', () => {
+            const lang = languageSelect.value;
+            const dict = (typeof I18N_DATA !== 'undefined' && I18N_DATA[lang]) ? I18N_DATA[lang] : (typeof I18N_DATA !== 'undefined' ? I18N_DATA['en'] : (dictionary || {}));
+            const confirmMsg = dict.confirm_clear_results || "Are you sure you want to clear all collected results? This action cannot be undone.";
+            
+            if (confirm(confirmMsg)) {
+                results = [];
+                resultTableBody.innerHTML = '';
+                linkCountSpan.textContent = '0';
+                resultBox.classList.add('hidden');
+                
+                // Real-time status update to 0
+                updateRealTimeStatus(0);
+                
+                // Send clear command to background
+                chrome.runtime.sendMessage({ action: 'CLEAR_RESULTS' });
+            }
+        });
+    }
 });
 
 // [v1.1.2] XPIDER 페이지 스캔 릴레이

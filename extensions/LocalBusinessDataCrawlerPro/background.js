@@ -7,7 +7,7 @@ importScripts('business_filters.js');
 importScripts('captcha_solver.js');
 
 // [v1.0.0 Pro] Robust State Management for MV3 Persistence
-const SW_STATE_KEYS = ['isSearching', 'sessionResults', 'sessionLogs', 'currentProgressPercent', 'isPaused', 'isPausedByCaptcha', 'isSecondaryQuizWaiting', 'secondaryCountdown', 'statusDetail', 'isHardBlocked', 'hardBlockCountdown', 'vpnCheckEnabled', 'slowModeEnabled'];
+const SW_STATE_KEYS = ['isSearching', 'sessionResults', 'sessionLogs', 'currentProgressPercent', 'isPaused', 'isPausedByCaptcha', 'isSecondaryQuizWaiting', 'secondaryCountdown', 'statusDetail', 'isHardBlocked', 'hardBlockCountdown', 'vpnCheckEnabled', 'slowModeEnabled', 'xpider_crawler_results_backup'];
 
 // [v4.0] Side Panel Safety Configuration (Backward Compatibility)
 if (typeof chrome.sidePanel !== 'undefined' && chrome.sidePanel.setPanelBehavior) {
@@ -148,7 +148,15 @@ let initPromise = new Promise((resolve) => {
         isHardBlocked = res.isHardBlocked || false;
         vpnCheckEnabled = res.vpnCheckEnabled || false;
         slowModeEnabled = res.slowModeEnabled || false;
-        sessionResults = res.sessionResults || [];
+        // [v4.12.25] 복구 시 실시간 강제 백업 스토리지(xpider_crawler_results_backup)를 우선적으로 활용하여 유실 방지
+        const backupResults = res.xpider_crawler_results_backup || [];
+        const standardResults = res.sessionResults || [];
+        if (backupResults.length > standardResults.length) {
+            sessionResults = backupResults;
+            console.log(`[v4.12.25][BG] Restored sessionResults from backup key, count=${sessionResults.length}`);
+        } else {
+            sessionResults = standardResults;
+        }
         sessionLogs = res.sessionLogs || [];
         currentProgressPercent = res.currentProgressPercent || 0;
         statusDetail = res.statusDetail || 'Ready';
@@ -170,7 +178,13 @@ async function updateState(updates, forceSync = false) {
     if (updates.isSearching !== undefined) isSearching = updates.isSearching;
     if (updates.isCancelled !== undefined) isCancelled = updates.isCancelled;
     if (updates.isPaused !== undefined) isPaused = updates.isPaused;
-    if (updates.sessionResults !== undefined) sessionResults = updates.sessionResults;
+    if (updates.sessionResults !== undefined) {
+        sessionResults = updates.sessionResults;
+        // [v4.12.25] sessionResults가 갱신될 때마다 10초 쓰기 지연과 상관없이 실시간 즉시 디스크 스토리지 백업 (유실 차단)
+        chrome.storage.local.set({ xpider_crawler_results_backup: sessionResults }).catch(err => {
+            console.error('[BackupStorage] Failed to backup sessionResults:', err.message);
+        });
+    }
     if (updates.sessionLogs !== undefined) sessionLogs = updates.sessionLogs;
     if (updates.currentProgressPercent !== undefined) currentProgressPercent = updates.currentProgressPercent;
     if (updates.isPausedByCaptcha !== undefined) isPausedByCaptcha = updates.isPausedByCaptcha;
@@ -551,7 +565,7 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                 }
                 isCancelled = false;
                 isPaused = false;
-                await updateState({ isSearching: true, sessionResults: [], sessionLogs: ['[System] Starting...'], currentProgressPercent: 0, isPausedByCaptcha: false, isPaused: false });
+                await updateState({ isSearching: true, sessionLogs: ['[System] Starting...'], currentProgressPercent: 0, isPausedByCaptcha: false, isPaused: false });
                 await chrome.storage.local.set({ captchaAttempts: 0, captchaBlocked: false });
                 startSearchProcess(m.text, m.collectEmails, m.targetOption, m.language, m.region);
                 return { status: 'started' };
@@ -561,7 +575,7 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                 if (isSearching) return { status: 'busy' };
                 isCancelled = false;
                 isPaused = false;
-                await updateState({ isSearching: true, sessionResults: [], sessionLogs: ['[System] Starting Crawl...'], currentProgressPercent: 0, isPausedByCaptcha: false, isPaused: false });
+                await updateState({ isSearching: true, sessionLogs: ['[System] Starting Crawl...'], currentProgressPercent: 0, isPausedByCaptcha: false, isPaused: false });
                 runWebsiteCrawl(m.url, m.depth, m.targetOption, m.language, m.region);
                 return { status: 'started' };
             }
@@ -570,7 +584,7 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                 if (isSearching) return { status: 'busy' };
                 isCancelled = false;
                 isPaused = false;
-                await updateState({ isSearching: true, sessionResults: [], sessionLogs: ['[System] Starting Search...'], currentProgressPercent: 0, isPausedByCaptcha: false, isPaused: false });
+                await updateState({ isSearching: true, sessionLogs: ['[System] Starting Search...'], currentProgressPercent: 0, isPausedByCaptcha: false, isPaused: false });
                 await chrome.storage.local.set({ captchaAttempts: 0, captchaBlocked: false });
                 runEngineSearch(m.engines, m.keyword, m.startPage || 1, m.maxPages, m.collectEmails, m.mapAuto, m.targetOption, false, 0, 100, m.depth || 1);
                 return { status: 'started' };
@@ -623,6 +637,15 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                     chrome.runtime.sendMessage({ action: 'statusDetail', message: '▶️ CAPTCHA 해결됨 — 수집 재개 중...' }).catch(() => {});
                 }
                 return { status: 'resumed' };
+            }
+
+            if (m.action === 'CLEAR_RESULTS') {
+                sessionResults = [];
+                // [v4.12.25] 메모리 및 백업 스토리지 즉시 완전히 지우기
+                await chrome.storage.local.set({ xpider_crawler_results_backup: [] });
+                await updateState({ sessionResults: [] }, true);
+                sendLog('🧹 [System] Collected business data has been fully cleared.');
+                return { status: 'cleared' };
             }
 
             // ── 2. 상태 및 결과 핸들러 ──
