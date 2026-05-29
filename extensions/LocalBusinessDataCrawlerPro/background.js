@@ -747,6 +747,25 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                 return { status: 'ok' };
             }
 
+            if (m.action === 'UPDATE_WIT_KEY') {
+                const key = m.key || '';
+                console.log(`[WitKey-Sync] Crawler BG: Received update key: ${key ? key.substring(0, 8) + '...' : 'NONE'}`);
+                
+                // witKey와 audioSttKey 두 군데에 동시 저장
+                await chrome.storage.local.set({ 
+                    witKey: key,
+                    audioSttKey: key
+                });
+                
+                // 필요할 경우 CAPTCHA_SOLVER 인스턴스의 설정도 갱신할 수 있는지 확인
+                if (typeof CAPTCHA_SOLVER !== 'undefined' && CAPTCHA_SOLVER.config) {
+                    CAPTCHA_SOLVER.config.witKey = key;
+                    CAPTCHA_SOLVER.config.audioSttKey = key;
+                }
+                
+                return { success: true };
+            }
+
             if (m.action === 'MANUAL_CAPTCHA_RESOLVED') {
                 if (isPausedByCaptcha) {
                     isPausedByCaptcha = false;

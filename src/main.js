@@ -950,10 +950,22 @@ ipcMain.handle('xpider-ext-clear-session', async () => {
   }
 });
 
-// 2) 스텔스 헤더 상태 갱신 통신 수신
 ipcMain.on('xpider-ext-update-stealth-settings', (event, { stealthHeadersEnabled }) => {
   _stealthHeadersEnabled = !!stealthHeadersEnabled;
   log.info(`[Stealth] 스텔스 헤더 필터 활성화 상태 변경: ${_stealthHeadersEnabled}`);
+});
+
+// 2-2) Wit.ai API Key 전역 동기화 및 연동 통합 시스템
+let _sharedWitKey = '';
+ipcMain.handle('xpider-ext-sync-wit-key', async (event, { key }) => {
+  _sharedWitKey = key || '';
+  log.info(`[WitKey-Sync] 전역 Wit.ai Key 동기화 수신: ${_sharedWitKey ? _sharedWitKey.substring(0, 8) + '...' : 'NONE'}`);
+  broadcastExtMessage({ action: 'UPDATE_WIT_KEY', key: _sharedWitKey });
+  return { success: true };
+});
+
+ipcMain.handle('xpider-ext-get-wit-key', async () => {
+  return { key: _sharedWitKey };
 });
 
 // 3) 스텔스 헤더 필터 강제 적용 (구글 전역 검색 요청 도메인 타겟팅)
