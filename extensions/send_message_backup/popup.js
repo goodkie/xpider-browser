@@ -1027,6 +1027,10 @@ function togglePause() {
     const action = campaignPaused ? 'xpider-campaign-pause' : 'xpider-campaign-resume';
     xpiderInvoke(action, {}).catch(e => console.error('[Pause Error]', e));
 
+    // [v4.12.23] chrome.runtime.sendMessage를 통해 익스텐션 백그라운드 상태도 동기화
+    const extAction = campaignPaused ? 'PAUSE_CAMPAIGN' : 'RESUME_CAMPAIGN';
+    chrome.runtime.sendMessage({ action: extAction }).catch(e => console.error('[Pause Ext Error]', e));
+
     if (btn) {
         btn.textContent = campaignPaused ? (dict.btn_resume || "▶️ Resume") : (dict.btn_pause || "⏸️ Pause");
         btn.style.backgroundColor = campaignPaused ? "#22c55e" : "#f59e0b";

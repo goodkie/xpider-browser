@@ -59,8 +59,8 @@ var I18N_DATA = {
         "msg_list_deleted": "List deleted successfully.",
         "list_manual_entries": "Manual Entries",
         "label_template_library": "Template Library",
-        "btn_save_template": "Save as Template",
-        "btn_load_file": "Import Template",
+        "btn_save_template": "Save",
+        "btn_load_file": "Load",
         "label_select_template": "Select Template",
         "msg_tpl_saved": "Template saved!",
         "msg_tpl_deleted": "Template deleted.",
@@ -135,8 +135,8 @@ var I18N_DATA = {
         "msg_list_deleted": "리스트가 삭제되었습니다.",
         "list_manual_entries": "수동 입력 리스트",
         "label_template_library": "메시지 템플릿 보관함",
-        "btn_save_template": "템플릿 파일로 저장",
-        "btn_load_file": "템플릿 불러오기",
+        "btn_save_template": "Save",
+        "btn_load_file": "Load",
         "label_select_template": "템플릿 선택",
         "msg_tpl_saved": "템플릿이 저장되었습니다!",
         "msg_tpl_deleted": "템플릿이 삭제되었습니다.",
@@ -197,7 +197,9 @@ var I18N_DATA = {
         "stt_setup_placeholder": "Wit.ai Server Access Tokenを入力してください",
         "stt_setup_btn_save": "保存して続ける",
         "label_double_submit": "二重送信モード (成功後に再送信)",
-        "double_submit_tip": "送信が成功した場合、同じサイトに対してフォームの自動入力と送信をもう一度実行します。"
+        "double_submit_tip": "送信が成功した場合、同じサイトに対してフォームの自動入力と送信をもう一度実行します。",
+        "btn_save_template": "Save",
+        "btn_load_file": "Load"
     },
     "zh": {
         "app_title": "XPIDER AutoForm Sender Pro",
@@ -265,8 +267,9 @@ var I18N_DATA = {
         "stt_setup_placeholder": "请输入您的 Wit.ai Server Access Token",
         "stt_setup_btn_save": "保存并继续",
         "label_double_submit": "双重发送模式 (成功后再发一次)",
-        "double_submit_tip": "提交成功后，对同一站点再次自动填写并提交表单。"
-    }
+        "double_submit_tip": "提交成功后，对同一站点再次自动填写并提交表单。",
+        "btn_save_template": "Save",
+        "btn_load_file": "Load"
     }
     // Spanish, German, French, Italian, Portuguese, Indonesian sections can be added similarly
 };
