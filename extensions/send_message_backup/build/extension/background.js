@@ -390,6 +390,16 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             })();
             return true;
 
+        case 'UPDATE_WIT_KEY':
+            (async () => {
+                const key = request.key || '';
+                console.log(`[WitKey-Sync] Sender SW: Received update key: ${key ? key.substring(0, 8) + '...' : 'NONE'}`);
+                await chrome.storage.local.set({ xpider_stt_api_key: key });
+                solver.config.witAiKey = key; // Solver 인스턴스 설정도 갱신
+                sendResponse({ success: true });
+            })();
+            return true;
+
         default:
             return false;
     }

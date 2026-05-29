@@ -197,17 +197,30 @@ class XpiderSolverCore {
         }
     }
 
-    async solveNopeCha(siteKey, pageUrl) {
+    async solveNopeCha(siteKey, pageUrl, type = 'recaptcha') {
         if (!this.config.nopeChaKey) throw new Error("NopeCHA API Key missing.");
-        const res = await fetch(`https://api.nopecha.com/token?key=${this.config.nopeChaKey}&type=recaptcha&sitekey=${siteKey}&url=${pageUrl}`);
+        const nopechaType = type === 'turnstile' ? 'turnstile' : (type === 'hcaptcha' ? 'hcaptcha' : 'recaptcha');
+        const res = await fetch(`https://api.nopecha.com/token?key=${this.config.nopeChaKey}&type=${nopechaType}&sitekey=${siteKey}&url=${pageUrl}`);
         const data = await res.json();
         if (!data || data.error) throw new Error(`NopeCHA Error: ${data?.message || 'Unknown'}`);
         return data.data;
     }
 
-    async solve2Captcha(siteKey, pageUrl) {
+    async solve2Captcha(siteKey, pageUrl, type = 'recaptcha') {
         if (!this.config.twoCaptchaKey) throw new Error("2Captcha API Key missing.");
-        const res = await fetch(`https://2captcha.com/in.php?key=${this.config.twoCaptchaKey}&method=userrecaptcha&googlekey=${siteKey}&pageurl=${pageUrl}&json=1`);
+        let method = 'userrecaptcha';
+        let extraParams = '';
+        if (type === 'hcaptcha') {
+            method = 'hcaptcha';
+            extraParams = `&sitekey=${siteKey}`;
+        } else if (type === 'turnstile') {
+            method = 'turnstile';
+            extraParams = `&sitekey=${siteKey}`;
+        } else {
+            extraParams = `&googlekey=${siteKey}`;
+        }
+        
+        const res = await fetch(`https://2captcha.com/in.php?key=${this.config.twoCaptchaKey}&method=${method}${extraParams}&pageurl=${pageUrl}&json=1`);
         const data = await res.json();
         if (data.status !== 1) throw new Error(`2Captcha Error: ${data.request}`);
         const taskId = data.request;
@@ -364,9 +377,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     
                     let token;
                     if (method === 'nopecha') {
-                        token = await solver.solveNopeCha(request.sitekey, request.url);
+                        token = await solver.solveNopeCha(request.sitekey, request.url, request.type);
                     } else if (method === 'api') {
-                        token = await solver.solve2Captcha(request.sitekey, request.url);
+                        token = await solver.solve2Captcha(request.sitekey, request.url, request.type);
                     } else {
                         throw new Error(`Unsupported solver method: ${method}`);
                     }

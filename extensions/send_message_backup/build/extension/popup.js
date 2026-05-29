@@ -464,6 +464,14 @@ function bindEvents() {
             const settingsInput = document.getElementById('audio-stt-key');
             if (settingsInput) settingsInput.value = key;
             
+            // [WitKey-Sync] 전역 IPC 키 동기화 호출
+            try {
+                await xpiderInvoke('xpider-ext-sync-wit-key', { key });
+                console.log("[WitKey-Sync] Sender setup modal: Key successfully synced to global bridge");
+            } catch (err) {
+                console.error("[WitKey-Sync] Sender setup modal sync failed:", err);
+            }
+            
             const setupModal = document.getElementById('stt-setup-modal-overlay');
             if (setupModal) setupModal.classList.add('hidden');
             
@@ -1309,6 +1317,14 @@ async function saveSettings() {
         xpider_random_delay: randomToggle ? randomToggle.checked : false
     };
     await chrome.storage.local.set(settings);
+    
+    // [WitKey-Sync] 전역 IPC 키 동기화 호출
+    try {
+        await xpiderInvoke('xpider-ext-sync-wit-key', { key: settings.xpider_stt_api_key });
+        console.log("[WitKey-Sync] Sender save settings: Key successfully synced to global bridge");
+    } catch (err) {
+        console.error("[WitKey-Sync] Sender save settings sync failed:", err);
+    }
     
     const saveBtn = document.getElementById('save-settings-btn');
     if (saveBtn) {

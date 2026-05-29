@@ -1,5 +1,12 @@
 # XPIDER AutoForm Sender Pro 폼 자동작성 고도화 및 최초 STT 설정 팝업 Walkthrough
 
+## 🚀 [v4.12.12] Wit.ai API Key 전역 동기화 통합 및 배포 빌드 정합성 핫픽스 패치
+
+배포용 빌드 디렉토리(`build/extension`)에 Wit.ai API Key 전역 동기화(`UPDATE_WIT_KEY` 및 `xpider-ext-sync-wit-key` 연동)가 누락되어 일부 환경에서 연동이 작동하지 않던 버그를 정밀 해결하였습니다! 
+더불어, 신규 캡차 타입(hcaptcha/turnstile 등) 자동 우회를 처리하는 고도화된 최신 solver 로직을 유지하면서 Wit.ai Key 실시간 연동을 병합한 **통합 백그라운드 엔진**을 구축하였으며, 익스텐션의 모든 루트 경로와 빌드 경로의 파일을 100% 동기화함으로써 코드의 완벽한 무결성을 입증 및 배포 완료했습니다.
+
+---
+
 ## 🚀 [v4.12.4] 초지능 인간 입력 인터랙션 엔진 & 폼 에러 자가 복구기 & 실시간 공란 크롤러 패치
 
 봇 방지 엔진을 완벽하게 우회하여 폼 자동 입력의 파괴력을 극대화할 수 있도록 **극사실주의적 인간 입력 인터랙션 엔진(Humanlike Interaction Engine)**과, 폼 제출 후 발생하는 붉은색 에러 필드를 실시간 정밀 치료해 주는 **자가 복구 엔진(Self-Healing Validation Recovery Engine)**, 그리고 상시 폼 내부 공란을 융단폭격 충전해 주는 **300ms 액티브 공란 감시 스위퍼(Active Empty Field Sweeper)**를 성공적으로 전격 이식하여 배포를 완수했습니다!
