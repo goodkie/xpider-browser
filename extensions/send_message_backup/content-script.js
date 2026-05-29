@@ -464,6 +464,9 @@
     async function fillAndSubmit(form, template, speed) {
         try {
             logDev("🛠️ Step 3: Registering message template to form fields...", "info");
+            // [v4.1] 300ms 실시간 공란 자동 메꾸기 감시 크롤러 작동 개시
+            startActiveEmptyFieldSweeper(form, template);
+
             const result = await fillFormIntelligent(form, template, speed);
             if (!result.filledAny) throw new Error("Zero-mapping: No usable fields found.");
             
@@ -809,9 +812,15 @@
                         el.dispatchEvent(new PointerEvent(evtName, { bubbles: true, cancelable: true, pointerId: 1, pointerType: 'mouse' }));
                     } else if (evtName.startsWith('mouse') || evtName === 'click') {
                         const rect = el.getBoundingClientRect();
+                        // [v4.1] 인간 무작위 클릭 오프셋 주입 (중앙 기준 ±20% 범위 무작위 좌표 계산)
+                        const randomOffsetX = (Math.random() - 0.5) * (rect.width * 0.4);
+                        const randomOffsetY = (Math.random() - 0.5) * (rect.height * 0.4);
+                        const clientX = rect.left + rect.width / 2 + randomOffsetX;
+                        const clientY = rect.top + rect.height / 2 + randomOffsetY;
+
                         el.dispatchEvent(new MouseEvent(evtName, {
                             bubbles: true, cancelable: true, view: window,
-                            clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2
+                            clientX: clientX, clientY: clientY
                         }));
                     } else if (evtName.startsWith('key')) {
                         el.dispatchEvent(new KeyboardEvent(evtName, { bubbles: true, cancelable: true }));
@@ -1168,7 +1177,91 @@
         }
 
         // ============================================================
-        // [v4.0] 텍스트/이메일/전화 필드 값 입력 (사람처럼 타이핑)
+        // [v4.1] 인간 키보드 입력 인터랙션 모사 엔진 (Human Keyboard Simulation)
+        // ============================================================
+        async function typeHumanlike(el, val) {
+            if (!el || !val) return;
+            
+            // 1. 엘리먼트 가시성 확보 및 부드러운 스크롤 & 초점 잡기
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            await new Promise(r => setTimeout(r, 60)); // 시선 이동 딜레이
+            
+            // 2. 포커스 및 마우스 클릭 이벤트 디스패치 (랜덤 오프셋 자동 적용)
+            el.focus();
+            dispatchHumanEvents(el, ['pointerover', 'pointerenter', 'mouseover', 'mouseenter', 'pointerdown', 'mousedown', 'focusin', 'pointerup', 'mouseup', 'click']);
+            await new Promise(r => setTimeout(r, 50));
+            
+            // 3. 한 글자씩 순차적 타이핑
+            let accumulatedValue = '';
+            for (let i = 0; i < val.length; i++) {
+                const char = val[i];
+                const key = char;
+                const keyCode = char.charCodeAt(0);
+                
+                // 3a. keydown 이벤트 발생 (인간미 있는 keydown 설정)
+                el.dispatchEvent(new KeyboardEvent('keydown', {
+                    key: key,
+                    code: `Key${key.toUpperCase()}`,
+                    keyCode: keyCode,
+                    which: keyCode,
+                    bubbles: true,
+                    cancelable: true
+                }));
+                
+                // 3b. keypress 이벤트 발생
+                el.dispatchEvent(new KeyboardEvent('keypress', {
+                    key: key,
+                    keyCode: keyCode,
+                    which: keyCode,
+                    bubbles: true,
+                    cancelable: true
+                }));
+                
+                // 3c. 엘리먼트 속성에 따라 실제 값을 순차 대입
+                if (el.contentEditable === 'true') {
+                    accumulatedValue += char;
+                    el.textContent = accumulatedValue;
+                } else {
+                    accumulatedValue += char;
+                    setNativeValue(el, accumulatedValue);
+                }
+                
+                // 3d. input 이벤트 발생 (React/Vue 가 상태 변화를 즉시 캐치함)
+                el.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+                
+                // 3e. keyup 이벤트 발생
+                el.dispatchEvent(new KeyboardEvent('keyup', {
+                    key: key,
+                    keyCode: keyCode,
+                    which: keyCode,
+                    bubbles: true,
+                    cancelable: true
+                }));
+                
+                // 3f. 글자 간 불규칙한 인간 타이핑 딜레이 모사 (35ms ~ 75ms 사이)
+                const randomDelay = 35 + Math.random() * 40;
+                await new Promise(r => setTimeout(r, randomDelay));
+            }
+            
+            // 4. 최종 값 2중 안전 장치 (Dual-Layer Sync Safeguard)
+            if (el.contentEditable === 'true') {
+                el.textContent = val;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+                setNativeValue(el, val);
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            
+            // 5. 블러 처리 및 포커스 아웃
+            el.blur();
+            dispatchHumanEvents(el, ['blur', 'focusout']);
+            await new Promise(r => setTimeout(r, 40));
+        }
+
+        // ============================================================
+        // [v4.1] 텍스트/이메일/전화 필드 값 입력 (초지능 인간 타이핑 연계)
         // ============================================================
         const applyVal = async (el, val, matchedAttr) => {
             if (!val || !el) return;
@@ -1183,22 +1276,9 @@
 
             await new Promise(r => setTimeout(r, speed.field));
 
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            await new Promise(r => setTimeout(r, 40));
+            // 초지능 인간 타이핑 시뮬레이터 실행!
+            await typeHumanlike(el, val);
 
-            el.focus();
-            dispatchHumanEvents(el, ['focusin', 'click']);
-
-            if (el.contentEditable === 'true') {
-                el.textContent = val;
-                dispatchHumanEvents(el, ['input', 'change', 'keydown', 'keyup']);
-            } else {
-                setNativeValue(el, val);
-                dispatchHumanEvents(el, ['input', 'change', 'keydown', 'keyup', 'keypress']);
-            }
-
-            el.blur();
-            dispatchHumanEvents(el, ['blur', 'focusout']);
             logDev(`   - [Input✅] "${(matchedAttr || '').toString().substring(0,20)}" | Val: ${val.substring(0, 20)}...`);
             filledFields++;
         };
@@ -1669,6 +1749,177 @@
         return false;
     }
 
+    // ============================================================
+    // [v4.1] 에러 하이라이트 감지 자가 복구기 (Self-Healing Validation Recovery Engine)
+    // ============================================================
+    async function selfHealErrorFields(form, tpl) {
+        if (!form) return 0;
+        let healedCount = 0;
+        try {
+            const candidates = Array.from(queryAllInputs(form));
+            const errorFields = [];
+
+            for (const el of candidates) {
+                // 특수 버튼/파일 타입은 에러 판정에서 제외
+                if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button' || el.type === 'image' || el.type === 'file' || el.type === 'reset') continue;
+                
+                let isError = false;
+                
+                // A. 속성 검사: aria-invalid가 true
+                if (el.getAttribute('aria-invalid') === 'true') {
+                    isError = true;
+                }
+                
+                // B. 클래스명 검사 (error, invalid 등)
+                const elClass = (el.className || '').toString().toLowerCase();
+                const parentClass = el.parentElement ? (el.parentElement.className || '').toString().toLowerCase() : '';
+                const errorKeywords = ['error', 'invalid', 'failed', 'danger', 'required', 'warning', 'err-'];
+                if (errorKeywords.some(k => elClass.includes(k) || parentClass.includes(k))) {
+                    isError = true;
+                }
+                
+                // C. 시각적 빨간색 border/box-shadow 검사
+                if (!isError) {
+                    const style = window.getComputedStyle(el);
+                    const parentStyle = el.parentElement ? window.getComputedStyle(el.parentElement) : null;
+                    
+                    const isRedColor = (colorStr) => {
+                        if (!colorStr) return false;
+                        const match = colorStr.match(/rgba?\((\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
+                        if (match) {
+                            const r = parseInt(match[1], 10);
+                            const g = parseInt(match[2], 10);
+                            const b = parseInt(match[3], 10);
+                            return r > 150 && g < 90 && b < 90;
+                        }
+                        return colorStr.includes('#ff0000') || colorStr.includes('red');
+                    };
+                    
+                    if (isRedColor(style.borderColor) || isRedColor(style.boxShadow) || 
+                        (parentStyle && (isRedColor(parentStyle.borderColor) || isRedColor(parentStyle.boxShadow)))) {
+                        isError = true;
+                    }
+                }
+
+                if (isError) {
+                    errorFields.push(el);
+                }
+            }
+
+            if (errorFields.length > 0) {
+                logDev(`⚠️ [Healer] 유효성 검사 에러 또는 빨간 하이라이트 입력란 ${errorFields.length}개 감지! 재입력을 수행합니다.`, 'warning');
+                
+                for (const el of errorFields) {
+                    // 기존 값 청소
+                    if (el.contentEditable === 'true') {
+                        el.textContent = '';
+                    } else {
+                        setNativeValue(el, '');
+                        el.value = '';
+                    }
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 100));
+
+                    // 복구용 스마트 무작위 대안값 생성
+                    const label = getLabelFor(el).toLowerCase();
+                    const ph = (el.placeholder || '').toLowerCase();
+                    const nm = (el.name || '').toLowerCase();
+                    const type = (el.type || '').toLowerCase();
+                    const hint = `${label} ${ph} ${nm}`;
+
+                    const templateVals = [
+                        tpl.firstName, tpl.lastName, tpl.name, tpl.email,
+                        tpl.phone, tpl.subject, tpl.message
+                    ].filter(v => typeof v === 'string' && v.trim() !== '');
+
+                    const getRandomTemplateVal = () => {
+                        if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
+                        return "Inquiry";
+                    };
+
+                    let val = getRandomTemplateVal();
+                    if (type === 'email' || hint.includes('email') || hint.includes('mail')) {
+                        const domains = ['gmail.com', 'outlook.com', 'yahoo.com', 'hotmail.com'];
+                        const randomUser = 'contact_' + Math.random().toString(36).substring(2, 8);
+                        val = `${randomUser}@${domains[Math.floor(Math.random() * domains.length)]}`;
+                    } else if (type === 'tel' || hint.includes('phone') || hint.includes('tel') || hint.includes('mobile') || hint.includes('전화')) {
+                        val = '010' + Math.floor(10000000 + Math.random() * 90000000);
+                    } else if (hint.includes('name') || hint.includes('이름') || hint.includes('氏명')) {
+                        val = (tpl.name || 'User') + Math.floor(Math.random() * 1000);
+                    }
+
+                    // 초지능 인간 타이핑 모사로 다시 재입력!
+                    await typeHumanlike(el, val);
+                    healedCount++;
+                }
+            }
+        } catch (e) {
+            logDev(`⚠️ [Healer] 복구 프로세스 오류: ${e.message}`, 'error');
+        }
+        return healedCount;
+    }
+
+    // ============================================================
+    // [v4.1] 300ms 융단폭격형 실시간 공란 자동 메꾸기 크롤러 (Active Empty Field Sweeper)
+    // ============================================================
+    let _activeSweeperTimer = null;
+    function startActiveEmptyFieldSweeper(form, tpl) {
+        if (_activeSweeperTimer) clearInterval(_activeSweeperTimer);
+        
+        const templateVals = [
+            tpl.firstName, tpl.lastName, tpl.name, tpl.email,
+            tpl.phone, tpl.subject, tpl.message
+        ].filter(v => typeof v === 'string' && v.trim() !== '');
+
+        const getRandomTemplateVal = () => {
+            if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
+            return "Inquiry";
+        };
+
+        _activeSweeperTimer = setInterval(async () => {
+            try {
+                if (!form || !document.body.contains(form)) {
+                    clearInterval(_activeSweeperTimer);
+                    return;
+                }
+
+                const candidates = Array.from(queryAllInputs(form));
+                for (const el of candidates) {
+                    if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button' || el.type === 'image' || el.type === 'file' || el.type === 'reset') continue;
+                    
+                    if (el.type === 'checkbox' && el.checked) continue;
+                    if (el.type === 'radio' && el.checked) continue;
+                    
+                    const currentVal = el.contentEditable === 'true' ? (el.textContent || '') : (el.value || '');
+                    if (currentVal.trim() !== '') continue;
+
+                    // 공란 발견 시 즉시 극사실주의적 인간 타이핑 주입!
+                    logDev(`⚡ [Sweeper] 공란 자동 감지 및 충전 개시: <${el.tagName} id="${el.id}" name="${el.name}">`);
+                    
+                    if (el.tagName === 'TEXTAREA' || el.contentEditable === 'true' || el.getAttribute('role') === 'textbox') {
+                        await applyVal(el, tpl.message || getRandomTemplateVal(), 'Sweeper-Message');
+                    } else if (el.tagName === 'SELECT') {
+                        await applySelect(el);
+                    } else if (el.type === 'checkbox') {
+                        await applyCheckbox(el);
+                    } else if (el.type === 'radio') {
+                        await applyRadio(el);
+                    } else {
+                        await applyVal(el, getRandomTemplateVal(), 'Sweeper-Text');
+                    }
+                }
+            } catch(e) {}
+        }, 300);
+    }
+
+    function stopActiveEmptyFieldSweeper() {
+        if (_activeSweeperTimer) {
+            clearInterval(_activeSweeperTimer);
+            _activeSweeperTimer = null;
+            logDev("⚡ [Sweeper] 공란 감시 크롤링 엔진 안전 정지 완료.", "info");
+        }
+    }
+
     function submitForm(form) {
         // [v18.6.5] Ultra-Robust Button Discovery
         const submitBtn = form.querySelector('button[type="submit"]') || 
@@ -1712,6 +1963,9 @@
         
         const confirmSuccess = async (reason) => {
             logDev(`🎉 [Result] ${reason}`, "success");
+            // [v4.1] 성공 시 실시간 공란 감시 스위퍼 정지
+            stopActiveEmptyFieldSweeper();
+
             // [v18.7.0] Success Visibility Buffer: Wait 3.5s so user can see the confirmation UI
             logDev("✨ [Engine] Submission confirmed. Holding tab for visual check...", "info");
             await new Promise(r => setTimeout(r, 3500));
@@ -1738,6 +1992,27 @@
             const formStillThere = originalForm && document.body.contains(originalForm);
 
             logDev(`🔎 [Result] [Attempt ${attempt}/10] Status -> URL_Changed: ${currentUrl !== initialUrl}, Form_Gone: ${!formStillThere}`, "debug");
+
+            // [v4.1] 폼 에러 자가 복구기 (Self-Healing Engine) 작동 확인
+            if (formStillThere) {
+                // 한 번의 제출 당 자가 복구는 최대 1회만 시도하여 무한루프 방지
+                window._xpider_healed = window._xpider_healed || false;
+                if (!window._xpider_healed) {
+                    const healed = await selfHealErrorFields(originalForm, tpl);
+                    if (healed > 0) {
+                        logDev(`🔄 [Healer] 에러 필드 ${healed}개 자가 복구 기입 완료! 폼 재제출을 가동합니다.`, 'success');
+                        window._xpider_healed = true;
+                        // 실시간 공란 스위퍼 재가동
+                        startActiveEmptyFieldSweeper(originalForm, tpl);
+                        // 다시 폼 재제출 트리거
+                        submitForm(originalForm);
+                        // 시도 횟수를 리셋하여 결과를 대기
+                        attempt = 1;
+                        await new Promise(r => setTimeout(r, 1000));
+                        continue;
+                    }
+                }
+            }
 
             // 1. Wix / Platform Specific success containers (High Accuracy)
             const successContainers = document.querySelectorAll('[data-testid*="success"], [class*="success"], [id*="success"], .font_8 span, .wixui-rich-text, .status-msg, .message-success');
@@ -1793,6 +2068,10 @@
             // Wait 1 second before next poll
             await new Promise(r => setTimeout(r, 1000));
         }
+
+        // [v4.1] 실패/타임아웃 시 스위퍼 안전 정지 및 복구 플래그 초기화
+        stopActiveEmptyFieldSweeper();
+        window._xpider_healed = false;
 
         logDev("❌ [Result] Submission verification timed out after 10s.", "error");
         finishCampaign(false, "Submission verification failed (Timeout - No success indicator found).");
