@@ -536,7 +536,8 @@
             const val = input.value.trim();
             if (!val) return alert("Please enter the Server Access Token.");
             btnSave.innerText = 'Saving...';
-            chrome.storage.local.set({ witKey: val, audioSttKey: val, captchaSolveEnabled: true }, () => {
+            // [BugFix v4.12.18] 세 가지 키 모두 저장
+            chrome.storage.local.set({ xpider_stt_api_key: val, witKey: val, audioSttKey: val, captchaSolveEnabled: true }, () => {
                 overlay.remove();
                 logToSystem("✅ API Key Saved. Retrying...", "DONE");
             });
@@ -616,12 +617,13 @@
 
             if (audioInput) {
                 if (!solving) {
-                    const keys = await chrome.storage.local.get(['witKey', 'audioSttKey']);
-                    let activeKey = keys.witKey || keys.audioSttKey;
+                    // [BugFix v4.12.18] xpider_stt_api_key 포함 세 가지 키 모두 확인
+                    const keys = await chrome.storage.local.get(['xpider_stt_api_key', 'witKey', 'audioSttKey']);
+                    let activeKey = keys.xpider_stt_api_key || keys.witKey || keys.audioSttKey;
                     if (!activeKey || activeKey.trim() === '') {
                         // 공용 무료 폴백 키 지정 (사용자가 키를 입력하지 않아도 자동 캡챠가 우회되도록 조치)
                         activeKey = '3T7NUX6UUPXHXGMDQLB7P23JSHYI2C7O';
-                        await chrome.storage.local.set({ witKey: activeKey, audioSttKey: activeKey, captchaSolveEnabled: true });
+                        await chrome.storage.local.set({ xpider_stt_api_key: activeKey, witKey: activeKey, audioSttKey: activeKey, captchaSolveEnabled: true });
                         logToSystem("🔑 [Auto STT] 공용 무료 우회 API 키 적용됨", "PROXY");
                     }
                     executeResilientSolve(audioInput, attempts);

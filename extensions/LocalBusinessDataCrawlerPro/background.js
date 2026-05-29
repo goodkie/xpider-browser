@@ -645,8 +645,13 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
             // ── 3. 캡차 및 AI 해결 핸들러 ──
             if (m.action === 'PERFORM_TRANSCRIPTION') {
                 try {
-                    const settings = await chrome.storage.local.get(['captchaMethod', 'captchaApiKey', 'audioSttKey']);
-                    console.log('[v24.0] Transcription request:', { 
+                    // [BugFix v4.12.18] xpider_stt_api_key 포함 세 가지 키 모두 읽기
+                    const settings = await chrome.storage.local.get(['captchaMethod', 'captchaApiKey', 'xpider_stt_api_key', 'audioSttKey', 'witKey']);
+                    // audioSttKey가 없으면 다른 키로 보완
+                    if (!settings.audioSttKey) {
+                        settings.audioSttKey = settings.xpider_stt_api_key || settings.witKey || '';
+                    }
+                    console.log('[v24.0 BugFix] Transcription request:', { 
                         hasAudioSttKey: !!settings.audioSttKey, 
                         keyPreview: settings.audioSttKey ? settings.audioSttKey.substring(0, 8) + '...' : 'NONE',
                         captchaMethod: settings.captchaMethod,

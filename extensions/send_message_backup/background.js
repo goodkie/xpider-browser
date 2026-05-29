@@ -149,15 +149,15 @@ class XpiderSolverCore {
     }
 
     async transcribeAudio(audioData, audioUrl = null) {
-        // [v18.46.0] 동적으로 최신 Wit.ai API Key 로드
+        // [BugFix v4.12.18] 세 가지 키 모두 읽어서 어떤 확장이 저장하든 인식
         const storage = await new Promise(resolve => {
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.get(['xpider_stt_api_key'], resolve);
+                chrome.storage.local.get(['xpider_stt_api_key', 'audioSttKey', 'witKey'], resolve);
             } else {
                 resolve({});
             }
         });
-        const activeKey = storage.xpider_stt_api_key || this.config.witAiKey;
+        const activeKey = storage.xpider_stt_api_key || storage.audioSttKey || storage.witKey || this.config.witAiKey;
         
         if (!activeKey) throw new Error("Wit.ai API Key missing in configuration.");
         try {

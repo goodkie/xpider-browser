@@ -303,8 +303,9 @@
     window.addEventListener('DOMContentLoaded', async () => {
       tokenInput.focus();
       try {
-        const data = await window.witAPI.getStorage(['witKey', 'audioSttKey']);
-        const currentToken = data.witKey || data.audioSttKey || '';
+        // [BugFix] xpider_stt_api_key, witKey, audioSttKey 세 가지 모두 확인
+        const data = await window.witAPI.getStorage(['xpider_stt_api_key', 'witKey', 'audioSttKey']);
+        const currentToken = data.xpider_stt_api_key || data.witKey || data.audioSttKey || '';
         if (currentToken) {
           tokenInput.value = currentToken;
         }
@@ -323,8 +324,9 @@
 
       btnSave.innerText = '저장 중...';
       try {
-        // witKey와 audioSttKey 모두 설정하여 두 버그 우회
+        // [BugFix] xpider_stt_api_key, witKey, audioSttKey 세 가지 모두 저장하여 모든 확장에서 인식
         await window.witAPI.setStorage({ 
+          xpider_stt_api_key: val,
           witKey: val, 
           audioSttKey: val,
           captchaSolveEnabled: true 
