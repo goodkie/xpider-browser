@@ -3,6 +3,50 @@ const fs   = require('fs');
 const electron = require('electron');
 const app = electron.app;
 
+// ─── [v4.12.32] Squirrel.Windows 설치/업데이트 이벤트 가로채기 (이중 기동 예외 완전 소멸) ───
+const handleSquirrelEvent = () => {
+  if (process.argv.length === 1) return false;
+  
+  const ChildProcess = require('child_process');
+  const appFolder = path.resolve(process.execPath, '..');
+  const rootAtomFolder = path.resolve(appFolder, '..');
+  const updateDotExe = path.resolve(path.join(rootAtomFolder, 'Update.exe'));
+  const exeName = path.basename(process.execPath);
+  
+  const spawn = (command, args) => {
+    let spawnedProcess;
+    try {
+      spawnedProcess = ChildProcess.spawn(command, args, { detached: true });
+    } catch (error) {}
+    return spawnedProcess;
+  };
+  
+  const spawnUpdate = (args) => spawn(updateDotExe, args);
+  
+  const squirrelCommand = process.argv[1];
+  switch (squirrelCommand) {
+    case '--squirrel-install':
+    case '--squirrel-updated':
+      spawnUpdate(['--createShortcut', exeName]);
+      setTimeout(() => { app.quit(); }, 400);
+      return true;
+      
+    case '--squirrel-uninstall':
+      spawnUpdate(['--removeShortcut', exeName]);
+      setTimeout(() => { app.quit(); }, 400);
+      return true;
+      
+    case '--squirrel-obsolete':
+      setTimeout(() => { app.quit(); }, 400);
+      return true;
+  }
+  return false;
+};
+
+if (handleSquirrelEvent()) {
+  return; 
+}
+
 // ─── 환경변수 로드 (.env 파일) ─────────────────────────────────────────────────
 // app.isPackaged는 모듈 로드 시점에 아직 초기화 전이므로,
 // process.resourcesPath 존재 여부로 패키징 환경을 판단합니다.
