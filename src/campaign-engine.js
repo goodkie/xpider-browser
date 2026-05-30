@@ -687,13 +687,15 @@ async function bestForm(){
       '[data-hook="wix-form"]', '[data-hook="cf-form"]', 'form[class*="form"]',
       '[class*="contact-form"]', '[id*="contact-form"]', '[class*="wix-form"]',
       '.wpcf7-form', '.gform_wrapper', '.ninja-forms-form', '.wpforms-form',
-      'form', 'fieldset', '.form-wrapper', '.sqs-block-form', 'section[class*="form"]'
+      'form', 'fieldset', '.form-wrapper', '.sqs-block-form', 'section[class*="form"]',
+      '[role="form"]', '.form-container', '.contact-container', '[data-testid*="form" i]',
+      'div[class*="Form" i]', 'div[id*="Form" i]', 'form[id*="contact" i]', 'form[class*="contact" i]'
     ];
     
     let bestTarget = null;
     let maxScore = -999;
     
-    const queryInputs = (root) => Array.from((root || document).querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]),textarea,select'));
+    const queryInputs = (root) => Array.from((root || document).querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]),textarea,select'));
     
     const candidates = [];
     selectors.forEach(sel => {
@@ -708,8 +710,8 @@ async function bestForm(){
     if (candidates.length === 0 && allInputs.length >= 1) {
       allInputs.forEach(inp => {
         let p = inp.parentElement;
-        for(let depth=0; depth<3 && p; depth++) {
-          if(p && p !== document.body && !candidates.includes(p)) candidates.push(p);
+        for(let depth=0; depth<4 && p; depth++) { // depth 4층 확장
+          if(p && p !== document.body && p !== document.documentElement && !candidates.includes(p)) candidates.push(p);
           p = p.parentElement;
         }
       });
@@ -721,18 +723,23 @@ async function bestForm(){
       const inputs = queryInputs(el);
       if(inputs.length < 1) return;
       
-      if(el.tagName === 'FORM') score += 200;
+      if(el.tagName === 'FORM') score += 250; // FORM 태그 기본 점수 상향
       
       const textareas = el.querySelectorAll('textarea').length;
-      const emails = el.querySelectorAll('input[type="email"], input[name*="email"], input[id*="email"]').length;
-      const phones = el.querySelectorAll('input[type="tel"], input[name*="phone"], input[id*="phone"]').length;
-      const names = el.querySelectorAll('input[name*="name"], input[id*="name"], input[placeholder*="name"]').length;
+      const emails = el.querySelectorAll('input[type="email"], input[name*="email" i], input[id*="email" i]').length;
+      const phones = el.querySelectorAll('input[type="tel"], input[name*="phone" i], input[id*="phone" i], input[name*="tel" i]').length;
+      const names = el.querySelectorAll('input[name*="name" i], input[id*="name" i], input[placeholder*="name" i]').length;
       
-      score += textareas * 70;
-      score += emails * 50;
-      score += phones * 40;
-      score += names * 25;
-      score += inputs.length * 15;
+      score += textareas * 80;
+      score += emails * 60;
+      score += phones * 55;
+      score += names * 35;
+      score += inputs.length * 20;
+      
+      // 🌟 [초강력 문의 폼 핑거프린트 필터] 이메일과 함께 본문(textarea) 또는 이름이 존재하면 문의 양식이 확실하므로 +400점 보너스 폭등
+      if (emails >= 1 && (textareas >= 1 || names >= 1)) {
+        score += 400;
+      }
       
       const id = (el.id || '').toLowerCase();
       const cls = (el.className || '').toString().toLowerCase();
@@ -742,15 +749,18 @@ async function bestForm(){
       if(info.includes('gform') || info.includes('gravity')) score += 350;
       if(info.includes('ninja') || info.includes('nf-')) score += 300;
       if(info.includes('wixui') || info.includes('wix-form')) score += 250;
-      if(info.includes('contact') || info.includes('message') || info.includes('inquiry') || info.includes('contact-form')) score += 100;
+      if(info.includes('contact') || info.includes('message') || info.includes('inquiry') || info.includes('contact-form') || info.includes('feedback')) score += 150;
       
-      if(info.includes('search') || id.includes('search') || cls.includes('search')) score -= 850;
+      // 🚫 [오인 방지 필터] 검색창, 로그인창, 구독 폼 등은 감점 대폭 부여
+      if(info.includes('search') || id.includes('search') || cls.includes('search')) score -= 900;
+      if(info.includes('login') || id.includes('login') || cls.includes('login') || info.includes('signin')) score -= 850;
+      if(info.includes('newsletter') || id.includes('newsletter') || cls.includes('newsletter') || info.includes('subscribe')) score -= 500;
       
-      const submitBtn = el.querySelector('input[type="submit"], button[type="submit"], button:not([type="button"]), [role="button"], [class*="submit"], [id*="submit"]');
+      const submitBtn = el.querySelector('input[type="submit"], button[type="submit"], button:not([type="button"]), [role="button"], [class*="submit" i], [id*="submit" i], [class*="btn" i]');
       if (submitBtn) {
         score += 80;
         const btnText = (submitBtn.textContent || submitBtn.value || '').toLowerCase();
-        if (['send', 'submit', 'message', 'inquiry', '전송', '보내기', '문의', '접수', '送信'].some(k => btnText.includes(k))) score += 70;
+        if (['send', 'submit', 'message', 'inquiry', '전송', '보내기', '문의', '접수', '送信', 'contact'].some(k => btnText.includes(k))) score += 100;
       }
       
       if(score > maxScore) {
@@ -759,7 +769,7 @@ async function bestForm(){
       }
     });
     
-    if(bestTarget && maxScore >= 10) {
+    if(bestTarget && maxScore >= 15) { // 임계 유효 점수를 15점으로 설정
       targetForm = bestTarget;
       break;
     }
@@ -1279,30 +1289,39 @@ async function processTarget(targetUrl, template) {
                     const reason = result ? result.reason : 'NO_RESULT';
                     sendLog(`⚠️ [Step 4/4] Path ${path} unsuccessful (Reason: ${reason}).`, 'warning');
                     
-                    // [v4.12.43] 등록/성공 미확인 상태 ➡️ 글로벌 타임아웃 해제 후 3분의 인터벌 대기 가동
-                    clearTimeout(globalTimer);
-                    
-                    sendLog(`⏳ 등록/성공 미확인: 3분(180초) 대기 지연(인터벌)을 시작합니다. 탭을 열어둔 상태로 대기합니다.`, 'info');
-                    const holdStart = Date.now();
-                    const holdDuration = 180000; // 3분 (180,000ms)
-                    while (Date.now() - holdStart < holdDuration && !state.cancelled) {
-                        const remainingSec = Math.ceil((holdDuration - (Date.now() - holdStart)) / 1000);
-                        if (remainingSec % 30 === 0) { // 30초마다 남은 대기 지연 카운트 노출
-                            sendLog(`⏳ [Hold] 탭 유지 중... 다음 프로세싱까지 ${remainingSec}초 대기 중...`, 'debug');
+                    if (reason === 'NO_FORM') {
+                        // [v4.12.44] 폼이 존재하지 않거나 없는 페이지인 경우: 지체 없이 바로 그 탭을 닫고 다음 단계로 빠르게 이행
+                        sendLog(`🚫 이 페이지에는 폼이 존재하지 않습니다. 즉시 탭을 정리하고 다음으로 이동합니다.`, 'info');
+                        const tempTab = tabWC;
+                        if (tempTab && !tempTab.isDestroyed()) {
+                            await closeXpiderTab(tempTab);
                         }
-                        await new Promise(r => setTimeout(r, 1000));
-                    }
-                    
-                    if (state.cancelled) {
-                        sendLog(`🛑 대기 중 사용자가 캠페인을 취소했습니다.`, 'stop');
                     } else {
-                        sendLog(`🧹 [Hold End] 3분 대기가 만료되었습니다. 탭을 닫고 다음 단계로 이동합니다.`, 'info');
-                    }
+                        // [v4.12.44] 확실한 폼이 존재하는 콘택트 페이지이나 등록/성공 미확인 상태 ➡️ 3분 대기 인터벌 보장
+                        clearTimeout(globalTimer);
+                        
+                        sendLog(`⏳ 등록/성공 미확인 (폼 발견됨): 3분(180초) 대기 지연(인터벌)을 시작합니다. 탭을 열어둔 상태로 대기합니다.`, 'info');
+                        const holdStart = Date.now();
+                        const holdDuration = 180000; // 3분 (180,000ms)
+                        while (Date.now() - holdStart < holdDuration && !state.cancelled) {
+                            const remainingSec = Math.ceil((holdDuration - (Date.now() - holdStart)) / 1000);
+                            if (remainingSec % 30 === 0) { // 30초마다 카운트다운 로그 송출
+                                sendLog(`⏳ [Hold] 탭 유지 중... 다음 프로세싱까지 ${remainingSec}초 대기 중...`, 'debug');
+                            }
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+                        
+                        if (state.cancelled) {
+                            sendLog(`🛑 대기 중 사용자가 캠페인을 취소했습니다.`, 'stop');
+                        } else {
+                            sendLog(`🧹 [Hold End] 3분 대기가 만료되었습니다. 탭을 닫고 다음 단계로 이동합니다.`, 'info');
+                        }
 
-                    // 3분 대기 완료 혹은 중지 시 탭 강제 닫기
-                    const tempTab = tabWC;
-                    if (tempTab && !tempTab.isDestroyed()) {
-                        await closeXpiderTab(tempTab);
+                        // 3분 대기 완료 혹은 중지 시 탭 강제 닫기
+                        const tempTab = tabWC;
+                        if (tempTab && !tempTab.isDestroyed()) {
+                            await closeXpiderTab(tempTab);
+                        }
                     }
                 }
             }
