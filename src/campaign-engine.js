@@ -561,6 +561,52 @@ function getFieldId(el){
   return [el.name||'',el.id||'',el.placeholder||'',lbl(el),el.className||'',hook].join(' ').toLowerCase();
 }
 
+// [v4.12.46] High-Precision Name Field Detector (scans surrounding DOM text for hash-based fields)
+function detectNameField(el) {
+  const c = getFieldId(el).toLowerCase();
+  
+  if (/\bfirst.?name\b|\bgiven.?name\b|\bforename\b|\bfname\b|\bfirst\b|\bgiven\b|given|\bnombre\b|\bprenom\b|\bvorname\b/.test(c)) {
+    return 'first';
+  }
+  if (/\blast.?name\b|\bfamily.?name\b|\bsurname\b|\blname\b|\blast\b|\bfamily\b|\bapellido\b|\bnom\b|\bnachname\b/.test(c)) {
+    return 'last';
+  }
+  if (/\bname\b|\bfull.?name\b|\byour.*name\b|\bcontact.*name\b|\bcustomer.*name\b|\bsender.*name\b|user|fullname|\bcontact.*person\b|\bclient.*name\b/.test(c)) {
+    return 'full';
+  }
+  
+  // Korean keyword fallback
+  if (/이름|성함|성명|성(?!명|함)/i.test(c)) {
+    if (/성(?!명|함)/i.test(c)) return 'last';
+    if (/이름|성함|성명/i.test(c)) return 'full';
+  }
+  
+  // Shadow DOM & parent wrapper text scanning safety fallback
+  let parentText = '';
+  let p = el.parentElement;
+  for (let i = 0; i < 3 && p; i++) {
+    parentText += ' ' + (p.textContent || '');
+    p = p.parentElement;
+  }
+  parentText = parentText.toLowerCase();
+  
+  if (parentText.includes('first name') || parentText.includes('given name') || parentText.includes('fname') || parentText.includes('이름') || parentText.includes('성함')) {
+    if (!parentText.includes('last name') && !parentText.includes('surname')) {
+      return 'first';
+    }
+  }
+  if (parentText.includes('last name') || parentText.includes('family name') || parentText.includes('lname') || parentText.includes('surname') || (parentText.includes('성') && !parentText.includes('성명') && !parentText.includes('성함'))) {
+    if (!parentText.includes('first name') && !parentText.includes('given name')) {
+      return 'last';
+    }
+  }
+  if (parentText.includes('name') || parentText.includes('full name') || parentText.includes('성명') || parentText.includes('성함')) {
+    return 'full';
+  }
+  
+  return null;
+}
+
 // [v3.0] Math CAPTCHA solver — detects "5+1=", "What is 3×7?" etc. and computes the answer
 async function solveMathCaptchas(container){
   const inputs=Array.from(container.querySelectorAll('input[type=text],input[type=number],input:not([type])'));
@@ -856,7 +902,34 @@ async function fill(c){
   
   // ═══ Pass 1: Primary text field pattern matches ═══
   for(const el of els){
-    if(el.tagName==='SELECT')continue; // SELECTs handled in Pass 3
+    if(el.tagName==='SELECT')continue;
+    
+    // [v4.12.46] Intelligent pre-matching for name field categories
+    const nameType = detectNameField(el);
+    if (nameType) {
+      if (nameType === 'first' && !used.has('firstName')) {
+        const s = splitName(tpl.name);
+        const val = tpl.firstName || s.first || tpl.name;
+        if (val && val.trim() !== '') {
+          if (await tv(el, val)) { used.add('firstName'); n++; continue; }
+        }
+      }
+      if (nameType === 'last' && !used.has('lastName')) {
+        const s = splitName(tpl.name);
+        const val = tpl.lastName || s.last || '';
+        if (val && val.trim() !== '') {
+          if (await tv(el, val)) { used.add('lastName'); n++; continue; }
+        }
+      }
+      if (nameType === 'full' && !used.has('name')) {
+        const val = tpl.name || tpl.firstName || '';
+        if (val && val.trim() !== '') {
+          if (await tv(el, val)) { used.add('name'); n++; continue; }
+        }
+      }
+    }
+    
+    // Default matching fallback for other primary fields
     for(const k of['firstName','lastName','name','email','phone','subject','message']){
       if(used.has(k)&&k!=='message')continue;
       
@@ -870,7 +943,6 @@ async function fill(c){
         val = tpl.lastName || s.last || '';
       }
       
-      // [v4.12.37] 성/이름 상호 배제 필터링 (Exclusive Filtering)으로 오폭 매칭 완벽 차단
       const c2=getFieldId(el);
       if (k === 'lastName' && (c2.includes('first') || c2.includes('given') || c2.includes('fname'))) continue;
       if (k === 'firstName' && (c2.includes('last') || c2.includes('surname') || c2.includes('family') || c2.includes('lname'))) continue;
@@ -964,6 +1036,30 @@ async function fill(c){
           n++;
           await new Promise(r=>setTimeout(r,100));
         }
+      }
+    }
+  } catch(e) {}
+  
+  // [v4.12.46] Form State Lock Sync Guard (forces synchronization of all populated fields before submit)
+  try {
+    const finalInputs = Array.from(c.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]),textarea,select'));
+    for (const el of finalInputs) {
+      if (el.disabled || el.readOnly) continue;
+      
+      const currentVal = el.tagName === 'SELECT' ? el.value : (el.contentEditable === 'true' ? el.textContent : el.value);
+      if (currentVal && currentVal.trim() !== '') {
+        setNativeValue(el, currentVal);
+        ['input', 'change', 'blur'].forEach(t => el.dispatchEvent(new Event(t, { bubbles: true, cancelable: true })));
+        
+        try {
+          const rk = Object.keys(el).find(k => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
+          if (rk) {
+            const props = (el[rk]?.memoizedProps || el[rk]?.pendingProps || el[rk]);
+            if (typeof props?.onChange === 'function') {
+              props.onChange({ target: el, currentTarget: el, type: 'change', bubbles: true });
+            }
+          }
+        } catch(e) {}
       }
     }
   } catch(e) {}
