@@ -98,6 +98,8 @@ async function findContactPages(baseUrl) {
 // ─── Smart Form Filler Script ─────────────────────────────────
 function getFormFillerScript(template) {
     const tplJson = JSON.stringify(template);
+    const fillDelay = state.fillDelayMs || 300;
+    const submitDelay = state.submitDelayMs || 1500;
     return `(async function xpiderFill(){
 if(window.__xpider_filling)return;
 window.__xpider_filling=true;
@@ -113,6 +115,8 @@ try {
 } catch(e) {}
 
 const tpl=${tplJson};
+const fillDelayMs=${fillDelay};
+const submitDelayMs=${submitDelay};
 
 // Primary field patterns (v4.12.40 - Multi-lingual Supreme Matchers)
 const P={
@@ -289,8 +293,10 @@ async function tv(el,v){
     el.dispatchEvent(new InputEvent('input', {bubbles:true, data:char}));
     el.dispatchEvent(new KeyboardEvent('keyup', keyOpts));
     
-    // Standard typist delay: 45ms to 95ms per keystroke (slowing down on punctuation)
-    const delay = /[.,!?;:]/.test(char) ? (180 + Math.random()*220) : (45 + Math.random()*50);
+    // Standard typist delay scaled dynamically by fillDelayMs
+    // 300ms is Normal (Level 6), which maps to base 45ms delay per keystroke.
+    const baseDelay = Math.max(10, Math.floor((typeof fillDelayMs !== 'undefined' ? fillDelayMs : 300) / 6.6));
+    const delay = /[.,!?;:]/.test(char) ? (baseDelay * 4 + Math.random()*220) : (baseDelay + Math.random()*50);
     await new Promise(r=>setTimeout(r, delay));
   }
   
@@ -795,7 +801,7 @@ async function fill(c){
       if (k === 'name' && (c2.includes('first') || c2.includes('last') || c2.includes('surname') || c2.includes('family') || c2.includes('given'))) continue;
       
       if(val && val.trim() !== '' && P[k].some(r=>r.test(c2))){
-        if(await tv(el,val)){used.add(k);n++;await new Promise(r=>setTimeout(r,150));break;}
+        if(await tv(el,val)){used.add(k);n++;await new Promise(r=>setTimeout(r, Math.floor((typeof fillDelayMs !== 'undefined' ? fillDelayMs : 300) * 0.5)));break;}
       }
     }
   }
@@ -803,7 +809,7 @@ async function fill(c){
   // ═══ Pass 2: Text field fallbacks ═══
   if(!used.has('message')&&tpl.message){
     const ta=c.querySelectorAll('textarea');
-    if(ta.length>0){await tv(ta[ta.length-1],tpl.message);n++;used.add('message');await new Promise(r=>setTimeout(r,150));}
+    if(ta.length>0){await tv(ta[ta.length-1],tpl.message);n++;used.add('message');await new Promise(r=>setTimeout(r, Math.floor((typeof fillDelayMs !== 'undefined' ? fillDelayMs : 300) * 0.5)));}
   }
   if(!used.has('name')&&tpl.name){
     const ti=c.querySelector('input[type=text],input:not([type])');
@@ -832,7 +838,7 @@ async function fill(c){
   for(const el of els){
     if(el.value||el.tagName==='SELECT')continue;
     const inferred=inferValue(el);
-    if(inferred){await tv(el,inferred);n++;await new Promise(r=>setTimeout(r,100));}
+    if(inferred){await tv(el,inferred);n++;await new Promise(r=>setTimeout(r, Math.floor((typeof fillDelayMs !== 'undefined' ? fillDelayMs : 300) * 0.3)));}
   }
 
   // ═══ Pass 9: Super-BruteForce Final Target Sweeper (초강력 무작위 및 잔여 필드 전수 입력) ═══
@@ -924,7 +930,7 @@ if(!f){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
 const n=await fill(f);
 if(n===0){window.__xpider_result={success:false,reason:'FILL_FAILED'};return;}
 // Human-like pause before submit
-await new Promise(r=>setTimeout(r,1200));
+await new Promise(r=>setTimeout(r, typeof submitDelayMs !== 'undefined' ? submitDelayMs : 1200));
 const ok=submit(f);
 await new Promise(r=>setTimeout(r,3000));
 window.__xpider_result={success:ok,reason:ok?'SUBMITTED':'NO_SUBMIT_BTN',filled:n};
@@ -1251,10 +1257,12 @@ async function processTarget(targetUrl, template) {
 }
 
 // ─── Main Campaign Loop ───────────────────────────────────────
-async function runCampaign(urls, template, delayMs) {
+async function runCampaign(urls, template, delayMs, fillDelayMs = 300, submitDelayMs = 1500) {
     state.active = true; state.cancelled = false; state.paused = false;
     state.queue = [...urls]; state.template = template;
     state.delayMs = delayMs || 10000;
+    state.fillDelayMs = fillDelayMs || 300;
+    state.submitDelayMs = submitDelayMs || 1500;
     state.successCount = 0; state.completedCount = 0; state.totalTargets = urls.length; state.sessionId++;
 
     sendLog(`🚀 Native Engine v3.0 (Super-Intelligent Form Filler) starting: ${urls.length} target(s)`, 'start');
@@ -1294,9 +1302,9 @@ async function runCampaign(urls, template, delayMs) {
     sendStats();
 }
 
-function start(urls, template, delayMs) {
+function start(urls, template, delayMs, fillDelayMs, submitDelayMs) {
     if (state.active) { sendLog('⚠️ Already running. Stop first.', 'warning'); return { success: false, error: 'Already running' }; }
-    runCampaign(urls, template, delayMs).catch(e => sendLog(`❌ Engine crash: ${e.message}`, 'error'));
+    runCampaign(urls, template, delayMs, fillDelayMs, submitDelayMs).catch(e => sendLog(`❌ Engine crash: ${e.message}`, 'error'));
     return { success: true, status: 'acknowledged' };
 }
 

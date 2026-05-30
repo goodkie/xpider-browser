@@ -4086,10 +4086,10 @@ campaignEngine.init(
     () => mainWindow
 );
 
-ipcMain.handle('xpider-campaign-start', async (event, { queue, template, delayMs }) => {
+ipcMain.handle('xpider-campaign-start', async (event, { queue, template, delayMs, fillDelayMs, submitDelayMs }) => {
     try {
         _captchaWindowOpenCount = 0; // [v4.12.26] 캠페인 시작 시 캡챠 카운트 리셋
-        const result = campaignEngine.start(queue, template, delayMs);
+        const result = campaignEngine.start(queue, template, delayMs, fillDelayMs, submitDelayMs);
         return result;
     } catch (e) {
         log.error('[Campaign] start error:', e.message);

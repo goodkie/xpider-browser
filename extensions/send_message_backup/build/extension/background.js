@@ -319,7 +319,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                             new Promise(res => setTimeout(res, 1000))
                         ]).catch(() => {});
                     }
-                    await startCampaignOrchestrator(request.queue, request.template, request.delayMs);
+                    await startCampaignOrchestrator(request.queue, request.template, request.delayMs, request.fillDelayMs, request.submitDelayMs);
                 } catch (e) {
                     console.error("[StartError]", e);
                     logBg(null, `❌ Engine failed to start: ${e.message}`, "error");
@@ -448,7 +448,7 @@ function normalizeUrl(url) {
     }
 }
 
-async function startCampaignOrchestrator(queue, template, delayMs) {
+async function startCampaignOrchestrator(queue, template, delayMs, fillDelayMs = 300, submitDelayMs = 1500) {
     // [v18.17.0] Emergency Diagnostic Sequence
     logBg(null, "[Boot] Orchestrator entered.", "debug");
     
@@ -479,6 +479,8 @@ async function startCampaignOrchestrator(queue, template, delayMs) {
         campaignState.queue = queue;
         campaignState.template = template;
         campaignState.delayMs = delayMs || 6000;
+        campaignState.fillDelayMs = fillDelayMs || 300;
+        campaignState.submitDelayMs = submitDelayMs || 1500;
         campaignState.isActive = true;
         campaignState.isPaused = false; // [v18.7] Reset pause on new start
         campaignState.sessionId++; 
@@ -889,6 +891,8 @@ async function orchestrateSending(urlInput, template) {
             action: 'START_SENDING', 
             template: template, 
             delayMs: campaignState.delayMs,
+            fillDelayMs: campaignState.fillDelayMs || 300,
+            submitDelayMs: campaignState.submitDelayMs || 1500,
             triedUrl: currentAttemptUrl
         }).catch(() => {});
     };
@@ -1025,6 +1029,8 @@ async function saveCampaignState() {
                 xpider_queue: campaignState.queue,
                 xpider_tpl: campaignState.template,
                 xpider_delayMs: campaignState.delayMs,
+                xpider_fillDelayMs: campaignState.fillDelayMs,
+                xpider_submitDelayMs: campaignState.submitDelayMs,
                 xpider_sessionId: campaignState.sessionId,
                 xpider_success: campaignState.successCount,
                 xpider_total: campaignState.totalTargets,
@@ -1056,7 +1062,7 @@ async function restoreCampaignState() {
             }
 
             chrome.storage.local.get([
-                'xpider_isActive', 'xpider_queue', 'xpider_tpl', 'xpider_delayMs', 
+                'xpider_isActive', 'xpider_queue', 'xpider_tpl', 'xpider_delayMs', 'xpider_fillDelayMs', 'xpider_submitDelayMs',
                 'xpider_sessionId', 'xpider_success', 'xpider_total', 'xpider_visited', 'xpider_successful'
             ], (data) => {
                 try {
@@ -1065,6 +1071,8 @@ async function restoreCampaignState() {
                         campaignState.queue = data.xpider_queue;
                         campaignState.template = data.xpider_tpl;
                         campaignState.delayMs = data.xpider_delayMs || 10000;
+                        campaignState.fillDelayMs = data.xpider_fillDelayMs || 300;
+                        campaignState.submitDelayMs = data.xpider_submitDelayMs || 1500;
                         campaignState.sessionId = data.xpider_sessionId || 0;
                         campaignState.successCount = data.xpider_success || 0;
                         campaignState.totalTargets = data.xpider_total || 0;

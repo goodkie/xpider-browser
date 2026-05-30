@@ -112,8 +112,10 @@ async function initializeAsyncComponents() {
 
     // ── Step 8: Speed slider ──
     try {
-        const delayInput = document.getElementById('delay-input');
-        if (delayInput) delayInput.addEventListener('input', updateSpeedLabel);
+        ['delay-input-collect', 'delay-input-fill', 'delay-input-submit'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', updateSpeedLabels);
+        });
     } catch(e) {}
 
     console.log("✅ X PIDER Sender Pro initialized.");
@@ -415,19 +417,53 @@ function refreshStatusDetailUI() {
     statusDetail.style.color = campaignPaused ? '#ff3366' : '#facc15'; 
 }
 
-function updateSpeedLabel() {
-    const slider = document.getElementById('delay-input');
-    const display = document.getElementById('speed-value-display');
+function updateSpeedLabels() {
     const lang = document.getElementById('language-select')?.value || 'en';
     const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
     
-    if (!slider || !display) return;
-    
-    const level = slider.value;
-    let label = `${dict.speed_level || 'Level'} ${level}`;
-    if (level === '6') label += ` <small>${dict.speed_normal || '(Normal)'}</small>`;
-    
-    display.innerHTML = label;
+    // 1. 수집 속도 매핑 라벨
+    const collectSlider = document.getElementById('delay-input-collect');
+    const collectDisplay = document.getElementById('speed-collect-display');
+    if (collectSlider && collectDisplay) {
+        const level = collectSlider.value;
+        const msArr = [60000, 45000, 30000, 25000, 20000, 15000, 10000, 7000, 5000, 3000];
+        const sec = (msArr[parseInt(level)] || 10000) / 1000;
+        let label = `${dict.speed_level || 'Level'} ${level} <small>(${sec}s)</small>`;
+        if (level === '6') label += ` <small>${dict.speed_normal || '(Normal)'}</small>`;
+        collectDisplay.innerHTML = label;
+        
+        // 레거시 연동용으로 hidden delay-input의 value도 대변 업데이트
+        const legacyInput = document.getElementById('delay-input');
+        if (legacyInput) legacyInput.value = level;
+    }
+
+    // 2. 자동 입력 속도 매핑 라벨
+    const fillSlider = document.getElementById('delay-input-fill');
+    const fillDisplay = document.getElementById('speed-fill-display');
+    if (fillSlider && fillDisplay) {
+        const level = fillSlider.value;
+        const msArr = [2000, 1500, 1000, 800, 500, 400, 300, 200, 150, 100];
+        const ms = msArr[parseInt(level)] || 300;
+        let label = `${dict.speed_level || 'Level'} ${level} <small>(${ms}ms)</small>`;
+        if (level === '6') label += ` <small>${dict.speed_normal || '(Normal)'}</small>`;
+        fillDisplay.innerHTML = label;
+    }
+
+    // 3. 등록 속도 매핑 라벨
+    const submitSlider = document.getElementById('delay-input-submit');
+    const submitDisplay = document.getElementById('speed-submit-display');
+    if (submitSlider && submitDisplay) {
+        const level = submitSlider.value;
+        const msArr = [5000, 4000, 3000, 2500, 2000, 1800, 1500, 1000, 700, 500];
+        const sec = ((msArr[parseInt(level)] || 1500) / 1000).toFixed(1);
+        let label = `${dict.speed_level || 'Level'} ${level} <small>(${sec}s)</small>`;
+        if (level === '6') label += ` <small>${dict.speed_normal || '(Normal)'}</small>`;
+        submitDisplay.innerHTML = label;
+    }
+}
+
+function updateSpeedLabel() {
+    updateSpeedLabels();
 }
 
 function bindEvents() {
@@ -996,17 +1032,30 @@ async function startCampaign() {
     const statusBox = document.getElementById('status-box');
     if (statusBox) statusBox.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-    const delayInput = document.getElementById('delay-input');
-    const level = parseInt(delayInput ? delayInput.value : 6);
-    const levelToMs = [60000, 45000, 30000, 25000, 20000, 15000, 10000, 7000, 5000, 3000];
-    const delayMs = levelToMs[level] || 10000;
+    const delayCollectInput = document.getElementById('delay-input-collect');
+    const delayFillInput = document.getElementById('delay-input-fill');
+    const delaySubmitInput = document.getElementById('delay-input-submit');
+    
+    const levelCollect = parseInt(delayCollectInput ? delayCollectInput.value : 6);
+    const levelFill = parseInt(delayFillInput ? delayFillInput.value : 6);
+    const levelSubmit = parseInt(delaySubmitInput ? delaySubmitInput.value : 6);
+    
+    const levelToCollectMs = [60000, 45000, 30000, 25000, 20000, 15000, 10000, 7000, 5000, 3000];
+    const levelToFillMs = [2000, 1500, 1000, 800, 500, 400, 300, 200, 150, 100];
+    const levelToSubmitMs = [5000, 4000, 3000, 2500, 2000, 1800, 1500, 1000, 700, 500];
+    
+    const delayMs = levelToCollectMs[levelCollect] || 10000;
+    const fillDelayMs = levelToFillMs[levelFill] || 300;
+    const submitDelayMs = levelToSubmitMs[levelSubmit] || 1500;
 
     // [v19.0] Use XPIDER_INVOKE bridge directly to main process (bypasses background.js)
     addLog("[System] Sending to Native Engine...", "debug");
     xpiderInvoke('xpider-campaign-start', {
         queue: campaignQueue,
         template: currentTpl,
-        delayMs
+        delayMs,
+        fillDelayMs,
+        submitDelayMs
     }).then(response => {
         if (response && response.success) {
             addLog("✅ [Native Engine] Campaign started!", "success");
@@ -1350,10 +1399,9 @@ async function saveSettings() {
     const captchaToggle = document.getElementById('captcha-solve-toggle');
     const methodSelect = document.getElementById('captcha-method-select');
     const apiKeyInput = document.getElementById('captcha-api-key');
-    const sttKeyInput = document.getElementById('audio-stt-key');
-    const stealthToggle = document.getElementById('stealth-mode-toggle');
-    const doubleSubmitToggle = document.getElementById('double-submit-toggle');
-    const delayInput = document.getElementById('delay-input');
+    const delayCollectInput = document.getElementById('delay-input-collect');
+    const delayFillInput = document.getElementById('delay-input-fill');
+    const delaySubmitInput = document.getElementById('delay-input-submit');
     const randomToggle = document.getElementById('random-delay-toggle');
 
     const lang = langSelect ? langSelect.value : 'en';
@@ -1369,7 +1417,10 @@ async function saveSettings() {
         witKey: sttKeyVal,
         xpider_stealth_mode: stealthToggle ? stealthToggle.checked : false,
         xpider_double_submit: doubleSubmitToggle ? doubleSubmitToggle.checked : false,
-        xpider_delay: delayInput ? delayInput.value : 6,
+        xpider_delay: delayCollectInput ? delayCollectInput.value : 6, // 레거시 호환
+        xpider_delay_collect: delayCollectInput ? delayCollectInput.value : 6,
+        xpider_delay_fill: delayFillInput ? delayFillInput.value : 6,
+        xpider_delay_submit: delaySubmitInput ? delaySubmitInput.value : 6,
         xpider_random_delay: randomToggle ? randomToggle.checked : false
     };
     await chrome.storage.local.set(settings);
@@ -1396,7 +1447,7 @@ async function saveSettings() {
 
 async function loadSettings() {
     const data = await chrome.storage.local.get([
-        'xpider_lang', 'xpider_tpl', 'xpider_delay', 'xpider_queue', 'xpider_success', 'xpider_total',
+        'xpider_lang', 'xpider_tpl', 'xpider_delay', 'xpider_delay_collect', 'xpider_delay_fill', 'xpider_delay_submit', 'xpider_queue', 'xpider_success', 'xpider_total',
         'xpider_captcha_enabled', 'xpider_captcha_method', 'xpider_captcha_api_key', 'xpider_stt_api_key', 'xpider_stealth_mode', 'xpider_double_submit'
     ]);
     
@@ -1450,10 +1501,24 @@ async function loadSettings() {
         if (document.getElementById('tpl-message')) document.getElementById('tpl-message').value = data.xpider_tpl.message || '';
     }
 
-    if (data.xpider_delay && document.getElementById('delay-input')) {
-        document.getElementById('delay-input').value = data.xpider_delay;
-        updateSpeedLabel();
+    // 3중 속도 복원
+    if (document.getElementById('delay-input-collect')) {
+        document.getElementById('delay-input-collect').value = data.xpider_delay_collect || data.xpider_delay || 6;
     }
+    if (document.getElementById('delay-input-fill')) {
+        document.getElementById('delay-input-fill').value = data.xpider_delay_fill || 6;
+    }
+    if (document.getElementById('delay-input-submit')) {
+        document.getElementById('delay-input-submit').value = data.xpider_delay_submit || 6;
+    }
+    
+    // 레거시 호환용 동기화
+    if (document.getElementById('delay-input')) {
+        document.getElementById('delay-input').value = data.xpider_delay_collect || data.xpider_delay || 6;
+    }
+    
+    updateSpeedLabels();
+    
     if (document.getElementById('random-delay-toggle')) {
         document.getElementById('random-delay-toggle').checked = !!data.xpider_random_delay;
     }

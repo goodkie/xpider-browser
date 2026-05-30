@@ -85,15 +85,14 @@
                 return;
             }
             
-            processCampaign(request.template, request.delayMs, request.triedUrl);
+            processCampaign(request.template, request.delayMs, request.triedUrl, request.fillDelayMs, request.submitDelayMs);
         }
     });
 
-    function getSpeedProfile(delayMs) {
-        const d = parseInt(delayMs) || 10000;
+    function getSpeedProfile(delayMs, fillDelayMs = 300, submitDelayMs = 1500) {
         return {
-            field: Math.max(100, Math.floor(d / 20)), // [v18.7.5] 10s delay -> 500ms between fields
-            hold: Math.max(500, Math.floor(d / 5))    // [v18.7.5] 10s delay -> 2000ms visual hold
+            field: parseInt(fillDelayMs) || 300,
+            hold: parseInt(submitDelayMs) || 1500
         };
     }
 
@@ -276,22 +275,35 @@
     }
 
     async function closeIntrusivePopups() {
-        logDev("🧹 [Cleaner] Scanning for intrusive overlays/popups...");
+        logDev("🧹 [Cleaner] Scanning for intrusive overlays/popups and cookie banners...");
+        
+        // 1. 쿠키 및 일반 팝업 닫기/수락 버튼 전방위 탐색
         const closeSelectors = [
             '.close', '.dismiss', '.X', '[aria-label*="close"]', '[class*="close"]', 
             '[id*="close"]', '.modal-close', '.popup-close', '.et_pb_close_button',
-            '.happyforms-close'
+            '.happyforms-close',
+            // Cookie specific accept buttons
+            '[id*="accept" i]', '[class*="accept" i]', '[id*="agree" i]', '[class*="agree" i]',
+            '[id*="consent" i] button', '[class*="consent" i] button', '[id*="cookie" i] button', '[class*="cookie" i] button',
+            '#cookie-accept', '.cookie-accept', '#cookie-agree', '.cookie-agree'
         ];
         
         const buttons = queryAllDeep('button, a, span, div[role="button"]');
         let closedCount = 0;
+        
+        // 다국어 쿠키 동의 및 닫기 키워드 매처
+        const consentKeywords = [
+            'x', 'close', '닫기', '閉じる', '关闭', 'accept', 'agree', 'allow', 
+            'accept all', 'allow all', 'i agree', '수락', '동의', '허용', '동의합니다', '허용합니다',
+            'ok', 'okay', 'yes', 'understood', '확인', '了解'
+        ];
         
         for (const btn of buttons) {
             const isMatch = closeSelectors.some(s => {
                 try { return btn.matches(s); } catch(e) { return false; }
             });
             const text = (btn.textContent || '').toLowerCase().trim();
-            if (isMatch || ['x', 'close', '닫기', '閉じる', '关闭'].includes(text)) {
+            if (isMatch || consentKeywords.includes(text)) {
                 const style = window.getComputedStyle(btn);
                 if (style.display !== 'none' && style.visibility !== 'hidden') {
                     btn.click();
@@ -299,7 +311,41 @@
                 }
             }
         }
-        if (closedCount > 0) logDev(`✅ [Cleaner] Suppressed ${closedCount} intrusive elements.`);
+        
+        // 2. 강제 쿠키 스위핑 (클릭 실패나 오버레이 방어벽 제거)
+        // 일반적인 쿠키 배너와 모달 오버레이 컨테이너들을 display: none 처리
+        const cookieContainerSelectors = [
+            '[id*="cookie" i]', '[class*="cookie" i]',
+            '[id*="consent" i]', '[class*="consent" i]',
+            '[id*="gdpr" i]', '[class*="gdpr" i]',
+            '#cookie-law', '.cookie-banner', '[data-cookie]',
+            // Wix/WordPress 특정 모달 차단
+            '.wix-cookie-consent', '.sqs-cookie-banner-v2',
+            // 화면 전체를 블로킹하는 배경막 overlay 제거
+            '[class*="backdrop" i]', '[class*="overlay" i]:not(form):not(input)'
+        ];
+        
+        let sweptCount = 0;
+        for (const selector of cookieContainerSelectors) {
+            try {
+                const elements = queryAllDeep(selector);
+                for (const el of elements) {
+                    // 단, 폼 입력 요소나 실제 문의 폼 컨테이너가 쿠키 키워드를 ID에 포함하여 날아가는 현상 방지
+                    if (el.tagName === 'FORM' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contains(document.querySelector('form'))) {
+                        continue;
+                    }
+                    const style = window.getComputedStyle(el);
+                    if (style.display !== 'none' && (style.position === 'fixed' || style.position === 'absolute' || parseInt(style.zIndex) > 100)) {
+                        el.style.setProperty('display', 'none', 'important');
+                        sweptCount++;
+                    }
+                }
+            } catch(e) {}
+        }
+        
+        if (closedCount > 0 || sweptCount > 0) {
+            logDev(`✅ [Cleaner] Suppressed ${closedCount} buttons & swept ${sweptCount} cookie/overlay containers.`);
+        }
     }
 
     async function checkAndRecoverPage() {
@@ -314,9 +360,9 @@
         return false;
     }
 
-    async function processCampaign(template, delayMs = 10000, triedUrl = '') {
+    async function processCampaign(template, delayMs = 10000, triedUrl = '', fillDelayMs = 300, submitDelayMs = 1500) {
         try {
-            const speed = getSpeedProfile(delayMs);
+            const speed = getSpeedProfile(delayMs, fillDelayMs, submitDelayMs);
             const currentUrl = window.location.href;
             
             // [v2.9.8] Navigation Registry: Mark background-opened and current pages as visited
