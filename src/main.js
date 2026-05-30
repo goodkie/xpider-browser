@@ -3,50 +3,6 @@ const fs   = require('fs');
 const electron = require('electron');
 const app = electron.app;
 
-// ─── [v4.12.32] Squirrel.Windows 설치/업데이트 이벤트 가로채기 (이중 기동 예외 완전 소멸) ───
-const handleSquirrelEvent = () => {
-  if (process.argv.length === 1) return false;
-  
-  const ChildProcess = require('child_process');
-  const appFolder = path.resolve(process.execPath, '..');
-  const rootAtomFolder = path.resolve(appFolder, '..');
-  const updateDotExe = path.resolve(path.join(rootAtomFolder, 'Update.exe'));
-  const exeName = path.basename(process.execPath);
-  
-  const spawn = (command, args) => {
-    let spawnedProcess;
-    try {
-      spawnedProcess = ChildProcess.spawn(command, args, { detached: true });
-    } catch (error) {}
-    return spawnedProcess;
-  };
-  
-  const spawnUpdate = (args) => spawn(updateDotExe, args);
-  
-  const squirrelCommand = process.argv[1];
-  switch (squirrelCommand) {
-    case '--squirrel-install':
-    case '--squirrel-updated':
-      spawnUpdate(['--createShortcut', exeName]);
-      setTimeout(() => { app.quit(); }, 400);
-      return true;
-      
-    case '--squirrel-uninstall':
-      spawnUpdate(['--removeShortcut', exeName]);
-      setTimeout(() => { app.quit(); }, 400);
-      return true;
-      
-    case '--squirrel-obsolete':
-      setTimeout(() => { app.quit(); }, 400);
-      return true;
-  }
-  return false;
-};
-
-if (handleSquirrelEvent()) {
-  return; 
-}
-
 // ─── 환경변수 로드 (.env 파일) ─────────────────────────────────────────────────
 // app.isPackaged는 모듈 로드 시점에 아직 초기화 전이므로,
 // process.resourcesPath 존재 여부로 패키징 환경을 판단합니다.
@@ -68,18 +24,7 @@ if (_envPath) {
 }
 
 const { BrowserWindow, session, ipcMain, shell, webContents, dialog, Menu, MenuItem, clipboard } = electron;
-
-// ─── [Electron IPC Safety Patch v1.0] ipcMain.handle 중복 등록 예외 원천 방지 패치 ───
-const _origHandle = ipcMain.handle;
-ipcMain.handle = function(channel, listener) {
-  try { ipcMain.removeHandler(channel); } catch(e) {}
-  return _origHandle.call(ipcMain, channel, listener);
-};
-
 const log  = require('electron-log');
-
-// ─── 인증 및 세션 매니저 (순환 참조 방지를 위해 우선 임포트) ────────────────────
-const authService = require('./auth/auth-service');
 
 // ─── Campaign Engine (AutoForm Sender Pro) ────────────────────
 const campaignEngine = require('./campaign-engine');
@@ -429,7 +374,7 @@ ipcMain.on('window-control', (_, action) => {
 });
 
 // ─── 인증 IPC ─────────────────────────────────────────────────
-
+const authService = require('./auth/auth-service');
 
 ipcMain.handle('auth-login', async (_, { email, password }) => {
   const result = await authService.login(email, password);

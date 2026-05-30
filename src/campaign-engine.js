@@ -712,7 +712,7 @@ async function bestForm(){
       
       const id = (el.id || '').toLowerCase();
       const cls = (el.className || '').toString().toLowerCase();
-      const info = `${id} ${cls}`;
+      const info = id + ' ' + cls;
       
       if(info.includes('wpcf7') || info.includes('wpcf7-form')) score += 500;
       if(info.includes('gform') || info.includes('gravity')) score += 350;
