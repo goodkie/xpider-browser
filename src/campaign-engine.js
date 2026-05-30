@@ -114,15 +114,15 @@ try {
 
 const tpl=${tplJson};
 
-// Primary field patterns (v4.12.37 - Multi-lingual Supreme Matchers)
+// Primary field patterns (v4.12.40 - Multi-lingual Supreme Matchers)
 const P={
   firstName:[/\bfirst.?name\b/i,/\bgiven.?name\b/i,/\bforename\b/i,/\bfname\b/i,/\bfirst\b/i,/\bgiven\b/i,/이름/i,/성함/i,/名前/i,/名/i,/given/i,/\bnombre\b/i,/\bprenom\b/i,/\bvorname\b/i],
   lastName:[/\blast.?name\b/i,/\bfamily.?name\b/i,/\bsurname\b/i,/\blname\b/i,/\blast\b/i,/\bfamily\b/i,/성(?!명|함)/i,/苗字/i,/姓/i,/\bapellido\b/i,/\bnom\b/i,/\bnachname\b/i],
-  name:[/\bname\b/i,/\bfull.?name\b/i,/\byour.*name\b/i,/\bcontact.*name\b/i,/\bcustomer.*name\b/i,/\bsender.*name\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/contact/i,/client/i],
+  name:[/\bname\b/i,/\bfull.?name\b/i,/\byour.*name\b/i,/\bcontact.*name\b/i,/\bcustomer.*name\b/i,/\bsender.*name\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/\bcontact.*person\b/i,/\bclient.*name\b/i],
   email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i],
   subject:[/subject/i,/title(?!.*name)/i,/제목/i,/件名/i,/主题/i,/topic/i,/heading/i],
   phone:[/phone/i,/mobile/i,/tel(?!eg)/i,/전화/i,/手机/i,/电话/i,/fax/i],
-  message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/text/i,/detail/i,/note/i]
+  message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/detail/i,/note/i,/\bmessage.*text\b/i,/\bbody.*text\b/i]
 };
 
 // [v4.12.27] Smart Name Splitter
@@ -199,23 +199,23 @@ function generateSmartRandomValue(el) {
     return '123 Business Rd, New York, NY';
   }
   if (/subject|제목|title/i.test(c)) {
-    return tpl.subject || 'Business Inquiry';
+    return tpl.subject || '';
   }
   if (el.tagName === 'TEXTAREA' || /message|content|body|내용/i.test(c)) {
-    return tpl.message || 'Hello, I would like to inquire about your services. Please contact me back.';
+    return tpl.message || '';
   }
   
   // 성/이름 필드 스마트 스플리터 적용
   if (/last.?name|family.?name|surname|성(?!명)/i.test(c)) {
     const s = splitName(tpl.name);
-    return tpl.lastName || s.last || 'Kim';
+    return tpl.lastName || s.last || '';
   }
   if (/first.?name|given.?name/i.test(c)) {
     const s = splitName(tpl.name);
-    return tpl.firstName || s.first || 'Gildong';
+    return tpl.firstName || s.first || '';
   }
   if (/name|이름|성함|성명/i.test(c)) {
-    return tpl.name || 'Gildong Hong';
+    return tpl.name || '';
   }
   
   return getRandomTemplateVal();
