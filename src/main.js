@@ -26,6 +26,9 @@ if (_envPath) {
 const { BrowserWindow, session, ipcMain, shell, webContents, dialog, Menu, MenuItem, clipboard } = electron;
 const log  = require('electron-log');
 
+// ─── 인증 및 세션 매니저 (순환 참조 방지를 위해 우선 임포트) ────────────────────
+const authService = require('./auth/auth-service');
+
 // ─── Campaign Engine (AutoForm Sender Pro) ────────────────────
 const campaignEngine = require('./campaign-engine');
 
@@ -374,7 +377,7 @@ ipcMain.on('window-control', (_, action) => {
 });
 
 // ─── 인증 IPC ─────────────────────────────────────────────────
-const authService = require('./auth/auth-service');
+
 
 ipcMain.handle('auth-login', async (_, { email, password }) => {
   const result = await authService.login(email, password);
