@@ -682,36 +682,98 @@ function inferValue(el){
 
 async function bestForm(){
   let targetForm = null;
-  for(let attempt=0; attempt<10; attempt++){
+  
+  // [v4.12.44] Shadow DOM을 포함하여 폼 후보 요소를 전방위 재귀 스캔하는 초강력 헬퍼 함수
+  const findCandidatesIncludingShadowDOM = (root = document) => {
+    const candidates = [];
     const selectors = [
-      '[data-hook="wix-form"]', '[data-hook="cf-form"]', 'form[class*="form"]',
-      '[class*="contact-form"]', '[id*="contact-form"]', '[class*="wix-form"]',
+      '[data-hook="wix-form"]', '[data-hook="cf-form"]', 'form[class*="form" i]',
+      '[class*="contact-form" i]', '[id*="contact-form" i]', '[class*="wix-form" i]',
       '.wpcf7-form', '.gform_wrapper', '.ninja-forms-form', '.wpforms-form',
-      'form', 'fieldset', '.form-wrapper', '.sqs-block-form', 'section[class*="form"]',
-      '[role="form"]', '.form-container', '.contact-container', '[data-testid*="form" i]',
-      'div[class*="Form" i]', 'div[id*="Form" i]', 'form[id*="contact" i]', 'form[class*="contact" i]'
+      'form', 'fieldset', '.form-wrapper', '.sqs-block-form', 'section[class*="form" i]',
+      '[role="form"]', '[class*="form-container" i]', '[id*="form-container" i]'
     ];
     
-    let bestTarget = null;
-    let maxScore = -999;
-    
-    const queryInputs = (root) => Array.from((root || document).querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=checkbox]):not([type=radio]),textarea,select'));
-    
-    const candidates = [];
+    // 1. 표준 셀렉터 매칭
     selectors.forEach(sel => {
       try {
-        document.querySelectorAll(sel).forEach(el => {
-          if(el && !candidates.includes(el)) candidates.push(el);
+        root.querySelectorAll(sel).forEach(el => {
+          if (el && !candidates.includes(el)) candidates.push(el);
         });
       } catch(e) {}
     });
     
+    // 2. Shadow DOM 내부 재귀 탐색
+    const recurseShadows = (node) => {
+      if (!node) return;
+      if (node.shadowRoot) {
+        selectors.forEach(sel => {
+          try {
+            node.shadowRoot.querySelectorAll(sel).forEach(el => {
+              if (el && !candidates.includes(el)) candidates.push(el);
+            });
+          } catch(e) {}
+        });
+        recurseShadows(node.shadowRoot);
+      }
+      let child = node.firstChild;
+      while (child) {
+        recurseShadows(child);
+        child = child.nextSibling;
+      }
+      
+      if (node.querySelectorAll) {
+        node.querySelectorAll('*').forEach(el => {
+          if (el.shadowRoot) recurseShadows(el);
+        });
+      }
+    };
+    recurseShadows(root);
+    return candidates;
+  };
+
+  for(let attempt=0; attempt<10; attempt++){
+    let bestTarget = null;
+    let maxScore = -999;
+    
+    const queryInputs = (root) => {
+      const inputs = [];
+      const query = (node) => {
+        if (!node) return;
+        try {
+          // 표준 인풋 쿼리
+          node.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]),textarea,select').forEach(inp => {
+            if (!inputs.includes(inp)) inputs.push(inp);
+          });
+        } catch(e) {}
+        
+        // Shadow DOM 내 인풋 탐색
+        if (node.shadowRoot) {
+          query(node.shadowRoot);
+        }
+        
+        if (node.querySelectorAll) {
+          node.querySelectorAll('*').forEach(el => {
+            if (el.shadowRoot) query(el.shadowRoot);
+          });
+        }
+      };
+      query(root || document);
+      return inputs;
+    };
+    
+    // 1. 섀도우 DOM을 포함한 전방위 폼 후보 수집
+    const candidates = findCandidatesIncludingShadowDOM();
+    
     const allInputs = queryInputs();
+    // 2. 후보가 전혀 없을 때 입력창들의 부모 요소를 역추적하여 후보군 생성 (안전망 폴백)
     if (candidates.length === 0 && allInputs.length >= 1) {
       allInputs.forEach(inp => {
         let p = inp.parentElement;
-        for(let depth=0; depth<4 && p; depth++) { // depth 4층 확장
-          if(p && p !== document.body && p !== document.documentElement && !candidates.includes(p)) candidates.push(p);
+        for(let depth=0; depth<4 && p; depth++) {
+          if(p && p !== document.body && p !== document.documentElement && !candidates.includes(p)) {
+            candidates.push(p);
+          }
           p = p.parentElement;
         }
       });
@@ -723,23 +785,28 @@ async function bestForm(){
       const inputs = queryInputs(el);
       if(inputs.length < 1) return;
       
-      if(el.tagName === 'FORM') score += 250; // FORM 태그 기본 점수 상향
+      // FORM 태그 가중치
+      if(el.tagName === 'FORM') score += 200;
       
+      // 요소 내부의 핵심 필드들 매칭 수 카운팅 (대소문자 구분 없이 i플래그 적용)
       const textareas = el.querySelectorAll('textarea').length;
       const emails = el.querySelectorAll('input[type="email"], input[name*="email" i], input[id*="email" i]').length;
-      const phones = el.querySelectorAll('input[type="tel"], input[name*="phone" i], input[id*="phone" i], input[name*="tel" i]').length;
+      const phones = el.querySelectorAll('input[type="tel" i], input[name*="phone" i], input[id*="phone" i], input[name*="tel" i]').length;
       const names = el.querySelectorAll('input[name*="name" i], input[id*="name" i], input[placeholder*="name" i]').length;
       
-      score += textareas * 80;
-      score += emails * 60;
-      score += phones * 55;
+      score += textareas * 80; // 가중치 강화
+      score += emails * 70;
+      score += phones * 50;
       score += names * 35;
-      score += inputs.length * 20;
+      score += inputs.length * 15;
       
-      // 🌟 [초강력 문의 폼 핑거프린트 필터] 이메일과 함께 본문(textarea) 또는 이름이 존재하면 문의 양식이 확실하므로 +400점 보너스 폭등
-      if (emails >= 1 && (textareas >= 1 || names >= 1)) {
-        score += 400;
-      }
+      // 3대 필수 요소(이름, 이메일, 본문) 중 3가지 이상이 조화롭게 다수 존재 시 추가 신뢰도 보너스
+      let coreMatchCount = 0;
+      if (textareas > 0) coreMatchCount++;
+      if (emails > 0) coreMatchCount++;
+      if (names > 0) coreMatchCount++;
+      if (phones > 0) coreMatchCount++;
+      if (coreMatchCount >= 3) score += 300; // 초강력 폼 식별 보너스
       
       const id = (el.id || '').toLowerCase();
       const cls = (el.className || '').toString().toLowerCase();
@@ -749,18 +816,17 @@ async function bestForm(){
       if(info.includes('gform') || info.includes('gravity')) score += 350;
       if(info.includes('ninja') || info.includes('nf-')) score += 300;
       if(info.includes('wixui') || info.includes('wix-form')) score += 250;
-      if(info.includes('contact') || info.includes('message') || info.includes('inquiry') || info.includes('contact-form') || info.includes('feedback')) score += 150;
+      if(info.includes('contact') || info.includes('message') || info.includes('inquiry') || info.includes('contact-form') || info.includes('feedback')) score += 120;
       
-      // 🚫 [오인 방지 필터] 검색창, 로그인창, 구독 폼 등은 감점 대폭 부여
-      if(info.includes('search') || id.includes('search') || cls.includes('search')) score -= 900;
-      if(info.includes('login') || id.includes('login') || cls.includes('login') || info.includes('signin')) score -= 850;
-      if(info.includes('newsletter') || id.includes('newsletter') || cls.includes('newsletter') || info.includes('subscribe')) score -= 500;
+      // 검색용 유사 폼 배제 패널티
+      if(info.includes('search') || id.includes('search') || cls.includes('search')) score -= 950;
       
-      const submitBtn = el.querySelector('input[type="submit"], button[type="submit"], button:not([type="button"]), [role="button"], [class*="submit" i], [id*="submit" i], [class*="btn" i]');
+      // 제출 버튼 매칭
+      const submitBtn = el.querySelector('input[type="submit"], button[type="submit"], button:not([type="button"]), [role="button"], [class*="submit" i], [id*="submit" i]');
       if (submitBtn) {
         score += 80;
         const btnText = (submitBtn.textContent || submitBtn.value || '').toLowerCase();
-        if (['send', 'submit', 'message', 'inquiry', '전송', '보내기', '문의', '접수', '送信', 'contact'].some(k => btnText.includes(k))) score += 100;
+        if (['send', 'submit', 'message', 'inquiry', '전송', '보내기', '문의', '접수', '送信'].some(k => btnText.includes(k))) score += 100;
       }
       
       if(score > maxScore) {
@@ -769,7 +835,7 @@ async function bestForm(){
       }
     });
     
-    if(bestTarget && maxScore >= 15) { // 임계 유효 점수를 15점으로 설정
+    if(bestTarget && maxScore >= 10) {
       targetForm = bestTarget;
       break;
     }
@@ -1289,23 +1355,39 @@ async function processTarget(targetUrl, template) {
                     const reason = result ? result.reason : 'NO_RESULT';
                     sendLog(`⚠️ [Step 4/4] Path ${path} unsuccessful (Reason: ${reason}).`, 'warning');
                     
-                    if (reason === 'NO_FORM') {
-                        // [v4.12.44] 폼이 존재하지 않거나 없는 페이지인 경우: 지체 없이 바로 그 탭을 닫고 다음 단계로 빠르게 이행
-                        sendLog(`🚫 이 페이지에는 폼이 존재하지 않습니다. 즉시 탭을 정리하고 다음으로 이동합니다.`, 'info');
+                    // [v4.12.44] 폼이 아예 존재하지 않거나('NO_FORM') 없는 페이지(404, 500, Failed 등)인 경우 3분 대기 없이 바로 탭 닫기!
+                    let isNotFoundOrNoForm = (reason === 'NO_FORM');
+                    
+                    if (!isNotFoundOrNoForm) {
+                        try {
+                            const tabTitle = tabWC ? (tabWC.getTitle() || '').toLowerCase() : '';
+                            const tabUrl = tabWC ? (tabWC.getURL() || '').toLowerCase() : '';
+                            
+                            // 404, Not Found, 500, error, 없는 페이지 핑거프린트 감지
+                            if (tabTitle.includes('404') || tabTitle.includes('not found') || tabTitle.includes('error') || 
+                                tabTitle.includes('failed') || tabTitle.includes('디렉터리') || tabTitle.includes('site cant be reached') ||
+                                tabUrl.includes('error') || tabUrl.includes('404')) {
+                                isNotFoundOrNoForm = true;
+                            }
+                        } catch(e) {}
+                    }
+                    
+                    if (isNotFoundOrNoForm) {
+                        sendLog(`🛑 없는 페이지거나 폼이 존재하지 않는 탭입니다. 대기 없이 탭을 즉시 닫고 다음 타겟으로 이동합니다.`, 'info');
                         const tempTab = tabWC;
                         if (tempTab && !tempTab.isDestroyed()) {
                             await closeXpiderTab(tempTab);
                         }
                     } else {
-                        // [v4.12.44] 확실한 폼이 존재하는 콘택트 페이지이나 등록/성공 미확인 상태 ➡️ 3분 대기 인터벌 보장
+                        // [v4.12.43] 실질적 제출 오류 또는 캡챠 대기 등으로 결과 성공 미확인 시에만 3분 인터벌 대기 가동
                         clearTimeout(globalTimer);
                         
-                        sendLog(`⏳ 등록/성공 미확인 (폼 발견됨): 3분(180초) 대기 지연(인터벌)을 시작합니다. 탭을 열어둔 상태로 대기합니다.`, 'info');
+                        sendLog(`⏳ 등록/성공 미확인: 3분(180초) 대기 지연(인터벌)을 시작합니다. 탭을 열어둔 상태로 대기합니다.`, 'info');
                         const holdStart = Date.now();
                         const holdDuration = 180000; // 3분 (180,000ms)
                         while (Date.now() - holdStart < holdDuration && !state.cancelled) {
                             const remainingSec = Math.ceil((holdDuration - (Date.now() - holdStart)) / 1000);
-                            if (remainingSec % 30 === 0) { // 30초마다 카운트다운 로그 송출
+                            if (remainingSec % 30 === 0) { // 30초마다 남은 대기 지연 카운트 노출
                                 sendLog(`⏳ [Hold] 탭 유지 중... 다음 프로세싱까지 ${remainingSec}초 대기 중...`, 'debug');
                             }
                             await new Promise(r => setTimeout(r, 1000));
