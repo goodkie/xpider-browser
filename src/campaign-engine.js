@@ -450,7 +450,7 @@ async function solveMathCaptchas(container){
     // Gather all text clues: label, placeholder, aria-label, nearby text
     const clues=(getFieldId(el)+' '+lbl(el)).toLowerCase();
     // Quick gate: must contain a captcha/math/quiz/verify/spam/human keyword OR a math expression
-    if(!/captcha|math|quiz|verify|spam|human|bot|security|check|prove|계산|확인|검증|認証|验证|\d\s*[+\-×x*÷\/]\s*\d/i.test(clues))continue;
+    if(!/captcha|math|quiz|verify|spam|human|bot|security|check|prove|계산|확인|검증|認証|验证|\\d\\s*[+\\-×x*÷\\/]\\s*\\d/i.test(clues))continue;
     // Extract math expressions from the clue text
     // Patterns: "5+1=", "5 + 1", "What is 5+1?", "5+1 =", "5 plus 1", "5 × 3", "5 * 3", "5 - 2", "15 / 3", "15÷3"
     const allText=(lbl(el)+' '+(el.placeholder||'')+' '+(el.getAttribute('aria-label')||'')).trim();
@@ -460,7 +460,7 @@ async function solveMathCaptchas(container){
     for(let i=0;i<4&&p;i++){
       const texts=Array.from(p.childNodes).filter(n=>n.nodeType===3||['LABEL','SPAN','P','DIV','STRONG','B','EM'].includes(n.tagName)).map(n=>n.textContent||'').join(' ');
       if(texts.length>contextText.length)contextText=texts;
-      if(/\d\s*[+\-×x*÷\/]\s*\d/.test(contextText))break;
+      if(/\\d\\s*[+\\-×x*÷\\/]\\s*\\d/.test(contextText))break;
       p=p.parentElement;
     }
     // Try to find and solve the math expression
@@ -477,24 +477,24 @@ async function solveMathCaptchas(container){
 
 function parseMathExpression(text){
   // Normalize: × → *, ÷ → /, x (multiplication) → *
-  let t=text.replace(/×/g,'*').replace(/÷/g,'/').replace(/[Xx](?=\s*\d)/g,'*');
+  let t=text.replace(/×/g,'*').replace(/÷/g,'/').replace(/[Xx](?=\\s*\\d)/g,'*');
   // Replace word operators
-  t=t.replace(/\bplus\b/gi,'+').replace(/\bminus\b/gi,'-').replace(/\btimes\b/gi,'*').replace(/\bmultiplied\s*by\b/gi,'*').replace(/\bdivided\s*by\b/gi,'/');
+  t=t.replace(/\\bplus\\b/gi,'+').replace(/\\bminus\\b/gi,'-').replace(/\\btimes\\b/gi,'*').replace(/\\bmultiplied\\s*by\\b/gi,'*').replace(/\\bdivided\\s*by\\b/gi,'/');
   // Match patterns: "5 + 1 =", "5+1", "What is 5 + 1", etc.
   // Try multi-operand expressions first: "2 + 3 + 4 ="
-  const multiMatch=t.match(/(\d+(?:\s*[+\-*/]\s*\d+)+)\s*[=?]?/);
+  const multiMatch=t.match(/(\\d+(?:\\s*[+\\-\\*\\/]\\s*\\d+)+)\\s*[=?]?/);
   if(multiMatch){
     try{
       // Safe eval: only allow digits and +-*/
-      const expr=multiMatch[1].replace(/\s/g,'');
-      if(/^[\d+\-*/().]+$/.test(expr)){
+      const expr=multiMatch[1].replace(/\\s/g,'');
+      if(/^[\\d+\\-\\*\\/().]+$/.test(expr)){
         const result=Function('"use strict";return ('+expr+')')();
         if(typeof result==='number'&&isFinite(result))return Math.round(result*1000)/1000;
       }
     }catch(e){}
   }
   // Simple two-operand: "5 + 1"
-  const simpleMatch=t.match(/(\d+)\s*([+\-*/])\s*(\d+)/);
+  const simpleMatch=t.match(/(\\d+)\\s*([+\\-\\*\\/])\\s*(\\d+)/);
   if(simpleMatch){
     const a=parseFloat(simpleMatch[1]),op=simpleMatch[2],b=parseFloat(simpleMatch[3]);
     switch(op){
