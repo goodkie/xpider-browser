@@ -1267,21 +1267,43 @@ async function processTarget(targetUrl, template) {
 
                     sendLog(`✅ [Step 4/4] Success! Form submitted (${result.filled} fields matched & filled).`, 'success');
                     sendLog(`🎯 Contact action definitively completed on ${contactUrl}.`, 'debug');
-                    // Keep the tab open briefly so user can see the confirmation
-                    const tempTab = tabWC;
-                    setTimeout(() => {
-                        if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab);
-                    }, 5000);
-                    done({ success: true });
-                    return;
-                } else {
-                    const reason = result ? result.reason : 'NO_RESULT';
-                    sendLog(`⚠️ [Step 4/4] Path ${path} unsuccessful (Reason: ${reason}). Retrying next...`, 'warning');
-                    // ✅ Close tab immediately on failure
+                    
+                    // [v4.12.43] 성공 시 즉시 탭 닫기 진행 (500ms 후 즉각 폐쇄)
                     const tempTab = tabWC;
                     setTimeout(() => {
                         if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab);
                     }, 500);
+                    done({ success: true });
+                    return;
+                } else {
+                    const reason = result ? result.reason : 'NO_RESULT';
+                    sendLog(`⚠️ [Step 4/4] Path ${path} unsuccessful (Reason: ${reason}).`, 'warning');
+                    
+                    // [v4.12.43] 등록/성공 미확인 상태 ➡️ 글로벌 타임아웃 해제 후 3분의 인터벌 대기 가동
+                    clearTimeout(globalTimer);
+                    
+                    sendLog(`⏳ 등록/성공 미확인: 3분(180초) 대기 지연(인터벌)을 시작합니다. 탭을 열어둔 상태로 대기합니다.`, 'info');
+                    const holdStart = Date.now();
+                    const holdDuration = 180000; // 3분 (180,000ms)
+                    while (Date.now() - holdStart < holdDuration && !state.cancelled) {
+                        const remainingSec = Math.ceil((holdDuration - (Date.now() - holdStart)) / 1000);
+                        if (remainingSec % 30 === 0) { // 30초마다 남은 대기 지연 카운트 노출
+                            sendLog(`⏳ [Hold] 탭 유지 중... 다음 프로세싱까지 ${remainingSec}초 대기 중...`, 'debug');
+                        }
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+                    
+                    if (state.cancelled) {
+                        sendLog(`🛑 대기 중 사용자가 캠페인을 취소했습니다.`, 'stop');
+                    } else {
+                        sendLog(`🧹 [Hold End] 3분 대기가 만료되었습니다. 탭을 닫고 다음 단계로 이동합니다.`, 'info');
+                    }
+
+                    // 3분 대기 완료 혹은 중지 시 탭 강제 닫기
+                    const tempTab = tabWC;
+                    if (tempTab && !tempTab.isDestroyed()) {
+                        await closeXpiderTab(tempTab);
+                    }
                 }
             }
 
