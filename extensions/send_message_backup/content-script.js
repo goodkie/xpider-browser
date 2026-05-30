@@ -49,9 +49,9 @@
     };
 
     const FIELD_PATTERNS = {
-        firstName: [/first.*name/i, /given.*name/i, /이름/i, /名前/i, /名/i, /nombre/i, /vorname/i, /prénom/i],
-        lastName: [/last.*name/i, /family.*name/i, /surname/i, /성(?!명|함)/i, /苗字/i, /姓/i, /apellido/i, /nachname/i, /nom.*famille/i],
-        name: [/name/i, /fullname/i, /성함/i, /氏名/i, /姓名/i, /user/i, /contact.*person/i, /nombre.*completo/i],
+        firstName: [/\bfirst.?name\b/i,/\bgiven.?name\b/i,/\bforename\b/i,/\bfname\b/i,/\bfirst\b/i,/\bgiven\b/i,/이름/i,/성함/i,/名前/i,/名/i,/given/i,/\bnombre\b/i,/\bprenom\b/i,/\bvorname\b/i],
+        lastName: [/\blast.?name\b/i,/\bfamily.?name\b/i,/\bsurname\b/i,/\blname\b/i,/\blast\b/i,/\bfamily\b/i,/성(?!명|함)/i,/苗字/i,/姓/i,/\bapellido\b/i,/\bnom\b/i,/\bnachname\b/i],
+        name: [/\bname\b/i,/\bfull.?name\b/i,/\byour.*name\b/i,/\bcontact.*name\b/i,/\bcustomer.*name\b/i,/\bsender.*name\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/contact/i,/client/i],
         email: [/email/i, /e-mail/i, /이메일/i, /メール/i, /邮箱/i, /correo/i, /courriel/i, /correo.*electrónico/i],
         subject: [/subject/i, /title/i, /제목/i, /件名/i, /主题/i, /topic/i, /asunto/i, /betreff/i, /objet/i],
         phone: [/phone/i, /tel/i, /mobile/i, /contact/i, /전화/i, /연락처/i, /電話/i, /手机/i, /电话/i, /teléfono/i, /telefon/i, /téléphone/i],
@@ -1591,9 +1591,20 @@
             const fNameVal = tpl.firstName || sName.first || tpl.name;
             const lNameVal = tpl.lastName || sName.last || '';
 
-            if (await matchField(FIELD_PATTERNS.firstName, fNameVal, el)) continue;
-            if (await matchField(FIELD_PATTERNS.lastName, lNameVal, el)) continue;
-            if (await matchField(FIELD_PATTERNS.name, tpl.name, el)) continue;
+            // [v4.12.37] 성/이름 상호 배제 필터링 (Exclusive Filtering)으로 오폭 매칭 완벽 차단
+            const label = getLabelFor(el).toLowerCase();
+            const placeholder = (el.placeholder || '').toLowerCase();
+            const nameAttr = (el.name || '').toLowerCase();
+            const idAttr = (el.id || '').toLowerCase();
+            const clsAttr = (el.className || '').toString().toLowerCase();
+            const cText = `${label} ${placeholder} ${nameAttr} ${idAttr} ${clsAttr}`.toLowerCase();
+
+            const isLastExclusive = cText.includes('first') || cText.includes('given') || cText.includes('fname');
+            const isFirstExclusive = cText.includes('last') || cText.includes('surname') || cText.includes('family') || cText.includes('lname');
+
+            if (!isFirstExclusive && await matchField(FIELD_PATTERNS.firstName, fNameVal, el)) continue;
+            if (!isLastExclusive && await matchField(FIELD_PATTERNS.lastName, lNameVal, el)) continue;
+            if (!isFirstExclusive && !isLastExclusive && await matchField(FIELD_PATTERNS.name, tpl.name, el)) continue;
             if (await matchField(FIELD_PATTERNS.email, tpl.email, el)) continue;
             if (await matchField(FIELD_PATTERNS.phone, tpl.phone, el)) continue;
             if (await matchField(FIELD_PATTERNS.subject, tpl.subject, el)) continue;

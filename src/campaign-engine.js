@@ -114,11 +114,11 @@ try {
 
 const tpl=${tplJson};
 
-// Primary field patterns
+// Primary field patterns (v4.12.37 - Multi-lingual Supreme Matchers)
 const P={
-  firstName:[/first.?name/i,/given.?name/i,/이름/i,/名前/i],
-  lastName:[/last.?name/i,/family.?name/i,/surname/i,/성(?!명|함)/i],
-  name:[/\bname\b/i,/full.?name/i,/your.*name/i,/contact.*name/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i],
+  firstName:[/\bfirst.?name\b/i,/\bgiven.?name\b/i,/\bforename\b/i,/\bfname\b/i,/\bfirst\b/i,/\bgiven\b/i,/이름/i,/성함/i,/名前/i,/名/i,/given/i,/\bnombre\b/i,/\bprenom\b/i,/\bvorname\b/i],
+  lastName:[/\blast.?name\b/i,/\bfamily.?name\b/i,/\bsurname\b/i,/\blname\b/i,/\blast\b/i,/\bfamily\b/i,/성(?!명|함)/i,/苗字/i,/姓/i,/\bapellido\b/i,/\bnom\b/i,/\bnachname\b/i],
+  name:[/\bname\b/i,/\bfull.?name\b/i,/\byour.*name\b/i,/\bcontact.*name\b/i,/\bcustomer.*name\b/i,/\bsender.*name\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/contact/i,/client/i],
   email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i],
   subject:[/subject/i,/title(?!.*name)/i,/제목/i,/件名/i,/主题/i,/topic/i,/heading/i],
   phone:[/phone/i,/mobile/i,/tel(?!eg)/i,/전화/i,/手机/i,/电话/i,/fax/i],
@@ -788,7 +788,12 @@ async function fill(c){
         val = tpl.lastName || s.last || '';
       }
       
+      // [v4.12.37] 성/이름 상호 배제 필터링 (Exclusive Filtering)으로 오폭 매칭 완벽 차단
       const c2=getFieldId(el);
+      if (k === 'lastName' && (c2.includes('first') || c2.includes('given') || c2.includes('fname'))) continue;
+      if (k === 'firstName' && (c2.includes('last') || c2.includes('surname') || c2.includes('family') || c2.includes('lname'))) continue;
+      if (k === 'name' && (c2.includes('first') || c2.includes('last') || c2.includes('surname') || c2.includes('family') || c2.includes('given'))) continue;
+      
       if(val && val.trim() !== '' && P[k].some(r=>r.test(c2))){
         if(await tv(el,val)){used.add(k);n++;await new Promise(r=>setTimeout(r,150));break;}
       }
