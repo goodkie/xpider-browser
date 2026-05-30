@@ -221,7 +221,24 @@ function generateSmartRandomValue(el) {
   return getRandomTemplateVal();
 }
 
-// [v4.12.26] Stealth Human-like typing simulation — types character by character with delays and mistake corrections
+// [v4.12.31] React/Vue/Angular Native Value Setter Utility to bypass virtual DOM state synchronization
+function setNativeValue(el, val) {
+  try {
+    const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype
+                : el.tagName === 'SELECT' ? HTMLSelectElement.prototype
+                : HTMLInputElement.prototype;
+    const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value');
+    if (nativeSetter && nativeSetter.set) {
+      nativeSetter.set.call(el, val);
+    } else {
+      el.value = val;
+    }
+  } catch (e) {
+    el.value = val;
+  }
+}
+
+// [v4.12.31] Stealth Human-like typing simulation — types character by character with native setters
 async function tv(el,v){
   if(!v||!el||el.disabled||el.readOnly)return false;
   
@@ -235,7 +252,7 @@ async function tv(el,v){
     el.select&&el.select();
     document.execCommand('selectAll',false,null);
     document.execCommand('delete',false,null);
-  } catch(e) { el.value = ''; }
+  } catch(e) { setNativeValue(el, ''); }
   
   // Typist simulator
   const chars = Array.from(v);
@@ -251,19 +268,19 @@ async function tv(el,v){
       
       // Inject typo
       currentVal += typo;
-      el.value = currentVal;
+      setNativeValue(el, currentVal);
       el.dispatchEvent(new InputEvent('input', {bubbles:true, data:typo}));
       await new Promise(r=>setTimeout(r, 100 + Math.random()*120));
       
       // Delete typo (Backspace simulation)
       currentVal = currentVal.slice(0, -1);
-      el.value = currentVal;
+      setNativeValue(el, currentVal);
       el.dispatchEvent(new InputEvent('input', {bubbles:true, inputType: 'deleteContentBackward'}));
       await new Promise(r=>setTimeout(r, 120 + Math.random()*80));
     }
     
     currentVal += char;
-    el.value = currentVal;
+    setNativeValue(el, currentVal);
     
     // Dispatch rich keyboard and input events
     const keyOpts = {bubbles:true, cancelable:true, key:char, charCode:char.charCodeAt(0)};
@@ -277,8 +294,9 @@ async function tv(el,v){
     await new Promise(r=>setTimeout(r, delay));
   }
   
-  // React / Framework synchronization
-  ['change', 'blur'].forEach(t=>
+  // [v4.12.31] Dual-Layer Sync Safeguard: Force update React/Vue state
+  setNativeValue(el, v);
+  ['input', 'change', 'blur'].forEach(t=>
     el.dispatchEvent(new Event(t,{bubbles:true,cancelable:true}))
   );
   
