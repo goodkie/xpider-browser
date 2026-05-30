@@ -642,6 +642,73 @@ async function fill(c){
     const inferred=inferValue(el);
     if(inferred){await tv(el,inferred);n++;await new Promise(r=>setTimeout(r,100));}
   }
+
+  // ═══ Pass 9: Super-BruteForce Final Target Sweeper (초강력 무작위 및 잔여 필드 전수 입력) ═══
+  try {
+    const finalInputs = Array.from(c.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]),textarea,select'));
+    const templateVals = [tpl.firstName, tpl.lastName, tpl.name, tpl.email, tpl.phone, tpl.subject, tpl.message].filter(v => typeof v === 'string' && v.trim() !== '');
+    const getRandomTemplateVal = () => {
+      if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
+      return "Inquiry";
+    };
+
+    for(const el of finalInputs) {
+      if(el.disabled || el.readOnly) continue;
+      
+      // 이미 체크되었거나 값이 입력된 것은 스킵
+      if(el.type === 'checkbox' && el.checked) continue;
+      if(el.type === 'radio' && el.checked) continue;
+      
+      const currentVal = el.contentEditable === 'true' ? (el.textContent || '') : (el.value || '');
+      if((el.tagName !== 'SELECT' && el.type !== 'checkbox' && el.type !== 'radio') && currentVal.trim() !== '') continue;
+      
+      if(el.tagName === 'SELECT') {
+        if(await fillSelect(el)) { n++; }
+        else {
+          const opts = Array.from(el.options);
+          const validIdx = opts.findIndex((o, i) => i > 0 && o.value && o.value.trim() !== '' && !o.disabled);
+          if(validIdx > 0) {
+            await humanClick(el);
+            el.selectedIndex = validIdx;
+            el.value = opts[validIdx].value;
+            ['input','change','blur'].forEach(t=>el.dispatchEvent(new Event(t,{bubbles:true})));
+            n++;
+            await new Promise(r=>setTimeout(r,100));
+          }
+        }
+      } else if(el.type === 'checkbox') {
+        await humanClick(el);
+        el.checked = true;
+        ['input','change','click'].forEach(t=>el.dispatchEvent(new Event(t,{bubbles:true})));
+        n++;
+        await new Promise(r=>setTimeout(r,100));
+      } else if(el.type === 'radio') {
+        await humanClick(el);
+        el.checked = true;
+        ['input','change'].forEach(t=>el.dispatchEvent(new Event(t,{bubbles:true})));
+        n++;
+        await new Promise(r=>setTimeout(r,100));
+      } else {
+        let val = null;
+        const c2 = getFieldId(el);
+        
+        if(/email|mail/i.test(c2)) val = tpl.email;
+        else if(/phone|tel|mobile|전화|연락처/i.test(c2)) val = tpl.phone;
+        else if(/company|회사|org/i.test(c2)) val = (tpl.name || 'Company') + ' Inc.';
+        else if(/address|주소/i.test(c2)) val = 'Seoul, Korea';
+        else if(/zip|postal|우편/i.test(c2)) val = '06000';
+        else if(/subject|제목|title/i.test(c2)) val = tpl.subject;
+        else if(el.tagName === 'TEXTAREA' || el.contentEditable === 'true') val = tpl.message || getRandomTemplateVal();
+        else val = getRandomTemplateVal();
+
+        if(val) {
+          await tv(el, val);
+          n++;
+          await new Promise(r=>setTimeout(r,100));
+        }
+      }
+    }
+  } catch(e) {}
   
   return n;
 }
