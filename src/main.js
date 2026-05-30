@@ -3024,11 +3024,26 @@ async function _scanUrlWithHiddenWin(url, waitMs = 6000) {
             });
         }
 
-        // [v3.2] Cloudflare / 봇 차단 페이지 감지 — 잘못된 데이터 수집 방지
+        // [v4.12.27] Cloudflare / 봇 차단 페이지 감지 — Clearance 획득을 위한 캡챠 솔버 모달 연동
         const isBlocked = await _isBlockedPage(wc);
         if (isBlocked) {
-            log.warn(`[ScanWin] 봇 차단 페이지 감지 (Cloudflare 등) → 건너뜀: ${url.substring(0, 60)}`);
-            return EMPTY;
+            const blockUrl = wc.getURL();
+            log.warn(`[ScanWin] 봇 차단 페이지 감지 (Cloudflare 등) → Clearance 획득을 위해 캡챠 솔버창 활성화: ${blockUrl.substring(0, 60)}`);
+            const resolved = await _handleCaptchaDetected(blockUrl);
+            if (!resolved) {
+                log.warn('[ScanWin] Cloudflare 챌린지 미해결 — 이 URL 건너뜀');
+                return EMPTY;
+            }
+            // Clearance 쿠키 획득 후 원본 URL 재시도
+            log.info('[ScanWin] Cloudflare 챌린지 해결 — 원본 URL 재시도:', url);
+            await new Promise((resolve2) => {
+                let done = false;
+                const finish2 = (d = 0) => { if (!done) { done = true; setTimeout(resolve2, d); } };
+                const t2 = setTimeout(() => finish2(), waitMs + 5000);
+                wc.once('did-finish-load', () => { clearTimeout(t2); finish2(1500); });
+                wc.once('did-fail-load',   () => { clearTimeout(t2); finish2(2000); });
+                wc.loadURL(url, { userAgent: UA }).catch(() => finish2(2000));
+            });
         }
 
         const result = await wc.executeJavaScript(`

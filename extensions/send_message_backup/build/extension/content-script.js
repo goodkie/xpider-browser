@@ -1386,6 +1386,104 @@
             return false;
         };
 
+        // [v4.12.27] Smart Name Splitter
+        function splitName(fullName) {
+            if (!fullName) return { first: 'John', last: 'Doe' };
+            const trimmed = fullName.trim();
+            const hangulRegex = /^[가-힣]+$/;
+            if (hangulRegex.test(trimmed)) {
+                if (trimmed.length === 3) {
+                    return { last: trimmed.charAt(0), first: trimmed.substring(1) };
+                } else if (trimmed.length === 2) {
+                    return { last: trimmed.charAt(0), first: trimmed.charAt(1) };
+                } else if (trimmed.length === 4) {
+                    const doubleSurnames = ['황보', '독고', '사공', '남궁', '제갈', '서문'];
+                    const prefix2 = trimmed.substring(0, 2);
+                    if (doubleSurnames.includes(prefix2)) {
+                        return { last: prefix2, first: trimmed.substring(2) };
+                    }
+                    return { last: trimmed.charAt(0), first: trimmed.substring(1) };
+                }
+            }
+            const parts = trimmed.split(/\s+/);
+            if (parts.length > 1) {
+                const last = parts.pop();
+                const first = parts.join(' ');
+                return { first, last };
+            }
+            return { first: trimmed, last: trimmed };
+        }
+
+        // [v4.12.27] Smart Value Generator for BruteForce fallback
+        function generateSmartRandomValue(el) {
+            const label = getLabelFor(el).toLowerCase();
+            const placeholder = (el.placeholder || '').toLowerCase();
+            const name = (el.name || '').toLowerCase();
+            const id = (el.id || '').toLowerCase();
+            const cls = (el.className || '').toString().toLowerCase();
+            const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+            const autocomplete = (el.getAttribute('autocomplete') || '').toLowerCase();
+            const c = `${label} ${placeholder} ${name} ${id} ${cls} ${ariaLabel} ${autocomplete}`.toLowerCase();
+            
+            const type = (el.type || 'text').toLowerCase();
+            
+            // 1. 숫자 전용 필드 판정
+            const isNumeric = type === 'number' || type === 'tel' || 
+                              el.getAttribute('inputmode') === 'numeric' ||
+                              /zip|postal|phone|tel|fax|mobile|number|qty|quantity|code|digit/i.test(c);
+            
+            if (isNumeric) {
+                if (/phone|tel|mobile|fax|전화|연락처|휴대폰/i.test(c)) {
+                    if (tpl.phone && tpl.phone.trim() !== '') return tpl.phone;
+                    const rand8 = Math.floor(10000000 + Math.random() * 90000000);
+                    return '010-' + String(rand8).substring(0, 4) + '-' + String(rand8).substring(4);
+                }
+                if (/zip|postal|우편/i.test(c)) {
+                    const rand5 = Math.floor(10000 + Math.random() * 90000);
+                    return String(rand5);
+                }
+                const rand2 = Math.floor(1 + Math.random() * 98);
+                return String(rand2);
+            }
+            
+            // 2. 이메일 필드 판정
+            const isEmail = type === 'email' || /email|mail/i.test(c);
+            if (isEmail) {
+                if (tpl.email && tpl.email.trim() !== '') return tpl.email;
+                const randChars = Math.random().toString(36).substring(2, 8);
+                return randChars + '@gmail.com';
+            }
+            
+            // 3. 텍스트 / 일반 글자 필드
+            if (/company|회사|org/i.test(c)) {
+                return (tpl.name || getRandomTemplateVal()) + ' Inc.';
+            }
+            if (/address|주소/i.test(c)) {
+                return '123 Business Rd, New York, NY';
+            }
+            if (/subject|제목|title/i.test(c)) {
+                return tpl.subject || 'Business Inquiry';
+            }
+            if (el.tagName === 'TEXTAREA' || /message|content|body|내용/i.test(c)) {
+                return tpl.message || 'Hello, I would like to inquire about your services. Please contact me back.';
+            }
+            
+            // 성/이름 필드 스마트 스플리터 적용
+            if (/last.?name|family.?name|surname|성(?!명)/i.test(c)) {
+                const s = splitName(tpl.name);
+                return tpl.lastName || s.last || 'Kim';
+            }
+            if (/first.?name|given.?name/i.test(c)) {
+                const s = splitName(tpl.name);
+                return tpl.firstName || s.first || 'Gildong';
+            }
+            if (/name|이름|성함|성명/i.test(c)) {
+                return tpl.name || 'Gildong Hong';
+            }
+            
+            return getRandomTemplateVal();
+        }
+
         // 템플릿 유효값 수집
         const templateVals = [
             tpl.firstName, tpl.lastName, tpl.name, tpl.email,
@@ -1488,8 +1586,12 @@
             if (el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') continue;
             if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button' || el.type === 'image' || el.type === 'file') continue;
 
-            if (await matchField(FIELD_PATTERNS.firstName, tpl.firstName || tpl.name, el)) continue;
-            if (await matchField(FIELD_PATTERNS.lastName, tpl.lastName, el)) continue;
+            const sName = splitName(tpl.name);
+            const fNameVal = tpl.firstName || sName.first || tpl.name;
+            const lNameVal = tpl.lastName || sName.last || '';
+
+            if (await matchField(FIELD_PATTERNS.firstName, fNameVal, el)) continue;
+            if (await matchField(FIELD_PATTERNS.lastName, lNameVal, el)) continue;
             if (await matchField(FIELD_PATTERNS.name, tpl.name, el)) continue;
             if (await matchField(FIELD_PATTERNS.email, tpl.email, el)) continue;
             if (await matchField(FIELD_PATTERNS.phone, tpl.phone, el)) continue;
@@ -1644,11 +1746,7 @@
                 const currentVal = el.contentEditable === 'true' ? (el.textContent || '') : (el.value || '');
                 if (currentVal.trim() !== '') continue;
 
-                // 빈 텍스트 입력창 / TEXTAREA / contentEditable 이면 무조건 강제로 임의의 템플릿 값 또는 메시지 주입!
-                if (el.tagName === 'TEXTAREA' || el.contentEditable === 'true' || el.getAttribute('role') === 'textbox') {
-                    await applyVal(el, tpl.message || getRandomTemplateVal(), 'SuperSweeper-Message');
-                    filledFields++;
-                } else if (el.tagName === 'SELECT') {
+                if (el.tagName === 'SELECT') {
                     await applySelect(el);
                     filledFields++;
                 } else if (el.type === 'checkbox') {
@@ -1658,9 +1756,12 @@
                     await applyRadio(el);
                     filledFields++;
                 } else {
-                    // 일반 input 텍스트 필드 계열
-                    await applyVal(el, getRandomTemplateVal(), 'SuperSweeper-Text');
-                    filledFields++;
+                    // [v4.12.27] 숫자/글자를 정밀 구별하여 똑똑하게 랜덤 주입
+                    const val = generateSmartRandomValue(el);
+                    if (val) {
+                        await applyVal(el, val, 'SuperSweeper-Smart');
+                        filledFields++;
+                    }
                 }
             }
         } catch (e) {

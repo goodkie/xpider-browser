@@ -125,6 +125,102 @@ const P={
   message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/text/i,/detail/i,/note/i]
 };
 
+// [v4.12.27] Smart Name Splitter
+function splitName(fullName) {
+  if (!fullName) return { first: 'John', last: 'Doe' };
+  const trimmed = fullName.trim();
+  const hangulRegex = /^[가-힣]+$/;
+  if (hangulRegex.test(trimmed)) {
+    if (trimmed.length === 3) {
+      return { last: trimmed.charAt(0), first: trimmed.substring(1) };
+    } else if (trimmed.length === 2) {
+      return { last: trimmed.charAt(0), first: trimmed.charAt(1) };
+    } else if (trimmed.length === 4) {
+      const doubleSurnames = ['황보', '독고', '사공', '남궁', '제갈', '서문'];
+      const prefix2 = trimmed.substring(0, 2);
+      if (doubleSurnames.includes(prefix2)) {
+        return { last: prefix2, first: trimmed.substring(2) };
+      }
+      return { last: trimmed.charAt(0), first: trimmed.substring(1) };
+    }
+  }
+  const parts = trimmed.split(/\s+/);
+  if (parts.length > 1) {
+    const last = parts.pop();
+    const first = parts.join(' ');
+    return { first, last };
+  }
+  return { first: trimmed, last: trimmed };
+}
+
+// [v4.12.27] Smart Value Generator for BruteForce fallback
+function generateSmartRandomValue(el) {
+  const c = getFieldId(el);
+  const type = (el.type || 'text').toLowerCase();
+  
+  // 1. 숫자 전용 필드 판정
+  const isNumeric = type === 'number' || type === 'tel' || 
+                    el.getAttribute('inputmode') === 'numeric' ||
+                    /zip|postal|phone|tel|fax|mobile|number|qty|quantity|code|digit/i.test(c);
+  
+  if (isNumeric) {
+    if (/phone|tel|mobile|fax|전화|연락처|휴대폰/i.test(c)) {
+      if (tpl.phone && tpl.phone.trim() !== '') return tpl.phone;
+      const rand8 = Math.floor(10000000 + Math.random() * 90000000);
+      return '010-' + String(rand8).substring(0, 4) + '-' + String(rand8).substring(4);
+    }
+    if (/zip|postal|우편/i.test(c)) {
+      const rand5 = Math.floor(10000 + Math.random() * 90000);
+      return String(rand5);
+    }
+    const rand2 = Math.floor(1 + Math.random() * 98);
+    return String(rand2);
+  }
+  
+  // 2. 이메일 필드 판정
+  const isEmail = type === 'email' || /email|mail/i.test(c);
+  if (isEmail) {
+    if (tpl.email && tpl.email.trim() !== '') return tpl.email;
+    const randChars = Math.random().toString(36).substring(2, 8);
+    return randChars + '@gmail.com';
+  }
+  
+  // 3. 텍스트 / 일반 글자 필드
+  const templateVals = [tpl.firstName, tpl.lastName, tpl.name, tpl.email, tpl.phone, tpl.subject, tpl.message].filter(v => typeof v === 'string' && v.trim() !== '');
+  const getRandomTemplateVal = () => {
+    if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
+    return "Inquiry";
+  };
+  
+  if (/company|회사|org/i.test(c)) {
+    return (tpl.name || getRandomTemplateVal()) + ' Inc.';
+  }
+  if (/address|주소/i.test(c)) {
+    return '123 Business Rd, New York, NY';
+  }
+  if (/subject|제목|title/i.test(c)) {
+    return tpl.subject || 'Business Inquiry';
+  }
+  if (el.tagName === 'TEXTAREA' || /message|content|body|내용/i.test(c)) {
+    return tpl.message || 'Hello, I would like to inquire about your services. Please contact me back.';
+  }
+  
+  // 성/이름 필드 스마트 스플리터 적용
+  if (/last.?name|family.?name|surname|성(?!명)/i.test(c)) {
+    const s = splitName(tpl.name);
+    return tpl.lastName || s.last || 'Kim';
+  }
+  if (/first.?name|given.?name/i.test(c)) {
+    const s = splitName(tpl.name);
+    return tpl.firstName || s.first || 'Gildong';
+  }
+  if (/name|이름|성함|성명/i.test(c)) {
+    return tpl.name || 'Gildong Hong';
+  }
+  
+  return getRandomTemplateVal();
+}
+
 // [v4.12.26] Stealth Human-like typing simulation — types character by character with delays and mistake corrections
 async function tv(el,v){
   if(!v||!el||el.disabled||el.readOnly)return false;
@@ -598,8 +694,14 @@ async function fill(c){
       if(used.has(k)&&k!=='message')continue;
       
       let val = tpl[k];
-      if (k === 'firstName' && (!val || val.trim() === '')) val = tpl.name;
-      if (k === 'lastName' && (!val || val.trim() === '')) val = '';
+      if (k === 'firstName' && (!val || val.trim() === '')) {
+        const s = splitName(tpl.name);
+        val = tpl.firstName || s.first || tpl.name;
+      }
+      if (k === 'lastName' && (!val || val.trim() === '')) {
+        const s = splitName(tpl.name);
+        val = tpl.lastName || s.last || '';
+      }
       
       const c2=getFieldId(el);
       if(val && val.trim() !== '' && P[k].some(r=>r.test(c2))){
@@ -646,11 +748,6 @@ async function fill(c){
   // ═══ Pass 9: Super-BruteForce Final Target Sweeper (초강력 무작위 및 잔여 필드 전수 입력) ═══
   try {
     const finalInputs = Array.from(c.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]):not([type=reset]),textarea,select'));
-    const templateVals = [tpl.firstName, tpl.lastName, tpl.name, tpl.email, tpl.phone, tpl.subject, tpl.message].filter(v => typeof v === 'string' && v.trim() !== '');
-    const getRandomTemplateVal = () => {
-      if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
-      return "Inquiry";
-    };
 
     for(const el of finalInputs) {
       if(el.disabled || el.readOnly) continue;
@@ -689,18 +786,7 @@ async function fill(c){
         n++;
         await new Promise(r=>setTimeout(r,100));
       } else {
-        let val = null;
-        const c2 = getFieldId(el);
-        
-        if(/email|mail/i.test(c2)) val = tpl.email;
-        else if(/phone|tel|mobile|전화|연락처/i.test(c2)) val = tpl.phone;
-        else if(/company|회사|org/i.test(c2)) val = (tpl.name || 'Company') + ' Inc.';
-        else if(/address|주소/i.test(c2)) val = 'Seoul, Korea';
-        else if(/zip|postal|우편/i.test(c2)) val = '06000';
-        else if(/subject|제목|title/i.test(c2)) val = tpl.subject;
-        else if(el.tagName === 'TEXTAREA' || el.contentEditable === 'true') val = tpl.message || getRandomTemplateVal();
-        else val = getRandomTemplateVal();
-
+        const val = generateSmartRandomValue(el);
         if(val) {
           await tv(el, val);
           n++;
