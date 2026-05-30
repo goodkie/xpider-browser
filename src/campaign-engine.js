@@ -1024,9 +1024,11 @@ async function cleanupAllCampaignTabs() {
     try {
         await mw.webContents.executeJavaScript(`
             (async function() {
-                const allWvs = document.querySelectorAll('webview[data-xpider-campaign="true"]');
                 let closedCount = 0;
-                for (const wv of allWvs) {
+                
+                // 1. data-xpider-campaign="true" 속성이 명시된 모든 웹뷰 닫기
+                const campaignWvs = document.querySelectorAll('webview[data-xpider-campaign="true"]');
+                for (const wv of campaignWvs) {
                     try {
                         const tabUiId = wv.id ? wv.id.replace('webview-', '') : null;
                         if (tabUiId && typeof window.closeTab === 'function') {
@@ -1034,6 +1036,37 @@ async function cleanupAllCampaignTabs() {
                             closedCount++;
                         }
                     } catch(e) {}
+                }
+
+                // 2. data-xpider-campaign 마크가 유실되었을 수 있으므로 추가 안전망 검사:
+                //    전체 탭 목록에서 첫 번째 탭(보통 홈/대시보드)을 제외한 외부 사이트 대상 모든 서브 웹뷰 강제 일괄 정밀 폐쇄
+                if (window.tabs && Array.isArray(window.tabs)) {
+                    // 뒤에서부터 순회하여 인덱스 변형 방지
+                    for (let i = window.tabs.length - 1; i >= 0; i--) {
+                        const tab = window.tabs[i];
+                        if (!tab || !tab.id) continue;
+                        
+                        // 첫 번째로 생성된 대시보드/메인 홈 탭(i === 0 이거나 start_page.html)은 안전하게 보존
+                        if (i === 0 || tab.url.includes('start_page.html')) {
+                            continue;
+                        }
+                        
+                        const wv = document.getElementById('webview-' + tab.id);
+                        if (wv) {
+                            // 로컬 file:// 프로토콜이 아닌 외부 도메인을 서핑하고 있는 잔여 캠페인 후보 웹뷰 감지
+                            const isCampaignOrExternal = wv.hasAttribute('data-xpider-campaign') || 
+                                                         (!tab.url.startsWith('file://') && !tab.url.includes('start_page.html') && tab.url !== 'about:blank');
+                            
+                            if (isCampaignOrExternal) {
+                                try {
+                                    if (typeof window.closeTab === 'function') {
+                                        window.closeTab(tab.id);
+                                        closedCount++;
+                                    }
+                                } catch(e) {}
+                            }
+                        }
+                    }
                 }
                 return closedCount;
             })()
@@ -1160,6 +1193,11 @@ async function processTarget(targetUrl, template) {
             for (const path of paths) {
                 if (state.cancelled) break;
                 const contactUrl = baseUrl + path;
+
+                // [v4.12.42] 새 URL을 열기 전에 기존의 모든 캠페인 잔여 탭을 확실하게 일괄 강제 폐쇄
+                sendLog(`🧹 [Cleanup] Purging any residual tabs before opening new URL...`, 'debug');
+                await cleanupAllCampaignTabs();
+
                 sendLog(`🔗 [Step 2/4] Navigating to page: ${contactUrl}...`, 'visit');
 
                 // Try to open in XPIDER browser tab (100% inner tabs routing)
