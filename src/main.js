@@ -24,6 +24,14 @@ if (_envPath) {
 }
 
 const { BrowserWindow, session, ipcMain, shell, webContents, dialog, Menu, MenuItem, clipboard } = electron;
+
+// ─── [Electron IPC Safety Patch v1.0] ipcMain.handle 중복 등록 예외 원천 방지 패치 ───
+const _origHandle = ipcMain.handle;
+ipcMain.handle = function(channel, listener) {
+  try { ipcMain.removeHandler(channel); } catch(e) {}
+  return _origHandle.call(ipcMain, channel, listener);
+};
+
 const log  = require('electron-log');
 
 // ─── 인증 및 세션 매니저 (순환 참조 방지를 위해 우선 임포트) ────────────────────
