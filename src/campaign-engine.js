@@ -656,27 +656,94 @@ function inferValue(el){
   return null;
 }
 
-function bestForm(){
-  // Wix-specific form containers
-  const wixForm=document.querySelector('[data-hook="wix-form"],[data-hook="cf-form"],form[class*="form"],[class*="contact-form"],[id*="contact-form"],[class*="wix-form"]');
-  if(wixForm)return wixForm;
-  const fs=Array.from(document.querySelectorAll('form'));
-  // [v4.12.25] Count ALL interactive elements including select, radio, checkbox
-  const countFields=(el)=>el.querySelectorAll('input:not([type=hidden]),textarea,select,[role=combobox]').length;
-  if(fs.length>0)return fs.sort((a,b)=>countFields(b)-countFields(a))[0];
-  // No <form> tag (common in Wix): find input cluster common ancestor
-  const ins=Array.from(document.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]),textarea,select'));
-  if(ins.length>=2){
-    let ancestor=ins[0].parentElement;
-    let tries=0;
-    while(ancestor&&ancestor!==document.body&&tries++<10){
-      const c=ancestor.querySelectorAll('input:not([type=hidden]):not([type=submit]),textarea,select').length;
-      if(c>=ins.length)return ancestor;
-      ancestor=ancestor.parentElement;
+async function bestForm(){
+  let targetForm = null;
+  for(let attempt=0; attempt<10; attempt++){
+    const selectors = [
+      '[data-hook="wix-form"]', '[data-hook="cf-form"]', 'form[class*="form"]',
+      '[class*="contact-form"]', '[id*="contact-form"]', '[class*="wix-form"]',
+      '.wpcf7-form', '.gform_wrapper', '.ninja-forms-form', '.wpforms-form',
+      'form', 'fieldset', '.form-wrapper', '.sqs-block-form', 'section[class*="form"]'
+    ];
+    
+    let bestTarget = null;
+    let maxScore = -999;
+    
+    const queryInputs = (root) => Array.from((root || document).querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]),textarea,select'));
+    
+    const candidates = [];
+    selectors.forEach(sel => {
+      try {
+        document.querySelectorAll(sel).forEach(el => {
+          if(el && !candidates.includes(el)) candidates.push(el);
+        });
+      } catch(e) {}
+    });
+    
+    const allInputs = queryInputs();
+    if (candidates.length === 0 && allInputs.length >= 1) {
+      allInputs.forEach(inp => {
+        let p = inp.parentElement;
+        for(let depth=0; depth<3 && p; depth++) {
+          if(p && p !== document.body && !candidates.includes(p)) candidates.push(p);
+          p = p.parentElement;
+        }
+      });
     }
-    return document.body;
+    
+    candidates.forEach(el => {
+      if(!el || el === document.body || el === document.documentElement) return;
+      let score = 0;
+      const inputs = queryInputs(el);
+      if(inputs.length < 1) return;
+      
+      if(el.tagName === 'FORM') score += 200;
+      
+      const textareas = el.querySelectorAll('textarea').length;
+      const emails = el.querySelectorAll('input[type="email"], input[name*="email"], input[id*="email"]').length;
+      const phones = el.querySelectorAll('input[type="tel"], input[name*="phone"], input[id*="phone"]').length;
+      const names = el.querySelectorAll('input[name*="name"], input[id*="name"], input[placeholder*="name"]').length;
+      
+      score += textareas * 70;
+      score += emails * 50;
+      score += phones * 40;
+      score += names * 25;
+      score += inputs.length * 15;
+      
+      const id = (el.id || '').toLowerCase();
+      const cls = (el.className || '').toString().toLowerCase();
+      const info = `${id} ${cls}`;
+      
+      if(info.includes('wpcf7') || info.includes('wpcf7-form')) score += 500;
+      if(info.includes('gform') || info.includes('gravity')) score += 350;
+      if(info.includes('ninja') || info.includes('nf-')) score += 300;
+      if(info.includes('wixui') || info.includes('wix-form')) score += 250;
+      if(info.includes('contact') || info.includes('message') || info.includes('inquiry') || info.includes('contact-form')) score += 100;
+      
+      if(info.includes('search') || id.includes('search') || cls.includes('search')) score -= 850;
+      
+      const submitBtn = el.querySelector('input[type="submit"], button[type="submit"], button:not([type="button"]), [role="button"], [class*="submit"], [id*="submit"]');
+      if (submitBtn) {
+        score += 80;
+        const btnText = (submitBtn.textContent || submitBtn.value || '').toLowerCase();
+        if (['send', 'submit', 'message', 'inquiry', '전송', '보내기', '문의', '접수', '送信'].some(k => btnText.includes(k))) score += 70;
+      }
+      
+      if(score > maxScore) {
+        maxScore = score;
+        bestTarget = el;
+      }
+    });
+    
+    if(bestTarget && maxScore >= 10) {
+      targetForm = bestTarget;
+      break;
+    }
+    
+    await new Promise(r => setTimeout(r, 500));
   }
-  return null;
+  
+  return targetForm;
 }
 
 async function fill(c){
@@ -829,7 +896,7 @@ for(let i=0;i<24;i++){
 if(!wixReady)await new Promise(r=>setTimeout(r,3000));
 await new Promise(r=>setTimeout(r,1000)); // extra buffer
 
-const f=bestForm();
+const f=await bestForm();
 if(!f){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
 const n=await fill(f);
 if(n===0){window.__xpider_result={success:false,reason:'FILL_FAILED'};return;}

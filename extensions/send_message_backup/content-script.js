@@ -653,7 +653,7 @@
                     wix: identifier.includes('wixui') || identifier.includes('input_comp-') || identifier.includes('textarea_comp-'),
                     shopify: identifier.includes('shopify-') || identifier.includes('contact-form'),
                     squarespace: identifier.includes('sqs-') || identifier.includes('form-wrapper'),
-                    wp: identifier.includes('wpcf7') || identifier.includes('gform') || identifier.includes('nf-') || identifier.includes('ninja')
+                    wp: identifier.includes('wpcf7') || identifier.includes('gform') || identifier.includes('nf-') || identifier.includes('ninja') || identifier.includes('wpforms') || identifier.includes('gravity')
                 };
 
                 if (builderBoosts.wix) score += 250; 
@@ -661,10 +661,10 @@
                 if (builderBoosts.squarespace) score += 300; 
                 if (builderBoosts.wp) score += 350; // Boosted for CF7 (v17.0)
                 
-                // [v17.2.0] Direct CF7 Fingerprint on IDENTIFIER
-                if (identifier.includes('wpcf7-form') || identifier.includes('wpcf7-init')) score += 500;
+                // [v17.2.0] Direct CF7/WPForms Fingerprint on IDENTIFIER
+                if (identifier.includes('wpcf7-form') || identifier.includes('wpcf7-init') || identifier.includes('wpforms-form')) score += 500;
                 
-                if (['contact', 'message', 'inquiry', 'form', 'contact-form'].some(k => identifier.includes(k))) score += 70;
+                if (['contact', 'message', 'inquiry', 'form', 'contact-form'].some(k => identifier.includes(k))) score += 100;
                 
                 // [v17.7.0] Higher Penalty for generic wrapping IDs/Classes
                 if (['root', 'container', 'wrapper', 'main', 'sticky', 'header', 'footer'].some(k => identifier.includes(k)) && el.tagName !== 'FORM') score -= 250;
