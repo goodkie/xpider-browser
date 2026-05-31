@@ -406,30 +406,6 @@
                 currentForm = await findOptimalForm();
                 
                 if (currentForm) break;
-
-                // [v1.2.0] Fast-Track Formless Detection
-                if (i === 1) {
-                    const allInputs = queryAllInputs();
-                    const validTextFields = allInputs.filter(inp => {
-                        const type = (inp.getAttribute('type') || 'text').toLowerCase();
-                        const id = (inp.id || '').toLowerCase();
-                        const name = (inp.name || '').toLowerCase();
-                        const placeholder = (inp.placeholder || '').toLowerCase();
-                        const cls = (inp.className || '').toString().toLowerCase();
-                        
-                        if (['hidden', 'submit', 'button', 'checkbox', 'radio', 'file', 'image'].includes(type)) return false;
-                        
-                        const isSearch = [id, name, placeholder, cls].some(k => k.includes('search') || k.includes('q') || k.includes('query'));
-                        if (isSearch) return false;
-                        
-                        return true;
-                    });
-                    
-                    if (validTextFields.length === 0) {
-                        logDev("⚡ [Discovery] Clean Formless Page Detected. Fast-tracking to termination...", "warning");
-                        break;
-                    }
-                }
                 
                 // [Ultra-Mode] Try scrolling to reveal lazy-loaded forms
                 if (i === 1) {

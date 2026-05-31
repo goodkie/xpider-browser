@@ -71,28 +71,122 @@ const CONTACT_PROBES = [
     '/contact', '/contact-us', '/contactus', '/inquiry', '/support',
     '/get-in-touch', '/write-to-us', '/feedback', '/customer-service',
     '/pages/contact', '/pages/contact-us', '/about/contact',
-    '/문의', '/문의하기', '/연락처'
+    '/help', '/help/contact', '/reach-us', '/talk-to-us', '/touch',
+    '/kontakt', '/contactez-nous', '/contacto',
+    '/문의', '/문의하기', '/연락처', '/고객센터', '/cs'
 ];
 
-async function findContactPages(baseUrl) {
-    const results = [];
-    const batchSize = 6;
-    for (let i = 0; i < CONTACT_PROBES.length; i += batchSize) {
-        if (state.cancelled) break;
-        const batch = CONTACT_PROBES.slice(i, i + batchSize);
-        const checks = await Promise.all(batch.map(async path => {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 3000);
-            try {
-                await fetch(baseUrl + path, { method: 'HEAD', signal: controller.signal, mode: 'no-cors' });
-                clearTimeout(timer);
-                return path;
-            } catch(e) { clearTimeout(timer); return null; }
-        }));
-        results.push(...checks.filter(Boolean));
-        if (results.length >= 3) break;
+// [v4.12.51] Ultra-Precision Contact Page Extractor
+// - Phase 1: Fetch homepage HTML and extract all anchor hrefs → score by relevance
+// - Phase 2: HEAD-ping each candidate in parallel → keep only live (non-404) URLs
+// - Never opens a browser tab; runs entirely with HTTP requests from the main process
+const CONTACT_KEYWORDS = /contact|inquiry|inquire|support|feedback|reach|touch|write|message|help|customer[- ]?service|문의|연락|고객센터|cs|contactez|kontakt|contacto|ask[- ]?us|talk[- ]?to|get[- ]?in[- ]?touch|form/i;
+const CONTACT_NEGATIVE = /privacy|terms|cookie|policy|careers|jobs|blog|news|faq|about|product|price|shop|store|category|tag|search|login|register|logout|sitemap|css|js|png|jpg|gif|svg|woff|pdf/i;
+
+async function scoreContactUrl(href) {
+    let score = 0;
+    const lower = href.toLowerCase();
+    if (/contact/.test(lower)) score += 40;
+    if (/inquiry|inquire/.test(lower)) score += 35;
+    if (/문의|연락|고객/.test(lower)) score += 35;
+    if (/support/.test(lower)) score += 25;
+    if (/feedback|reach|touch|message|write/.test(lower)) score += 20;
+    if (/help/.test(lower)) score += 15;
+    if (/pages\/contact|about\/contact/.test(lower)) score += 10;
+    if (CONTACT_NEGATIVE.test(lower)) score -= 60;
+    return score;
+}
+
+async function headPing(url, timeoutMs = 4000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const resp = await fetch(url, { method: 'HEAD', signal: controller.signal, redirect: 'follow', mode: 'no-cors' });
+        clearTimeout(timer);
+        // no-cors always returns opaque (status 0) but no exception = reachable
+        return true;
+    } catch(e) {
+        clearTimeout(timer);
+        return false;
     }
-    return results.length > 0 ? results : ['/contact', '/contact-us'];
+}
+
+async function findContactPages(baseUrl) {
+    sendLog(`🔎 [Contact Finder v2] Starting ultra-precision contact URL extraction for ${baseUrl}...`, 'debug');
+
+    const discovered = new Map(); // path → score
+
+    // ── Phase 1: Scrape homepage anchor tags ──────────────────────
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 7000);
+        const resp = await fetch(baseUrl + '/', { signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; XPIDER/1.0)' } });
+        clearTimeout(timer);
+        const html = await resp.text();
+        
+        // Extract all href values from anchor tags
+        const hrefRe = /href=["']([^"'#?]{1,300})["']/gi;
+        let m;
+        while ((m = hrefRe.exec(html)) !== null) {
+            let href = m[1].trim();
+            if (!href || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) continue;
+            
+            // Normalize to path
+            try {
+                const u = new URL(href, baseUrl);
+                if (u.origin !== baseUrl) continue; // skip external links
+                href = u.pathname;
+            } catch(e) {
+                if (!href.startsWith('/')) href = '/' + href;
+            }
+            if (href === '/' || href === '') continue;
+            
+            const score = await scoreContactUrl(href);
+            if (score > 0 && !discovered.has(href)) {
+                discovered.set(href, score);
+            }
+        }
+        sendLog(`📎 [Contact Finder] Scraped ${discovered.size} candidate link(s) from homepage HTML.`, 'debug');
+    } catch(e) {
+        sendLog(`⚠️ [Contact Finder] Homepage scrape failed: ${e.message}. Falling back to probe list.`, 'debug');
+    }
+
+    // ── Phase 2: Add probe list candidates not yet found ─────────
+    for (const probe of CONTACT_PROBES) {
+        if (!discovered.has(probe)) {
+            const score = await scoreContactUrl(probe);
+            discovered.set(probe, score);
+        }
+    }
+
+    // ── Phase 3: Sort by score and HEAD-ping in parallel batches ─
+    const sorted = Array.from(discovered.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 20) // cap to top 20 candidates
+        .map(([path]) => path);
+
+    sendLog(`🏓 [Contact Finder] Pinging ${sorted.length} candidate(s): ${sorted.slice(0, 5).join(', ')}...`, 'debug');
+
+    const liveUrls = [];
+    const batchSize = 8;
+    for (let i = 0; i < sorted.length; i += batchSize) {
+        if (state.cancelled) break;
+        const batch = sorted.slice(i, i + batchSize);
+        const results = await Promise.all(batch.map(async path => {
+            const live = await headPing(baseUrl + path);
+            return live ? path : null;
+        }));
+        liveUrls.push(...results.filter(Boolean));
+        if (liveUrls.length >= 3) break;
+    }
+
+    if (liveUrls.length > 0) {
+        sendLog(`✅ [Contact Finder] ${liveUrls.length} live contact URL(s) confirmed: ${liveUrls.join(', ')}`, 'info');
+        return liveUrls;
+    }
+
+    sendLog(`⚠️ [Contact Finder] No live contact pages confirmed. Using fallback list.`, 'warning');
+    return ['/contact', '/contact-us', '/inquiry'];
 }
 
 // ─── Smart Form Filler Script ─────────────────────────────────
@@ -1503,25 +1597,46 @@ async function processTarget(targetUrl, template) {
                     const reason = result ? result.reason : 'NO_RESULT';
                     sendLog(`⚠️ [Step 4/4] Path ${path} unsuccessful (Reason: ${reason}).`, 'warning');
                     
-                    // [v4.12.44] 폼이 아예 존재하지 않거나('NO_FORM') 없는 페이지(404, 500, Failed 등)인 경우 3분 대기 없이 바로 탭 닫기!
-                    let isNotFoundOrNoForm = (reason === 'NO_FORM');
+                    // [v4.12.51] 폼이 없거나 에러 페이지인 경우 즉시 탭 강제 폐쇄 (강화 버전)
+                    let isNotFoundOrNoForm = (reason === 'NO_FORM' || reason === 'FILL_FAILED' || !result);
                     
                     if (!isNotFoundOrNoForm) {
                         try {
                             const tabTitle = tabWC ? (tabWC.getTitle() || '').toLowerCase() : '';
                             const tabUrl = tabWC ? (tabWC.getURL() || '').toLowerCase() : '';
                             
-                            // 404, Not Found, 500, error, 없는 페이지 핑거프린트 감지
-                            if (tabTitle.includes('404') || tabTitle.includes('not found') || tabTitle.includes('error') || 
-                                tabTitle.includes('failed') || tabTitle.includes('디렉터리') || tabTitle.includes('site cant be reached') ||
-                                tabUrl.includes('error') || tabUrl.includes('404')) {
+                            // 404/500/에러 페이지 핑거프린트 + 한국어 에러 패턴 강화 감지
+                            const errorTitle = tabTitle.includes('404') || tabTitle.includes('not found') ||
+                                tabTitle.includes('error') || tabTitle.includes('오류') || tabTitle.includes('페이지를 찾을 수 없') ||
+                                tabTitle.includes('failed') || tabTitle.includes('디렉터리') || 
+                                tabTitle.includes('site cant be reached') || tabTitle.includes('사이트에 연결할 수 없') ||
+                                tabTitle.includes('access denied') || tabTitle.includes('forbidden') || tabTitle.includes('접근 거부');
+                            const errorUrl = tabUrl.includes('/error') || tabUrl.includes('/404') || 
+                                tabUrl.includes('/403') || tabUrl.includes('/500');
+
+                            // DOM-level form check: inject a lightweight form detector
+                            let hasFormInPage = false;
+                            try {
+                                hasFormInPage = await tabWC.executeJavaScript(`
+                                    (function() {
+                                        const inputs = document.querySelectorAll('input:not([type=hidden]):not([type=submit]):not([type=button]),textarea,[contenteditable="true"]');
+                                        const hasSendBtn = Array.from(document.querySelectorAll('button,input[type=submit],[role="button"]')).some(b => {
+                                            const t = (b.textContent || b.value || '').toLowerCase();
+                                            return t.includes('submit') || t.includes('send') || t.includes('전송') || t.includes('등록') || t.includes('문의') || t.includes('보내기') || t.includes('contact');
+                                        });
+                                        return inputs.length >= 1 || hasSendBtn;
+                                    })()
+                                `);
+                            } catch(e) {}
+                            
+                            if (errorTitle || errorUrl || !hasFormInPage) {
                                 isNotFoundOrNoForm = true;
                             }
                         } catch(e) {}
                     }
                     
                     if (isNotFoundOrNoForm) {
-                        sendLog(`🛑 없는 페이지거나 폼이 존재하지 않는 탭입니다. 대기 없이 탭을 즉시 닫고 다음 타겟으로 이동합니다.`, 'info');
+                        sendLog(`🛑 폼 없음 또는 에러 페이지 감지 → 탭을 즉시 강제 폐쇄하고 다음 타겟으로 이동합니다. (사유: ${reason})`, 'info');
                         const tempTab = tabWC;
                         if (tempTab && !tempTab.isDestroyed()) {
                             await closeXpiderTab(tempTab);
