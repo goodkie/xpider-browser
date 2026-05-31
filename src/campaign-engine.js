@@ -936,7 +936,7 @@ async function bestForm(){
     return candidates;
   };
 
-  for(let attempt=0; attempt<10; attempt++){
+  for(let attempt=0; attempt<24; attempt++){
     let bestTarget = null;
     let maxScore = -999;
     
@@ -1861,7 +1861,7 @@ async function processTarget(targetUrl, template) {
 
                 let formDetected = false;
                 const detectStartTime = Date.now();
-                const detectTimeout = 9000; // Turnstile 통과 후 여유 시간 포함 최대 9초
+                const detectTimeout = 20000; // Turnstile 통과 후 여유 시간 포함 최대 20초
                 
                 while (Date.now() - detectStartTime < detectTimeout) {
                     if (state.cancelled || !tabWC || tabWC.isDestroyed()) break;
@@ -1902,12 +1902,33 @@ async function processTarget(targetUrl, template) {
                 }
 
                 if (!formDetected) {
-                    sendLog(`🛑 No form found on ${contactUrl}. Skipping this page without delay.`, 'warning');
-                    const tempTab = tabWC;
-                    if (tempTab && !tempTab.isDestroyed()) {
-                        await closeXpiderTab(tempTab);
+                    sendLog(`🛑 No form found on ${contactUrl}. 스킵 전 15초간 탭을 유지하여 추가 감지 및 사용자가 직접 조치할 수 있도록 유예합니다.`, 'warning');
+                    // 15초 유예 대기 & 실시간 추가 감지 시도
+                    const holdStart = Date.now();
+                    while (Date.now() - holdStart < 15000 && !state.cancelled) {
+                        if (!tabWC || tabWC.isDestroyed()) break;
+                        
+                        formDetected = await checkFormPresenceInAllFrames(tabWC);
+                        if (formDetected) {
+                            sendLog(`🎯 대기 중 폼 요소를 추가로 감지했습니다! 폼 자동 입력을 진행합니다.`, 'success');
+                            break;
+                        }
+                        await new Promise(r => setTimeout(r, 500));
                     }
-                    continue; // 3분 대기 지연 없이 즉각 스킵하여 다음 path로 패스!
+                    
+                    if (state.cancelled) {
+                        done({ success: false, reason: 'CANCELLED' });
+                        return;
+                    }
+                    
+                    if (!formDetected) {
+                        sendLog(`🧹 15초 유예 대기가 만료되었습니다. 탭을 닫고 다음 경로로 이동합니다.`, 'info');
+                        const tempTab = tabWC;
+                        if (tempTab && !tempTab.isDestroyed()) {
+                            await closeXpiderTab(tempTab);
+                        }
+                        continue;
+                    }
                 }
 
                 sendLog(`✏️ [Step 3/4] Injecting Super-Intelligent Form Filler v3.0 into all active frames...`, 'info');
@@ -2002,7 +2023,12 @@ async function processTarget(targetUrl, template) {
                     }
                     
                     if (isNotFoundOrNoForm) {
-                        sendLog(`🛑 없는 페이지거나 폼이 존재하지 않는 탭입니다. 대기 없이 탭을 즉시 닫고 다음 타겟으로 이동합니다.`, 'info');
+                        sendLog(`🛑 없는 페이지거나 폼이 존재하지 않는 탭입니다. 스킵 전 15초간 탭을 유지하여 사용자가 확인하거나 조치할 수 있도록 유예합니다.`, 'info');
+                        // 15초 유예 대기
+                        const holdStart = Date.now();
+                        while (Date.now() - holdStart < 15000 && !state.cancelled) {
+                            await new Promise(r => setTimeout(r, 500));
+                        }
                         const tempTab = tabWC;
                         if (tempTab && !tempTab.isDestroyed()) {
                             await closeXpiderTab(tempTab);
