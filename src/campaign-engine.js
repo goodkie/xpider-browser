@@ -179,6 +179,14 @@ function getFormFillerScript(template) {
 if(window.__xpider_filling)return;
 window.__xpider_filling=true;
 
+// 👤 [User Active Tracker] 사용자의 실시간 입력/활동 추적 리스너 등록
+window.__xpider_user_active = Date.now();
+['keydown', 'mousedown', 'input', 'scroll'].forEach(evtType => {
+  window.addEventListener(evtType, () => {
+    window.__xpider_user_active = Date.now();
+  }, { passive: true });
+});
+
 // 🛡️ [Stealth Shield v4.0] Main-world patch inside form frame to completely hide automation traces
 try {
   if (navigator.webdriver !== false) {
@@ -403,6 +411,7 @@ function setNativeValue(el, val) {
 // [v4.12.31] Stealth Human-like typing simulation — types character by character with native setters
 async function tv(el,v){
   if(!v||!el||el.disabled||el.readOnly)return false;
+  window.__xpider_user_active = Date.now(); // 자동 타이핑 시작 시 갱신
   
   // Click first using the stealth humanClick to establish mouse context
   await humanClick(el);
@@ -422,6 +431,7 @@ async function tv(el,v){
   
   for(let i=0; i<chars.length; i++) {
     const char = chars[i];
+    window.__xpider_user_active = Date.now(); // 매 문자 입력 순간마다 타임스탬프 갱신
     
     // Simulating user errors (typo) - 1.2% chance
     if (Math.random() < 0.012 && i > 0 && i < chars.length - 1) {
@@ -453,7 +463,8 @@ async function tv(el,v){
     
     // Standard typist delay scaled dynamically by fillDelayMs
     // 300ms is Normal (Level 6), which maps to base 45ms delay per keystroke.
-    const baseDelay = Math.max(10, Math.floor((typeof fillDelayMs !== 'undefined' ? fillDelayMs : 300) / 6.6));
+    // 최대 지연 한계치를 45ms로 캡핑하여 극단적인 느린 설정 차단
+    const baseDelay = Math.min(45, Math.max(8, Math.floor((typeof fillDelayMs !== 'undefined' ? fillDelayMs : 300) / 6.6)));
     const delay = /[.,!?;:]/.test(char) ? (baseDelay * 4 + Math.random()*220) : (baseDelay + Math.random()*50);
     await new Promise(r=>setTimeout(r, delay));
   }
@@ -478,6 +489,7 @@ async function tv(el,v){
 // [v4.12.26] Stealth Human-like Mouse Event simulation with Bezier path movements and smooth scrolls
 async function humanClick(el){
   if(!el)return;
+  window.__xpider_user_active = Date.now(); // 마우스 조작 시작 시 갱신
   
   // 1. Ensure element is in view smoothly
   try {
@@ -1932,12 +1944,12 @@ async function processTarget(targetUrl, template) {
                     continue;
                 }
 
-                // Poll for result in ALL frames (Wix may be in iframe, up to 25s)
+                // Poll for result in ALL frames (Wix may be in iframe, up to 90s)
                 sendLog(`🔄 [Step 4/4] Monitoring form submission & reCAPTCHA state...`, 'debug');
                 sendLog(`🛡️ CAPTCHA bypass engine monitoring...`, 'debug');
                 let result = null;
                 let tabClosedDuringPoll = false;
-                for (let i = 0; i < 50; i++) {
+                for (let i = 0; i < 180; i++) {
                     await new Promise(r => setTimeout(r, 500));
                     // [v4.12.55] 탭 파괴 감지 → TAB_CLOSED로 정확히 처리 (갑자기 닫히는 버그 수정)
                     if (!tabWC || tabWC.isDestroyed()) {
@@ -2018,12 +2030,35 @@ async function processTarget(targetUrl, template) {
                         clearTimeout(globalTimer);
                         
                         sendLog(`⏳ 등록/성공 미확인: 3분(180초) 대기 지연(인터벌)을 시작합니다. 탭을 열어둔 상태로 대기합니다.`, 'info');
-                        const holdStart = Date.now();
+                        let holdStart = Date.now();
                         const holdDuration = 180000; // 3분 (180,000ms)
+                        
+                        // [v4.14.0] 사용자 활동 감지기 기반 지능형 홀딩 루프
+                        let lastActiveTime = Date.now();
+                        
                         while (Date.now() - holdStart < holdDuration && !state.cancelled) {
+                            // 탭이 파괴되었는지 먼저 체크
+                            if (!tabWC || tabWC.isDestroyed()) {
+                                sendLog(`⚠️ 탭이 닫혀 대기 상태가 종료되었습니다.`, 'warning');
+                                break;
+                            }
+                            
+                            // 웹뷰 내의 실시간 사용자 활동 타임스탬프 획득
+                            let currentActive = Date.now();
+                            try {
+                                currentActive = await tabWC.executeJavaScript('window.__xpider_user_active || 0');
+                            } catch(e) {}
+                            
+                            // 만약 최근에 키보드/마우스 입력 등이 발생했다면 (최근 활동이 마지막으로 인지한 활동보다 새로운 경우)
+                            if (currentActive > lastActiveTime) {
+                                sendLog(`👤 [User Active] 사용자 입력 및 수동 조작 감지! 180초 대기 타이머를 즉시 초기화(연장)합니다.`, 'success');
+                                holdStart = Date.now(); // 타이머의 기점을 현재 시각으로 리셋!
+                                lastActiveTime = currentActive;
+                            }
+                            
                             const remainingSec = Math.ceil((holdDuration - (Date.now() - holdStart)) / 1000);
                             if (remainingSec % 30 === 0) { // 30초마다 남은 대기 지연 카운트 노출
-                                sendLog(`⏳ [Hold] 탭 유지 중... 다음 프로세싱까지 ${remainingSec}초 대기 중...`, 'debug');
+                                sendLog(`⏳ [Hold] 탭 유지 중... (사용자 입력 감지 시 자동 연장) 남은 시간: ${remainingSec}초...`, 'debug');
                             }
                             await new Promise(r => setTimeout(r, 1000));
                         }
@@ -2031,7 +2066,7 @@ async function processTarget(targetUrl, template) {
                         if (state.cancelled) {
                             sendLog(`🛑 대기 중 사용자가 캠페인을 취소했습니다.`, 'stop');
                         } else {
-                            sendLog(`🧹 [Hold End] 3분 대기가 만료되었습니다. 탭을 닫고 다음 단계로 이동합니다.`, 'info');
+                            sendLog(`🧹 [Hold End] 대기 시간이 종료되거나 만료되었습니다. 탭을 정리하고 다음 단계로 이동합니다.`, 'info');
                         }
 
                         // 3분 대기 완료 혹은 중지 시 탭 강제 닫기
