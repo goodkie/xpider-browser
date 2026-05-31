@@ -104,9 +104,6 @@ function getFormFillerScript(template) {
 if(window.__xpider_filling)return;
 window.__xpider_filling=true;
 
-// Initialize status tracking
-window.__xpider_status = { formDetected: false, fillStarted: false, filledCount: 0 };
-
 // 🛡️ [Stealth Shield v4.0] Main-world patch inside form frame to completely hide automation traces
 try {
   if (navigator.webdriver !== false) {
@@ -1101,17 +1098,8 @@ if(!wixReady)await new Promise(r=>setTimeout(r,3000));
 await new Promise(r=>setTimeout(r,1000)); // extra buffer
 
 const f=await bestForm();
-if(!f){
-  window.__xpider_status.formDetected = false;
-  window.__xpider_result={success:false,reason:'NO_FORM'};
-  return;
-}
-window.__xpider_status.formDetected = true;
-
-window.__xpider_status.fillStarted = true;
+if(!f){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
 const n=await fill(f);
-window.__xpider_status.filledCount = n;
-
 if(n===0){window.__xpider_result={success:false,reason:'FILL_FAILED'};return;}
 // Human-like pause before submit
 await new Promise(r=>setTimeout(r, typeof submitDelayMs !== 'undefined' ? submitDelayMs : 1200));
@@ -1147,15 +1135,18 @@ async function injectIntoAllFrames(wc, script) {
 
 async function pollAllFrames(wc) {
     if (!wc || wc.isDestroyed()) return null;
-    const fetchScript = `({
-        result: window.__xpider_result || null,
-        status: window.__xpider_status || null
-    })`;
+    
+    let allResults = [];
+    let hasPending = false;
+    
     // Check main frame
     try {
-        const r = await wc.executeJavaScript(fetchScript);
-        if (r && (r.result || r.status)) return r;
+        const r = await wc.executeJavaScript('window.__xpider_result || null');
+        if (r && r.success) return r; // Immediate success overrides everything
+        if (r) allResults.push(r);
+        else hasPending = true;
     } catch(e) {}
+    
     // Check child frames
     try {
         if (wc.mainFrame) {
@@ -1163,12 +1154,28 @@ async function pollAllFrames(wc) {
             for (const frame of frames) {
                 if (frame === wc.mainFrame) continue;
                 try {
-                    const r = await frame.executeJavaScript(fetchScript);
-                    if (r && (r.result || r.status)) return r;
+                    const r = await frame.executeJavaScript('window.__xpider_result || null');
+                    if (r && r.success) return r; 
+                    if (r) allResults.push(r);
+                    else hasPending = true;
                 } catch(e) {}
             }
         }
     } catch(e) {}
+    
+    // If any frame is still processing (null), we must wait
+    if (hasPending) return null;
+    
+    // If all frames finished and none succeeded
+    if (allResults.length > 0) {
+        // Find if any frame actually found a form but failed to fill/submit
+        const fillFailed = allResults.find(r => r.reason !== 'NO_FORM');
+        if (fillFailed) return fillFailed;
+        
+        // Otherwise they all returned NO_FORM
+        return allResults[0];
+    }
+    
     return null;
 }
 
@@ -1424,21 +1431,15 @@ async function processTarget(targetUrl, template) {
                 // Poll for result in ALL frames (Wix may be in iframe, up to 25s)
                 sendLog(`🔄 [Step 4/4] Monitoring form submission & reCAPTCHA state...`, 'debug');
                 sendLog(`🛡️ CAPTCHA bypass engine monitoring...`, 'debug');
-                let pollResult = null;
+                let result = null;
                 for (let i = 0; i < 50; i++) {
                     await new Promise(r => setTimeout(r, 500));
                     if (tabWC.isDestroyed()) break;
-                    const r = await pollAllFrames(tabWC);
-                    if (r) {
-                        pollResult = r;
-                        if (r.result) break; // Break loop immediately once result is available
-                    }
+                    result = await pollAllFrames(tabWC);
+                    if (result) break;
                 }
 
-                const finalRes = pollResult ? pollResult.result : null;
-                const currentStatus = pollResult ? pollResult.status : null;
-
-                if (finalRes && finalRes.success) {
+                if (result && result.success) {
                     // 폼 발송 1회 성공 시 ➡️ 30 토큰 소진
                     const userId = authService.getCurrentUserId();
                     if (userId) {
@@ -1459,7 +1460,7 @@ async function processTarget(targetUrl, template) {
                         return;
                     }
 
-                    sendLog(`✅ [Step 4/4] Success! Form submitted (${finalRes.filled} fields matched & filled).`, 'success');
+                    sendLog(`✅ [Step 4/4] Success! Form submitted (${result.filled} fields matched & filled).`, 'success');
                     sendLog(`🎯 Contact action definitively completed on ${contactUrl}.`, 'debug');
                     
                     // [v4.12.43] 성공 시 즉시 탭 닫기 진행 (500ms 후 즉각 폐쇄)
@@ -1470,38 +1471,37 @@ async function processTarget(targetUrl, template) {
                     done({ success: true });
                     return;
                 } else {
-                    const reason = finalRes ? finalRes.reason : 'NO_RESULT';
+                    const reason = result ? result.reason : 'NO_RESULT';
                     sendLog(`⚠️ [Step 4/4] Path ${path} unsuccessful (Reason: ${reason}).`, 'warning');
                     
-                    // [v4.12.48] window.__xpider_status를 활용해 폼 존재 및 입력 시도 여부를 고정밀 판별
-                    const formDetected = (currentStatus && currentStatus.formDetected) || (finalRes && finalRes.reason !== 'NO_FORM');
-                    const fillStarted = (currentStatus && currentStatus.fillStarted) || (finalRes && finalRes.filled > 0);
+                    // [v4.12.44] 폼이 아예 존재하지 않거나('NO_FORM') 없는 페이지(404, 500, Failed 등)인 경우 3분 대기 없이 바로 탭 닫기!
+                    let isNotFoundOrNoForm = (reason === 'NO_FORM');
                     
-                    let isErrorPage = false;
-                    try {
-                        const tabTitle = tabWC ? (tabWC.getTitle() || '').toLowerCase() : '';
-                        const tabUrl = tabWC ? (tabWC.getURL() || '').toLowerCase() : '';
-                        
-                        // 404, Not Found, 500, error, 없는 페이지 핑거프린트 감지
-                        if (tabTitle.includes('404') || tabTitle.includes('not found') || tabTitle.includes('error') || 
-                            tabTitle.includes('failed') || tabTitle.includes('디렉터리') || tabTitle.includes('site cant be reached') ||
-                            tabUrl.includes('error') || tabUrl.includes('404')) {
-                            isErrorPage = true;
-                        }
-                    } catch(e) {}
+                    if (!isNotFoundOrNoForm) {
+                        try {
+                            const tabTitle = tabWC ? (tabWC.getTitle() || '').toLowerCase() : '';
+                            const tabUrl = tabWC ? (tabWC.getURL() || '').toLowerCase() : '';
+                            
+                            // 404, Not Found, 500, error, 없는 페이지 핑거프린트 감지
+                            if (tabTitle.includes('404') || tabTitle.includes('not found') || tabTitle.includes('error') || 
+                                tabTitle.includes('failed') || tabTitle.includes('디렉터리') || tabTitle.includes('site cant be reached') ||
+                                tabUrl.includes('error') || tabUrl.includes('404')) {
+                                isNotFoundOrNoForm = true;
+                            }
+                        } catch(e) {}
+                    }
                     
-                    if (!formDetected || reason === 'NO_FORM' || isErrorPage) {
+                    if (isNotFoundOrNoForm) {
                         sendLog(`🛑 없는 페이지거나 폼이 존재하지 않는 탭입니다. 대기 없이 탭을 즉시 닫고 다음 타겟으로 이동합니다.`, 'info');
                         const tempTab = tabWC;
                         if (tempTab && !tempTab.isDestroyed()) {
                             await closeXpiderTab(tempTab);
                         }
-                    } else if (formDetected && fillStarted) {
-                        // [v4.12.48] 폼이 존재하고 입력을 수행 중이거나 수행했던 탭인 경우에만 등록/성공 미확인 시 반드시 3분 지연 인터벌 가동
+                    } else {
+                        // [v4.12.43] 실질적 제출 오류 또는 캡챠 대기 등으로 결과 성공 미확인 시에만 3분 인터벌 대기 가동
                         clearTimeout(globalTimer);
                         
-                        sendLog(`⏳ 등록/성공 미확인: 폼이 존재하여 자동 입력을 진행했으나 성공을 확인하지 못했습니다.`, 'info');
-                        sendLog(`⏳ 3분(180초) 대기 지연(인터벌)을 시작합니다. 탭을 열어둔 상태로 대기합니다.`, 'info');
+                        sendLog(`⏳ 등록/성공 미확인: 3분(180초) 대기 지연(인터벌)을 시작합니다. 탭을 열어둔 상태로 대기합니다.`, 'info');
                         const holdStart = Date.now();
                         const holdDuration = 180000; // 3분 (180,000ms)
                         while (Date.now() - holdStart < holdDuration && !state.cancelled) {
@@ -1519,12 +1519,6 @@ async function processTarget(targetUrl, template) {
                         }
 
                         // 3분 대기 완료 혹은 중지 시 탭 강제 닫기
-                        const tempTab = tabWC;
-                        if (tempTab && !tempTab.isDestroyed()) {
-                            await closeXpiderTab(tempTab);
-                        }
-                    } else {
-                        sendLog(`🛑 폼은 존재하나 입력을 진행하지 못했습니다. 대기 없이 탭을 즉시 닫고 다음 타겟으로 이동합니다.`, 'info');
                         const tempTab = tabWC;
                         if (tempTab && !tempTab.isDestroyed()) {
                             await closeXpiderTab(tempTab);
