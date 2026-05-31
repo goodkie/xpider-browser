@@ -189,6 +189,89 @@ try {
   Object.defineProperty(navigator, 'languages', { get: () => ['ko-KR', 'ko', 'en-US', 'en'], configurable: true });
 } catch(e) {}
 
+// ⚡ [Turnstile Bypass v2.0] 폼 내 Cloudflare Turnstile 위젯 자동 해결 엔진
+async function bypassTurnstileWidget() {
+  try {
+    // [방법 1] window.turnstile API 직접 강제 호출 (Turnstile JS SDK가 로드된 경우)
+    if (window.turnstile) {
+      try {
+        // Turnstile execute()로 강제 실행
+        if (typeof window.turnstile.execute === 'function') {
+          const widgets = document.querySelectorAll('.cf-turnstile, [data-sitekey], cf-turnstile');
+          for (const w of widgets) {
+            const sitekey = w.getAttribute('data-sitekey') || w.sitekey || '';
+            if (sitekey) {
+              try { window.turnstile.execute(w, { sitekey }); } catch(e) {}
+            }
+          }
+        }
+        // Turnstile 콜백 강제 트리거 (등록된 콜백이 있는 경우)
+        if (typeof window.turnstile.getResponse === 'function') {
+          const resp = window.turnstile.getResponse();
+          if (resp) {
+            // 이미 토큰이 있으면 hidden input에 주입
+            const tokenInputs = document.querySelectorAll('[name="cf-turnstile-response"], [name="turnstile-response"], input[type="hidden"]');
+            tokenInputs.forEach(inp => { if (!inp.value) inp.value = resp; });
+          }
+        }
+      } catch(e) {}
+    }
+
+    // [방법 2] Turnstile iframe의 내부 체크박스/버튼 클릭 시뮬레이션
+    const cfIframes = document.querySelectorAll('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]');
+    for (const iframe of cfIframes) {
+      try {
+        const iDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        if (iDoc) {
+          const checkbox = iDoc.querySelector('input[type="checkbox"], .cb-i, [id*="checkbox"]');
+          if (checkbox && !checkbox.checked) {
+            checkbox.click();
+            await new Promise(r => setTimeout(r, 500));
+          }
+          const btn = iDoc.querySelector('button, [role="button"]');
+          if (btn) { btn.click(); await new Promise(r => setTimeout(r, 300)); }
+        }
+      } catch(e) {} // 크로스 오리진 iframe은 접근 불가, 무시
+    }
+
+    // [방법 3] __cf_chl_opt 글로벌 객체 (Managed Challenge) 강제 처리 신호 발송
+    try {
+      if (window.__cf_chl_opt) {
+        window.__cf_chl_opt.cNounce = Math.floor(Math.random() * 999999);
+        // Cloudflare의 챌린지 완료 이벤트를 발생시킴
+        window.dispatchEvent(new CustomEvent('cf-challenge-success', { detail: { token: 'bypassed' } }));
+      }
+    } catch(e) {}
+
+    // [방법 4] data-callback 속성에 지정된 함수 강제 호출
+    const turnstileEls = document.querySelectorAll('[data-callback], .cf-turnstile[data-callback], cf-turnstile');
+    for (const el of turnstileEls) {
+      const cbName = el.getAttribute('data-callback');
+      if (cbName && typeof window[cbName] === 'function') {
+        try { window[cbName]('XPIDER_BYPASS_TOKEN_' + Date.now()); } catch(e) {}
+      }
+    }
+
+    // [방법 5] 숨겨진 Turnstile 응답 input에 더미 토큰 주입 (일부 서버에서 클라이언트 검증만 하는 경우)
+    const responseInputs = document.querySelectorAll(
+      'input[name="cf-turnstile-response"], input[name="h-captcha-response"], ' +
+      'input[name="g-recaptcha-response"], textarea[name="g-recaptcha-response"]'
+    );
+    responseInputs.forEach(inp => {
+      if (!inp.value || inp.value.trim() === '') {
+        inp.value = 'XPIDER_BYPASS_' + Math.random().toString(36).substr(2, 20);
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+        inp.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+
+  } catch(e) {} // 최상위 에러는 조용히 무시
+}
+
+// Turnstile 위젯 바이패스 즉시 실행 (폼 주입과 동시에)
+try { await bypassTurnstileWidget(); } catch(e) {}
+await new Promise(r => setTimeout(r, 500)); // 바이패스 처리 후 DOM 안정화 대기
+
 const tpl=${tplJson};
 const fillDelayMs=${fillDelay};
 const submitDelayMs=${submitDelay};
@@ -1325,6 +1408,214 @@ async function checkFormPresenceInAllFrames(wc) {
     return false;
 }
 
+// ─── Cloudflare Turnstile / 전체 페이지 CF 인터스티셜 강력 바이패스 엔진 ──────────
+async function waitForCloudflareChallenge(tabWC, maxWaitMs = 25000) {
+    if (!tabWC || tabWC.isDestroyed()) return false;
+
+    // ─── CF 감지 스크립트 ───
+    const detectScript = `(function() {
+        const hasTurnstile = !!(document.querySelector('iframe[src*="challenges.cloudflare.com"]') ||
+            document.querySelector('iframe[src*="turnstile"]') ||
+            document.querySelector('.cf-turnstile') ||
+            document.querySelector('[data-sitekey]') ||
+            document.querySelector('cf-turnstile') ||
+            document.querySelector('[id*="turnstile"]') ||
+            document.querySelector('[class*="turnstile"]') ||
+            document.querySelector('#challenge-running') ||
+            document.querySelector('#cf-challenge-running') ||
+            document.querySelector('.cf-browser-verification') ||
+            document.querySelector('#challenge-form') ||
+            document.querySelector('#cf-wrapper') ||
+            document.querySelector('#cf-error-details'));
+        const bodyText = (document.body ? document.body.innerText : '').toLowerCase();
+        const htmlText = (document.documentElement ? document.documentElement.innerHTML : '').toLowerCase();
+        const title = document.title.toLowerCase();
+        const hasCfChallenge = hasTurnstile ||
+            bodyText.includes('checking your browser') ||
+            bodyText.includes('보안 확인 수행 중') ||
+            bodyText.includes('security check') ||
+            bodyText.includes('verifying you are human') ||
+            bodyText.includes('just a moment') ||
+            bodyText.includes('enable javascript and cookies') ||
+            (bodyText.includes('please wait') && bodyText.includes('cloudflare')) ||
+            title.includes('just a moment') ||
+            title.includes('attention required') ||
+            title.includes('security check') ||
+            title.includes('보안 확인') ||
+            htmlText.includes('ray id:') ||
+            htmlText.includes('cloudflare.com/cdn-cgi') ||
+            htmlText.includes('cf_clearance') ||
+            !!window.__cf_chl_opt ||
+            !!window._cf_chl_opt;
+        const cfResolved = !hasCfChallenge && !hasTurnstile;
+        return { hasCfChallenge, hasTurnstile, cfResolved, title, bodySnippet: bodyText.substring(0, 200) };
+    })()`;
+
+    // ─── CF 바이패스 공격 스크립트 (멀티-패스) ───
+    const bypassScript = `(async function cfBypass() {
+        // [Pass 1] 스텔스 패치: 봇 탐지 시그니처 완전 제거
+        try {
+            Object.defineProperty(navigator, 'webdriver', { get: () => false, configurable: true });
+            Object.defineProperty(navigator, 'plugins', { get: () => [1,2,3,4,5], configurable: true });
+            Object.defineProperty(navigator, 'languages', { get: () => ['ko-KR','ko','en-US','en'], configurable: true });
+            Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8, configurable: true });
+            Object.defineProperty(navigator, 'deviceMemory', { get: () => 8, configurable: true });
+            Object.defineProperty(screen, 'colorDepth', { get: () => 24, configurable: true });
+            if (!window.chrome) window.chrome = {};
+            if (!window.chrome.runtime) window.chrome.runtime = {};
+        } catch(e) {}
+
+        // [Pass 2] __cf_chl_opt 강제 처리 + 챌린지 완료 이벤트 발사
+        try {
+            if (window.__cf_chl_opt || window._cf_chl_opt) {
+                const opt = window.__cf_chl_opt || window._cf_chl_opt;
+                opt.cNounce = Math.floor(Math.random() * 9999999);
+                opt.p = 1; // passed flag
+                ['cf-challenge-success','cf-challenge-complete','turnstile-callback'].forEach(evt => {
+                    try { window.dispatchEvent(new CustomEvent(evt, { detail: { token: 'xpider' + Date.now() } })); } catch(e) {}
+                });
+            }
+        } catch(e) {}
+
+        // [Pass 3] Managed Challenge (#challenge-form) 폼 강제 제출 시도
+        try {
+            const cfForm = document.querySelector('#challenge-form');
+            if (cfForm) {
+                // 숨겨진 input들 채우기
+                cfForm.querySelectorAll('input[type="hidden"]').forEach(inp => {
+                    if (!inp.value) inp.value = 'bypass_' + Math.random().toString(36).substr(2);
+                });
+                // 제출 버튼 클릭 시도
+                const submitBtn = cfForm.querySelector('[type="submit"], button');
+                if (submitBtn) submitBtn.click();
+            }
+        } catch(e) {}
+
+        // [Pass 4] window.turnstile SDK 강제 실행
+        try {
+            if (window.turnstile) {
+                const containers = document.querySelectorAll('.cf-turnstile, [data-sitekey], cf-turnstile, [id*="turnstile"], [class*="turnstile"]');
+                for (const container of containers) {
+                    const sitekey = container.getAttribute('data-sitekey') || '';
+                    const cbName = container.getAttribute('data-callback');
+                    // data-callback 함수 강제 호출
+                    if (cbName && typeof window[cbName] === 'function') {
+                        try { window[cbName]('XPIDER_TOKEN_' + Date.now()); } catch(e) {}
+                    }
+                    // render 재시도
+                    if (sitekey && typeof window.turnstile.render === 'function') {
+                        try {
+                            window.turnstile.render(container, {
+                                sitekey,
+                                callback: (token) => {
+                                    const inp = document.querySelector('[name="cf-turnstile-response"]');
+                                    if (inp) { inp.value = token; inp.dispatchEvent(new Event('change', {bubbles:true})); }
+                                }
+                            });
+                        } catch(e) {}
+                    }
+                    // execute() 강제 호출
+                    if (typeof window.turnstile.execute === 'function') {
+                        try { window.turnstile.execute(container); } catch(e) {}
+                    }
+                }
+                // getResponse로 기존 토큰 수집
+                if (typeof window.turnstile.getResponse === 'function') {
+                    const tok = window.turnstile.getResponse();
+                    if (tok) {
+                        ['cf-turnstile-response','turnstile-response','g-recaptcha-response'].forEach(n => {
+                            const inp = document.querySelector('[name="'+n+'"]');
+                            if (inp && !inp.value) { inp.value = tok; inp.dispatchEvent(new Event('change', {bubbles:true})); }
+                        });
+                    }
+                }
+            }
+        } catch(e) {}
+
+        // [Pass 5] 모든 hidden input(Turnstile/reCAPTCHA 응답 필드)에 더미 토큰 주입
+        try {
+            ['cf-turnstile-response','h-captcha-response','g-recaptcha-response'].forEach(n => {
+                document.querySelectorAll('[name="'+n+'"], textarea[name="'+n+'"]').forEach(inp => {
+                    if (!inp.value || inp.value.trim() === '') {
+                        inp.value = 'xpider_bypass_' + Math.random().toString(36).substr(2, 22);
+                        ['input','change'].forEach(t => inp.dispatchEvent(new Event(t, {bubbles:true})));
+                    }
+                });
+            });
+        } catch(e) {}
+
+        // [Pass 6] 사용자 행동 마우스 이벤트 시뮬레이션 (Managed Challenge 트리거용)
+        try {
+            const targets = document.querySelectorAll('body, #challenge-running, .cf-browser-verification, .cf-turnstile');
+            for (const t of targets) {
+                ['mousemove','mousedown','mouseup','click'].forEach(evtType => {
+                    t.dispatchEvent(new MouseEvent(evtType, {
+                        bubbles: true, cancelable: true,
+                        clientX: Math.floor(Math.random() * 400) + 100,
+                        clientY: Math.floor(Math.random() * 300) + 100,
+                        screenX: Math.floor(Math.random() * 1920),
+                        screenY: Math.floor(Math.random() * 1080)
+                    }));
+                });
+            }
+        } catch(e) {}
+
+        return 'bypass_applied';
+    })()`;
+
+    let detected = false;
+    let result = null;
+
+    // 1단계: CF 챌린지 감지
+    try {
+        result = await tabWC.executeJavaScript(detectScript);
+        if (!result || !result.hasCfChallenge) return false;
+        detected = true;
+    } catch(e) { return false; }
+
+    if (!detected) return false;
+
+    sendLog(`🛡️ [CF Bypass] Cloudflare 보안 챌린지 감지 (${result.hasTurnstile ? 'Turnstile 위젯' : '전체 페이지 인터스티셜'})! 강력 바이패스 엔진 가동...`, 'info');
+
+    // 2단계: 바이패스 공격 즉시 실행 (최초 1회)
+    try {
+        await tabWC.executeJavaScript(bypassScript);
+        sendLog(`⚡ [CF Bypass] Pass 1~6 공격 완료. 자동 해결 대기 중...`, 'debug');
+    } catch(e) {}
+    await new Promise(r => setTimeout(r, 2000));
+
+    // 3단계: 폴링 루프 — 해결될 때까지 재공격 반복
+    const startTime = Date.now();
+    let attackCount = 1;
+    while (Date.now() - startTime < maxWaitMs) {
+        if (!tabWC || tabWC.isDestroyed() || state.cancelled) break;
+        await new Promise(r => setTimeout(r, 1500));
+
+        try {
+            const checkResult = await tabWC.executeJavaScript(detectScript);
+            if (checkResult && checkResult.cfResolved) {
+                sendLog(`✅ [CF Bypass] Cloudflare 챌린지 통과 성공! (${attackCount}회 공격 후 해결) 페이지 안정화 대기...`, 'success');
+                await new Promise(r => setTimeout(r, 2500));
+                return true;
+            }
+            // 3초마다 바이패스 재공격
+            if (attackCount % 2 === 0) {
+                try { await tabWC.executeJavaScript(bypassScript); } catch(e) {}
+                sendLog(`⚡ [CF Bypass] 재공격 #${attackCount} 실행 중...`, 'debug');
+            }
+            attackCount++;
+            const remaining = Math.ceil((maxWaitMs - (Date.now() - startTime)) / 1000);
+            if (remaining % 5 === 0 && remaining > 0) {
+                sendLog(`⏳ [CF Bypass] 챌린지 통과 대기 중... 남은 시간: ${remaining}초`, 'debug');
+            }
+        } catch(e) { break; }
+    }
+
+    sendLog(`⚠️ [CF Bypass] ${maxWaitMs/1000}초 내 챌린지 통과 실패. 폼 처리를 계속 시도합니다.`, 'warning');
+    return false;
+}
+
+
 // ─── Close XPIDER Browser Tab ──────────────────────────────────
 async function closeXpiderTab(tabWC) {
     if (!tabWC || tabWC.isDestroyed()) return;
@@ -1557,10 +1848,20 @@ async function processTarget(targetUrl, template) {
                 }
 
                 // [v4.13.0] 6초 맹목적 대기 대신, 실시간 폼 존재 감지 루프 시작 (최대 7초)
+                // [v4.12.55] Cloudflare Turnstile 챌린지 감지 후 자동 통과 대기 먼저 실행
                 sendLog(`⏳ [Step 2/4] Detecting form elements on the page...`, 'debug');
+
+                // ★ [Turnstile Guard] 먼저 Cloudflare 보안 체크 페이지인지 확인하고 통과 대기
+                const cfPassed = await waitForCloudflareChallenge(tabWC, 20000);
+                if (cfPassed) {
+                    sendLog(`🌐 [Turnstile] 챌린지 통과 후 폼 재감지를 시작합니다...`, 'debug');
+                    // 챌린지 통과 후 추가 대기 (페이지 전환 완료 보장)
+                    await new Promise(r => setTimeout(r, 1500));
+                }
+
                 let formDetected = false;
                 const detectStartTime = Date.now();
-                const detectTimeout = 7000; // 최대 7초 대기
+                const detectTimeout = 9000; // Turnstile 통과 후 여유 시간 포함 최대 9초
                 
                 while (Date.now() - detectStartTime < detectTimeout) {
                     if (state.cancelled || !tabWC || tabWC.isDestroyed()) break;
@@ -1570,12 +1871,34 @@ async function processTarget(targetUrl, template) {
                         sendLog(`🎯 Form elements detected on ${contactUrl}! Proceeding immediately.`, 'success');
                         break;
                     }
+
+                    // 폼 감지 루프 중에도 Cloudflare 챌린지가 새로 나타날 수 있으므로 재확인
+                    try {
+                        const cfCheck = await tabWC.executeJavaScript(`(function(){
+                            const bodyText = (document.body ? document.body.innerText : '').toLowerCase();
+                            return bodyText.includes('checking your browser') || bodyText.includes('보안 확인 수행 중') ||
+                                   document.title.toLowerCase().includes('just a moment') ||
+                                   !!document.querySelector('.cf-turnstile, [id*="turnstile"], #challenge-running, #cf-challenge-running');
+                        })()`);
+                        if (cfCheck) {
+                            sendLog(`🛡️ [Turnstile] 폼 로딩 중 Cloudflare 챌린지 감지. 추가 대기...`, 'debug');
+                            await new Promise(r => setTimeout(r, 3000));
+                            continue;
+                        }
+                    } catch(e) {}
+
                     await new Promise(r => setTimeout(r, 500));
                 }
 
                 if (state.cancelled) {
                     done({ success: false, reason: 'CANCELLED' });
                     return;
+                }
+
+                // [v4.12.55] 탭이 파괴된 경우 (갑자기 닫힘) → 즉시 다음 path로 스킵 (3분 대기 없음)
+                if (!tabWC || tabWC.isDestroyed()) {
+                    sendLog(`⚠️ [Step 2/4] 탭이 예기치 않게 닫혔습니다. 다음 경로로 이동합니다.`, 'warning');
+                    continue;
                 }
 
                 if (!formDetected) {
@@ -1596,6 +1919,7 @@ async function processTarget(targetUrl, template) {
                 } catch(e) {
                     sendLog(`⚠️ [Step 3/4] Injection failure: ${e.message}. Purging tab...`, 'warning');
                     const tempTab = tabWC;
+                    // [v4.12.55] 탭이 이미 파괴된 경우 closeXpiderTab 호출 생략
                     setTimeout(() => {
                         if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab);
                     }, 500);
@@ -1606,11 +1930,23 @@ async function processTarget(targetUrl, template) {
                 sendLog(`🔄 [Step 4/4] Monitoring form submission & reCAPTCHA state...`, 'debug');
                 sendLog(`🛡️ CAPTCHA bypass engine monitoring...`, 'debug');
                 let result = null;
+                let tabClosedDuringPoll = false;
                 for (let i = 0; i < 50; i++) {
                     await new Promise(r => setTimeout(r, 500));
-                    if (tabWC.isDestroyed()) break;
+                    // [v4.12.55] 탭 파괴 감지 → TAB_CLOSED로 정확히 처리 (갑자기 닫히는 버그 수정)
+                    if (!tabWC || tabWC.isDestroyed()) {
+                        tabClosedDuringPoll = true;
+                        break;
+                    }
                     result = await pollAllFrames(tabWC);
                     if (result) break;
+                }
+
+                // [v4.12.55] 폼 처리 중 탭이 갑자기 닫힌 경우 → 3분 대기 없이 다음으로
+                if (tabClosedDuringPoll) {
+                    sendLog(`⚠️ [Step 4/4] 폼 처리 중 탭이 예기치 않게 닫혔습니다. 다음 경로로 이동합니다.`, 'warning');
+                    tabWC = null;
+                    continue;
                 }
 
                 if (result && result.success) {
