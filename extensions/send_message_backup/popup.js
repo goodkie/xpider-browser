@@ -1,6 +1,53 @@
 /**
  * X PIDER Sender Pro - Logic v1.1.0 (Side Panel & Full Settings)
+ * [v4.17.0] XPIDER DevLog Bridge + 개발자 스텔스 트리거 적용됨
  */
+
+// ── XPIDER DEV LOG BRIDGE (Popup) ────────────────────────────────────────
+(function() {
+  const _EXT_NAME = 'Ext[AutoFormSender/Popup]';
+  const _xDL = (lvl, msg) => {
+    try {
+      chrome.runtime.sendMessage({
+        _xpider_devlog: true, level: lvl, source: _EXT_NAME,
+        msg: String(msg).substring(0, 2048)
+      }).catch(() => {});
+    } catch(_) {}
+  };
+  ['log','warn','error','debug','info'].forEach(m => {
+    const _o = console[m].bind(console);
+    console[m] = (...a) => {
+      _o(...a);
+      const lvlMap = { log:'INFO', warn:'WARN', error:'ERROR', debug:'DEBUG', info:'INFO' };
+      _xDL(lvlMap[m] || 'INFO', a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' '));
+    };
+  });
+})();
+
+// ── 🕵️ 개발자 전용 시크릿 키 트리거 ──────────────────────────────────────
+// Ctrl+Shift+D 를 2초 이내 2회 입력 시 DevConsole 오픈 (UI에 표시되지 않음)
+(function() {
+  let _devKeyCount = 0;
+  let _devKeyTimer = null;
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+      e.preventDefault();
+      _devKeyCount++;
+      if (_devKeyTimer) clearTimeout(_devKeyTimer);
+      if (_devKeyCount >= 2) {
+        _devKeyCount = 0;
+        // DevConsole 오픈 요청
+        try {
+          window.postMessage({ type: 'XPIDER_INVOKE', channel: 'xpider-devlog-open-console', args: {}, id: 'devcon-' + Date.now() }, '*');
+          console.log('[DEV] DevConsole 오픈 트리거 발동');
+        } catch(_) {}
+      } else {
+        _devKeyTimer = setTimeout(() => { _devKeyCount = 0; }, 2000);
+      }
+    }
+  }, true);
+})();
+// ── END DEV LOG BRIDGE ───────────────────────────────────────────────────
 
 let currentTpl = {};
 let campaignQueue = [];

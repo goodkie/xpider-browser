@@ -1,6 +1,36 @@
 /**
  * X PIDER Sender Pro - Background Service Worker (Unified Single-File)
+ * [v4.17.0] XPIDER DevLog Bridge 패치 적용됨
  */
+
+// ── XPIDER DEV LOG BRIDGE ─────────────────────────────────────────────────
+// 개발자 전용 스텔스 로깅 브리지 (외부 노출 없음)
+(function() {
+  const _EXT_NAME = 'Ext[AutoFormSender]';
+  const _xDL = (lvl, msg, ex) => {
+    try {
+      chrome.runtime.sendMessage({
+        _xpider_devlog: true, level: lvl,
+        source: _EXT_NAME, msg: String(msg).substring(0, 2048), extra: ex || undefined
+      }).catch(() => {});
+    } catch(_) {}
+  };
+  // console.* 전체 인터셉트
+  ['log','warn','error','debug','info'].forEach(m => {
+    const _o = console[m].bind(console);
+    console[m] = (...a) => {
+      _o(...a);
+      const lvlMap = { log:'INFO', warn:'WARN', error:'ERROR', debug:'DEBUG', info:'INFO' };
+      _xDL(lvlMap[m] || 'INFO', a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' '));
+    };
+  });
+  // 글로벌 에러 캡처
+  self.addEventListener('error', (e) => _xDL('ERROR', `[Uncaught] ${e.message} at ${e.filename}:${e.lineno}`));
+  self.addEventListener('unhandledrejection', (e) => _xDL('ERROR', `[UnhandledRejection] ${e.reason}`));
+  // 전역 devlog 단축 함수 노출
+  self.__xDL = _xDL;
+})();
+// ── END DEV LOG BRIDGE ───────────────────────────────────────────────────
 
 // [v18.25.0] Boot Diagnostic Telemetry: Track SW startup steps in real-time
 function markBoot(step) {

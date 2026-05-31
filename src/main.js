@@ -29,6 +29,9 @@ const log  = require('electron-log');
 // ─── Campaign Engine (AutoForm Sender Pro) ────────────────────
 const campaignEngine = require('./campaign-engine');
 
+// ─── [v4.17.0] 개발자 전용 스텔스 디버깅 로그 허브 ───────────
+const devlog = require('./xpider-devlog');
+
 // ─── 아이콘 경로 ──────────────────────────────────────────────
 const ICON_PATH = path.join(__dirname, '..', 'assets', 'icons', 'win', 'icon.ico');
 const ICON_PNG  = path.join(__dirname, 'assets', 'icon.png');
@@ -153,10 +156,9 @@ let _logoutExitInProgress = false;
 // --no-auto-login 플래그 여부 (로그아웃 후 재시작 시 자동 로그인 원천 차단)
 const _noAutoLogin = process.argv.includes('--no-auto-login');
 
-// ─── 전역 실시간 로그 링버퍼 ──────────────────────────────────
-// xLog 함수를 빈 함수로 두거나, 단순 native console로 대체하여 레거시 오류 방지
+// ─── [v4.17.0] 전역 실시간 로그 (devlog 라우팅) ──────────────
 function xLog(level, source, ...args) {
-    // 실시간 로그 스트림과 링버퍼는 완전히 제거되었습니다.
+    try { devlog.addLog(level || 'INFO', source || 'Main', args.map(String).join(' ')); } catch(_) {}
 }
 
 
@@ -286,6 +288,54 @@ function createWindow() {
 
   // Global handler to catch all window.open / target="_blank" from ANY webview or tab
   app.on('web-contents-created', (event, contents) => {
+
+    // ─── [v4.17.0] 탭 전체 로깅 훅 ────────────────────────────
+    const _tabSrc = () => {
+      try {
+        const u = contents.getURL();
+        return `Tab[${contents.id}:${u ? u.substring(0,60) : 'unknown'}]`;
+      } catch { return `Tab[${contents.id}]`; }
+    };
+
+    // JS 콘솔 출력 캡처 (console.log/warn/error 전부)
+    contents.on('console-message', (e, level, message, line, sourceId) => {
+      const lvlMap = { 0: 'DEBUG', 1: 'INFO', 2: 'WARN', 3: 'ERROR' };
+      const logLevel = lvlMap[level] || 'INFO';
+      devlog.addLog('TAB', _tabSrc(), `[console.${logLevel.toLowerCase()}] ${message}`,
+        line ? { line, sourceId: (sourceId||'').substring(0,80) } : undefined);
+    });
+
+    // 페이지 이동 시작
+    contents.on('did-start-navigation', (e, url, isInPlace, isMainFrame) => {
+      if (isMainFrame) devlog.addLog('TAB', _tabSrc(), `▶ 네비게이션 시작: ${url}`);
+    });
+
+    // 페이지 로드 완료
+    contents.on('did-finish-load', () => {
+      try { devlog.addLog('TAB', `Tab[${contents.id}:${contents.getURL().substring(0,60)}]`, '✅ 페이지 로드 완료'); } catch(_) {}
+    });
+
+    // 페이지 로드 실패
+    contents.on('did-fail-load', (e, errCode, errDesc, validatedURL, isMainFrame) => {
+      if (isMainFrame) devlog.addLog('ERROR', _tabSrc(), `❌ 페이지 로드 실패: ${errDesc} (${errCode}) — ${validatedURL}`);
+    });
+
+    // 렌더러 충돌
+    contents.on('render-process-gone', (e, details) => {
+      devlog.addLog('ERROR', _tabSrc(), `💥 렌더러 프로세스 종료: reason=${details.reason}, exitCode=${details.exitCode}`);
+    });
+
+    // 응답 없음
+    contents.on('unresponsive', () => {
+      devlog.addLog('WARN', _tabSrc(), '⚠️ 탭 응답 없음 (Unresponsive)');
+    });
+
+    // 타이틀 변경
+    contents.on('page-title-updated', (e, title) => {
+      devlog.addLog('TAB', _tabSrc(), `📌 타이틀 변경: ${title}`);
+    });
+    // ─── 탭 로깅 훅 끝 ──────────────────────────────────────────
+
     // 1. Handle New Windows -> Redirect to Tabs
     contents.setWindowOpenHandler(({ url }) => {
       if (url && url.includes('wit.ai')) {
@@ -550,6 +600,9 @@ ipcMain.on('auth-logout', async () => {
 
 // ─── 앱 종료 전 잠금 해제 및 좀비 방지 2초 안전 타임아웃 ──────────────────────
 app.on('before-quit', async (e) => {
+  // [v4.17.0] devlog 파일 스트림 정리
+  try { devlog.close(); } catch(_) {}
+
   // auth-logout IPC에서 이미 로그아웃 및 relaunch 처리 중인 경우 이중 처리 건너뜀
   if (_logoutExitInProgress) {
     log.info('[Quit] 로그아웃 프로세스 진행 중 — before-quit 이중 처리 건너뜀');
@@ -3389,6 +3442,13 @@ ipcMain.handle('xpider-ext-storage-clear', async () => {
 // ─── RUNTIME MESSAGE RELAY (Content -> Sidepanel) ───────────
 ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => {
     if (!message) return { success: false };
+
+    // [v4.17.0] _xpider_devlog 플래그 인터셉트 — 익스텐션 DevLog 브리지 처리
+    if (message && message._xpider_devlog) {
+        devlog.addLog(message.level || 'EXT', message.source || 'Ext', message.msg || '', message.extra);
+        return { success: true };
+    }
+
     log.info(`[ExtBridge] Received runtime message: action=${message.action}`);
     
     // ── 여분의 브라우저 새 탭 일괄 닫기 브릿지 ──
@@ -4141,8 +4201,113 @@ ipcMain.handle('xpider-show-save-dialog', async (event, { defaultName, content }
     }
 });
 
+// ─── [v4.17.0] DevConsole 창 관리 ────────────────────────────
+let devConsoleWindow = null;
+
+function createDevConsoleWindow() {
+    if (devConsoleWindow && !devConsoleWindow.isDestroyed()) {
+        devConsoleWindow.focus();
+        return;
+    }
+    devConsoleWindow = new BrowserWindow({
+        width: 1400, height: 820,
+        minWidth: 900, minHeight: 500,
+        title: '🕵️ XPIDER DevConsole — DEVELOPER ONLY',
+        frame: false,
+        transparent: false,
+        backgroundColor: '#080c10',
+        icon: ICON_PNG,
+        webPreferences: {
+            preload: path.join(__dirname, 'dev-console-preload.js'),
+            contextIsolation: true,
+            nodeIntegration: false,
+        },
+        show: false,
+        alwaysOnTop: false,
+        skipTaskbar: true,  // 작업 표시줄에 표시 안 함
+    });
+    devConsoleWindow.loadFile(path.join(__dirname, 'dev-console.html'));
+    devConsoleWindow.once('ready-to-show', () => {
+        devConsoleWindow.show();
+        devlog.setDevConsoleWindow(devConsoleWindow);
+        devlog.addLog('INFO', 'DevConsole', '🕵️ 개발자 콘솔 연결됨');
+    });
+    devConsoleWindow.on('closed', () => {
+        devConsoleWindow = null;
+        devlog.setDevConsoleWindow(null);
+    });
+}
+
+// ─── [v4.17.0] DevConsole IPC 핸들러들 ─────────────────────────
+ipcMain.on('xpider-devlog-add', (event, { level, source, msg, extra }) => {
+    devlog.addLog(level || 'INFO', source || 'Ext', msg || '', extra);
+});
+
+ipcMain.handle('xpider-devlog-get', async (_, filter) => {
+    return devlog.getLogs(filter || {});
+});
+
+ipcMain.handle('xpider-devlog-clear', async () => {
+    devlog.clearLogs();
+    return { success: true };
+});
+
+ipcMain.handle('xpider-devlog-open-console', async () => {
+    createDevConsoleWindow();
+    return { success: true };
+});
+
+ipcMain.handle('xpider-devlog-open-file', async () => {
+    const p = devlog.getLogFilePath();
+    if (p) shell.showItemInFolder(p);
+    return { success: true };
+});
+
+ipcMain.handle('xpider-devlog-get-path', async () => {
+    return devlog.getLogFilePath();
+});
+
+ipcMain.handle('xpider-devlog-close-console', async () => {
+    if (devConsoleWindow && !devConsoleWindow.isDestroyed()) devConsoleWindow.close();
+    return { success: true };
+});
+
+// ─── [v4.17.0] 익스텐션 메시지에서 devlog 인터셉트 ─────────────
+// xpider-ext-runtime-send-message IPC에서 _xpider_devlog 플래그 메시지 처리
+ipcMain.on('xpider-ext-devlog-bridge', (event, { level, source, msg, extra }) => {
+    devlog.addLog(level || 'EXT', source || 'Ext', msg || '', extra);
+});
+
 // ─── 앱 시작 ──────────────────────────────────────────────────
 app.whenReady().then(async () => {
+  // [v4.17.0] DevLog 초기화 (앱 시작 직후)
+  devlog.init(app.getPath('appData'));
+  devlog.addLog('INFO', 'Main', `=== XPIDER Browser v${app.getVersion()} 시작 ===`);
+  devlog.addLog('INFO', 'Main', `프로필 ID: ${profileId} | PID: ${process.pid}`);
+
+  // [v4.17.0] webRequest 인터셉터 — 모든 탭 HTTP 요청/응답 캡처
+  session.defaultSession.webRequest.onCompleted({ urls: ['<all_urls>'] }, (details) => {
+    try {
+      const isPost = details.method === 'POST';
+      const status = details.statusCode;
+      const url    = (details.url || '').substring(0, 120);
+      const mark   = isPost ? '📤 POST' : details.method;
+      const statusMark = status >= 400 ? `❌${status}` : status >= 300 ? `↪${status}` : `✅${status}`;
+      devlog.addLog('NET', `Net[Tab:${details.webContentsId || '?'}]`,
+        `${mark} ${statusMark} ${url}`,
+        { ms: details.responseTime || 0, size: details.responseHeaders ? 0 : 0 }
+      );
+    } catch(_) {}
+  });
+
+  // [v4.17.0] 오류 응답 별도 강조
+  session.defaultSession.webRequest.onErrorOccurred({ urls: ['<all_urls>'] }, (details) => {
+    try {
+      devlog.addLog('WARN', `Net[Tab:${details.webContentsId || '?'}]`,
+        `⚠️ 네트워크 오류: ${details.error} — ${(details.url||'').substring(0,100)}`);
+    } catch(_) {}
+  });
+
   // --- 익스텐션 브릿지 주입 (Extension Compatibility Layer) ---
   session.defaultSession.setPreloads([path.join(__dirname, 'ext-preload.js')]);
 
@@ -4157,12 +4322,19 @@ app.whenReady().then(async () => {
     splashWindow.webContents.send('splash-progress', '로컬 익스텐션 로딩 중...');
   }
   loadedExtensionsInfo = await loadLocalExtensions();
+  devlog.addLog('INFO', 'Main', `익스텐션 ${loadedExtensionsInfo.length}개 로드 완료`);
 
   // 3. 로그인 창 표시 후 스플래시 닫기
   createLoginWindow();
   await new Promise(resolve => setTimeout(resolve, 400));
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.close();
+  }
+
+  // [v4.17.0] --devlog 인자로 시작 시 DevConsole 자동 오픈
+  if (process.argv.includes('--devlog')) {
+    setTimeout(() => createDevConsoleWindow(), 2000);
+    devlog.addLog('INFO', 'Main', '--devlog 플래그 감지 → DevConsole 자동 오픈 예약 (2초 후)');
   }
 
   app.on('activate', () => {

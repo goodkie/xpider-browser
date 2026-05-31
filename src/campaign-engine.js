@@ -4,10 +4,12 @@
  * - Smart form filling: infers values for unmatched fields from template
  * - [v3.0] Full support: SELECT dropdowns, radio buttons, checkboxes, custom widgets
  * - [v3.0] Human-like mouse simulation (mousemove→mousedown→mouseup→click)
+ * - [v4.17.0] 모든 sendLog 호출 포함 devlog ENGINE 레벨 100% 라우팅
  */
 
 const { app, BrowserWindow } = require('electron');
 const authService = require('./auth/auth-service');
+const devlog = require('./xpider-devlog');  // [v4.17.0] 디버깅 로그 허브
 
 let _getAllWebContents = null;
 let _log = null;
@@ -55,6 +57,11 @@ function broadcast(message) {
 
 function sendLog(msg, type = 'info') {
     if (_log) _log(msg);
+    // [v4.17.0] ENGINE 레벨로 devlog 실시간 라우팅
+    try {
+        const lvlMap = { info: 'ENGINE', warn: 'WARN', error: 'ERROR', success: 'ENGINE', debug: 'DEBUG' };
+        devlog.addLog(lvlMap[type] || 'ENGINE', 'CampaignEngine', msg);
+    } catch(_) {}
     broadcast({ action: 'SENDER_LOG', message: msg, logType: type });
 }
 

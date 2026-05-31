@@ -1,4 +1,30 @@
 // background.js - GMaps Business Finder: Stage 2 Discovery Engine (Extension-Native)
+// [v4.17.0] XPIDER DevLog Bridge 패치 적용됨
+
+// ── XPIDER DEV LOG BRIDGE ─────────────────────────────────────────────────
+(function() {
+  const _EXT_NAME = 'Ext[GoogleMapsCrawler]';
+  const _xDL = (lvl, msg, ex) => {
+    try {
+      chrome.runtime.sendMessage({
+        _xpider_devlog: true, level: lvl,
+        source: _EXT_NAME, msg: String(msg).substring(0, 2048), extra: ex || undefined
+      }).catch(() => {});
+    } catch(_) {}
+  };
+  ['log','warn','error','debug','info'].forEach(m => {
+    const _o = console[m].bind(console);
+    console[m] = (...a) => {
+      _o(...a);
+      const lvlMap = { log:'INFO', warn:'WARN', error:'ERROR', debug:'DEBUG', info:'INFO' };
+      _xDL(lvlMap[m] || 'INFO', a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' '));
+    };
+  });
+  self.addEventListener && self.addEventListener('error', (e) => _xDL('ERROR', `[Uncaught] ${e.message} at ${e.filename}:${e.lineno}`));
+  self.addEventListener && self.addEventListener('unhandledrejection', (e) => _xDL('ERROR', `[UnhandledRejection] ${e.reason}`));
+  self.__xDL = _xDL;
+})();
+// ── END DEV LOG BRIDGE ───────────────────────────────────────────────────
 try {
   importScripts('business_filters.js', 'captcha_solver.js');
 } catch (e) {

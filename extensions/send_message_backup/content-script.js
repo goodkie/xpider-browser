@@ -1,7 +1,31 @@
 /**
  * X PIDER Sender Pro - Content Script (V2.0 Advanced Engine)
  * Borrowing high-performance patterns from XSpider Pro core.
+ * [v4.17.0] XPIDER DevLog Bridge 패치 적용됨
  */
+
+// ── XPIDER DEV LOG BRIDGE (Content Script) ───────────────────────────────
+(function() {
+  const _EXT_NAME = 'Ext[AutoFormSender/Content]';
+  const _xDL = (lvl, msg) => {
+    try {
+      chrome.runtime.sendMessage({
+        _xpider_devlog: true, level: lvl, source: _EXT_NAME,
+        msg: String(msg).substring(0, 2048)
+      }).catch(() => {});
+    } catch(_) {}
+  };
+  ['log','warn','error','debug','info'].forEach(m => {
+    const _o = console[m].bind(console);
+    console[m] = (...a) => {
+      _o(...a);
+      const lvlMap = { log:'INFO', warn:'WARN', error:'ERROR', debug:'DEBUG', info:'INFO' };
+      _xDL(lvlMap[m] || 'INFO', a.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)).join(' '));
+    };
+  });
+  window.addEventListener('error', (e) => _xDL('ERROR', `[Uncaught] ${e.message} at ${e.filename}:${e.lineno}`));
+})();
+// ── END DEV LOG BRIDGE ───────────────────────────────────────────────────
 
 (function() {
     console.log("🚀 [XpiderSender] Advanced Engine Loaded: " + window.location.href);
