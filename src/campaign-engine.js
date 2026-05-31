@@ -92,7 +92,7 @@ async function findContactPages(targetUrl) {
 
     // 1. targetUrl 자체가 서브패스를 포함하고 있고 contact 관련 키워드가 있는 경우 우선순위 1위로 추가
     const targetPath = targetUrl.replace(baseUrl, '');
-    const isContactKeyword = /contact|inquiry|support|feedback|write|customer|문의|연락|about/i;
+    const isContactKeyword = /contact|inquiry|support|feedback|write|customer|문의|연락/i;
     
     if (targetPath && targetPath !== '/' && isContactKeyword.test(targetPath)) {
         results.push(targetPath);
@@ -992,7 +992,7 @@ async function bestForm(){
     const selectors = [
       '[data-hook="wix-form"]', '[data-hook="cf-form"]', 'form[class*="form" i]',
       '[class*="contact-form" i]', '[id*="contact-form" i]', '[class*="wix-form" i]',
-      '.wpcf7-form', '.gform_wrapper', '.ninja-forms-form', '.wpforms-form',
+      '[class*="wixui" i]', '.wpcf7-form', '.gform_wrapper', '.ninja-forms-form', '.wpforms-form',
       'form', 'fieldset', '.form-wrapper', '.sqs-block-form', 'section[class*="form" i]',
       '[role="form"]', '[class*="form-container" i]', '[id*="form-container" i]'
     ];
@@ -1448,6 +1448,32 @@ const n=await fill(f);
 if(n===0){window.__xpider_result={success:false,reason:'FILL_FAILED'};return;}
 // Human-like pause before submit
 await new Promise(r=>setTimeout(r, typeof submitDelayMs !== 'undefined' ? submitDelayMs : 1200));
+
+// 📌 [Success Sniffing - MutationObserver] DOM 실시간 성공 메시지 감시 시작
+let domSuccessObserved = false;
+let successObserver = null;
+try {
+  successObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType === 1) { // ELEMENT_NODE
+          const text = (node.textContent || '').toLowerCase();
+          const html = (node.innerHTML || '').toLowerCase();
+          const hasSuccess = /thank you|메시지를 보냈습니다|문의가 접수되었습니다|성공적으로 전송|접수 완료|success|complete|wpcf7-mail-sent-ok|gform_confirmation_message|g-recaptcha-success/i.test(text) ||
+                             html.includes('wpcf7-mail-sent-ok') ||
+                             html.includes('wpforms-confirmation-container-id') ||
+                             html.includes('wix-form-success') ||
+                             node.querySelector('[data-hook="wix-form-success"], [class*="wix-form-success"], .wix-form-success') !== null;
+          if (hasSuccess) {
+            domSuccessObserved = true;
+          }
+        }
+      }
+    }
+  });
+  successObserver.observe(document.body, { childList: true, subtree: true });
+} catch(e) {}
+
 const ok = await submit(f);
 
 // 🔍 [Precision Submission Verifier] 실시간 초정밀 성공 관측 루프 (최대 7.5초)
@@ -1503,9 +1529,17 @@ if (ok) {
     const hasSuccessText = /thank you|메시지를 보냈습니다|문의가 접수되었습니다|성공적으로 전송|접수 완료|success|complete|wpcf7-mail-sent-ok|gform_confirmation_message|g-recaptcha-success/i.test(bodyText) ||
                            htmlText.includes('wpcf7-mail-sent-ok') ||
                            htmlText.includes('wpforms-confirmation-container-id') ||
-                           htmlText.includes('wix-form-success');
+                           htmlText.includes('wix-form-success') ||
+                           document.querySelector('[data-hook="wix-form-success"], [class*="wix-form-success"], .wix-form-success') !== null;
                            
     if (hasSuccessText) {
+      finalSuccess = true;
+      failureReason = 'SUBMITTED_SUCCESSFULLY';
+      break;
+    }
+
+    // 5. [Success Sniffing - MutationObserver] DOM 실시간 추가 감지
+    if (domSuccessObserved) {
       finalSuccess = true;
       failureReason = 'SUBMITTED_SUCCESSFULLY';
       break;
@@ -1513,8 +1547,42 @@ if (ok) {
   }
 }
 
+// 📌 리소스 해제
+try {
+  if (successObserver) successObserver.disconnect();
+} catch(e) {}
+
 window.__xpider_result = { success: finalSuccess, reason: failureReason, filled: n };
 })();`;
+}
+
+async function waitForPageLoad(wc, timeoutMs = 15000) {
+    if (!wc || wc.isDestroyed()) return false;
+    if (!wc.isLoading()) return true;
+
+    return new Promise(resolve => {
+        let resolved = false;
+        const cleanup = () => {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(timer);
+            try {
+                wc.removeListener('did-finish-load', onLoad);
+                wc.removeListener('did-fail-load', onFail);
+            } catch(e) {}
+        };
+
+        const timer = setTimeout(() => {
+            cleanup();
+            resolve(false);
+        }, timeoutMs);
+
+        const onLoad = () => { cleanup(); resolve(true); };
+        const onFail = () => { cleanup(); resolve(false); };
+
+        wc.on('did-finish-load', onLoad);
+        wc.on('did-fail-load', onFail);
+    });
 }
 
 // ─── Frame Helpers (Wix/iframe support) ──────────────────────
@@ -1605,8 +1673,8 @@ async function checkFormPresenceInAllFrames(wc) {
         const editables = document.querySelectorAll('[contenteditable="true"]');
         if (editables.length > 0) return true;
         
-        // iframe 내부나 form 태그 자체
-        const forms = document.querySelectorAll('form');
+        // iframe 내부나 form 태그 자체 (Wix 폼 전용 셀렉터도 포함)
+        const forms = document.querySelectorAll('form, [data-hook="wix-form"], [class*="wixui"], [id*="wix"]');
         if (forms.length > 0) return true;
         
         return false;
@@ -2074,7 +2142,19 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
                     continue;
                 }
 
-                // [v4.13.0] 6초 맹목적 대기 대신, 실시간 폼 존재 감지 루프 시작 (최대 7초)
+                // 페이지가 실제로 로드 완료될 때까지 대기
+                sendLog(`⏳ [Step 2/4] Waiting for page load to finish...`, 'debug');
+                const loadSuccess = await waitForPageLoad(tabWC, 30000);
+                if (!loadSuccess) {
+                    sendLog(`⚠️ [Step 2/4] Page load timed out or failed. Proceeding anyway...`, 'warning');
+                } else {
+                    sendLog(`✅ [Step 2/4] Page load completed.`, 'debug');
+                }
+                
+                // 페이지 로딩 완료 후 추가 대기 (Wix/React 등 동적 스크립트 실행 보장)
+                await new Promise(r => setTimeout(r, 2000));
+
+                // [v4.13.0] 6초 맹목적 대기 대신, 실시간 폼 존재 감지 루프 시작
                 // [v4.12.55] Cloudflare Turnstile 챌린지 감지 후 자동 통과 대기 먼저 실행
                 sendLog(`⏳ [Step 2/4] Detecting form elements on the page...`, 'debug');
 
@@ -2088,7 +2168,7 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
 
                 let formDetected = false;
                 const detectStartTime = Date.now();
-                const detectTimeout = 9000; // Turnstile 통과 후 여유 시간 포함 최대 9초
+                const detectTimeout = 30000; // Turnstile 통과 후 여유 시간 포함 최대 30초
                 
                 while (Date.now() - detectStartTime < detectTimeout) {
                     if (state.cancelled || !tabWC || tabWC.isDestroyed()) break;
