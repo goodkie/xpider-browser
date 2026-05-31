@@ -1068,15 +1068,44 @@ async function fill(c){
 }
 
 function submit(c){
+  // [v4.12.50] Force Enable Submit Buttons (Bypass client-side disabled state)
+  c.querySelectorAll('button, input[type="submit"], input[type="button"], a.button, div.button, [role="button"]').forEach(b => {
+    try {
+      b.disabled = false;
+      b.removeAttribute('disabled');
+      b.removeAttribute('aria-disabled');
+      b.classList.remove('disabled', 'is-disabled');
+      if (b.style.pointerEvents === 'none') b.style.pointerEvents = 'auto';
+    } catch(e) {}
+  });
+
   const sels=['button[type=submit]','input[type=submit]','[class*="submit"i]','[id*="submit"i]',
+    '[name*="submit"i]','[value*="submit"i]','[value*="send"i]','[class*="send"i]','[id*="send"i]',
     'button.btn-primary','button.primary','button:not([type=button]):not([type=reset])'];
+    
   for(const s of sels){
     const b=c.querySelector(s);
-    if(b&&b.offsetParent!==null&&!b.disabled){b.click();return true;}
+    if(b&&b.offsetParent!==null){b.click();return true;}
   }
+  
+  // Text-based fallback for complex/custom UI buttons
+  const allBtns = Array.from(c.querySelectorAll('button, div[role="button"], a[role="button"], input[type="submit"], input[type="button"], a[class*="btn"i], div[class*="btn"i]'));
+  for (const b of allBtns) {
+    if (b.offsetParent === null) continue;
+    const txt = (b.textContent || b.value || '').toLowerCase();
+    if (txt.includes('submit') || txt.includes('send') || txt.includes('전송') || txt.includes('등록') || txt.includes('보내기') || txt.includes('확인') || txt.includes('완료') || txt.includes('메시지 남기기') || txt.includes('문의하기') || txt.includes('접수')) {
+      b.click();
+      return true;
+    }
+  }
+
   if(c.tagName==='FORM'){try{c.submit();return true;}catch(e){}}
   const f=c.closest?c.closest('form'):null;
-  if(f){const b=f.querySelector('button,input[type=submit]');if(b){b.click();return true;}}
+  if(f){
+    try{f.submit();return true;}catch(e){}
+    const b=f.querySelector('button,input[type=submit]');
+    if(b){b.click();return true;}
+  }
   return false;
 }
 
