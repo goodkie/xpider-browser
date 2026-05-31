@@ -1473,34 +1473,31 @@ async function processTarget(targetUrl, template) {
                     const reason = finalRes ? finalRes.reason : 'NO_RESULT';
                     sendLog(`⚠️ [Step 4/4] Path ${path} unsuccessful (Reason: ${reason}).`, 'warning');
                     
-                    // [v4.12.47] window.__xpider_status를 활용해 폼 존재 및 입력 시도 여부를 고정밀 판별
+                    // [v4.12.48] window.__xpider_status를 활용해 폼 존재 및 입력 시도 여부를 고정밀 판별
                     const formDetected = (currentStatus && currentStatus.formDetected) || (finalRes && finalRes.reason !== 'NO_FORM');
                     const fillStarted = (currentStatus && currentStatus.fillStarted) || (finalRes && finalRes.filled > 0);
                     
-                    let isNotFoundOrNoForm = (!formDetected) || (reason === 'NO_FORM');
+                    let isErrorPage = false;
+                    try {
+                        const tabTitle = tabWC ? (tabWC.getTitle() || '').toLowerCase() : '';
+                        const tabUrl = tabWC ? (tabWC.getURL() || '').toLowerCase() : '';
+                        
+                        // 404, Not Found, 500, error, 없는 페이지 핑거프린트 감지
+                        if (tabTitle.includes('404') || tabTitle.includes('not found') || tabTitle.includes('error') || 
+                            tabTitle.includes('failed') || tabTitle.includes('디렉터리') || tabTitle.includes('site cant be reached') ||
+                            tabUrl.includes('error') || tabUrl.includes('404')) {
+                            isErrorPage = true;
+                        }
+                    } catch(e) {}
                     
-                    if (!isNotFoundOrNoForm) {
-                        try {
-                            const tabTitle = tabWC ? (tabWC.getTitle() || '').toLowerCase() : '';
-                            const tabUrl = tabWC ? (tabWC.getURL() || '').toLowerCase() : '';
-                            
-                            // 404, Not Found, 500, error, 없는 페이지 핑거프린트 감지
-                            if (tabTitle.includes('404') || tabTitle.includes('not found') || tabTitle.includes('error') || 
-                                tabTitle.includes('failed') || tabTitle.includes('디렉터리') || tabTitle.includes('site cant be reached') ||
-                                tabUrl.includes('error') || tabUrl.includes('404')) {
-                                isNotFoundOrNoForm = true;
-                            }
-                        } catch(e) {}
-                    }
-                    
-                    if (isNotFoundOrNoForm) {
+                    if (!formDetected || reason === 'NO_FORM' || isErrorPage) {
                         sendLog(`🛑 없는 페이지거나 폼이 존재하지 않는 탭입니다. 대기 없이 탭을 즉시 닫고 다음 타겟으로 이동합니다.`, 'info');
                         const tempTab = tabWC;
                         if (tempTab && !tempTab.isDestroyed()) {
                             await closeXpiderTab(tempTab);
                         }
-                    } else {
-                        // [v4.12.47] 폼이 존재하고 입력을 수행 중이거나 수행했던 탭인 경우 등록/성공 미확인 시 반드시 3분 지연 인터벌 가동
+                    } else if (formDetected && fillStarted) {
+                        // [v4.12.48] 폼이 존재하고 입력을 수행 중이거나 수행했던 탭인 경우에만 등록/성공 미확인 시 반드시 3분 지연 인터벌 가동
                         clearTimeout(globalTimer);
                         
                         sendLog(`⏳ 등록/성공 미확인: 폼이 존재하여 자동 입력을 진행했으나 성공을 확인하지 못했습니다.`, 'info');
@@ -1522,6 +1519,12 @@ async function processTarget(targetUrl, template) {
                         }
 
                         // 3분 대기 완료 혹은 중지 시 탭 강제 닫기
+                        const tempTab = tabWC;
+                        if (tempTab && !tempTab.isDestroyed()) {
+                            await closeXpiderTab(tempTab);
+                        }
+                    } else {
+                        sendLog(`🛑 폼은 존재하나 입력을 진행하지 못했습니다. 대기 없이 탭을 즉시 닫고 다음 타겟으로 이동합니다.`, 'info');
                         const tempTab = tabWC;
                         if (tempTab && !tempTab.isDestroyed()) {
                             await closeXpiderTab(tempTab);
