@@ -116,6 +116,13 @@ async function initializeAsyncComponents() {
             const el = document.getElementById(id);
             if (el) el.addEventListener('input', updateSpeedLabels);
         });
+
+        // [v4.15.0] 폼 자동 입력 방식 변경 리스너 등록 및 실시간 세이브
+        document.querySelectorAll('input[name="fill-mode"]').forEach(el => {
+            el.addEventListener('change', (e) => {
+                chrome.storage.local.set({ xpider_fill_mode: e.target.value });
+            });
+        });
     } catch(e) {}
 
     console.log("✅ X PIDER Sender Pro initialized.");
@@ -1048,6 +1055,11 @@ async function startCampaign() {
     const fillDelayMs = levelToFillMs[levelFill] || 300;
     const submitDelayMs = levelToSubmitMs[levelSubmit] || 1500;
 
+    // [v4.15.0] 폼 자동 입력 방식 획득 및 동기화 저장
+    const fillModeEl = document.querySelector('input[name="fill-mode"]:checked');
+    const fillMode = fillModeEl ? fillModeEl.value : 'instant';
+    chrome.storage.local.set({ xpider_fill_mode: fillMode });
+
     // [v19.0] Use XPIDER_INVOKE bridge directly to main process (bypasses background.js)
     addLog("[System] Sending to Native Engine...", "debug");
     xpiderInvoke('xpider-campaign-start', {
@@ -1055,7 +1067,8 @@ async function startCampaign() {
         template: currentTpl,
         delayMs,
         fillDelayMs,
-        submitDelayMs
+        submitDelayMs,
+        fillMode
     }).then(response => {
         if (response && response.success) {
             addLog("✅ [Native Engine] Campaign started!", "success");
@@ -1406,6 +1419,8 @@ async function saveSettings() {
 
     const lang = langSelect ? langSelect.value : 'en';
     const sttKeyVal = sttKeyInput ? sttKeyInput.value.trim() : '';
+    const fillModeEl = document.querySelector('input[name="fill-mode"]:checked');
+    const fillMode = fillModeEl ? fillModeEl.value : 'instant';
     const settings = {
         xpider_lang: lang,
         xpider_captcha_enabled: captchaToggle ? captchaToggle.checked : false,
@@ -1421,7 +1436,8 @@ async function saveSettings() {
         xpider_delay_collect: delayCollectInput ? delayCollectInput.value : 6,
         xpider_delay_fill: delayFillInput ? delayFillInput.value : 6,
         xpider_delay_submit: delaySubmitInput ? delaySubmitInput.value : 6,
-        xpider_random_delay: randomToggle ? randomToggle.checked : false
+        xpider_random_delay: randomToggle ? randomToggle.checked : false,
+        xpider_fill_mode: fillMode
     };
     await chrome.storage.local.set(settings);
     
@@ -1448,7 +1464,7 @@ async function saveSettings() {
 async function loadSettings() {
     const data = await chrome.storage.local.get([
         'xpider_lang', 'xpider_tpl', 'xpider_delay', 'xpider_delay_collect', 'xpider_delay_fill', 'xpider_delay_submit', 'xpider_queue', 'xpider_success', 'xpider_total',
-        'xpider_captcha_enabled', 'xpider_captcha_method', 'xpider_captcha_api_key', 'xpider_stt_api_key', 'xpider_stealth_mode', 'xpider_double_submit'
+        'xpider_captcha_enabled', 'xpider_captcha_method', 'xpider_captcha_api_key', 'xpider_stt_api_key', 'xpider_stealth_mode', 'xpider_double_submit', 'xpider_fill_mode'
     ]);
     
     if (data.xpider_lang) {
@@ -1522,6 +1538,11 @@ async function loadSettings() {
     if (document.getElementById('random-delay-toggle')) {
         document.getElementById('random-delay-toggle').checked = !!data.xpider_random_delay;
     }
+
+    // [v4.15.0] 폼 자동 입력 방식 복원 (디폴트: instant)
+    const fillMode = data.xpider_fill_mode || 'instant';
+    const fillModeEl = document.getElementById(`fill-mode-${fillMode}`);
+    if (fillModeEl) fillModeEl.checked = true;
 
     // Resuming Campaign
     if (data.xpider_queue && data.xpider_queue.length > 0) {

@@ -171,13 +171,16 @@ async function findContactPages(targetUrl) {
 
 
 // ─── Smart Form Filler Script ─────────────────────────────────
-function getFormFillerScript(template) {
+function getFormFillerScript(template, fillMode = 'instant') {
     const tplJson = JSON.stringify(template);
     const fillDelay = state.fillDelayMs || 300;
     const submitDelay = state.submitDelayMs || 1500;
     return `(async function xpiderFill(){
 if(window.__xpider_filling)return;
 window.__xpider_filling=true;
+
+// 폼 자동 입력 방식 주입
+const fillMode = '${fillMode}';
 
 // 👤 [User Active Tracker] 사용자의 실시간 입력/활동 추적 리스너 등록
 window.__xpider_user_active = Date.now();
@@ -413,6 +416,23 @@ async function tv(el,v){
   if(!v||!el||el.disabled||el.readOnly)return false;
   window.__xpider_user_active = Date.now(); // 자동 타이핑 시작 시 갱신
   
+  // ⚡ [Instant Mode] 무지연 즉시 폼 주입 모드 지원
+  if (typeof fillMode !== 'undefined' && fillMode === 'instant') {
+    setNativeValue(el, v);
+    el.focus&&el.focus();
+    ['input', 'change', 'blur'].forEach(t=>
+      el.dispatchEvent(new Event(t,{bubbles:true,cancelable:true}))
+    );
+    try{
+      const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
+      if(rk){
+        const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
+        if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+      }
+    }catch(e){}
+    return el.value === v;
+  }
+  
   // Click first using the stealth humanClick to establish mouse context
   await humanClick(el);
   el.focus&&el.focus();
@@ -490,6 +510,23 @@ async function tv(el,v){
 async function humanClick(el){
   if(!el)return;
   window.__xpider_user_active = Date.now(); // 마우스 조작 시작 시 갱신
+  
+  // ⚡ [Instant Mode] 무지연 즉시 클릭 모드 지원
+  if (typeof fillMode !== 'undefined' && fillMode === 'instant') {
+    try { el.scrollIntoView({ behavior: 'auto', block: 'center' }); } catch(e){}
+    const rect = el.getBoundingClientRect();
+    const x = rect.left + rect.width/2;
+    const y = rect.top + rect.height/2;
+    const evtInit = {bubbles:true, cancelable:true, clientX:x, clientY:y, screenX:x, screenY:y, button:0};
+    
+    el.dispatchEvent(new MouseEvent('mouseenter', evtInit));
+    el.dispatchEvent(new MouseEvent('mouseover', evtInit));
+    el.dispatchEvent(new MouseEvent('mousedown', evtInit));
+    el.dispatchEvent(new MouseEvent('mouseup', evtInit));
+    el.click();
+    try{ el.focus(); }catch(e){}
+    return;
+  }
   
   // 1. Ensure element is in view smoothly
   try {
@@ -1810,7 +1847,7 @@ async function openInXpiderTab(contactUrl) {
 }
 
 // ─── Process One Target URL ───────────────────────────────────
-async function processTarget(targetUrl, template) {
+async function processTarget(targetUrl, template, fillMode = 'instant') {
     return new Promise(async resolve => {
         let resolved = false;
         let tabWC = null;
@@ -1932,7 +1969,7 @@ async function processTarget(targetUrl, template) {
                 sendLog(`👉 Analyzing DOM: text/email/tel, SELECT dropdowns, radio groups, checkboxes, custom widgets...`, 'debug');
                 sendLog(`🔗 Matching template variables + human-like mouse simulation engaged...`, 'debug');
                 try {
-                    await injectIntoAllFrames(tabWC, getFormFillerScript(template));
+                    await injectIntoAllFrames(tabWC, getFormFillerScript(template, fillMode));
                     sendLog(`🚀 [Step 3/4] Smart Form Filler Engine successfully injected. Data population started.`, 'info');
                 } catch(e) {
                     sendLog(`⚠️ [Step 3/4] Injection failure: ${e.message}. Purging tab...`, 'warning');
@@ -2088,12 +2125,13 @@ async function processTarget(targetUrl, template) {
 }
 
 // ─── Main Campaign Loop ───────────────────────────────────────
-async function runCampaign(urls, template, delayMs, fillDelayMs = 300, submitDelayMs = 1500) {
+async function runCampaign(urls, template, delayMs, fillDelayMs = 300, submitDelayMs = 1500, fillMode = 'instant') {
     state.active = true; state.cancelled = false; state.paused = false;
     state.queue = [...urls]; state.template = template;
     state.delayMs = delayMs || 10000;
     state.fillDelayMs = fillDelayMs || 300;
     state.submitDelayMs = submitDelayMs || 1500;
+    state.fillMode = fillMode || 'instant';
     state.successCount = 0; state.completedCount = 0; state.totalTargets = urls.length; state.sessionId++;
 
     sendLog(`🚀 Native Engine v3.0 (Super-Intelligent Form Filler) starting: ${urls.length} target(s)`, 'start');
@@ -2113,7 +2151,7 @@ async function runCampaign(urls, template, delayMs, fillDelayMs = 300, submitDel
         visited.add(normalized);
 
         const targetUrl = url.startsWith('http') ? url : 'https://' + url;
-        const result = await processTarget(targetUrl, template).catch(e => ({ success: false, reason: e.message }));
+        const result = await processTarget(targetUrl, template, fillMode).catch(e => ({ success: false, reason: e.message }));
         if (result.success) { state.successCount++; }
         state.completedCount++;
         sendStats();
@@ -2133,9 +2171,9 @@ async function runCampaign(urls, template, delayMs, fillDelayMs = 300, submitDel
     sendStats();
 }
 
-function start(urls, template, delayMs, fillDelayMs, submitDelayMs) {
+function start(urls, template, delayMs, fillDelayMs, submitDelayMs, fillMode) {
     if (state.active) { sendLog('⚠️ Already running. Stop first.', 'warning'); return { success: false, error: 'Already running' }; }
-    runCampaign(urls, template, delayMs, fillDelayMs, submitDelayMs).catch(e => sendLog(`❌ Engine crash: ${e.message}`, 'error'));
+    runCampaign(urls, template, delayMs, fillDelayMs, submitDelayMs, fillMode).catch(e => sendLog(`❌ Engine crash: ${e.message}`, 'error'));
     return { success: true, status: 'acknowledged' };
 }
 
