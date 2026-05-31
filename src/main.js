@@ -3667,13 +3667,17 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
     loadedExtensionsInfo.forEach(ext => {
         log.info(`[ExtRelay] Sending to extId=${ext.id} (${ext.name})`);
         try {
-            session.defaultSession.extensions.sendMessage(ext.id, message)
-                .then(res => {
-                    log.info(`[ExtRelay] Successfully sent to extId=${ext.id}, response:`, res);
-                })
-                .catch(err => {
-                    log.error(`[ExtRelay] Promise rejected for extId=${ext.id}:`, err.message);
-                });
+            if (session.defaultSession.extensions && typeof session.defaultSession.extensions.sendMessage === 'function') {
+                session.defaultSession.extensions.sendMessage(ext.id, message)
+                    .then(res => {
+                        log.info(`[ExtRelay] Successfully sent to extId=${ext.id}, response:`, res);
+                    })
+                    .catch(err => {
+                        log.error(`[ExtRelay] Promise rejected for extId=${ext.id}:`, err.message);
+                    });
+            } else {
+                log.warn(`[ExtRelay] Extensions sendMessage API not supported/available on this session.`);
+            }
         } catch(e) {
             log.error(`[ExtRelay] Synchronous error for extId=${ext.id}:`, e.message);
         }
