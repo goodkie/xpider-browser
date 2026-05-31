@@ -76,118 +76,329 @@ const CONTACT_PROBES = [
     '/문의', '/문의하기', '/연락처', '/고객센터', '/cs'
 ];
 
-// [v4.12.51] Ultra-Precision Contact Page Extractor
-// - Phase 1: Fetch homepage HTML and extract all anchor hrefs → score by relevance
-// - Phase 2: HEAD-ping each candidate in parallel → keep only live (non-404) URLs
-// - Never opens a browser tab; runs entirely with HTTP requests from the main process
-const CONTACT_KEYWORDS = /contact|inquiry|inquire|support|feedback|reach|touch|write|message|help|customer[- ]?service|문의|연락|고객센터|cs|contactez|kontakt|contacto|ask[- ]?us|talk[- ]?to|get[- ]?in[- ]?touch|form/i;
-const CONTACT_NEGATIVE = /privacy|terms|cookie|policy|careers|jobs|blog|news|faq|about|product|price|shop|store|category|tag|search|login|register|logout|sitemap|css|js|png|jpg|gif|svg|woff|pdf/i;
+// ════════════════════════════════════════════════════════════════════
+// ██████  Ultra-Precision Contact Page URL Extractor v3.0  ██████████
+// ════════════════════════════════════════════════════════════════════
+// Strategy (순서대로):
+//   A. robots.txt → Sitemap URL 힌트 추출
+//   B. sitemap.xml / sitemap_index.xml 파싱 → contact URL 발굴
+//   C. 홈페이지 HTML 딥파싱 → href + 앵커텍스트 + aria-label + title 통합 점수
+//   D. 상위 후보 GET 요청으로 실제 HTTP 200 검증 (no-cors 제거, 진짜 상태코드 확인)
+//   E. 최종 결과: 실제 살아있는 contact URL 목록 반환
+// ════════════════════════════════════════════════════════════════════
 
-async function scoreContactUrl(href) {
+const CONTACT_URL_RE   = /contact|inquiry|inquire|support|feedback|reach|touch|write|message|help|customer[- ]?service|문의|연락|고객센터|contactez|kontakt|contacto|ask[- ]?us|talk[- ]?to|get[- ]?in[- ]?touch/i;
+const CONTACT_TEXT_RE  = /contact|문의|연락|write|feedback|reach|touch|support|send.*message|inquiry|get in touch|talk to|ask us|고객센터|contactez|kontakt|contacto|お問い合わせ|联系|联络/i;
+const CONTACT_NEGATIVE_RE = /privacy|terms|cookie|policy|careers|jobs|blog|news|faq|product|price|shop|store|category|tag|search|login|register|logout|sitemap|\.css|\.js|\.png|\.jpg|\.gif|\.svg|\.woff|\.pdf|#/i;
+
+/**
+ * 경로+앵커텍스트+속성을 통합해 contact 점수 계산
+ * @param {string} href - URL 경로
+ * @param {string} [anchorText=''] - 링크 텍스트
+ * @param {string} [attrs=''] - aria-label, title 등 기타 속성값
+ * @returns {number} 점수 (음수 가능)
+ */
+function scoreContactCandidate(href, anchorText = '', attrs = '') {
     let score = 0;
-    const lower = href.toLowerCase();
-    if (/contact/.test(lower)) score += 40;
-    if (/inquiry|inquire/.test(lower)) score += 35;
-    if (/문의|연락|고객/.test(lower)) score += 35;
-    if (/support/.test(lower)) score += 25;
-    if (/feedback|reach|touch|message|write/.test(lower)) score += 20;
-    if (/help/.test(lower)) score += 15;
-    if (/pages\/contact|about\/contact/.test(lower)) score += 10;
-    if (CONTACT_NEGATIVE.test(lower)) score -= 60;
+    const h = href.toLowerCase();
+    const t = (anchorText + ' ' + attrs).toLowerCase();
+
+    // ── URL 경로 점수 ───────────────────────────────────────────────
+    if (/\bcontact\b/.test(h))              score += 50;
+    else if (/contact/.test(h))             score += 40;
+    if (/inquiry|inquire/.test(h))          score += 40;
+    if (/문의|연락|고객센터/.test(h))           score += 40;
+    if (/\bsupport\b/.test(h))              score += 25;
+    if (/feedback|reach|touch|write/.test(h)) score += 20;
+    if (/\bhelp\b/.test(h))                 score += 15;
+    if (/pages\/contact|about\/contact|company\/contact/.test(h)) score += 15;
+    if (/kontakt|contactez|contacto/.test(h)) score += 30;
+
+    // ── 앵커 텍스트 점수 (URL보다 신뢰도 높음) ─────────────────────
+    if (/\bcontact\b/.test(t))              score += 60;
+    if (/contact us|get in touch/i.test(t)) score += 70;
+    if (/문의|연락|고객센터|고객지원/i.test(t))    score += 60;
+    if (/write to|send.*message|reach us/i.test(t)) score += 50;
+    if (/inquiry|inquire/i.test(t))         score += 50;
+    if (/support|feedback/i.test(t))        score += 30;
+    if (/ask us|talk to us/i.test(t))       score += 40;
+    if (/お問い合わせ|联系我们|联络/i.test(t))       score += 50;
+
+    // ── 네거티브 패널티 ─────────────────────────────────────────────
+    if (CONTACT_NEGATIVE_RE.test(h))        score -= 70;
+    // 너무 긴 경로는 contact 페이지일 가능성 낮음
+    if ((h.match(/\//g) || []).length > 4)  score -= 20;
+
     return score;
 }
 
-async function headPing(url, timeoutMs = 4000) {
+/**
+ * 실제 HTTP GET으로 URL 생존 여부 + 상태코드 확인
+ * mode:'cors' 시도 → 실패 시 no-cors 폴백
+ * @returns {{ live: boolean, status: number, finalUrl: string }}
+ */
+async function checkUrlLive(url, timeoutMs = 5000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        const resp = await fetch(url, { method: 'HEAD', signal: controller.signal, redirect: 'follow', mode: 'no-cors' });
+        // cors 모드로 실제 status 획득 시도
+        const resp = await fetch(url, {
+            method: 'GET',
+            signal: controller.signal,
+            redirect: 'follow',
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; XPIDER/3.0)' }
+        });
         clearTimeout(timer);
-        // no-cors always returns opaque (status 0) but no exception = reachable
-        return true;
+        const status = resp.status;
+        const finalUrl = resp.url || url;
+        const live = status >= 200 && status < 400;
+        return { live, status, finalUrl };
     } catch(e) {
         clearTimeout(timer);
-        return false;
+        // fetch 에러(네트워크 등) → 죽은 것으로 간주
+        return { live: false, status: 0, finalUrl: url };
     }
 }
 
-async function findContactPages(baseUrl) {
-    sendLog(`🔎 [Contact Finder v2] Starting ultra-precision contact URL extraction for ${baseUrl}...`, 'debug');
-
-    const discovered = new Map(); // path → score
-
-    // ── Phase 1: Scrape homepage anchor tags ──────────────────────
+/**
+ * robots.txt에서 Sitemap: 힌트 URL 추출
+ */
+async function extractSitemapUrlsFromRobots(baseUrl) {
+    const urls = [];
     try {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 7000);
-        const resp = await fetch(baseUrl + '/', { signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; XPIDER/1.0)' } });
-        clearTimeout(timer);
+        setTimeout(() => controller.abort(), 4000);
+        const resp = await fetch(`${baseUrl}/robots.txt`, {
+            signal: controller.signal,
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; XPIDER/3.0)' }
+        });
+        if (resp.ok) {
+            const text = await resp.text();
+            const re = /Sitemap:\s*(\S+)/gi;
+            let m;
+            while ((m = re.exec(text)) !== null) urls.push(m[1].trim());
+        }
+    } catch(e) { /* 무시 */ }
+    return urls;
+}
+
+/**
+ * sitemap XML 텍스트에서 <loc> URL을 파싱 → contact 점수가 양수인 것만 반환
+ */
+function parseContactUrlsFromSitemap(xmlText, baseUrl) {
+    const results = [];
+    const locRe = /<loc>\s*([^<]+)\s*<\/loc>/gi;
+    let m;
+    while ((m = locRe.exec(xmlText)) !== null) {
+        const raw = m[1].trim();
+        try {
+            const u = new URL(raw);
+            if (u.origin !== new URL(baseUrl).origin) continue;
+            const path = u.pathname;
+            const score = scoreContactCandidate(path);
+            if (score > 0) results.push({ path, score });
+        } catch(e) { /* 무시 */ }
+    }
+    return results;
+}
+
+/**
+ * sitemap URL(또는 기본 경로)을 fetch하여 contact URL 추출
+ * sitemap_index → 재귀 처리
+ */
+async function fetchAndParseSitemap(sitemapUrl, baseUrl, discovered, depth = 0) {
+    if (depth > 2) return; // 무한 재귀 방지
+    try {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 6000);
+        const resp = await fetch(sitemapUrl, {
+            signal: controller.signal,
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; XPIDER/3.0)' }
+        });
+        if (!resp.ok) return;
+        const xml = await resp.text();
+
+        // sitemap_index: <sitemap><loc>...</loc></sitemap>
+        if (xml.includes('<sitemapindex') || xml.includes('<sitemap>')) {
+            const subRe = /<sitemap>[\s\S]*?<loc>\s*([^<]+)\s*<\/loc>/gi;
+            let m;
+            const subUrls = [];
+            while ((m = subRe.exec(xml)) !== null) subUrls.push(m[1].trim());
+            // 상위 3개 서브 사이트맵만 처리
+            for (const sub of subUrls.slice(0, 3)) {
+                await fetchAndParseSitemap(sub, baseUrl, discovered, depth + 1);
+            }
+            return;
+        }
+
+        // 일반 sitemap
+        const items = parseContactUrlsFromSitemap(xml, baseUrl);
+        for (const { path, score } of items) {
+            if (!discovered.has(path) || discovered.get(path) < score) {
+                discovered.set(path, score);
+            }
+        }
+    } catch(e) { /* 무시 */ }
+}
+
+/**
+ * 홈페이지 HTML을 fetch하여 anchor 태그 딥파싱
+ * href + innerText + aria-label + title 통합 점수 계산
+ */
+async function scrapeHomepageAnchors(baseUrl, discovered) {
+    try {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 7000);
+        const resp = await fetch(baseUrl + '/', {
+            signal: controller.signal,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml'
+            }
+        });
+        if (!resp.ok) return;
         const html = await resp.text();
-        
-        // Extract all href values from anchor tags
-        const hrefRe = /href=["']([^"'#?]{1,300})["']/gi;
+
+        // <a href="..." aria-label="..." title="...">TEXT</a> 전체 캡처
+        const anchorRe = /<a\b([^>]*?)>([\s\S]*?)<\/a>/gi;
         let m;
-        while ((m = hrefRe.exec(html)) !== null) {
-            let href = m[1].trim();
-            if (!href || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('javascript:')) continue;
-            
-            // Normalize to path
+        while ((m = anchorRe.exec(html)) !== null) {
+            const attrs = m[1];
+            const inner = m[2].replace(/<[^>]+>/g, ' ').trim(); // 태그 제거 후 텍스트
+
+            // href 추출
+            const hrefM = /href=['"](.*?)['"]/i.exec(attrs);
+            if (!hrefM) continue;
+            let href = hrefM[1].trim();
+            if (!href || /^(mailto:|tel:|javascript:|#)/.test(href)) continue;
+
+            // aria-label, title 추출
+            const ariaM  = /aria-label=['"](.*?)['"]/i.exec(attrs);
+            const titleM = /title=['"](.*?)['"]/i.exec(attrs);
+            const extraAttrs = [ariaM ? ariaM[1] : '', titleM ? titleM[1] : ''].join(' ');
+
+            // 절대 URL → 경로만 추출
             try {
                 const u = new URL(href, baseUrl);
-                if (u.origin !== baseUrl) continue; // skip external links
+                if (u.origin !== new URL(baseUrl).origin) continue;
                 href = u.pathname;
             } catch(e) {
                 if (!href.startsWith('/')) href = '/' + href;
             }
             if (href === '/' || href === '') continue;
-            
-            const score = await scoreContactUrl(href);
-            if (score > 0 && !discovered.has(href)) {
-                discovered.set(href, score);
+
+            const score = scoreContactCandidate(href, inner, extraAttrs);
+            if (score > 0) {
+                const prev = discovered.get(href) || 0;
+                if (score > prev) discovered.set(href, score);
             }
         }
-        sendLog(`📎 [Contact Finder] Scraped ${discovered.size} candidate link(s) from homepage HTML.`, 'debug');
-    } catch(e) {
-        sendLog(`⚠️ [Contact Finder] Homepage scrape failed: ${e.message}. Falling back to probe list.`, 'debug');
-    }
 
-    // ── Phase 2: Add probe list candidates not yet found ─────────
+        // <nav>, <footer> 안의 텍스트 링크 추가 탐색 (단순 href만)
+        const simpleHrefRe = /href=['"](\/[^'"#?]{1,200})['"]/gi;
+        let sm;
+        while ((sm = simpleHrefRe.exec(html)) !== null) {
+            const href = sm[1].trim();
+            if (!discovered.has(href)) {
+                const score = scoreContactCandidate(href);
+                if (score > 5) discovered.set(href, score);
+            }
+        }
+        sendLog(`📎 [Contact Finder v3] Homepage anchors scraped: ${discovered.size} candidate(s)`, 'debug');
+    } catch(e) {
+        sendLog(`⚠️ [Contact Finder v3] Homepage scrape failed: ${e.message}`, 'debug');
+    }
+}
+
+/**
+ * ════════════════════════════════════════════════════════════════
+ * Ultra-Precision Contact Page URL Extractor v3.0
+ * ════════════════════════════════════════════════════════════════
+ * 1단계: robots.txt → Sitemap 힌트 추출
+ * 2단계: sitemap.xml 파싱 → contact URL 발굴
+ * 3단계: 홈페이지 HTML 딥파싱 (href + 앵커텍스트 + aria-label + title)
+ * 4단계: CONTACT_PROBES fallback 보완
+ * 5단계: 점수 정렬 후 GET 요청으로 실제 HTTP 200 검증
+ * 6단계: 최종 살아있는 URL 목록 반환
+ */
+async function findContactPages(baseUrl) {
+    sendLog(`🔎 [Contact Finder v3] Ultra-precision extraction starting for ${baseUrl} ...`, 'debug');
+
+    const discovered = new Map(); // path → score
+    const origin = (() => { try { return new URL(baseUrl).origin; } catch(e) { return baseUrl; } })();
+
+    // ── 1단계: robots.txt에서 Sitemap URL 힌트 수집 ─────────────────
+    let sitemapUrls = await extractSitemapUrlsFromRobots(origin);
+    // 기본 sitemap 경로 추가
+    for (const sp of ['/sitemap.xml', '/sitemap_index.xml', '/sitemap/sitemap.xml']) {
+        const full = origin + sp;
+        if (!sitemapUrls.includes(full)) sitemapUrls.push(full);
+    }
+    sitemapUrls = sitemapUrls.slice(0, 5); // 최대 5개
+
+    // ── 2단계: sitemap 파싱 ──────────────────────────────────────────
+    const sitemapPromises = sitemapUrls.map(u => fetchAndParseSitemap(u, origin, discovered));
+    await Promise.allSettled(sitemapPromises);
+    sendLog(`🗺️ [Contact Finder v3] After sitemap parse: ${discovered.size} candidate(s)`, 'debug');
+
+    // ── 3단계: 홈페이지 HTML 딥파싱 ─────────────────────────────────
+    await scrapeHomepageAnchors(origin, discovered);
+
+    // ── 4단계: CONTACT_PROBES fallback 보완 (미발견 경로에 기본 점수 부여) ─
     for (const probe of CONTACT_PROBES) {
         if (!discovered.has(probe)) {
-            const score = await scoreContactUrl(probe);
-            discovered.set(probe, score);
+            const score = scoreContactCandidate(probe);
+            if (score > 0) discovered.set(probe, score);
         }
     }
 
-    // ── Phase 3: Sort by score and HEAD-ping in parallel batches ─
+    // ── 5단계: 점수 정렬 후 상위 25개 GET 검증 ───────────────────────
     const sorted = Array.from(discovered.entries())
         .sort((a, b) => b[1] - a[1])
-        .slice(0, 20) // cap to top 20 candidates
-        .map(([path]) => path);
+        .slice(0, 25)
+        .map(([path, score]) => ({ path, score }));
 
-    sendLog(`🏓 [Contact Finder] Pinging ${sorted.length} candidate(s): ${sorted.slice(0, 5).join(', ')}...`, 'debug');
+    sendLog(`🏓 [Contact Finder v3] Verifying top ${sorted.length} candidates via GET: ${sorted.slice(0,5).map(x=>x.path).join(', ')}...`, 'debug');
 
     const liveUrls = [];
-    const batchSize = 8;
+    const batchSize = 6;
     for (let i = 0; i < sorted.length; i += batchSize) {
         if (state.cancelled) break;
         const batch = sorted.slice(i, i + batchSize);
-        const results = await Promise.all(batch.map(async path => {
-            const live = await headPing(baseUrl + path);
-            return live ? path : null;
+        const results = await Promise.all(batch.map(async ({ path, score }) => {
+            const url = origin + path;
+            const { live, status, finalUrl } = await checkUrlLive(url);
+            if (live) {
+                // 리다이렉트로 최종 착지 URL이 다를 수 있음 → 경로 추출
+                let finalPath = path;
+                try {
+                    const fu = new URL(finalUrl);
+                    if (fu.origin === origin) finalPath = fu.pathname;
+                } catch(e) {}
+                sendLog(`  ✅ [Contact Finder v3] LIVE (${status}) → ${finalPath}`, 'debug');
+                return finalPath;
+            }
+            sendLog(`  ❌ [Contact Finder v3] DEAD (${status}) → ${path}`, 'debug');
+            return null;
         }));
         liveUrls.push(...results.filter(Boolean));
+        // 상위 점수 3개 찾으면 중단 (너무 많이 열지 않도록)
         if (liveUrls.length >= 3) break;
     }
 
+    // ── 6단계: 최종 반환 ─────────────────────────────────────────────
     if (liveUrls.length > 0) {
-        sendLog(`✅ [Contact Finder] ${liveUrls.length} live contact URL(s) confirmed: ${liveUrls.join(', ')}`, 'info');
+        sendLog(`🎯 [Contact Finder v3] ${liveUrls.length} live contact URL(s) confirmed: ${liveUrls.join(', ')}`, 'info');
         return liveUrls;
     }
 
-    sendLog(`⚠️ [Contact Finder] No live contact pages confirmed. Using fallback list.`, 'warning');
-    return ['/contact', '/contact-us', '/inquiry'];
+    // 모든 검증 실패 시 점수 최상위 경로 반환 (최후 보루)
+    const topPaths = sorted.slice(0, 3).map(x => x.path);
+    sendLog(`⚠️ [Contact Finder v3] No verified live URL found. Using top-scored candidates: ${topPaths.join(', ')}`, 'warning');
+    return topPaths.length > 0 ? topPaths : ['/contact', '/contact-us', '/inquiry'];
 }
+
+
 
 // ─── Smart Form Filler Script ─────────────────────────────────
 function getFormFillerScript(template) {
