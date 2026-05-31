@@ -190,6 +190,49 @@ window.__xpider_user_active = Date.now();
   }, { passive: true });
 });
 
+// 🌐 [Network Sniffer] Fetch 및 XMLHttpRequest 몽키 패칭 적용 (성공 응답 스니핑)
+window.__xpider_ajax_success = false;
+try {
+  if (window.fetch && !window.fetch.__xpider_patched) {
+    const originalFetch = window.fetch;
+    window.fetch = async function(...args) {
+      try {
+        const response = await originalFetch(...args);
+        const urlLower = String(args[0] || '').toLowerCase();
+        if (response.ok && (urlLower.includes('contact') || urlLower.includes('submit') || urlLower.includes('form') || urlLower.includes('mail') || urlLower.includes('api'))) {
+          window.__xpider_ajax_success = true;
+        }
+        return response;
+      } catch (err) {
+        return originalFetch(...args);
+      }
+    };
+    window.fetch.__xpider_patched = true;
+  }
+
+  if (window.XMLHttpRequest && !window.XMLHttpRequest.__xpider_patched) {
+    const originalOpen = window.XMLHttpRequest.prototype.open;
+    const originalSend = window.XMLHttpRequest.prototype.send;
+    
+    window.XMLHttpRequest.prototype.open = function(method, url, ...rest) {
+      this.__xpider_url = url;
+      return originalOpen.call(this, method, url, ...rest);
+    };
+
+    window.XMLHttpRequest.prototype.send = function(...args) {
+      this.addEventListener('load', function() {
+        const urlLower = String(this.__xpider_url || '').toLowerCase();
+        const isSuccess = this.status >= 200 && this.status < 300;
+        if (isSuccess && (urlLower.includes('contact') || urlLower.includes('submit') || urlLower.includes('form') || urlLower.includes('mail') || urlLower.includes('api'))) {
+          window.__xpider_ajax_success = true;
+        }
+      });
+      return originalSend.call(this, ...args);
+    };
+    window.XMLHttpRequest.__xpider_patched = true;
+  }
+} catch (e) {}
+
 // 🛡️ [Stealth Shield v4.0] Main-world patch inside form frame to completely hide automation traces
 try {
   if (navigator.webdriver !== false) {
@@ -1274,8 +1317,15 @@ async function fill(c){
   return n;
 }
 
-function submit(c){
-  // [v4.12.50] Force Enable Submit Buttons (Bypass client-side disabled state)
+async function submit(c){
+  // 1. [Stealth Bypass] 폼에 걸려 있는 인라인 차단 리스너 무력화 시도
+  try {
+    if (c.tagName === 'FORM') {
+      c.onsubmit = null;
+    }
+  } catch(e) {}
+
+  // 2. [Force Enable] 모든 형태의 제출 버튼 비활성화 상태 강제 해제
   c.querySelectorAll('button, input[type="submit"], input[type="button"], a.button, div.button, [role="button"]').forEach(b => {
     try {
       b.disabled = false;
@@ -1286,33 +1336,85 @@ function submit(c){
     } catch(e) {}
   });
 
-  const sels=['button[type=submit]','input[type=submit]','[class*="submit"i]','[id*="submit"i]',
-    '[name*="submit"i]','[value*="submit"i]','[value*="send"i]','[class*="send"i]','[id*="send"i]',
-    'button.btn-primary','button.primary','button:not([type=button]):not([type=reset])'];
+  // 3. [Multi-Angle Click Tool] 다양한 포인터/마우스 이벤트 다각도 격발 헬퍼
+  const triggerMultiAngleClick = async (el) => {
+    if (!el) return false;
+    try {
+      const rect = el.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top + rect.height / 2;
+      
+      const eventOpts = { bubbles: true, cancelable: true, clientX: x, clientY: y, screenX: x, screenY: y, button: 0 };
+      
+      // 포인터 이벤트 -> 마우스 이벤트 시뮬레이션
+      el.dispatchEvent(new PointerEvent('pointerdown', eventOpts));
+      el.dispatchEvent(new MouseEvent('mousedown', eventOpts));
+      el.dispatchEvent(new PointerEvent('pointerup', eventOpts));
+      el.dispatchEvent(new MouseEvent('mouseup', eventOpts));
+      el.click();
+      return true;
+    } catch(e) {
+      try { el.click(); return true; } catch(err) { return false; }
+    }
+  };
+
+  // 4. [Pass 1] 표준 제출 셀렉터 다각도 클릭 시도
+  const sels = [
+    'button[type=submit]', 'input[type=submit]', '[class*="submit"i]', '[id*="submit"i]',
+    '[name*="submit"i]', '[value*="submit"i]', '[value*="send"i]', '[class*="send"i]', '[id*="send"i]',
+    'button.btn-primary', 'button.primary', 'button:not([type=button]):not([type=reset])'
+  ];
     
-  for(const s of sels){
-    const b=c.querySelector(s);
-    if(b&&b.offsetParent!==null){b.click();return true;}
+  for (const s of sels) {
+    const b = c.querySelector(s);
+    if (b && b.offsetParent !== null) {
+      if (await triggerMultiAngleClick(b)) return true;
+    }
   }
   
-  // Text-based fallback for complex/custom UI buttons
+  // 5. [Pass 2] 텍스트 기반 커스텀 버튼 다각도 클릭 시도
   const allBtns = Array.from(c.querySelectorAll('button, div[role="button"], a[role="button"], input[type="submit"], input[type="button"], a[class*="btn"i], div[class*="btn"i]'));
   for (const b of allBtns) {
     if (b.offsetParent === null) continue;
     const txt = (b.textContent || b.value || '').toLowerCase();
-    if (txt.includes('submit') || txt.includes('send') || txt.includes('전송') || txt.includes('등록') || txt.includes('보내기') || txt.includes('확인') || txt.includes('완료') || txt.includes('메시지 남기기') || txt.includes('문의하기') || txt.includes('접수')) {
-      b.click();
-      return true;
+    const isSubmitText = ['submit', 'send', '전송', '등록', '보내기', '확인', '완료', '메시지 남기기', '문의하기', '접수'].some(k => txt.includes(k));
+    if (isSubmitText) {
+      if (await triggerMultiAngleClick(b)) return true;
     }
   }
 
-  if(c.tagName==='FORM'){try{c.submit();return true;}catch(e){}}
-  const f=c.closest?c.closest('form'):null;
-  if(f){
-    try{f.submit();return true;}catch(e){}
-    const b=f.querySelector('button,input[type=submit]');
-    if(b){b.click();return true;}
+  // 6. [Pass 3] 키보드 Enter 격발 폴백 시도
+  try {
+    const activeInp = c.querySelector('input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea');
+    if (activeInp) {
+      const enterOpts = { bubbles: true, cancelable: true, key: 'Enter', code: 'Enter', keyCode: 13 };
+      activeInp.dispatchEvent(new KeyboardEvent('keydown', enterOpts));
+      activeInp.dispatchEvent(new KeyboardEvent('keypress', enterOpts));
+      activeInp.dispatchEvent(new KeyboardEvent('keyup', enterOpts));
+    }
+  } catch(e) {}
+
+  // 7. [Pass 4] HTML5 네이티브 격발 폴백 (JS 검증 차단을 완전히 우회)
+  if (c.tagName === 'FORM') {
+    try {
+      HTMLFormElement.prototype.submit.call(c);
+      return true;
+    } catch(e) {}
   }
+
+  const f = c.closest ? c.closest('form') : null;
+  if (f) {
+    try {
+      HTMLFormElement.prototype.submit.call(f);
+      return true;
+    } catch(e) {}
+    
+    const b = f.querySelector('button, input[type=submit]');
+    if (b) {
+      if (await triggerMultiAngleClick(b)) return true;
+    }
+  }
+
   return false;
 }
 
@@ -1339,9 +1441,72 @@ const n=await fill(f);
 if(n===0){window.__xpider_result={success:false,reason:'FILL_FAILED'};return;}
 // Human-like pause before submit
 await new Promise(r=>setTimeout(r, typeof submitDelayMs !== 'undefined' ? submitDelayMs : 1200));
-const ok=submit(f);
-await new Promise(r=>setTimeout(r,3000));
-window.__xpider_result={success:ok,reason:ok?'SUBMITTED':'NO_SUBMIT_BTN',filled:n};
+const ok = await submit(f);
+
+// 🔍 [Precision Submission Verifier] 실시간 초정밀 성공 관측 루프 (최대 7.5초)
+let finalSuccess = ok;
+let failureReason = ok ? 'SUBMITTED' : 'NO_SUBMIT_BTN';
+
+if (ok) {
+  const initialUrl = window.location.href;
+  const initialTitle = document.title;
+  
+  // 감지 주기 설정 (매 500ms마다 실행, 총 15회 = 7.5초)
+  for (let step = 0; step < 15; step++) {
+    await new Promise(r => setTimeout(r, 500));
+
+    const currentUrl = window.location.href;
+    const currentTitle = document.title;
+    const bodyText = (document.body ? document.body.innerText : '').toLowerCase();
+    const htmlText = (document.documentElement ? document.documentElement.innerHTML : '').toLowerCase();
+
+    // 1. [Error Sniffing] 클라이언트 유효성 검사 오류 및 전송 실패 경고 메시지 감지
+    const hasClientError = /required|invalid|error|failed|입력해 주세요|gfield_error|wpcf7-not-valid|오류가 발생했습니다|올바르지 않습니다/i.test(bodyText) ||
+                           htmlText.includes('wpcf7-validation-errors') ||
+                           htmlText.includes('gform_validation_container') ||
+                           document.querySelectorAll('.error, .invalid, .wpcf7-not-valid, .validation-error').length > 0;
+                           
+    if (hasClientError) {
+      finalSuccess = false;
+      failureReason = 'CLIENT_VALIDATION_FAILED';
+      break; // 실패 지표 확정이므로 감시 루프 조기 탈출
+    }
+
+    // 2. [Success Sniffing - Network] Monkey Patching 결과 감지
+    if (window.__xpider_ajax_success) {
+      finalSuccess = true;
+      failureReason = 'SUBMITTED_SUCCESSFULLY';
+      break;
+    }
+
+    // 3. [Success Sniffing - URL/Title] 성공 페이지 리다이렉트 감지
+    const isUrlChanged = currentUrl !== initialUrl;
+    const isTitleChanged = currentTitle !== initialTitle;
+    
+    const isSuccessUrl = isUrlChanged && /thank|success|confirm|complete|sent/i.test(currentUrl);
+    const isSuccessTitle = isTitleChanged && /thank|success|complete|감사|성공|완료/i.test(currentTitle);
+    
+    if (isSuccessUrl || isSuccessTitle) {
+      finalSuccess = true;
+      failureReason = 'SUBMITTED_SUCCESSFULLY';
+      break;
+    }
+
+    // 4. [Success Sniffing - DOM Content] 성공 메시지 핑거프린트 감지
+    const hasSuccessText = /thank you|메시지를 보냈습니다|문의가 접수되었습니다|성공적으로 전송|접수 완료|success|complete|wpcf7-mail-sent-ok|gform_confirmation_message|g-recaptcha-success/i.test(bodyText) ||
+                           htmlText.includes('wpcf7-mail-sent-ok') ||
+                           htmlText.includes('wpforms-confirmation-container-id') ||
+                           htmlText.includes('wix-form-success');
+                           
+    if (hasSuccessText) {
+      finalSuccess = true;
+      failureReason = 'SUBMITTED_SUCCESSFULLY';
+      break;
+    }
+  }
+}
+
+window.__xpider_result = { success: finalSuccess, reason: failureReason, filled: n };
 })();`;
 }
 
