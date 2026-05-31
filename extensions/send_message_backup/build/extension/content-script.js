@@ -378,9 +378,10 @@
             const lastSubmittedPath = sessionStorage.getItem('xpider_last_submit_path');
             const lastSubmitTime = parseInt(sessionStorage.getItem('xpider_last_submit_time') || '0');
             const now = Date.now();
+            const submitCount = parseInt(sessionStorage.getItem('xpider_submit_count') || '0');
             
             // If we are on a path that was just submitted (within 20s)
-            if (lastSubmittedPath && currentUrl.includes(lastSubmittedPath) && (now - lastSubmitTime) < 20000) {
+            if (submitCount === 0 && lastSubmittedPath && currentUrl.includes(lastSubmittedPath) && (now - lastSubmitTime) < 20000) {
                 logDev("🔄 [LoopGuard] Self-refresh detected. Waiting for actual success indicator...", "info");
                 setTimeout(() => detectSubmissionResult(null, template), 500); 
                 return;
@@ -405,6 +406,30 @@
                 currentForm = await findOptimalForm();
                 
                 if (currentForm) break;
+
+                // [v1.2.0] Fast-Track Formless Detection
+                if (i === 1) {
+                    const allInputs = queryAllInputs();
+                    const validTextFields = allInputs.filter(inp => {
+                        const type = (inp.getAttribute('type') || 'text').toLowerCase();
+                        const id = (inp.id || '').toLowerCase();
+                        const name = (inp.name || '').toLowerCase();
+                        const placeholder = (inp.placeholder || '').toLowerCase();
+                        const cls = (inp.className || '').toString().toLowerCase();
+                        
+                        if (['hidden', 'submit', 'button', 'checkbox', 'radio', 'file', 'image'].includes(type)) return false;
+                        
+                        const isSearch = [id, name, placeholder, cls].some(k => k.includes('search') || k.includes('q') || k.includes('query'));
+                        if (isSearch) return false;
+                        
+                        return true;
+                    });
+                    
+                    if (validTextFields.length === 0) {
+                        logDev("⚡ [Discovery] Clean Formless Page Detected. Fast-tracking to termination...", "warning");
+                        break;
+                    }
+                }
                 
                 // [Ultra-Mode] Try scrolling to reveal lazy-loaded forms
                 if (i === 1) {
@@ -2382,6 +2407,29 @@
             // [v4.1] 성공 시 실시간 공란 감시 스위퍼 정지
             stopActiveEmptyFieldSweeper();
 
+            // [Double Submit] 이중 전송 모드 체크
+            const config = await chrome.storage.local.get(['xpider_double_submit']);
+            if (config && config.xpider_double_submit === true) {
+                const submitCount = parseInt(sessionStorage.getItem('xpider_submit_count') || '0');
+                if (submitCount === 0) {
+                    logDev("✨ [Engine] Double Submit Active: 1st submission confirmed. Preparing 2nd submission...", "info");
+                    sessionStorage.setItem('xpider_submit_count', '1');
+                    
+                    // Loop Guard 무력화를 위해 제출 기록 일시 삭제
+                    sessionStorage.removeItem('xpider_last_submit_path');
+                    sessionStorage.removeItem('xpider_last_submit_time');
+                    sessionStorage.setItem('xpider_initial_form_present', 'false');
+                    sessionStorage.setItem('xpider_pending_verify', 'false');
+
+                    await new Promise(r => setTimeout(r, 2500));
+                    window.location.reload();
+                    return true;
+                } else {
+                    logDev("✨ [Engine] Double Submit Complete: 2nd submission confirmed.", "success");
+                    sessionStorage.removeItem('xpider_submit_count');
+                }
+            }
+
             // [v18.7.0] Success Visibility Buffer: Wait 3.5s so user can see the confirmation UI
             logDev("✨ [Engine] Submission confirmed. Holding tab for visual check...", "info");
             await new Promise(r => setTimeout(r, 3500));
@@ -2490,6 +2538,7 @@
         window._xpider_healed = false;
 
         logDev("❌ [Result] Submission verification timed out after 10s.", "error");
+        sessionStorage.removeItem('xpider_submit_count'); // 실패 시 이중 제출 세션도 정리
         finishCampaign(false, "Submission verification failed (Timeout - No success indicator found).");
         return false;
     }

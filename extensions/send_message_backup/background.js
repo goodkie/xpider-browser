@@ -749,26 +749,154 @@ const PROACTIVE_PATHS = (() => {
 
 
 async function scanContactPaths(baseUrl, tabId) {
-    logBg(tabId, "Step 1: Sniper Mode active. Searching for contact page...", "info");
-    const validPaths = [];
-    const pool = PROACTIVE_PATHS.slice(0, 50); // Limit to top 50 for speed
+    logBg(tabId, "🎯 [Ultra-Ping-Extractor] Active. Initiating smart discovery...", "info");
+    const startTime = Date.now();
+    const validPaths = new Set();
+    const candidatesMap = new Map(); // path -> score
+    
+    // 1. Soft-404 Baseline Detector
+    let soft404 = { isSoft404Active: false, url: '', len: 0 };
+    try {
+        const testUrl = baseUrl + '/non_existent_xpider_ping_test_' + Math.random().toString(36).substring(2, 8);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000);
+        const res = await fetch(testUrl, { method: 'GET', signal: controller.signal });
+        clearTimeout(timeout);
+        
+        const finalUrl = normalizeUrl(res.url);
+        const text = await res.text();
+        const len = text.length;
+        
+        if (res.ok && res.status >= 200 && res.status < 300) {
+            soft404 = {
+                isSoft404Active: true,
+                url: finalUrl,
+                len: len
+            };
+            logBg(tabId, `🛡️ [Extractor] Soft-404 detected. Baseline URL: ${finalUrl} (Len: ${len})`, "info");
+        }
+    } catch(e) {
+        logBg(tabId, `🛡️ [Extractor] Strict 404 validated.`, "info");
+    }
 
-    // Concurrent scanning in small batches to prevent blocking
-    const batchSize = 10;
-    for (let i = 0; i < pool.length; i += batchSize) {
-        logBg(tabId, `🔦 Scanning paths ${i + 1}-${Math.min(i + batchSize, pool.length)}...`, "info");
-        const batch = pool.slice(i, i + batchSize);
+    // 2. Fast Scrape Root Page for direct <a> links
+    try {
+        logBg(tabId, "🔍 [Extractor] Scraping root page for DOM contact links...", "info");
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch(baseUrl, { method: 'GET', signal: controller.signal });
+        clearTimeout(timeout);
+        
+        if (res.ok) {
+            const html = await res.text();
+            
+            // Extract all hrefs using regex
+            const hrefRegex = /href=["']([^"']+)["']/gi;
+            let match;
+            const keywords = ['contact', 'inquiry', 'support', 'message', '문의', '연락', 'お問い合わせ', '留言', '联系', 'write-to-us', 'feedback', 'help-center', 'get-in-touch', 'kontakt', 'contacto', 'contattaci', 'contacter'];
+            
+            while ((match = hrefRegex.exec(html)) !== null) {
+                let href = match[1].trim();
+                if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) continue;
+                
+                // Normalize relative URLs
+                if (href.startsWith('/')) {
+                    // OK
+                } else if (href.startsWith('http')) {
+                    try {
+                        const parsed = new URL(href);
+                        if (parsed.origin !== baseUrl) continue; // Skip external domains
+                        href = parsed.pathname + parsed.search;
+                    } catch(e) { continue; }
+                } else {
+                    href = '/' + href;
+                }
+                
+                // Remove trailing slash and normalize
+                href = href.replace(/\/$/, '');
+                if (!href) href = '/';
+                
+                // Calculate match score
+                const hrefLower = href.toLowerCase();
+                let score = 0;
+                keywords.forEach(kw => {
+                    if (hrefLower.includes(kw)) score += 50;
+                });
+                
+                if (score > 0) {
+                    const currentScore = candidatesMap.get(href) || 0;
+                    candidatesMap.set(href, Math.max(currentScore, score));
+                }
+            }
+            logBg(tabId, `🔍 [Extractor] Found ${candidatesMap.size} potential contact links on homepage.`, "info");
+        }
+    } catch(e) {
+        logBg(tabId, `⚠️ [Extractor] Root page scraping failed: ${e.message}`, "warning");
+    }
+
+    // 3. Compile Candidates Queue (Root parsed + High-priority template library)
+    const CORE_LIBRARY = [
+        '/contact', '/contact-us', '/contactus', '/inquiry', '/support',
+        '/pages/contact', '/pages/contact-us', '/pages/get-in-touch',
+        '/contact-form', '/wp-contact',
+        '/문의', '/문의하기', '/연락', '/연락처',
+        '/お問い合わせ', '/コンタクト',
+        '/联系', '/留言', '/联系우리', '/联系우리/','/联系우리.html','/联系우리.php', '/联系우리.asp','/联系우리/',
+        '/get-in-touch', '/write-to-us', '/send-message'
+    ];
+    
+    // Add library pathways with default score
+    CORE_LIBRARY.forEach(path => {
+        const cleanPath = path.replace(/\/$/, '');
+        if (cleanPath && !candidatesMap.has(cleanPath)) {
+            candidatesMap.set(cleanPath, 10);
+        }
+    });
+
+    // Sort by score (descending)
+    const sortedCandidates = Array.from(candidatesMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(entry => entry[0]);
+        
+    // Limit to top 20 for extreme speed
+    const pingPool = sortedCandidates.slice(0, 20);
+    logBg(tabId, `⚡ [Extractor] Multi-Ping Engine ready. Pool size: ${pingPool.length}`, "info");
+
+    // 4. Ultra-Fast Parallel Ping Engine
+    const batchSize = 5;
+    for (let i = 0; i < pingPool.length; i += batchSize) {
+        const batch = pingPool.slice(i, i + batchSize);
+        logBg(tabId, `🔦 Pinging batch ${i + 1}-${Math.min(i + batchSize, pingPool.length)}...`, "info");
+        
         const results = await Promise.all(batch.map(async (path) => {
             const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 2500); // 2.5s per probe
+            const timeout = setTimeout(() => controller.abort(), 1800); // 1.8s timeout per probe
+            const url = baseUrl + path;
+            
             try {
-                const url = baseUrl + path;
-                const response = await fetch(url, { 
+                const res = await fetch(url, { 
                     method: 'GET',
-                    signal: controller.signal,
-                    mode: 'no-cors'
+                    signal: controller.signal
                 });
                 clearTimeout(timeout);
+                
+                if (!res.ok || res.status < 200 || res.status >= 300) return null;
+                
+                const finalUrl = normalizeUrl(res.url);
+                const normalizedBase = normalizeUrl(baseUrl);
+                
+                // Soft-404 및 Root 리다이렉트 필터링
+                if (soft404.isSoft404Active) {
+                    if (finalUrl === soft404.url) return null;
+                    
+                    // 크기 오차 분석
+                    const text = await res.text();
+                    const diffRatio = Math.abs(text.length - soft404.len) / (soft404.len || 1);
+                    if (diffRatio < 0.05) return null;
+                }
+                
+                if (finalUrl === normalizedBase) return null; // Root 리다이렉트 차단
+                
                 return path;
             } catch (e) {
                 clearTimeout(timeout);
@@ -776,12 +904,21 @@ async function scanContactPaths(baseUrl, tabId) {
             }
         }));
         
-        validPaths.push(...results.filter(p => p !== null));
-        if (validPaths.length >= 3) break; // Found enough candidates, move to execution
+        results.forEach(p => {
+            if (p !== null) validPaths.add(p);
+        });
+        
+        if (validPaths.size >= 3) {
+            logBg(tabId, "⚡ [Extractor] Goal candidates threshold reached. Short-circuiting scan.", "success");
+            break; 
+        }
     }
 
-    logBg(tabId, `Pre-scan complete. Identified ${validPaths.length} valid paths.`, "success");
-    return validPaths.length > 0 ? validPaths : ['/contact', '/contact-us']; // Fallback
+    const finalResult = Array.from(validPaths);
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    logBg(tabId, `✨ [Extractor] Ping scan complete in ${duration}s. Identified ${finalResult.length} valid paths.`, "success");
+    
+    return finalResult.length > 0 ? finalResult : ['/contact', '/contact-us']; // Fallback
 }
 
 async function orchestrateSending(urlInput, template) {
@@ -871,7 +1008,7 @@ async function orchestrateSending(urlInput, template) {
             logBg(tabId, "✨ [Engine] Submission confirmed. Tab will close shortly...", "success");
             await new Promise(r => setTimeout(r, 2000));
         } else {
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise(r => setTimeout(r, 100));
         }
 
         safeTabs.remove(tabId).catch(() => {});
