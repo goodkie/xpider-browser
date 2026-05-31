@@ -1332,7 +1332,9 @@ async function pollAllFrames(wc) {
         if (r && r.success) return r; // Immediate success overrides everything
         if (r) allResults.push(r);
         else hasPending = true;
-    } catch(e) {}
+    } catch(e) {
+        hasPending = true;
+    }
     
     // Check child frames
     try {
@@ -1346,10 +1348,9 @@ async function pollAllFrames(wc) {
                     if (r) allResults.push(r);
                     else hasPending = true;
                 } catch(e) {
-                    // [보안/크로스오리진 안전장치] 예외 발생(보안 에러 등) 시 프레임이 살아있으면 Pending 상태로 유지
-                    if (frame && !frame.isDestroyed()) {
-                        hasPending = true;
-                    }
+                    // [v4.12.56] If a frame is inaccessible (e.g. cross-origin or navigating), treat it as pending
+                    // to prevent premature NO_FORM evaluation which suddenly closes the tab while typing.
+                    hasPending = true;
                 }
             }
         }
