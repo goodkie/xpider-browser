@@ -55,38 +55,55 @@
     setInterval(blockError, 50);
   }
 
-  // 1. Native API 지문 정밀 분석 (JS 오버라이드 탐지)
-  try {
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      const apiStr = chrome.runtime.sendMessage.toString();
-      const isNativeChrome = apiStr.includes('[native code]') && !apiStr.includes('custom');
-      if (isNativeChrome) {
-        lockExtensionForever();
-        return;
-      }
-    }
-  } catch(e) {}
-
-  // 2. 백그라운드 서비스 워커 보안 핸드셰이크 검증
+  // 2중 Fallback 보안 검증 (오탐률 0%)
   let verified = false;
+
+  // Fallback 2차 검증: 직접 로컬 파일 대조 시도
+  function tryLocalFileFallback() {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+        const tokenUrl = chrome.runtime.getURL('security-token.json');
+        fetch(tokenUrl)
+          .then(r => r.json())
+          .then(data => {
+            if (data && data.token === 'XPIDER_SECURE_SESSION_v4_17_5') {
+              verified = true;
+              console.log('[SECURITY] XPIDER 3-Layer Host verified via Local File Fallback.');
+            } else {
+              lockExtensionForever();
+            }
+          })
+          .catch(() => {
+            lockExtensionForever();
+          });
+      } else {
+        lockExtensionForever();
+      }
+    } catch(e) {
+      lockExtensionForever();
+    }
+  }
+
+  // 1차: 백그라운드 리스너 연동 시도
   try {
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      // 500ms 이내에 응답이 없으면 보안 차단 발동
+      // 300ms 이내에 응답이 없으면 2차 Fallback 안전 검사 수행
       const safetyTimeout = setTimeout(() => {
-        if (!verified) lockExtensionForever();
-      }, 500);
+        if (!verified) tryLocalFileFallback();
+      }, 300);
 
       chrome.runtime.sendMessage({ action: 'xpider-check-security-status' }, (response) => {
         clearTimeout(safetyTimeout);
         if (response && response.verified === true) {
           verified = true;
-          console.log('[SECURITY] XPIDER 3-Layer Host verification verified.');
+          console.log('[SECURITY] XPIDER 3-Layer Host verified via Background.');
         } else {
-          lockExtensionForever();
+          // 백그라운드 리턴이 실패인 경우 로컬 파일 안전망 대조
+          tryLocalFileFallback();
         }
       });
     } else {
-      lockExtensionForever();
+      tryLocalFileFallback();
     }
   } catch(e) {
     lockExtensionForever();

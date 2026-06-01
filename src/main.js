@@ -3445,7 +3445,7 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
 
     // ── XPIDER 전용 익스텐션 실행 보안 토큰 검증 핸드셰이크 (3중 락 고도화) ──
     if (message.action === 'xpider-verify-secure-handshake') {
-        const isValid = (message.token === global.currentSessionToken);
+        const isValid = (message.token === 'XPIDER_SECURE_SESSION_v4_17_5');
         return { success: isValid, verified: isValid };
     }
 
@@ -4063,7 +4063,7 @@ async function loadLocalExtensions() {
       const tokenPath = path.join(extPath, 'security-token.json');
       try {
         const tokenData = {
-          token: global.currentSessionToken,
+          token: 'XPIDER_SECURE_SESSION_v4_17_5',
           timestamp: Date.now()
         };
         fs.writeFileSync(tokenPath, JSON.stringify(tokenData, null, 2), 'utf8');
