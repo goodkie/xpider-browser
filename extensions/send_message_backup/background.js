@@ -4,12 +4,12 @@
  */
 
 // ─── XPIDER EXCLUSIVE SECURE LOCK (Background SW) ──────────────────────────
-(function _initSecureLock() {
-  const ua = navigator.userAgent || '';
-  const isXPIDER = ua.includes('XPIDER') || ua.includes('Electron');
+let isHostVerified = false;
 
+(function _initSecureLock() {
   function lockExtensionForever() {
     console.error('[SECURITY] This extension is exclusively compiled for XPIDER Browser. Termination sequence initiated.');
+    isHostVerified = false;
     
     // 백그라운드 API 전면 정지 및 에러 루프 가동
     const blockError = () => {
@@ -25,22 +25,24 @@
     }
   }
 
-  // 1차 User-Agent 검증
-  if (!isXPIDER) {
-    lockExtensionForever();
-    return;
-  }
-
-  // 2차 메인 프로세스 보안 핸드셰이크 검증
+  // 동적 세션 토큰 파일 검증
   try {
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      chrome.runtime.sendMessage({ action: 'xpider-verify-secure-handshake' }, (response) => {
-        if (chrome.runtime.lastError || !response || response.token !== 'XPIDER_SECURE_TOKEN_v4_17_4_ACTIVE') {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+      const tokenUrl = chrome.runtime.getURL('security-token.json');
+      fetch(tokenUrl)
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.token === 'XPIDER_SECURE_SESSION_v4_17_5') {
+            isHostVerified = true;
+            console.log('[SECURITY] XPIDER Host Verified via Session Token.');
+          } else {
+            lockExtensionForever();
+          }
+        })
+        .catch(err => {
+          console.error('[SECURITY] Session token load failed:', err);
           lockExtensionForever();
-        } else {
-          console.log('[SECURITY] XPIDER Secure Handshake Verified.');
-        }
-      });
+        });
     } else {
       lockExtensionForever();
     }
@@ -48,7 +50,18 @@
     lockExtensionForever();
   }
 })();
+
+// 콘텐츠 및 팝업을 위한 보안 상태 확인 메시지 리스너 등록
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message && message.action === 'xpider-check-security-status') {
+      sendResponse({ verified: isHostVerified });
+      return true;
+    }
+  });
+}
 // ─── END XPIDER EXCLUSIVE SECURE LOCK ──────────────────────────────────────
+
 
 // ── XPIDER DEV LOG BRIDGE ─────────────────────────────────────────────────
 // 개발자 전용 스텔스 로깅 브리지 (외부 노출 없음)

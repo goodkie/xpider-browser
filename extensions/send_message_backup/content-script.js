@@ -6,13 +6,10 @@
 
 // ─── XPIDER EXCLUSIVE SECURE LOCK (Content Script) ─────────────────────────
 (function _initSecureLock() {
-  const ua = navigator.userAgent || '';
-  const isXPIDER = ua.includes('XPIDER') || ua.includes('Electron');
-
   function lockExtensionForever() {
     console.error('[SECURITY] This extension is exclusively compiled for XPIDER Browser. Termination sequence initiated.');
     
-    // 화면에 강력한 보안 경고 UI 주입
+    // 화면에 강력한 영문 보안 경고 UI 주입
     if (typeof document !== 'undefined') {
       const injectWarning = () => {
         if (document.getElementById('xpider-unauthorized-overlay')) return;
@@ -35,11 +32,11 @@
         overlay.style.fontWeight = 'bold';
         overlay.style.textAlign = 'center';
         overlay.innerHTML = `
-          <div style="border: 3px solid #ff3333; padding: 40px; border-radius: 10px; background-color: #000; box-shadow: 0 0 20px rgba(255,0,0,0.5);">
-            <h1 style="margin: 0 0 20px 0; font-size: 28px; color: #ff3333;">⚠️ [보안 제한 구역]</h1>
-            <p style="margin: 0 0 10px 0;">XPIDER AutoForm Sender Pro 확장 프로그램이 비정상 감지되었습니다.</p>
-            <p style="margin: 0 0 20px 0; font-size: 16px; color: #aaaaaa;">본 확장 프로그램은 XPIDER 전용 브라우저에서만 정상 작동하도록 제한되어 있습니다.</p>
-            <div style="font-size: 14px; color: #777;">허가되지 않은 크롬, 엣지, 웨일 등 타 Chromium 브라우저에서는 이용이 불가합니다.</div>
+          <div style="border: 3px solid #ff3333; padding: 40px; border-radius: 10px; background-color: #000; box-shadow: 0 0 20px rgba(255,0,0,0.5); max-width: 600px;">
+            <h1 style="margin: 0 0 20px 0; font-size: 28px; color: #ff3333;">⚠️ [SECURITY BLOCK]</h1>
+            <p style="margin: 0 0 10px 0;">Unauthorized browser environment detected.</p>
+            <p style="margin: 0 0 20px 0; font-size: 16px; color: #aaaaaa;">This premium extension is exclusively designed to run inside the official XPIDER Browser.</p>
+            <div style="font-size: 14px; color: #777;">Use on standard Chromium browsers (Chrome, Edge, Whale) is strictly restricted.</div>
           </div>
         `;
         document.documentElement.prepend(overlay);
@@ -59,17 +56,21 @@
     setInterval(blockError, 50);
   }
 
-  // 1차 User-Agent 검증
-  if (!isXPIDER) {
-    lockExtensionForever();
-    return;
-  }
-
-  // 2차 메인 프로세스 보안 핸드셰이크 검증
+  // 1차 백그라운드와의 검증 핸드셰이크 시도
+  let verified = false;
   try {
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-      chrome.runtime.sendMessage({ action: 'xpider-verify-secure-handshake' }, (response) => {
-        if (chrome.runtime.lastError || !response || response.token !== 'XPIDER_SECURE_TOKEN_v4_17_4_ACTIVE') {
+      // 500ms 이내에 응답이 없으면 보안 차단 발동
+      const safetyTimeout = setTimeout(() => {
+        if (!verified) lockExtensionForever();
+      }, 500);
+
+      chrome.runtime.sendMessage({ action: 'xpider-check-security-status' }, (response) => {
+        clearTimeout(safetyTimeout);
+        if (response && response.verified === true) {
+          verified = true;
+          console.log('[SECURITY] XPIDER Host verification verified.');
+        } else {
           lockExtensionForever();
         }
       });
@@ -81,6 +82,7 @@
   }
 })();
 // ─── END XPIDER EXCLUSIVE SECURE LOCK ──────────────────────────────────────
+
 
 // ── XPIDER DEV LOG BRIDGE (Content Script) ───────────────────────────────
 (function() {

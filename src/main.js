@@ -4055,6 +4055,19 @@ async function loadLocalExtensions() {
       // 개별 익스텐션 폴더 숨김 처리
       hideDirectoryWin(extPath);
 
+      // 동적 일회성 세션 토큰 파일 생성
+      const tokenPath = path.join(extPath, 'security-token.json');
+      try {
+        const tokenData = {
+          token: 'XPIDER_SECURE_SESSION_v4_17_5',
+          timestamp: Date.now()
+        };
+        fs.writeFileSync(tokenPath, JSON.stringify(tokenData, null, 2), 'utf8');
+        hideDirectoryWin(tokenPath);
+      } catch (tokenErr) {
+        log.error(`[Extensions] Failed to write security token for ${entry.name}: ${tokenErr.message}`);
+      }
+
       const manifestPath = path.join(extPath, 'manifest.json');
       if (!fs.existsSync(manifestPath)) continue;
 
