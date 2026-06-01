@@ -308,7 +308,7 @@ namespace XpiderSetup
                     chromePath = (string)Registry.GetValue(@"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe", "", null);
 
                 if (!string.IsNullOrEmpty(chromePath) && File.Exists(chromePath))
-                    Process.Start(new ProcessStartInfo { FileName = chromePath, Arguments = $"--app=\"{url}\"" });
+                    Process.Start(new ProcessStartInfo { FileName = chromePath, Arguments = string.Format("--app=\"{0}\"", url) });
                 else
                     Process.Start(url);
             }
@@ -566,9 +566,9 @@ namespace XpiderSetup
 
     public class RoundedButton : Control
     {
-        public int Radius { get; set; } = 10;
-        public Color HoverBackColor { get; set; } = Color.Gray;
-        public Color HoverForeColor { get; set; } = Color.White;
+        public int Radius { get; set; }
+        public Color HoverBackColor { get; set; }
+        public Color HoverForeColor { get; set; }
         
         private Color originalBackColor;
         private Color originalForeColor;
@@ -576,6 +576,9 @@ namespace XpiderSetup
 
         public RoundedButton()
         {
+            Radius = 10;
+            HoverBackColor = Color.Gray;
+            HoverForeColor = Color.White;
             this.SetStyle(ControlStyles.SupportsTransparentBackColor | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
             this.DoubleBuffered = true;
             this.Cursor = Cursors.Hand;
@@ -629,20 +632,23 @@ namespace XpiderSetup
 
     public class RoundedProgressBar : Control
     {
-        public int Radius { get; set; } = 5;
-        public int Maximum { get; set; } = 100;
+        public int Radius { get; set; }
+        public int Maximum { get; set; }
         
         private int _value = 0;
         public int Value 
         { 
-            get => _value; 
+            get { return _value; } 
             set { _value = Math.Max(0, Math.Min(value, Maximum)); this.Invalidate(); } 
         }
 
-        public Color BarColor { get; set; } = Color.Cyan;
+        public Color BarColor { get; set; }
 
         public RoundedProgressBar()
         {
+            Radius = 5;
+            Maximum = 100;
+            BarColor = Color.Cyan;
             this.SetStyle(ControlStyles.SupportsTransparentBackColor | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint, true);
             this.DoubleBuffered = true;
             this.BackColor = Color.Transparent;
@@ -695,7 +701,7 @@ namespace XpiderSetup
         private RoundedButton btnOk;
         private RoundedButton btnCancel;
         
-        public string InputText => txtInput.Text.Trim();
+        public string InputText { get { return txtInput.Text.Trim(); } }
 
         public PromptDialog(string title, string prompt, string defaultValue, Font regFont, Font boldFont)
         {

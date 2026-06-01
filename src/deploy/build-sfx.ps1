@@ -2,10 +2,10 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "=== XPIDER SFX Build ===" -ForegroundColor Cyan
 
-# 1. 포터블 ZIP 파일 찾기
-$zipFile = Get-ChildItem "out\make\zip\win32\x64\*.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
+# 1. 포터블 ZIP 파일 찾기 (가장 최근에 생성/수정된 파일 우선 정렬)
+$zipFile = Get-ChildItem "out\make\zip\win32\x64\*.zip" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $zipFile) {
-    $zipFile = Get-ChildItem "out\make\*.zip" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    $zipFile = Get-ChildItem "out\make\*.zip" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 }
 if (-not $zipFile) {
     Write-Error "ZIP file not found."
@@ -27,13 +27,12 @@ $targetZip = Join-Path $resourcesDir "app.zip"
 Write-Host "Copying ZIP to resources: $targetZip"
 Copy-Item -Path $zipPath -Destination $targetZip -Force
 
-# 3. NuGet 복원 + Release 빌드
+# 3. Release 빌드 (내장 MSBuild.exe 활용)
 $csprojPath = Join-Path $setupProjDir "XpiderSetup.csproj"
-Write-Host "Restoring packages..." -ForegroundColor Yellow
-& dotnet restore $csprojPath --verbosity quiet
+$msbuildPath = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
 
-Write-Host "Building (Release)..." -ForegroundColor Yellow
-& dotnet build $csprojPath -c Release --no-restore
+Write-Host "Building C# Setup with internal MSBuild (Release)..." -ForegroundColor Yellow
+& $msbuildPath $csprojPath /p:Configuration=Release /t:Rebuild
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Build FAILED."

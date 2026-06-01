@@ -53,3 +53,4 @@ extension_logs*.txt
 
 # 리드 데이터 파일 (API 토큰 포함 가능)
 *leads*.txt
+*.dmg

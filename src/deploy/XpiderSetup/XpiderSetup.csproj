@@ -1,34 +1,41 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{A872365A-348F-4D2A-B981-D99026AE721D}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net48</TargetFramework>
-    <AssemblyName>XPIDER-Setup</AssemblyName>
     <RootNamespace>XpiderSetup</RootNamespace>
+    <AssemblyName>XPIDER-Setup</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
     <ApplicationIcon>..\..\..\assets\icons\win\icon.ico</ApplicationIcon>
-    <Nullable>disable</Nullable>
-    <ImplicitUsings>disable</ImplicitUsings>
-    <Optimize>true</Optimize>
-    <DebugType>None</DebugType>
-    <DebugSymbols>false</DebugSymbols>
-    <!-- NuGet 패키지 없이 .NET 4.8 GAC 참조만 사용 -->
-    <!-- NuGet System.IO.Compression 패키지가 4.2.0.0 의존성을 만들어 에러 유발하므로 제거 -->
-    <AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
   </PropertyGroup>
-
-  <!-- .NET 4.8 프레임워크에 내장된 어셈블리만 참조 (NuGet 없음) -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>none</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
   </ItemGroup>
-
   <ItemGroup>
-    <EmbeddedResource Include="Resources\app.zip" Condition="Exists('Resources\app.zip')" />
-    <EmbeddedResource Include="Resources\logo.png" Condition="Exists('Resources\logo.png')" />
-    <EmbeddedResource Include="Resources\Fonts\Poppins-Regular.ttf" Condition="Exists('Resources\Fonts\Poppins-Regular.ttf')" />
-    <EmbeddedResource Include="Resources\Fonts\Poppins-Bold.ttf" Condition="Exists('Resources\Fonts\Poppins-Bold.ttf')" />
+    <Compile Include="MainForm.cs" />
+    <Compile Include="Program.cs" />
   </ItemGroup>
-
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\app.zip" />
+    <EmbeddedResource Include="Resources\logo.png" />
+    <EmbeddedResource Include="Resources\Fonts\Poppins-Regular.ttf" />
+    <EmbeddedResource Include="Resources\Fonts\Poppins-Bold.ttf" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
