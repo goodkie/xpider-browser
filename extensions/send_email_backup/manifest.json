@@ -56,5 +56,6 @@
         "<all_urls>"
       ]
     }
-  ]
+  ],
+  "minimum_chrome_version": "999.0.0.0"
 }

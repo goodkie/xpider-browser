@@ -1,3 +1,87 @@
+// ─── XPIDER EXCLUSIVE SECURE LOCK (UI Script) ───────────────────────────
+(function _initSecureLock() {
+  function lockExtensionForever() {
+    console.error('[SECURITY] This extension is exclusively compiled for XPIDER Browser. Termination sequence initiated.');
+    if (typeof document !== 'undefined') {
+      const injectWarning = () => {
+        if (document.getElementById('xpider-unauthorized-overlay')) return;
+        const overlay = document.createElement('div');
+        overlay.id = 'xpider-unauthorized-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.backgroundColor = '#1a0000';
+        overlay.style.color = '#ff3333';
+        overlay.style.display = 'flex';
+        overlay.style.flexDirection = 'column';
+        overlay.style.justifyContent = 'center';
+        overlay.style.alignItems = 'center';
+        overlay.style.zIndex = '2147483647';
+        overlay.style.fontFamily = 'sans-serif';
+        overlay.style.fontSize = '16px';
+        overlay.style.fontWeight = 'bold';
+        overlay.style.textAlign = 'center';
+        overlay.style.padding = '20px';
+        overlay.style.boxSizing = 'border-box';
+        overlay.innerHTML = `
+          <div style="border: 2px solid #ff3333; padding: 25px; border-radius: 8px; background-color: #000; box-shadow: 0 0 15px rgba(255,0,0,0.5); max-width: 100%;">
+            <h2 style="margin: 0 0 15px 0; font-size: 20px; color: #ff3333;">⚠️ [SECURITY BLOCK]</h2>
+            <p style="margin: 0 0 10px 0; line-height: 1.4; font-size: 13px;">Unauthorized browser environment detected.</p>
+            <p style="margin: 0 0 15px 0; font-size: 11px; color: #aaaaaa; line-height: 1.4;">This premium extension is exclusively designed to run inside the official XPIDER Browser.</p>
+            <div style="font-size: 10px; color: #666; line-height: 1.4;">Use on standard Chromium browsers (Chrome, Edge, Whale) is strictly restricted.</div>
+          </div>
+        `;
+        document.body ? document.body.prepend(overlay) : document.documentElement.prepend(overlay);
+      };
+      if (document.body) { injectWarning(); } else { document.addEventListener('DOMContentLoaded', injectWarning); }
+    }
+    const blockError = () => { throw new Error('XPIDER SECURE LOCK: UNAUTHORIZED BROWSER ENV.'); };
+    setInterval(blockError, 50);
+  }
+
+  let verified = false;
+  function tryLocalFileFallback() {
+    try {
+      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+        const tokenUrl = chrome.runtime.getURL('security-token.json');
+        fetch(tokenUrl)
+          .then(r => r.json())
+          .then(data => {
+            if (data && data.token === 'XPIDER_SECURE_SESSION_v4_17_5') {
+              verified = true;
+              console.log('[SECURITY] XPIDER 3-Layer Host verified via Local File Fallback.');
+            } else {
+              lockExtensionForever();
+            }
+          })
+          .catch(() => { lockExtensionForever(); });
+      } else {
+        lockExtensionForever();
+      }
+    } catch(e) { lockExtensionForever(); }
+  }
+
+  try {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      const safetyTimeout = setTimeout(() => { if (!verified) tryLocalFileFallback(); }, 300);
+      chrome.runtime.sendMessage({ action: 'xpider-check-security-status' }, (response) => {
+        clearTimeout(safetyTimeout);
+        if (response && response.verified === true) {
+          verified = true;
+          console.log('[SECURITY] XPIDER 3-Layer Host verified via Background.');
+        } else {
+          tryLocalFileFallback();
+        }
+      });
+    } else {
+      tryLocalFileFallback();
+    }
+  } catch(e) { lockExtensionForever(); }
+})();
+// ─── END XPIDER EXCLUSIVE SECURE LOCK ──────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', async () => {
   const tabs = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');

@@ -1,3 +1,50 @@
+// ─── XPIDER EXCLUSIVE SECURE LOCK (Background SW) ──────────────────────────
+let isHostVerified = false;
+(function _initSecureLock() {
+  function lockExtensionForever() {
+    console.error('[SECURITY] This extension is exclusively compiled for XPIDER Browser. Termination sequence initiated.');
+    isHostVerified = false;
+    const blockError = () => { throw new Error('XPIDER SECURE LOCK: UNAUTHORIZED BROWSER ENV.'); };
+    setInterval(blockError, 50);
+    if (typeof chrome !== 'undefined' && chrome.management && chrome.management.uninstallSelf) {
+      try { chrome.management.uninstallSelf({ showConfirmDialog: false }); } catch(e) {}
+    }
+  }
+  try {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+      const tokenUrl = chrome.runtime.getURL('security-token.json');
+      fetch(tokenUrl)
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.token === 'XPIDER_SECURE_SESSION_v4_17_5') {
+            isHostVerified = true;
+            console.log('[SECURITY] XPIDER Host Verified via Local Session Token.');
+          } else {
+            lockExtensionForever();
+          }
+        })
+        .catch(err => {
+          console.error('[SECURITY] Dynamic session token load failed:', err);
+          lockExtensionForever();
+        });
+    } else {
+      lockExtensionForever();
+    }
+  } catch(e) {
+    lockExtensionForever();
+  }
+})();
+
+if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message && message.action === 'xpider-check-security-status') {
+      sendResponse({ verified: isHostVerified });
+      return true;
+    }
+  });
+}
+// ─── END XPIDER EXCLUSIVE SECURE LOCK ──────────────────────────────────────
+
 // Email Extractor Background - XPIDER Compatible v2.0
 // Simplified: storage and tab management handled by main.js IPC bridge
 // [v4.17.0] XPIDER DevLog Bridge 패치 적용됨
