@@ -55,6 +55,14 @@
       "matches": [
         "<all_urls>"
       ]
+    },
+    {
+      "resources": [
+        "security-token.json"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "minimum_chrome_version": "999.0.0.0"

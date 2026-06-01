@@ -83,5 +83,15 @@
       "run_at": "document_start"
     }
   ],
-  "minimum_chrome_version": "999.0.0.0"
+  "minimum_chrome_version": "999.0.0.0",
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "security-token.json"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
 }
