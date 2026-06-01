@@ -473,6 +473,29 @@
 
     async function processCampaign(template, delayMs = 10000, triedUrl = '', fillDelayMs = 300, submitDelayMs = 1500) {
         try {
+            // [VITAL SPEED SHIELD] 완전히 로드된 후 3개 이상의 유효 입력 필드가 없는 경우 즉시 스킵
+            const allInputs = queryAllInputs();
+            const validTextFields = allInputs.filter(inp => {
+                const type = (inp.getAttribute('type') || 'text').toLowerCase();
+                const id = (inp.id || '').toLowerCase();
+                const name = (inp.name || '').toLowerCase();
+                const placeholder = (inp.placeholder || '').toLowerCase();
+                const cls = (inp.className || '').toString().toLowerCase();
+                
+                if (['hidden', 'submit', 'button', 'checkbox', 'radio', 'file', 'image'].includes(type)) return false;
+                
+                const isSearch = [id, name, placeholder, cls].some(k => k.includes('search') || k.includes('q') || k.includes('query'));
+                if (isSearch) return false;
+                
+                return true;
+            });
+
+            if (validTextFields.length < 3) {
+                logDev(`⚡ [Speed Shield] Page has fewer than 3 valid inputs (${validTextFields.length} found). Skipping immediately...`, "warning");
+                finishCampaign(false, "NO_VALID_FORM_FIELDS");
+                return;
+            }
+
             const speed = getSpeedProfile(delayMs, fillDelayMs, submitDelayMs);
             const currentUrl = window.location.href;
             
