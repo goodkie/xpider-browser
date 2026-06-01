@@ -493,9 +493,20 @@
         return false;
     }
 
+    async function waitForPageLoad() {
+        if (document.readyState === 'complete') return;
+        return new Promise(resolve => {
+            window.addEventListener('load', resolve, { once: true });
+            setTimeout(resolve, 3000); // 3s fallback
+        });
+    }
+
     async function processCampaign(template, delayMs = 10000, triedUrl = '', fillDelayMs = 300, submitDelayMs = 1500) {
         try {
             // [VITAL SPEED SHIELD] 완전히 로드된 후 3개 이상의 유효 입력 필드가 없는 경우 즉시 스킵
+            await waitForPageLoad();
+            await new Promise(r => setTimeout(r, 1500)); // allow dynamic forms to render
+
             const allInputs = queryAllInputs();
             const validTextFields = allInputs.filter(inp => {
                 const type = (inp.getAttribute('type') || 'text').toLowerCase();
@@ -504,7 +515,7 @@
                 const placeholder = (inp.placeholder || '').toLowerCase();
                 const cls = (inp.className || '').toString().toLowerCase();
                 
-                if (['hidden', 'submit', 'button', 'checkbox', 'radio', 'file', 'image'].includes(type)) return false;
+                if (['hidden', 'submit', 'button', 'checkbox', 'radio', 'file', 'image', 'reset', 'color'].includes(type)) return false;
                 
                 const isSearch = [id, name, placeholder, cls].some(k => k.includes('search') || k.includes('q') || k.includes('query'));
                 if (isSearch) return false;
