@@ -3443,9 +3443,10 @@ ipcMain.handle('xpider-ext-storage-clear', async () => {
 ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => {
     if (!message) return { success: false };
 
-    // ── XPIDER 전용 익스텐션 실행 보안 토큰 검증 핸드셰이크 ──
+    // ── XPIDER 전용 익스텐션 실행 보안 토큰 검증 핸드셰이크 (3중 락 고도화) ──
     if (message.action === 'xpider-verify-secure-handshake') {
-        return { success: true, verified: true, token: 'XPIDER_SECURE_TOKEN_v4_17_4_ACTIVE' };
+        const isValid = (message.token === global.currentSessionToken);
+        return { success: isValid, verified: isValid };
     }
 
     // [v4.17.0] _xpider_devlog 플래그 인터셉트 — 익스텐션 DevLog 브리지 처리
@@ -4011,6 +4012,9 @@ function sendExtProgress(msg) {
 const { syncExtensionsFromGitHub } = require('./updater');
 const { exec } = require('child_process');
 
+// 3중 락용 프로그램 기동 시 고유 무작위 세션 토큰 생성
+global.currentSessionToken = 'XPIDER_SECURE_TOKEN_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+
 function getExtDir() {
   return app.isPackaged
     ? path.join(process.resourcesPath, 'extensions')
@@ -4059,7 +4063,7 @@ async function loadLocalExtensions() {
       const tokenPath = path.join(extPath, 'security-token.json');
       try {
         const tokenData = {
-          token: 'XPIDER_SECURE_SESSION_v4_17_5',
+          token: global.currentSessionToken,
           timestamp: Date.now()
         };
         fs.writeFileSync(tokenPath, JSON.stringify(tokenData, null, 2), 'utf8');
@@ -4069,6 +4073,20 @@ async function loadLocalExtensions() {
       }
 
       const manifestPath = path.join(extPath, 'manifest.json');
+      if (!fs.existsSync(manifestPath)) continue;
+
+      // ─── [V999 설치 제한 우회] Manifest 임시 변조 기법 ───
+      let originalManifestText = null;
+      try {
+        originalManifestText = fs.readFileSync(manifestPath, 'utf8');
+        const manifestJson = JSON.parse(originalManifestText);
+        if (manifestJson.minimum_chrome_version) {
+          delete manifestJson.minimum_chrome_version;
+          fs.writeFileSync(manifestPath, JSON.stringify(manifestJson, null, 2), 'utf8');
+        }
+      } catch (err) {
+        log.error(`[Extensions] Manifest preprocessing failed for ${entry.name}: ${err.message}`);
+      }
       if (!fs.existsSync(manifestPath)) continue;
 
       try {
@@ -4117,6 +4135,16 @@ async function loadLocalExtensions() {
         }
 
         const ext = await session.defaultSession.extensions.loadExtension(extPath, { allowFileAccess: true });
+
+        // ─── [V999 설치 제한 복원] 로드 성공 후 원래대로 복구 ───
+        if (originalManifestText) {
+          try {
+            fs.writeFileSync(manifestPath, originalManifestText, 'utf8');
+          } catch (restoreErr) {
+            log.error(`[Extensions] Manifest restoration failed for ${entry.name}: ${restoreErr.message}`);
+          }
+        }
+
         results.push({
           id:      ext.id,
           name:    manifest.name || entry.name,
@@ -4129,6 +4157,14 @@ async function loadLocalExtensions() {
         });
         log.info(`[Extensions] ✅ Loaded FRESH: ${manifest.name} v${manifest.version} (${entry.name})`);
       } catch (e) {
+        // ─── [V999 설치 제한 복원] 로드 실패 시에도 원래대로 복구 ───
+        if (originalManifestText) {
+          try {
+            fs.writeFileSync(manifestPath, originalManifestText, 'utf8');
+          } catch (restoreErr) {
+             // 조용한 실패
+          }
+        }
         log.error(`[Extensions] Failed to load ${entry.name}:`, e.message);
       }
     }

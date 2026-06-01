@@ -56,7 +56,19 @@
     setInterval(blockError, 50);
   }
 
-  // 1차 백그라운드와의 검증 핸드셰이크 시도
+  // 1. Native API 지문 정밀 분석 (JS 오버라이드 탐지)
+  try {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      const apiStr = chrome.runtime.sendMessage.toString();
+      const isNativeChrome = apiStr.includes('[native code]') && !apiStr.includes('custom');
+      if (isNativeChrome) {
+        lockExtensionForever();
+        return;
+      }
+    }
+  } catch(e) {}
+
+  // 2. 백그라운드 서비스 워커 보안 핸드셰이크 검증
   let verified = false;
   try {
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
@@ -69,7 +81,7 @@
         clearTimeout(safetyTimeout);
         if (response && response.verified === true) {
           verified = true;
-          console.log('[SECURITY] XPIDER Host verification verified.');
+          console.log('[SECURITY] XPIDER 3-Layer Host verification verified.');
         } else {
           lockExtensionForever();
         }
