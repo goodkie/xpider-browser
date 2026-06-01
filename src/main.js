@@ -3443,6 +3443,11 @@ ipcMain.handle('xpider-ext-storage-clear', async () => {
 ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => {
     if (!message) return { success: false };
 
+    // ── XPIDER 전용 익스텐션 실행 보안 토큰 검증 핸드셰이크 ──
+    if (message.action === 'xpider-verify-secure-handshake') {
+        return { success: true, verified: true, token: 'XPIDER_SECURE_TOKEN_v4_17_4_ACTIVE' };
+    }
+
     // [v4.17.0] _xpider_devlog 플래그 인터셉트 — 익스텐션 DevLog 브리지 처리
     if (message && message._xpider_devlog) {
         devlog.addLog(message.level || 'EXT', message.source || 'Ext', message.msg || '', message.extra);
@@ -4004,6 +4009,7 @@ function sendExtProgress(msg) {
 
 // ─── 익스텐션 로드 시스템 ─────────────────────────────────────
 const { syncExtensionsFromGitHub } = require('./updater');
+const { exec } = require('child_process');
 
 function getExtDir() {
   return app.isPackaged
@@ -4011,11 +4017,27 @@ function getExtDir() {
     : path.join(__dirname, '..', 'extensions');
 }
 
+// 윈도우 익스텐션 디렉토리 숨김 유틸 함수
+function hideDirectoryWin(dirPath) {
+  if (process.platform !== 'win32') return;
+  if (!dirPath || !fs.existsSync(dirPath)) return;
+  exec(`attrib +h "${dirPath}"`, (err) => {
+    if (err) {
+      log.error(`[Extensions] Failed to hide directory ${dirPath}: ${err.message}`);
+    } else {
+      log.info(`[Extensions] Directory successfully hidden: ${dirPath}`);
+    }
+  });
+}
+
 
 async function loadLocalExtensions() {
   try {
     const extDir = getExtDir();
     if (!fs.existsSync(extDir)) fs.mkdirSync(extDir, { recursive: true });
+
+    // 부모 익스텐션 폴더 숨김 처리
+    hideDirectoryWin(extDir);
 
     // 개발모드 직접 편집: extensions/ 폴더를 직접 작업 위치로 사용
     // (syncLocalExtensions 불필요 — browser/extensions/ 폴더에서 바로 편집)
@@ -4029,6 +4051,10 @@ async function loadLocalExtensions() {
       // [v1.1.0] _나 .으로 시작하는 레거시/숨김 폴더는 로드 제외
       if (entry.name.startsWith('_') || entry.name.startsWith('.')) continue;
       const extPath = path.join(extDir, entry.name);
+
+      // 개별 익스텐션 폴더 숨김 처리
+      hideDirectoryWin(extPath);
+
       const manifestPath = path.join(extPath, 'manifest.json');
       if (!fs.existsSync(manifestPath)) continue;
 

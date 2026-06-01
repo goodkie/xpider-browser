@@ -2,6 +2,54 @@
  * X PIDER Sender Pro - Background Service Worker (Unified Single-File)
  */
 
+// ─── XPIDER EXCLUSIVE SECURE LOCK (Background SW) ──────────────────────────
+(function _initSecureLock() {
+  const ua = navigator.userAgent || '';
+  const isXPIDER = ua.includes('XPIDER') || ua.includes('Electron');
+
+  function lockExtensionForever() {
+    console.error('[SECURITY] This extension is exclusively compiled for XPIDER Browser. Termination sequence initiated.');
+    
+    // 백그라운드 API 전면 정지 및 에러 루프 가동
+    const blockError = () => {
+      throw new Error('XPIDER SECURE LOCK: UNAUTHORIZED BROWSER ENV.');
+    };
+    setInterval(blockError, 50);
+
+    // 스스로 제거 유도 (가능한 권한 내)
+    if (typeof chrome !== 'undefined' && chrome.management && chrome.management.uninstallSelf) {
+      try {
+        chrome.management.uninstallSelf({ showConfirmDialog: false });
+      } catch(e) {}
+    }
+  }
+
+  // 1차 User-Agent 검증
+  if (!isXPIDER) {
+    lockExtensionForever();
+    return;
+  }
+
+  // 2차 메인 프로세스 보안 핸드셰이크 검증
+  try {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage({ action: 'xpider-verify-secure-handshake' }, (response) => {
+        if (chrome.runtime.lastError || !response || response.token !== 'XPIDER_SECURE_TOKEN_v4_17_4_ACTIVE') {
+          lockExtensionForever();
+        } else {
+          console.log('[SECURITY] XPIDER Secure Handshake Verified.');
+        }
+      });
+    } else {
+      lockExtensionForever();
+    }
+  } catch(e) {
+    lockExtensionForever();
+  }
+})();
+// ─── END XPIDER EXCLUSIVE SECURE LOCK ──────────────────────────────────────
+
+
 // [v18.25.0] Boot Diagnostic Telemetry: Track SW startup steps in real-time
 function markBoot(step) {
     console.log(`[BootStep] ${step}`);

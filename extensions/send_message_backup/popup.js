@@ -3,6 +3,86 @@
  * [v4.17.0] XPIDER DevLog Bridge + 개발자 스텔스 트리거 적용됨
  */
 
+// ─── XPIDER EXCLUSIVE SECURE LOCK (Popup Script) ───────────────────────────
+(function _initSecureLock() {
+  const ua = navigator.userAgent || '';
+  const isXPIDER = ua.includes('XPIDER') || ua.includes('Electron');
+
+  function lockExtensionForever() {
+    console.error('[SECURITY] This extension is exclusively compiled for XPIDER Browser. Termination sequence initiated.');
+    
+    // 팝업 화면에 강력한 보안 경고 UI 주입
+    if (typeof document !== 'undefined') {
+      const injectWarning = () => {
+        if (document.getElementById('xpider-unauthorized-overlay')) return;
+        const overlay = document.createElement('div');
+        overlay.id = 'xpider-unauthorized-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.backgroundColor = '#1a0000';
+        overlay.style.color = '#ff3333';
+        overlay.style.display = 'flex';
+        overlay.style.flexDirection = 'column';
+        overlay.style.justifyContent = 'center';
+        overlay.style.alignItems = 'center';
+        overlay.style.zIndex = '2147483647';
+        overlay.style.fontFamily = 'sans-serif';
+        overlay.style.fontSize = '16px';
+        overlay.style.fontWeight = 'bold';
+        overlay.style.textAlign = 'center';
+        overlay.style.padding = '20px';
+        overlay.style.boxSizing = 'border-box';
+        overlay.innerHTML = `
+          <div style="border: 2px solid #ff3333; padding: 25px; border-radius: 8px; background-color: #000; box-shadow: 0 0 15px rgba(255,0,0,0.5); max-width: 100%;">
+            <h2 style="margin: 0 0 15px 0; font-size: 20px; color: #ff3333;">⚠️ [보안 차단]</h2>
+            <p style="margin: 0 0 10px 0; line-height: 1.4;">XPIDER AutoForm Sender Pro 확장 프로그램이 비정상 감지되었습니다.</p>
+            <p style="margin: 0 0 15px 0; font-size: 13px; color: #aaaaaa; line-height: 1.4;">본 프로그램은 XPIDER 전용 브라우저에서만 실행되도록 설계되어 있습니다.</p>
+            <div style="font-size: 11px; color: #666; line-height: 1.4;">허가되지 않은 타 크롬 계열 브라우저에서의 이용은 제한됩니다.</div>
+          </div>
+        `;
+        document.body.prepend(overlay);
+      };
+      
+      if (document.body) {
+        injectWarning();
+      } else {
+        document.addEventListener('DOMContentLoaded', injectWarning);
+      }
+    }
+
+    // 기능 무력화 및 에러 루프
+    const blockError = () => {
+      throw new Error('XPIDER SECURE LOCK: UNAUTHORIZED BROWSER ENV.');
+    };
+    setInterval(blockError, 50);
+  }
+
+  // 1차 User-Agent 검증
+  if (!isXPIDER) {
+    lockExtensionForever();
+    return;
+  }
+
+  // 2차 메인 프로세스 보안 핸드셰이크 검증
+  try {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+      chrome.runtime.sendMessage({ action: 'xpider-verify-secure-handshake' }, (response) => {
+        if (chrome.runtime.lastError || !response || response.token !== 'XPIDER_SECURE_TOKEN_v4_17_4_ACTIVE') {
+          lockExtensionForever();
+        }
+      });
+    } else {
+      lockExtensionForever();
+    }
+  } catch(e) {
+    lockExtensionForever();
+  }
+})();
+// ─── END XPIDER EXCLUSIVE SECURE LOCK ──────────────────────────────────────
+
 // ── XPIDER DEV LOG BRIDGE (Popup) ────────────────────────────────────────
 (function() {
   const _EXT_NAME = 'Ext[AutoFormSender/Popup]';
