@@ -30,7 +30,29 @@ const XPIDER_BLACKLIST_RAW = [
     'pcgamer', 'destructoid', 'vg247', 'rockpapershotgun', 'gamesradar', 'gameinformer',
     'gamefront', 'gamerevolution', 'gametrailers', 'shacknews', 'joystiq', 'gamasutra',
     'nintendolife', 'pushsquare', 'dualshockers', 'gematsu', 'siliconera', 'rpgsite',
-    // ... we will generate more via a loop to reach 3333
+
+    // --- Korean Portals, Media, Conglomerates & Public Orgs ---
+    'zum.com', 'chosun.com', 'donga.com', 'joins.com', 'hani.co.kr', 'khan.co.kr', 'ohmynews.com',
+    'pressian.com', 'mediatoday.co.kr', 'kmib.co.kr', 'munhwa.com', 'seoul.co.kr', 'segye.com',
+    'fnnews.com', 'mt.co.kr', 'edaily.co.kr', 'asiae.co.kr', 'heraldcorp.com', 'sedaily.com',
+    'hankyung.com', 'mk.co.kr', 'ytn.co.kr', 'yonhapnewstv.co.kr', 'kbs.co.kr', 'imbc.com',
+    'sbs.co.kr', 'ebs.co.kr', 'obs.co.kr', 'assembly.go.kr', 'spo.go.kr', 'scourt.go.kr',
+    'nts.go.kr', 'customs.go.kr', 'police.go.kr', 'mnd.go.kr', 'mofa.go.kr', 'mois.go.kr',
+    'me.go.kr', 'molit.go.kr', 'moel.go.kr', 'mogef.go.kr', 'mof.go.kr', 'motie.go.kr',
+    'mafra.go.kr', 'mohw.go.kr', 'moj.go.kr', 'mcst.go.kr', 'msit.go.kr', 'moe.go.kr',
+    'bok.or.kr', 'korea.kr', 'seoul.go.kr', 'busan.go.kr', 'daegu.go.kr', 'incheon.go.kr',
+    'gwangju.go.kr', 'daejeon.go.kr', 'ulsan.go.kr', 'sejong.go.kr', 'gg.go.kr', 'gangwon.go.kr',
+    'cbk.go.kr', 'cng.go.kr', 'jeonbuk.go.kr', 'jeonnam.go.kr', 'gb.go.kr', 'gn.go.kr',
+    'jeju.go.kr', 'kcomwel.or.kr', 'nhis.or.kr', 'nps.or.kr', 'hira.or.kr', 'kosha.or.kr',
+    'kemco.or.kr', 'keco.or.kr', 'samsung.com', 'samsung.co.kr', 'hyundai.com', 'hyundai.co.kr',
+    'lg.com', 'lg.co.kr', 'sk.com', 'sk.co.kr', 'lotte.co.kr', 'hanwha.com', 'gs.com',
+    'hd-hyundai.com', 'shinsegae.com', 'cj.net', 'kakaocorp.com', 'navercorp.com', 'kbstar.com',
+    'shinhan.com', 'wooribank.com', 'hanabank.com', 'ibk.co.kr', 'nhbank.com', 'kdb.co.kr',
+    'kakaobank.com', 'kbanknow.com', 'toss.im', 'samsungfire.com', 'samsunglife.com',
+    'hyundaicar.com', 'dbins.co.kr', 'meritzfire.com', 'snu.ac.kr', 'korea.ac.kr',
+    'yonsei.ac.kr', 'hanyang.ac.kr', 'skku.edu', 'skku.ac.kr', 'khu.ac.kr', 'cau.ac.kr',
+    'sogang.ac.kr', 'ewha.ac.kr', 'konkuk.ac.kr', 'dongguk.edu', 'hongik.ac.kr', 'kookmin.ac.kr',
+    'sejong.ac.kr', 'ssu.ac.kr', 'uos.ac.kr', 'kaist.ac.kr', 'postech.ac.kr'
 ];
 
 const TLDs = [
@@ -75,12 +97,18 @@ const baseKeywords = [
     'gametrailers', 'shacknews', 'joystiq', 'gamasutra', 'nintendolife', 'pushsquare',
     'dualshockers', 'gematsu', 'siliconera', 'rpgsite', 'mobile.de', 'autoscout24',
     'immobilienscout24', 'subito.it', 'immobiliare.it', 'allegro.pl', 'gumtree.pl',
-    'kijiji', 'craigslist.org', 'realtor.ca', 'zillow.com', 'trulia', 'hotpads'
+    'kijiji', 'craigslist.org', 'realtor.ca', 'zillow.com', 'trulia', 'hotpads',
+
+    // Korean Target Keywords for combination
+    'samsung', 'hyundai', 'lotte', 'hanwha', 'shinsegae', 'kakaocorp', 'navercorp',
+    'kbstar', 'shinhan', 'wooribank', 'hanabank', 'kakaobank', 'toss',
+    'assembly', 'police', 'customs', 'nts', 'scourt', 'spo', 'seoul', 'gg', 'gyeonggi',
+    'gangwon', 'incheon', 'busan', 'daegu', 'daejeon', 'gwangju', 'ulsan', 'jeju'
 ];
 
 baseKeywords.forEach(kw => {
     TLDs.forEach(tld => {
-        if (FINAL_BLACKLIST.size < 3333) {
+        if (FINAL_BLACKLIST.size < 6000) {
             FINAL_BLACKLIST.add(`${kw}.${tld}`);
         }
     });
@@ -92,18 +120,18 @@ const orgTypes = ['gov', 'org', 'edu', 'mil', 'go', 'ac', 'or', 're', 'pe', 'gv'
 
 regions.forEach(r => {
     orgTypes.forEach(o => {
-        if (FINAL_BLACKLIST.size < 3333) {
+        if (FINAL_BLACKLIST.size < 6000) {
             FINAL_BLACKLIST.add(`.${o}.${r}`);
             FINAL_BLACKLIST.add(`www.${o}.${r}`);
         }
     });
 });
 
-// 4. Fill remaining to hit 3333 with common sub-patterns if still needed
+// 4. Fill remaining to hit 6000 with common sub-patterns if still needed
 const fillers = ['portal', 'admin', 'login', 'secure', 'api', 'dev', 'test', 'mail', 'support', 'help'];
 baseKeywords.forEach(kw => {
     fillers.forEach(f => {
-        if (FINAL_BLACKLIST.size < 3333) {
+        if (FINAL_BLACKLIST.size < 6000) {
             FINAL_BLACKLIST.add(`${f}.${kw}`);
         }
     });
