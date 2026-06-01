@@ -1,0 +1,10 @@
+E:\vivpr\ai\full-xpider-full\src\deploy\XpiderSetup\obj\Release\XpiderSetup.csprojResolveAssemblyReference.cache
+E:\vivpr\ai\full-xpider-full\src\deploy\XpiderSetup\bin\Release\XPIDER-Setup.exe
+E:\vivpr\ai\full-xpider-full\src\deploy\XpiderSetup\bin\Release\mscorlib.dll
+E:\vivpr\ai\full-xpider-full\src\deploy\XpiderSetup\bin\Release\ko\mscorlib.resources.dll
+E:\vivpr\ai\full-xpider-full\src\deploy\XpiderSetup\bin\Release\normidna.nlp
+E:\vivpr\ai\full-xpider-full\src\deploy\XpiderSetup\bin\Release\normnfc.nlp
+E:\vivpr\ai\full-xpider-full\src\deploy\XpiderSetup\bin\Release\normnfd.nlp
+E:\vivpr\ai\full-xpider-full\src\deploy\XpiderSetup\bin\Release\normnfkc.nlp
+E:\vivpr\ai\full-xpider-full\src\deploy\XpiderSetup\bin\Release\normnfkd.nlp
+E:\vivpr\ai\full-xpider-full\src\deploy\XpiderSetup\obj\Release\XPIDER-Setup.exe
