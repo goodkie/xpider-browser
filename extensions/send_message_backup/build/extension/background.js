@@ -1306,16 +1306,27 @@ setTimeout(() => {
 
 async function handleTranscription(audioData, audioUrl, sendResponse) {
     try {
-        // [v4.12.23] 같은 페이지(URL)에서 3번 이상 캡챠 해결 작동 제한
+        // [v4.12.23] 같은 페이지(URL)에서 3번 이상 캡챠 해결 작동 제한 (3회 도달 시 즉시 종료 및 탭 닫고 다음 URL 스킵)
         const pageUrl = audioUrl || '';
         const normalizedUrl = pageUrl.split('?')[0].split('#')[0]; // 쿼리 스트링 및 해시 제거
         if (normalizedUrl) {
             if (!campaignState.captchaCounts) campaignState.captchaCounts = {};
             const count = (campaignState.captchaCounts[normalizedUrl] || 0) + 1;
             campaignState.captchaCounts[normalizedUrl] = count;
-            if (count > 3) {
-                logBg(null, `⚠️ [Engine] CAPTCHA solver disabled: Exceeded maximum attempts (3) on ${normalizedUrl}`, "error");
-                throw new Error("EXCEEDED_MAX_CAPTCHA_ATTEMPTS: CAPTCHA solving limit (3 attempts per page) exceeded.");
+            if (count >= 3) {
+                logBg(null, `🚨 [Security Skip] CAPTCHA Solver attempts exceeded (Limit: 3) on ${normalizedUrl}. Force-closing tab and skipping to next target...`, "error");
+                
+                if (campaignState.currentTabId) {
+                    const tabId = campaignState.currentTabId;
+                    safeTabs.remove(tabId).catch(() => {});
+                    
+                    if (campaignState.targetResolve) {
+                        const resolve = campaignState.targetResolve;
+                        campaignState.targetResolve = null;
+                        resolve({ success: false, error: "CAPTCHA_LIMIT_EXCEEDED" });
+                    }
+                }
+                throw new Error("EXCEEDED_MAX_CAPTCHA_ATTEMPTS: CAPTCHA solving limit (3 attempts) reached. Skipping target.");
             }
             logBg(null, `🤖 [Engine] CAPTCHA solver attempt ${count}/3 for page: ${normalizedUrl}`, "info");
         }
