@@ -885,7 +885,7 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
             }
 
             if (m.action === 'CAPTCHA_LOG') {
-                const entry = `[${new Date().toLocaleTimeString()}] ${m.message}`;
+                const entry = `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] ${m.message}`;
                 captchaLogs.push(entry);
                 if (captchaLogs.length > 50) captchaLogs.shift();
                 chrome.runtime.sendMessage({ action: 'CAPTCHA_LOG_UPDATE', logs: captchaLogs }).catch(() => {});
@@ -1917,7 +1917,7 @@ async function getT() {
 
 async function sendLog(msg) {
     console.log(`[v12.3][Background] ${msg}`);
-    const time = new Date().toLocaleTimeString();
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
     sessionLogs.push(`[${time}] ${msg}`);
     if (sessionLogs.length > 200) sessionLogs.shift();
     

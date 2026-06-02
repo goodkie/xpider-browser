@@ -192,7 +192,7 @@ let logQueue = [];
 let logSaveTimer = null;
 
 function logBg(tabId, msg, type = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
     const logEntry = { timestamp, message: msg, type, tabId };
     
     // 1. Broadcast to open UI (Immediate)

@@ -1361,7 +1361,7 @@ function addLog(msg, type = 'info', forcedTime = null) {
     const logEntry = document.createElement('div');
     logEntry.className = `log-entry ${type}`;
     
-    const time = forcedTime || new Date().toLocaleTimeString('ko-KR', { hour12: false });
+    const time = forcedTime || new Date().toLocaleTimeString('en-US', { hour12: false });
     
     // [v1.3.8] Premium Color Set for High Visibility
     let color = '#ccc';

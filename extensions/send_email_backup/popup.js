@@ -937,7 +937,7 @@ function addLog(msg, type = 'info', forcedTime = null) {
     const logEntry = document.createElement('div');
     logEntry.className = `log-entry ${type}`;
     
-    const time = forcedTime || new Date().toLocaleTimeString('ko-KR', { hour12: false });
+    const time = forcedTime || new Date().toLocaleTimeString('en-US', { hour12: false });
     
     // [v1.3.8] Premium Color Set for High Visibility
     let color = '#ccc';
@@ -997,7 +997,7 @@ async function saveTemplateToLibrary() {
     const tpl = saveTemplate();
     if (!tpl.subject && !tpl.message) return alert("Please enter at least a subject or message.");
     
-    const name = tpl.subject || `Template_${new Date().toLocaleTimeString()}`;
+    const name = tpl.subject || `Template_${new Date().toLocaleTimeString('en-US', { hour12: false })}`;
     const data = await chrome.storage.local.get(['xpider_tpl_library']);
     let library = data.xpider_tpl_library || [];
     

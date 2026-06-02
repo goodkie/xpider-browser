@@ -594,7 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData ? i18nData['en'] : {});
                     
                     // Show feedback success message
-                    const ts = new Date().toLocaleTimeString();
+                    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
                     const logInline = document.getElementById('captcha-log-inline');
                     if (logInline) {
                         logInline.innerHTML += `<div style="color:var(--success-color)">[${ts}] ${dict.wit_token_saved_msg || "✅ Token saved! Resuming CAPTCHA..."}</div>`;
@@ -1009,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', () => {
         statusBox.classList.remove('hidden'); 
         
         try {
-            const time = new Date().toLocaleTimeString();
+            const time = new Date().toLocaleTimeString('en-US', { hour12: false });
             const startLog = `[${time}] [System] Starting Search... (Waiting for background)`;
             const logEl = document.createElement('div');
             logEl.className = 'log-entry';
@@ -1287,7 +1287,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (tabInd) tabInd.style.display = msg.tabOpened ? 'flex' : 'none';
                     }
                     if (logInline) {
-                        const ts = new Date().toLocaleTimeString();
+                        const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
                         logInline.innerHTML += `<div>[${ts}] ⚠️ CAPTCHA Detected → New Tab Opened</div>`;
                         logInline.scrollTop = logInline.scrollHeight;
                     }
@@ -1303,7 +1303,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (s2) s2.style.background = '#34c759';
                 if (s3) s3.style.background = '#34c759';
                 if (logInline) {
-                    const ts = new Date().toLocaleTimeString();
+                    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
                     logInline.innerHTML += `<div>[${ts}] ✅ Solved (${msg.auto ? 'Auto' : 'Manual'}) → Resuming</div>`;
                     logInline.scrollTop = logInline.scrollHeight;
                 }
@@ -1331,7 +1331,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (s2) s2.style.background = '#ff9500';
                 if (s3) s3.style.background = '#ff9500';
                 if (logInline) {
-                    const ts = new Date().toLocaleTimeString();
+                    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
                     logInline.innerHTML += `<div>[${ts}] ⚡ 9-min Bypass → Resuming</div>`;
                     logInline.scrollTop = logInline.scrollHeight;
                 }
@@ -1350,7 +1350,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (s2) s2.style.background = '#ff3b30';
                 if (s3) s3.style.background = '#e0e0e0';
                 if (logInline) {
-                    const ts = new Date().toLocaleTimeString();
+                    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
                     logInline.innerHTML += `<div>[${ts}] ⏱️ 9-min Timeout → Bypass</div>`;
                 }
                 chrome.runtime.sendMessage({ action: 'MANUAL_CAPTCHA_RESOLVED' }, () => {});
@@ -1638,7 +1638,7 @@ function _closeCaptchaModal(auto) {
     if (s2) s2.style.background = '#34c759';
     if (s3) s3.style.background = '#34c759';
     if (logInline) {
-        const ts = new Date().toLocaleTimeString();
+        const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
         logInline.innerHTML += '<div>[' + ts + '] ✅ Solved (' + (auto ? 'Auto' : 'Manual') + ') → Resuming</div>';
         logInline.scrollTop = logInline.scrollHeight;
     }

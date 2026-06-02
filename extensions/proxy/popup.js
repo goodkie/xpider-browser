@@ -112,7 +112,7 @@ async function getProxyList() {
 function addLog(type, msg, customTime) {
   const container = document.getElementById('logs-container');
   if (!container) return;
-  const time = customTime || new Date().toLocaleTimeString('ko-KR', { hour12: false });
+  const time = customTime || new Date().toLocaleTimeString('en-US', { hour12: false });
   const logLine = document.createElement('div');
   logLine.style.marginBottom = '2px';
   

@@ -994,7 +994,7 @@
     }
 
     async function fillFormIntelligent(form, tpl, speed) {
-        logDev("🛠️ [Action][HyperEngine v4.0] 초강력 폼 자동 등록기 시작...");
+        logDev("🛠️ [Action][HyperEngine v4.0] Starting super powerful auto form filler...");
         let filledFields = 0;
 
         // ============================================================
@@ -1110,7 +1110,7 @@
             if (el.options.length <= 1) return false;
             // 이미 유효한 값이 선택된 경우 스킵
             if (el.selectedIndex > 0 && el.options[el.selectedIndex].value) {
-                logDev(`   - [Select-Skip] 이미 선택됨: "${el.options[el.selectedIndex].text}"`);
+                logDev(`   - [Select-Skip] Already selected: "${el.options[el.selectedIndex].text}"`);
                 return false;
             }
 
@@ -1163,7 +1163,7 @@
             dispatchHumanEvents(el, ['input', 'change', 'mouseup', 'click']);
             el.blur();
 
-            logDev(`   - [Select✅] 드롭다운 선택: "${el.options[targetIdx].text}"`);
+            logDev(`   - [Select✅] Dropdown selected: "${el.options[targetIdx].text}"`);
             filledFields++;
             return true;
         }
@@ -1280,12 +1280,12 @@
                     if (targetOption) {
                         dispatchHumanEvents(targetOption, FULL_CLICK_SEQUENCE);
                         await new Promise(r => setTimeout(r, 200));
-                        logDev(`   - [CustomSelect✅] 커스텀 드롭다운 선택: "${(targetOption.textContent || '').trim().substring(0, 30)}"`);
+                        logDev(`   - [CustomSelect✅] Custom dropdown selected: "${(targetOption.textContent || '').trim().substring(0, 30)}"`);
                         filledFields++;
                         handled++;
                     }
                 } catch (e) {
-                    logDev(`   - [CustomSelect⚠️] 처리 실패: ${e.message}`, 'warning');
+                    logDev(`   - [CustomSelect⚠️] Processing failed: ${e.message}`, 'warning');
                 }
             }
             return handled > 0;
@@ -1335,7 +1335,7 @@
             }
 
             radioEl.blur();
-            logDev(`   - [Radio✅] 라디오 클릭: name="${radioEl.name}" value="${radioEl.value}"`);
+            logDev(`   - [Radio✅] Radio clicked: name="${radioEl.name}" value="${radioEl.value}"`);
         }
 
         // ============================================================
@@ -1380,7 +1380,7 @@
             }
 
             cbEl.blur();
-            logDev(`   - [Checkbox✅] 체크박스 체크: "${cbEl.name || cbEl.id || ''}"`);
+            logDev(`   - [Checkbox✅] Checkbox checked: "${cbEl.name || cbEl.id || ''}"`);
         }
 
         // ============================================================
@@ -1425,7 +1425,7 @@
                             }
 
                             await new Promise(r => setTimeout(r, 100));
-                            logDev(`   - [CustomCheck✅] ${isRadio ? '라디오' : '체크박스'} 클릭: "${context.substring(0, 30)}"`);
+                            logDev(`   - [CustomCheck✅] ${isRadio ? 'Radio' : 'Checkbox'} clicked: "${context.substring(0, 30)}"`);
                             filledFields++;
                             handled++;
 
@@ -1739,7 +1739,7 @@
         }
 
         // ── 1단계: 모든 입력란 수집 (form 내부 + 확장 탐색) ──
-        logDev("🎯 [HyperEngine v4.0] Phase 0 - 입력 필드 전수 수집...");
+        logDev("🎯 [HyperEngine v4.0] Phase 0 - Collecting all input fields...");
         let inputs = Array.from(queryAllInputs(form));
 
         // form 태그 외부에 있는 관련 필드 추가 탐색
@@ -1760,21 +1760,21 @@
         allRadios.forEach(r => { if (!inputs.includes(r)) inputs.push(r); });
         allCheckboxes.forEach(c => { if (!inputs.includes(c)) inputs.push(c); });
 
-        logDev(`   [v4.0] 총 ${inputs.length}개 입력 필드 발견 (radio: ${allRadios.length}, checkbox: ${allCheckboxes.length})`);
+        logDev(`   [v4.0] Total ${inputs.length} input fields found (radio: ${allRadios.length}, checkbox: ${allCheckboxes.length})`);
 
         // ── 2단계: 네이티브 SELECT 드롭다운 전수 처리 ──
-        logDev("🎯 [HyperEngine v4.0] Phase 1 - 네이티브 드롭다운 전수 처리...");
+        logDev("🎯 [HyperEngine v4.0] Phase 1 - Processing all native dropdowns...");
         for (const el of inputs) {
             if (isHoneypotV4(el)) continue;
             if (el.tagName === 'SELECT') await applySelect(el);
         }
 
         // ── 3단계: 커스텀 드롭다운 처리 (div/span 기반) ──
-        logDev("🎯 [HyperEngine v4.0] Phase 2 - 커스텀 드롭다운 처리...");
+        logDev("🎯 [HyperEngine v4.0] Phase 2 - Processing custom dropdowns...");
         await applyCustomDropdown(form);
 
         // ── 4단계: 약관/동의 체크박스 우선 처리 ──
-        logDev("🎯 [HyperEngine v4.0] Phase 3 - 약관/동의 체크박스 처리...");
+        logDev("🎯 [HyperEngine v4.0] Phase 3 - Processing terms/consent checkboxes...");
         for (const el of inputs) {
             if (isHoneypotV4(el)) continue;
             if (el.type === 'checkbox') {
@@ -1794,7 +1794,7 @@
         }
 
         // ── 5단계: 텍스트 필드 패턴 매칭 ──
-        logDev("🎯 [HyperEngine v4.0] Phase 4 - 텍스트 필드 패턴 매칭...");
+        logDev("🎯 [HyperEngine v4.0] Phase 4 - Text field pattern matching...");
         for (const el of inputs) {
             if (isHoneypotV4(el)) continue;
             if (el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') continue;
@@ -1825,7 +1825,7 @@
         }
 
         // ── 6단계: 텍스트 폴백 - 여전히 빈 필드 강제 채우기 ──
-        logDev("🎯 [HyperEngine v4.0] Phase 5 - 빈 필드 강제 채우기...");
+        logDev("🎯 [HyperEngine v4.0] Phase 5 - Forcing fill for empty fields...");
         for (const el of inputs) {
             if (isHoneypotV4(el)) continue;
             if (el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') continue;
@@ -1868,7 +1868,7 @@
         }
 
         // ── 7단계: 라디오 버튼 전수 - 미선택 그룹 처리 ──
-        logDev("🎯 [HyperEngine v4.0] Phase 6 - 라디오 버튼 미선택 그룹 처리...");
+        logDev("🎯 [HyperEngine v4.0] Phase 6 - Processing unselected radio groups...");
         try {
             const radioElements = Array.from(queryAllDeep('input[type="radio"]', form)).filter(r => !isHoneypotV4(r));
             const radioGroups = {};
@@ -1909,7 +1909,7 @@
         }
 
         // ── 8단계: 일반 체크박스 전수 처리 (필수 필드만) ──
-        logDev("🎯 [HyperEngine v4.0] Phase 7 - 필수 체크박스 처리...");
+        logDev("🎯 [HyperEngine v4.0] Phase 7 - Processing required checkboxes...");
         try {
             const checkboxElements = Array.from(queryAllDeep('input[type="checkbox"]', form)).filter(cb => !isHoneypotV4(cb));
             for (const cb of checkboxElements) {
@@ -1935,7 +1935,7 @@
         }
 
         // ── 9단계: 커스텀 체크박스/라디오 (div/span 기반 ARIA) 처리 ──
-        logDev("🎯 [HyperEngine v4.0] Phase 8 - 커스텀 ARIA 체크박스/라디오 처리...");
+        logDev("🎯 [HyperEngine v4.0] Phase 8 - Processing custom ARIA checkboxes/radios...");
         await applyCustomCheckableElements(form);
 
         // ── 10단계: 브루트포스 - contentEditable / role=textbox 탐색 ──
@@ -1955,7 +1955,7 @@
         }
 
         // ── 11단계: [NEW] Super-BruteForce Final Target Sweeper ──
-        logDev("🎯 [HyperEngine v4.0] Phase 10 - Super-BruteForce Sweeper (초강력 입력기) 가동...");
+        logDev("🎯 [HyperEngine v4.0] Phase 10 - Starting Super-BruteForce Sweeper...");
         try {
             // 다시 한 번 폼 내의 모든 입력 요소를 전수 수집
             const finalInputs = Array.from(queryAllInputs(form));
@@ -2003,7 +2003,7 @@
             });
 
             if (nextBtn && filledFields > 0) {
-                logDev("🔄 [HyperEngine v4.0] 멀티 단계 폼 감지! 'Next' 버튼 클릭...");
+                logDev("🔄 [HyperEngine v4.0] Multi-step form detected! Clicking 'Next' button...");
                 nextBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 await new Promise(r => setTimeout(r, 200));
                 dispatchHumanEvents(nextBtn, FULL_CLICK_SEQUENCE);
@@ -2018,7 +2018,7 @@
                 });
 
                 if (emptyNewInputs.length > 0) {
-                    logDev(`   [v4.0] 2단계 폼에서 ${emptyNewInputs.length}개 빈 필드 발견. 추가 입력 진행...`);
+                    logDev(`   [v4.0] Found ${emptyNewInputs.length} empty fields in Step 2 form. Proceeding to input...`);
                     for (const el of emptyNewInputs) {
                         if (el.type === 'hidden' || el.type === 'submit' || el.type === 'button') continue;
                         if (await matchField(FIELD_PATTERNS.email, tpl.email, el)) continue;
@@ -2043,7 +2043,7 @@
             logDev(`⚠️ [Wizard Phase] Error: ${e.message}`, 'warning');
         }
 
-        logDev(`✅ [HyperEngine v4.0] 폼 작성 완료 - 입력 필드 ${filledFields}개 처리됨`);
+        logDev(`✅ [HyperEngine v4.0] Form filling complete - ${filledFields} fields processed`);
         return { filledAny: filledFields > 0 };
     }
 
@@ -2342,7 +2342,7 @@
             }
 
             if (errorFields.length > 0) {
-                logDev(`⚠️ [Healer] 정밀 에러 자가 복구 가동! 대상 필드 ${errorFields.length}개 발견.`, 'warning');
+                logDev(`⚠️ [Healer] Starting precision auto-recovery! Found ${errorFields.length} target fields.`, 'warning');
                 
                 for (const el of errorFields) {
                     // 1. 완벽한 값 초기화 (React/Vue 가상 DOM 내부까지 값 세터를 리셋)
@@ -2394,7 +2394,7 @@
                 }
             }
         } catch (e) {
-            logDev(`⚠️ [Healer] 에러 복구 루틴 중 오류 발생: ${e.message}`, 'error');
+            logDev(`⚠️ [Healer] Error during recovery routine: ${e.message}`, 'error');
         }
         return healedCount;
     }
@@ -2450,7 +2450,7 @@
                         const hasAsterisk = containerText.includes('*') || containerText.includes('필수') || containerText.includes('agree');
                         
                         if (isRequired || hasAsterisk) {
-                            logDev(`⚡ [Sweeper] 필수 체크박스 미체크 감지 및 실시간 체크: <input type="checkbox" id="${el.id}">`);
+                            logDev(`⚡ [Sweeper] Unchecked required checkbox detected & checked real-time: <input type="checkbox" id="${el.id}">`);
                             await applyCheckbox(el);
                         }
                         continue;
@@ -2459,7 +2459,7 @@
                     // C. 셀렉트 박스 미선택 상태 실시간 검출
                     if (el.tagName === 'SELECT') {
                         if (el.selectedIndex > 0) continue;
-                        logDev(`⚡ [Sweeper] 미선택 드롭다운 감지 및 실시간 선택: <select id="${el.id}">`);
+                        logDev(`⚡ [Sweeper] Unselected dropdown detected & selected real-time: <select id="${el.id}">`);
                         await applySelect(el);
                         continue;
                     }
@@ -2469,7 +2469,7 @@
                     if (currentVal.trim() !== '') continue;
 
                     // 공란 발견 시 즉시 극사실주의적 인간 타이핑 주입!
-                    logDev(`⚡ [Sweeper] 공란 자동 감지 및 충전 개시: <${el.tagName} id="${el.id}" name="${el.name}">`);
+                    logDev(`⚡ [Sweeper] Empty field detected & filling started: <${el.tagName} id="${el.id}" name="${el.name}">`);
                     
                     if (el.tagName === 'TEXTAREA' || el.contentEditable === 'true' || el.getAttribute('role') === 'textbox') {
                         await applyVal(el, tpl.message || getRandomTemplateVal(), 'Sweeper-Message');
@@ -2486,7 +2486,7 @@
                         const validRadios = group.filter(r => !r.disabled);
                         if (validRadios.length > 0) {
                             const targetRadio = validRadios[0];
-                            logDev(`⚡ [Sweeper] 미선택 라디오 그룹 [${grpName}] 감지 및 실시간 체크: <input type="radio" id="${targetRadio.id}">`);
+                            logDev(`⚡ [Sweeper] Unselected radio group [${grpName}] detected & checked real-time: <input type="radio" id="${targetRadio.id}">`);
                             await applyRadio(targetRadio);
                         }
                     }
@@ -2500,7 +2500,7 @@
         if (_activeSweeperTimer) {
             clearInterval(_activeSweeperTimer);
             _activeSweeperTimer = null;
-            logDev("⚡ [Sweeper] 공란 감시 크롤링 엔진 안전 정지 완료.", "info");
+            logDev("⚡ [Sweeper] Blank field monitoring crawling engine safely stopped.", "info");
         }
     }
 
@@ -2674,7 +2674,7 @@
                 if (!window._xpider_healed) {
                     const healed = await selfHealErrorFields(originalForm, tpl);
                     if (healed > 0) {
-                        logDev(`🔄 [Healer] 에러 필드 ${healed}개 자가 복구 기입 완료! 폼 재제출을 가동합니다.`, 'success');
+                        logDev(`🔄 [Healer] Auto-recovery filled ${healed} error fields! Triggering form resubmission.`, 'success');
                         window._xpider_healed = true;
                         // 실시간 공란 스위퍼 재가동
                         startActiveEmptyFieldSweeper(originalForm, tpl);
