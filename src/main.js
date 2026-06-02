@@ -4122,11 +4122,13 @@ async function loadLocalExtensions() {
         // 브라우저 재시작 시 manifest 변경사항(이름, 버전 등)이 반영되지 않으므로,
         // 로드 전에 기존 캐시를 제거하여 항상 최신 버전이 로드되도록 합니다.
         try {
-          const allLoaded = session.defaultSession.extensions.getAllExtensions();
-          for (const [cachedId, cachedExt] of Object.entries(allLoaded)) {
+          const extApi = session.defaultSession.extensions || session.defaultSession;
+          const allLoaded = extApi.getAllExtensions();
+          const extArray = Array.isArray(allLoaded) ? allLoaded : Object.values(allLoaded);
+          for (const cachedExt of extArray) {
             if (cachedExt.path === extPath) {
-              await session.defaultSession.extensions.removeExtension(cachedId);
-              log.info(`[Extensions] Removed cached extension: ${cachedId} (${entry.name})`);
+              await extApi.removeExtension(cachedExt.id);
+              log.info(`[Extensions] Removed cached extension: ${cachedExt.id} (${entry.name})`);
               break;
             }
           }
@@ -4134,7 +4136,8 @@ async function loadLocalExtensions() {
           log.warn(`[Extensions] Cache removal skipped (${entry.name}): ${removeErr.message}`);
         }
 
-        const ext = await session.defaultSession.extensions.loadExtension(extPath, { allowFileAccess: true });
+        const extApi = session.defaultSession.extensions || session.defaultSession;
+        const ext = await extApi.loadExtension(extPath, { allowFileAccess: true });
 
         // ─── [V999 설치 제한 복원] 로드 성공 후 원래대로 복구 ───
         if (originalManifestText) {
