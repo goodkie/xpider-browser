@@ -10,7 +10,7 @@ module.exports = {
     asar: true,
     name: 'XPIDER Browser',
     executableName: 'XPIDERBrowser',
-    extraResource: extraResources,
+    extraResources: extraResources,
     icon: './assets/icons/win/icon',
     appBundleId: 'com.xpider.browser',
     appVersion: require('./package.json').version,
