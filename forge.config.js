@@ -99,12 +99,49 @@ module.exports = {
     postPackage: async (forgeConfig, packageResult) => {
       const fs = require('fs');
       const path = require('path');
+      
+      // 재귀 폴더 복사 헬퍼 함수
+      const copyFolderRecursiveSync = (source, target) => {
+        if (!fs.existsSync(target)) {
+          fs.mkdirSync(target, { recursive: true });
+        }
+        if (fs.lstatSync(source).isDirectory()) {
+          const files = fs.readdirSync(source);
+          files.forEach(file => {
+            const curSource = path.join(source, file);
+            const curTarget = path.join(target, file);
+            if (fs.lstatSync(curSource).isDirectory()) {
+              copyFolderRecursiveSync(curSource, curTarget);
+            } else {
+              fs.copyFileSync(curSource, curTarget);
+            }
+          });
+        }
+      };
+
       for (const outputPath of packageResult.outputPaths) {
+        // 1. PDF 가이드 복사
         const pdfSource = path.join(process.cwd(), 'XPIDER_Installation_Guide.pdf');
         const pdfDest = path.join(outputPath, 'XPIDER_Installation_Guide.pdf');
         if (fs.existsSync(pdfSource)) {
           fs.copyFileSync(pdfSource, pdfDest);
           console.log(`[XPIDER Hook] Copied guide PDF to installer root: ${pdfDest}`);
+        }
+
+        // 2. 익스텐션 폴더 강제 복사
+        const extSource = path.join(process.cwd(), 'extensions');
+        const extDest = path.join(outputPath, 'resources', 'extensions');
+        if (fs.existsSync(extSource)) {
+          try {
+            if (typeof fs.cpSync === 'function') {
+              fs.cpSync(extSource, extDest, { recursive: true });
+            } else {
+              copyFolderRecursiveSync(extSource, extDest);
+            }
+            console.log(`[XPIDER Hook] Copied extensions to packaged resources: ${extDest}`);
+          } catch (extErr) {
+            console.error(`[XPIDER Hook] Failed to copy extensions: ${extErr.message}`);
+          }
         }
       }
     }
