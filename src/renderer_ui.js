@@ -925,6 +925,27 @@ window.electronAPI.on('xpider-renderer-update-active-tab', (props) => {
     }
 });
 
+// ─── [Win7/Electron22 보강] Storage 변경 실시간 포워딩 ────────────────────
+window.electronAPI.on('xpider-ext-storage-changed', (changes) => {
+    if (!changes) return;
+    // 1. Sidepanel 팝업 webview로 중계
+    if (extensionWebview && extensionWebview.src) {
+        extensionWebview.executeJavaScript(
+            `window.postMessage({ type: 'XPIDER_EVENT', name: 'storage-changed', data: ${JSON.stringify(changes)} }, '*')`
+        ).catch(() => {});
+    }
+    
+    // 2. 현재 활성화되어 있는 메인 브라우저 webview들로 중계
+    try {
+        const activeWv = document.querySelector('webview.webview-active:not(.webview-hidden)');
+        if (activeWv && activeWv.src) {
+            activeWv.executeJavaScript(
+                `window.postMessage({ type: 'XPIDER_EVENT', name: 'storage-changed', data: ${JSON.stringify(changes)} }, '*')`
+            ).catch(() => {});
+        }
+    } catch(e) {}
+});
+
 // ── XPIDER_CONTENT_RELAY: content.js → renderer (sendMessage 릴레이 & 크루저 신호) ──
 window.electronAPI.on('xpider-ext-runtime-on-message', async (message) => {
     if (!message) return;
