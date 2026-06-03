@@ -31,7 +31,7 @@ function logToDashboard(msg, isError = false) {
     } else {
         console.log(`🤖 [UltraSolver Pro] ${msg}`);
     }
-    chrome.runtime.sendMessage({ action: 'logSolver', message: msg }).catch(() => {});
+    chrome.runtime.sendMessage({ action: 'logSolver', message: msg }, () => { if (chrome.runtime.lastError) {} });
 }
 
 const solvedSitekeys = new Set();
@@ -347,7 +347,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     injectionId: message.injectionId,
                     success: true,
                     isTop: window.self === window.top
-                }).catch(() => {});
+                }, () => { if (chrome.runtime.lastError) {} });
                 
                 sendResponse({ success: true });
             } else {
@@ -362,7 +362,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         injectionId: message.injectionId,
                         success: false,
                         isTop: window.self === window.top
-                    }).catch(() => {});
+                    }, () => { if (chrome.runtime.lastError) {} });
                     sendResponse({ success: false });
                 }
             }
