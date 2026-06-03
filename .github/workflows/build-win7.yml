@@ -1,0 +1,172 @@
+name: Build XPIDER Browser (Windows 7 Legacy)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Windows 7 전용 레거시 빌드
+#
+# ▸ 트리거: "v*-win7" 형식의 태그 (예: v6.0.1-win7)
+# ▸ 엔진:   Electron 22.3.27  ← Win7을 지원하는 마지막 Electron 버전
+# ▸ Forge:  @electron-forge/*  6.4.2
+# ▸ 출력:   XPIDER-Browser-Windows-win7-<tag>.zip
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    tags:
+      - 'v*-win7'
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Release tag (e.g. v6.0.1-win7)'
+        required: false
+        default: 'v6.0.1-win7'
+
+permissions:
+  contents: write
+
+jobs:
+  build-win7:
+    name: Build Windows 7 Legacy ZIP
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node.js 18 — Electron 22.x / Forge 6.x 호환 LTS
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # ── .env 주입 ───────────────────────────────────────────
+      - name: Create .env from GitHub Secrets
+        shell: bash
+        run: |
+          cat > .env << 'ENVEOF'
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PRICE_STARTER_MONTHLY=${{ secrets.STRIPE_PRICE_STARTER_MONTHLY }}
+          STRIPE_PRICE_STARTER_YEARLY=${{ secrets.STRIPE_PRICE_STARTER_YEARLY }}
+          STRIPE_PRICE_PRO_MONTHLY=${{ secrets.STRIPE_PRICE_PRO_MONTHLY }}
+          STRIPE_PRICE_PRO_YEARLY=${{ secrets.STRIPE_PRICE_PRO_YEARLY }}
+          STRIPE_PRICE_ENTERPRISE_MONTHLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_MONTHLY }}
+          STRIPE_PRICE_ENTERPRISE_YEARLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_YEARLY }}
+          STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          ENVEOF
+          sed -i 's/^[[:space:]]*//' .env
+
+      # ── Electron 22.3.27 + Forge 6.4.2 로 버전 오버라이드 ──
+      - name: Override Electron & Forge versions for Windows 7
+        shell: bash
+        run: |
+          echo "📌 Patching package.json for Win7 compatibility..."
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+
+            // Electron 다운그레이드 (Win7 지원 마지막 버전)
+            pkg.devDependencies['electron'] = '22.3.27';
+
+            // Forge 6.x 다운그레이드 (Electron 22와 호환)
+            const forgeVer = '6.4.2';
+            const forgeKeys = Object.keys(pkg.devDependencies).filter(k => k.startsWith('@electron-forge/'));
+            forgeKeys.forEach(k => { pkg.devDependencies[k] = forgeVer; });
+
+            // electron-forge-maker-nsis 및 기타 비호환 devDeps 제거
+            delete pkg.devDependencies['electron-forge-maker-nsis'];
+
+            // electron-updater는 Electron 22에서 v5.x 이하 필요
+            pkg.dependencies['electron-updater'] = '^5.3.0';
+
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+            console.log('✅ package.json patched for Win7 build');
+          "
+
+      # ── 의존성 설치 ─────────────────────────────────────────
+      - name: Install dependencies (Win7 versions)
+        run: npm install --legacy-peer-deps
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      # ── ZIP 빌드 ────────────────────────────────────────────
+      - name: Build Windows 7 ZIP
+        shell: bash
+        run: npx electron-forge make --platform=win32 --arch=x64 --targets=@electron-forge/maker-zip
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      # ── 파일명 변환 ─────────────────────────────────────────
+      - name: Rename output ZIP
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [ -z "$TAG" ] || [ "$TAG" = "refs/heads/main" ]; then
+            TAG="${{ github.event.inputs.version_tag || 'v6.0.1-win7' }}"
+          fi
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
+          # ZIP 이름 변환
+          find out/make/zip/win32/x64/ -name "*.zip" -exec \
+            mv {} "out/make/zip/win32/x64/XPIDER-Browser-Windows-win7-${TAG}.zip" \;
+
+          echo "✅ Renamed: XPIDER-Browser-Windows-win7-${TAG}.zip"
+          ls out/make/zip/win32/x64/
+
+      # ── 아티팩트 업로드 ─────────────────────────────────────
+      - uses: actions/upload-artifact@v4
+        with:
+          name: win7-zip
+          path: out/make/zip/win32/x64/*.zip
+          retention-days: 3
+          compression-level: 0
+
+  # ──────────────────────────────────────────────────────────
+  # GitHub Release 발행
+  # ──────────────────────────────────────────────────────────
+  release-win7:
+    name: Publish Windows 7 Release
+    needs: build-win7
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: win7-zip
+          path: dist/
+
+      - name: List artifacts
+        run: find dist/ -type f | sort
+
+      - name: Publish GitHub Release (Win7 Legacy)
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "XPIDER Browser ${{ github.ref_name }} (Windows 7 Legacy)"
+          tag_name: ${{ github.ref_name }}
+          prerelease: true
+          body: |
+            ## ⚠️ XPIDER Browser ${{ github.ref_name }} — Windows 7 Legacy Build
+
+            > **이 빌드는 Windows 7 / 8 / 8.1 전용 레거시 버전입니다.**
+            > Windows 10/11 사용자는 [최신 릴리즈](https://github.com/${{ github.repository }}/releases/latest)를 사용하세요.
+
+            ---
+
+            ### 📦 다운로드
+
+            | 플랫폼 | 파일 | 비고 |
+            |--------|------|------|
+            | 🪟 Windows 7/8/8.1 | `XPIDER-Browser-Windows-win7-${{ github.ref_name }}.zip` | Portable ZIP |
+
+            ### 🔧 설치 방법
+            1. ZIP 파일을 다운로드
+            2. 원하는 폴더에 압축 해제
+            3. `XPIDERBrowser.exe` 실행
+
+            ### ⚠️ 주의사항
+            - **Electron 22.3.27** 기반 (Chromium 108, Node.js 16.17.1)
+            - Windows 7 지원은 보안 업데이트가 종료된 EOL 버전입니다
+            - 인터넷 뱅킹, 결제 기능 등 최신 TLS가 필요한 사이트에서 문제가 발생할 수 있습니다
+            - 가능하면 Windows 10/11 + 최신 빌드 사용을 강력히 권장합니다
+          files: |
+            dist/*.zip
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

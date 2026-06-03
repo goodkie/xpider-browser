@@ -439,13 +439,19 @@ const submitDelayMs=${submitDelay};
 
 // Primary field patterns (v4.12.40 - Multi-lingual Supreme Matchers)
 const P={
-  firstName:[/\\bfirst.?name\\b/i,/\\bgiven.?name\\b/i,/\\bforename\\b/i,/\\bfname\\b/i,/\\bfirst\\b/i,/\\bgiven\\b/i,/이름/i,/성함/i,/名前/i,/名/i,/given/i,/\\bnombre\\b/i,/\\bprenom\\b/i,/\\bvorname\\b/i],
-  lastName:[/\\blast.?name\\b/i,/\\bfamily.?name\\b/i,/\\bsurname\\b/i,/\\blname\\b/i,/\\blast\\b/i,/\\bfamily\\b/i,/성(?!명|함)/i,/苗字/i,/姓/i,/\\bapellido\\b/i,/\\bnom\\b/i,/\\bnachname\\b/i],
-  name:[/\\bname\\b/i,/\\bfull.?name\\b/i,/\\byour.*name\\b/i,/\\bcontact.*name\\b/i,/\\bcustomer.*name\\b/i,/\\bsender.*name\\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/\bcontact.*person\b/i,/\bclient.*name\b/i],
+  firstName:[/\bfirst.?name\b/i,/\bgiven.?name\b/i,/\bforename\b/i,/\bfname\b/i,/\bfirst\b/i,/\bgiven\b/i,/이름/i,/성함/i,/名前/i,/名/i,/given/i,/\bnombre\b/i,/\bprenom\b/i,/\bvorname\b/i],
+  lastName:[/\blast.?name\b/i,/\bfamily.?name\b/i,/\bsurname\b/i,/\blname\b/i,/\blast\b/i,/\bfamily\b/i,/성(?!명|함)/i,/苗字/i,/姓/i,/\bapellido\b/i,/\bnom\b/i,/\bnachname\b/i],
+  name:[/\bname\b/i,/\bfull.?name\b/i,/\byour.*name\b/i,/\bcontact.*name\b/i,/\bcustomer.*name\b/i,/\bsender.*name\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/\bcontact.*person\b/i,/\bclient.*name\b/i],
   email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i],
   subject:[/subject/i,/title(?!.*name)/i,/제목/i,/件名/i,/主题/i,/topic/i,/heading/i],
   phone:[/phone/i,/mobile/i,/tel(?!eg)/i,/전화/i,/手机/i,/电话/i,/fax/i],
-  message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/detail/i,/note/i,/\\bmessage.*text\\b/i,/\\bbody.*text\\b/i]
+  company:[/company/i,/organization/i,/organisation/i,/\borg\b/i,/\bbiz(?:name)?\b/i,/business(?:.*name)?/i,/firm/i,/회사/i,/기업/i,/会社/i,/公司/i,/\bcompany.*name\b/i],
+  address:[/\baddress\b(?!.*2|.*two|.*line.*2|.*suite)/i,/\baddr\b/i,/\bstreet\b/i,/\baddr1\b/i,/\baddress.*line.*1\b/i,/주소/i,/住所/i,/地址/i],
+  address2:[/address.*2/i,/address.*line.*2/i,/suite/i,/\bapt\b/i,/\bfloor\b/i,/\bfl\b/i,/\bbldg\b/i,/building/i,/unit/i,/\baddr2\b/i],
+  city:[/\bcity\b/i,/\btown\b/i,/\blocality\b/i,/도시/i,/市/i,/시(?:군|구)?/i],
+  state:[/\bstate\b/i,/\bprovince\b/i,/\bregion\b/i,/\bprefecture\b/i,/주(?!소|택)/i,/도(?!시)/i,/州/i,/県/i,/省/i],
+  zip:[/\bzip\b/i,/\bpostal(?:.?code)?\b/i,/\bpostcode\b/i,/\bzipcode\b/i,/\bzip.?code\b/i,/우편/i,/郵便/i,/邮编/i],
+  message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/detail/i,/note/i,/\bmessage.*text\b/i,/\bbody.*text\b/i]
 };
 
 // [v4.12.27] Smart Name Splitter
@@ -515,11 +521,22 @@ function generateSmartRandomValue(el) {
     return "Inquiry";
   };
   
-  if (/company|회사|org/i.test(c)) {
+  if (/company|회사|org(?:anization)?/i.test(c)) {
+    if (tpl.company && tpl.company.trim() !== '') return tpl.company;
     return (tpl.name || getRandomTemplateVal()) + ' Inc.';
   }
-  if (/address|주소/i.test(c)) {
-    return '123 Business Rd, New York, NY';
+  if (/\baddress2?\b|suite|apt|floor|\bfl\b|bldg|unit/i.test(c)) {
+    if (/2|two|line.*2|suite|apt|floor|bldg|unit/i.test(c)) {
+      return tpl.address2 && tpl.address2.trim() !== '' ? tpl.address2 : '';
+    }
+    if (tpl.address && tpl.address.trim() !== '') return tpl.address;
+    return '123 Business Rd';
+  }
+  if (/\bcity\b|\btown\b/i.test(c)) {
+    return tpl.city && tpl.city.trim() !== '' ? tpl.city : 'New York';
+  }
+  if (/\bstate\b|\bprovince\b|\bregion\b/i.test(c)) {
+    return tpl.state && tpl.state.trim() !== '' ? tpl.state : 'NY';
   }
   if (/subject|제목|title/i.test(c)) {
     return tpl.subject || '';
@@ -1506,7 +1523,7 @@ async function fill(c){
     }
     
     // Default matching fallback for other primary fields
-    for(const k of['firstName','lastName','name','email','phone','subject','message']){
+    for(const k of['firstName','lastName','name','email','phone','company','address','address2','city','state','zip','subject','message']){
       if(used.has(k)&&k!=='message')continue;
       
       let val = tpl[k];

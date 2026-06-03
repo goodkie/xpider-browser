@@ -832,10 +832,15 @@ function bindEvents() {
     }
 
     // Persistence for Template
-    ['tpl-first-name', 'tpl-last-name', 'tpl-name', 'tpl-email', 'tpl-phone', 'tpl-subject', 'tpl-message'].forEach(id => {
+    ['tpl-first-name', 'tpl-last-name', 'tpl-name', 'tpl-email', 'tpl-phone',
+     'tpl-company', 'tpl-address', 'tpl-address2', 'tpl-city', 'tpl-state', 'tpl-zip',
+     'tpl-subject', 'tpl-message'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', saveTemplate);
     });
+    // State select도 change 이벤트로 감지
+    const stateEl = document.getElementById('tpl-state');
+    if (stateEl) stateEl.addEventListener('change', saveTemplate);
 
     // Single URL & List Management
     // Single URL & List Management
@@ -1118,6 +1123,12 @@ async function saveTemplateChanges() {
         name:      document.getElementById('tpl-name').value.trim(),
         email:     document.getElementById('tpl-email').value.trim(),
         phone:     document.getElementById('tpl-phone').value.trim(),
+        company:   (document.getElementById('tpl-company') || {}).value?.trim() || '',
+        address:   (document.getElementById('tpl-address') || {}).value?.trim() || '',
+        address2:  (document.getElementById('tpl-address2') || {}).value?.trim() || '',
+        city:      (document.getElementById('tpl-city') || {}).value?.trim() || '',
+        state:     (document.getElementById('tpl-state') || {}).value?.trim() || '',
+        zip:       (document.getElementById('tpl-zip') || {}).value?.trim() || '',
         subject:   document.getElementById('tpl-subject').value.trim(),
         message:   document.getElementById('tpl-message').value.trim()
     };
@@ -1158,12 +1169,18 @@ async function saveTemplateChanges() {
 function buildTemplateFileContent(tpl) {
     return `[XPIDER MESSAGE TEMPLATE]
 -----------------------------------------
-Full Name:  ${tpl.name || 'N/A'}
-First Name: ${tpl.firstName || 'N/A'}
-Last Name:  ${tpl.lastName || 'N/A'}
-Email:      ${tpl.email || 'N/A'}
-Phone:      ${tpl.phone || 'N/A'}
-Subject:    ${tpl.subject || 'N/A'}
+Full Name:    ${tpl.name || 'N/A'}
+First Name:   ${tpl.firstName || 'N/A'}
+Last Name:    ${tpl.lastName || 'N/A'}
+Email:        ${tpl.email || 'N/A'}
+Phone:        ${tpl.phone || 'N/A'}
+Company:      ${tpl.company || 'N/A'}
+Address:      ${tpl.address || 'N/A'}
+Suite/Fl/Bldg:${tpl.address2 || 'N/A'}
+City:         ${tpl.city || 'N/A'}
+State:        ${tpl.state || 'N/A'}
+Zip:          ${tpl.zip || 'N/A'}
+Subject:      ${tpl.subject || 'N/A'}
 
 [MESSAGE BODY]
 -----------------------------------------
@@ -1508,6 +1525,12 @@ function saveTemplate() {
         name: document.getElementById('tpl-name').value,
         email: document.getElementById('tpl-email').value,
         phone: document.getElementById('tpl-phone').value,
+        company: (document.getElementById('tpl-company') || {}).value || '',
+        address: (document.getElementById('tpl-address') || {}).value || '',
+        address2: (document.getElementById('tpl-address2') || {}).value || '',
+        city: (document.getElementById('tpl-city') || {}).value || '',
+        state: (document.getElementById('tpl-state') || {}).value || '',
+        zip: (document.getElementById('tpl-zip') || {}).value || '',
         subject: document.getElementById('tpl-subject').value,
         message: document.getElementById('tpl-message').value
     };
@@ -1785,6 +1808,12 @@ async function loadSettings() {
         if (document.getElementById('tpl-name')) document.getElementById('tpl-name').value = data.xpider_tpl.name || '';
         if (document.getElementById('tpl-email')) document.getElementById('tpl-email').value = data.xpider_tpl.email || '';
         if (document.getElementById('tpl-phone')) document.getElementById('tpl-phone').value = data.xpider_tpl.phone || '';
+        if (document.getElementById('tpl-company')) document.getElementById('tpl-company').value = data.xpider_tpl.company || '';
+        if (document.getElementById('tpl-address')) document.getElementById('tpl-address').value = data.xpider_tpl.address || '';
+        if (document.getElementById('tpl-address2')) document.getElementById('tpl-address2').value = data.xpider_tpl.address2 || '';
+        if (document.getElementById('tpl-city')) document.getElementById('tpl-city').value = data.xpider_tpl.city || '';
+        if (document.getElementById('tpl-state')) document.getElementById('tpl-state').value = data.xpider_tpl.state || '';
+        if (document.getElementById('tpl-zip')) document.getElementById('tpl-zip').value = data.xpider_tpl.zip || '';
         if (document.getElementById('tpl-subject')) document.getElementById('tpl-subject').value = data.xpider_tpl.subject || '';
         if (document.getElementById('tpl-message')) document.getElementById('tpl-message').value = data.xpider_tpl.message || '';
     }
