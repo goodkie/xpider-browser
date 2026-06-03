@@ -33,6 +33,13 @@ function logToDashboard(msg, isError = false) {
     } else {
         console.log(`🤖 [UltraSolver Pro] ${msg}`);
     }
+    
+    const isWin7 = navigator.userAgent.includes('Windows NT 6.1') || navigator.userAgent.includes('Electron/22');
+    if (isWin7) {
+        invokeXpiderIpc('xpider-usp-log-solver', { message: msg }).catch(() => {});
+        return;
+    }
+
     chrome.runtime.sendMessage({ action: 'logSolver', message: msg }, () => {
         if (chrome.runtime.lastError) {
             invokeXpiderIpc('xpider-usp-log-solver', { message: msg }).catch(() => {});
@@ -190,6 +197,35 @@ async function requestSolveCaptcha(params, sitekey, cleanSet) {
         logToDashboard(`Task accepted. Initiating solve request via SuperProxy...`);
         document.documentElement.setAttribute('data-usp-solving', 'true');
         
+        const runDirectMainProcessSolve = () => {
+            invokeXpiderIpc('xpider-usp-solve-captcha', params)
+                .then(res => {
+                    if (res && res.success && res.token) {
+                        logToDashboard(`Direct solved token obtained. Injecting directly...`);
+                        handleDirectSolveResult(res.token, sitekey, cleanSet);
+                    } else {
+                        const err = (res && res.error) ? res.error : "Unknown direct solve error";
+                        logToDashboard(`Direct solve failed: ${err}`, true);
+                        cleanSet.delete(sitekey);
+                        document.documentElement.setAttribute('data-usp-solving', 'false');
+                    }
+                })
+                .catch(e => {
+                    logToDashboard(`Direct solve exception: ${e.message}`, true);
+                    cleanSet.delete(sitekey);
+                    document.documentElement.setAttribute('data-usp-solving', 'false');
+                });
+        };
+
+        // Windows 7 (Electron Legacy) 환경이거나 background가 확실히 작동하지 않는 상황인 경우 
+        // chrome.runtime.sendMessage를 생략하고 즉시 direct main-process solve bypass로 진입합니다.
+        const isWin7 = navigator.userAgent.includes('Windows NT 6.1') || navigator.userAgent.includes('Electron/22');
+        if (isWin7) {
+            logToDashboard(`Win7 Legacy Environment detected. Direct routing to main-process solve bypass...`);
+            runDirectMainProcessSolve();
+            return;
+        }
+
         chrome.runtime.sendMessage({
             action: "solveCaptcha",
             params: params
@@ -197,27 +233,8 @@ async function requestSolveCaptcha(params, sitekey, cleanSet) {
             const hasError = chrome.runtime.lastError;
             if (hasError) {
                 logToDashboard(`Background unreachable. Running direct main-process solve bypass...`);
-                
-                invokeXpiderIpc('xpider-usp-solve-captcha', params)
-                    .then(res => {
-                        if (res && res.success && res.token) {
-                            logToDashboard(`Direct solved token obtained. Injecting directly...`);
-                            handleDirectSolveResult(res.token, sitekey, cleanSet);
-                        } else {
-                            const err = (res && res.error) ? res.error : "Unknown direct solve error";
-                            logToDashboard(`Direct solve failed: ${err}`, true);
-                            cleanSet.delete(sitekey);
-                            document.documentElement.setAttribute('data-usp-solving', 'false');
-                        }
-                    })
-                    .catch(e => {
-                        logToDashboard(`Direct solve exception: ${e.message}`, true);
-                        cleanSet.delete(sitekey);
-                        document.documentElement.setAttribute('data-usp-solving', 'false');
-                    });
+                runDirectMainProcessSolve();
             } else if (response && response.success && response.token) {
-                // [Win7 Fix] main.js의 xpider-ext-runtime-send-message에서
-                // 직접 해결한 토큰을 응답으로 반환한 경우 직접 DOM에 주입
                 logToDashboard(`Solved token received from main process. Injecting...`);
                 handleDirectSolveResult(response.token, sitekey, cleanSet);
             } else if (response && !response.success) {

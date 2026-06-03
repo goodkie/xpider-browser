@@ -252,19 +252,27 @@ try {
     window.chrome.storage.local = customStorageLocal;
 }
 // Also expose chrome.storage.onChanged at the top level
-if (!window.chrome.storage.onChanged) {
-    window.chrome.storage.onChanged = {
-        addListener: (callback) => {
-            // Listen via postMessage XPIDER_EVENT (for pages where IPC is indirect)
-            window.addEventListener('message', (e) => {
-                if (e.data && e.data.type === 'XPIDER_EVENT' && e.data.name === 'storage-changed') {
-                    callback(e.data.data, 'local');
-                }
-            });
-            // Also listen directly via IPC
-            ipcRenderer.on('xpider-ext-storage-changed', (event, changes) => callback(changes, 'local'));
-        }
-    };
+try { delete window.chrome.storage.onChanged; } catch(e) {}
+const customStorageOnChanged = {
+    addListener: (callback) => {
+        // Listen via postMessage XPIDER_EVENT (for pages where IPC is indirect)
+        window.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'XPIDER_EVENT' && e.data.name === 'storage-changed') {
+                callback(e.data.data, 'local');
+            }
+        });
+        // Also listen directly via IPC
+        ipcRenderer.on('xpider-ext-storage-changed', (event, changes) => callback(changes, 'local'));
+    }
+};
+try {
+    Object.defineProperty(window.chrome.storage, 'onChanged', {
+        value: customStorageOnChanged,
+        writable: false,
+        configurable: false
+    });
+} catch(e) {
+    window.chrome.storage.onChanged = customStorageOnChanged;
 }
 
 // ─── CHROME RUNTIME BRIDGE ──────────────────────────────────
@@ -428,17 +436,25 @@ if (!window.chrome.tabs) {
 
 // ─── CHROME RUNTIME EXTRAS ───────────────────────────────────
 // chrome.runtime.connect (used by popup to detect closure)
-if (!window.chrome.runtime.connect) {
-    window.chrome.runtime.connect = (connectInfo) => {
-        // Return a mock Port object
-        return {
-            name: connectInfo ? connectInfo.name : '',
-            onDisconnect: { addListener: () => {} },
-            onMessage: { addListener: () => {} },
-            postMessage: () => {},
-            disconnect: () => {}
-        };
+try { delete window.chrome.runtime.connect; } catch(e) {}
+const customRuntimeConnect = (connectInfo) => {
+    // Return a mock Port object
+    return {
+        name: connectInfo ? connectInfo.name : '',
+        onDisconnect: { addListener: () => {} },
+        onMessage: { addListener: () => {} },
+        postMessage: () => {},
+        disconnect: () => {}
     };
+};
+try {
+    Object.defineProperty(window.chrome.runtime, 'connect', {
+        value: customRuntimeConnect,
+        writable: false,
+        configurable: false
+    });
+} catch(e) {
+    window.chrome.runtime.connect = customRuntimeConnect;
 }
 // chrome.runtime.reload (used for hard-reset feature)
 if (!window.chrome.runtime.reload) {
