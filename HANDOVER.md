@@ -24,6 +24,14 @@
    - 폼 제출 버튼을 누른 후 엔진이 성공 메시지를 확인하지 못하면 33초간 대기(Hold)합니다.
    - 기존에는 33초 대기 후 실패 처리된 뒤 해당 도메인의 *다른* Contact 경로를 또다시 찾으러 가느라 무한 딜레이가 발생했고, 결과적으로 `SUCCESS`, `COMPLETED`, `REMAINING` 카운트가 `0`에서 멈춰있었습니다.
    - **수정:** 폼 제출 시도가 발생했다면 33초 대기 후 즉시 해당 타겟 루프를 중단(`done({ success: false })`)하여 실시간 통계(`sendStats()`)가 정상적으로 팝업에 전송되도록 구조를 변경했습니다.
+4. **Windows 7 레거시 빌드 호환성 패치 (v6.0.3 ~ v6.0.4)**:
+   - **Electron 22 다운그레이드 대응**: Windows 7을 지원하는 마지막 버전인 Electron 22.3.27(내장 Node 16.17.1) 기반의 빌드 파이프라인(`.github/workflows/build-win7.yml`)을 구축했습니다.
+   - **전역 fetch & Headers 폴리필 주입**: Node 16 환경에서 Supabase SDK 초기화 시 `Headers is not defined` 에러로 크래시되는 문제를 막기 위해 `src/main.js` 및 `src/auth/supabase.js` 최상단에 `node-fetch` 기반의 동적 폴리필을 주입했습니다. (`node-fetch`를 package.json의 prod dependencies로 이동 완료)
+   - **익스텐션 로더 하이브리드 지원**: Electron 22에 없는 `session.defaultSession.extensions` 속성 대신 `session.defaultSession` 직속 API로 fallback 로드되도록 대응했습니다.
+   - **서비스 워커 `undefined` 가드 적용**: Chromium 108의 서비스 워커 환경에서 `chrome.tabs.onUpdated`가 `undefined`로 반환되어 `addListener` 등록 시 크래시가 발생하는 것을 막고자, 모든 관련 익스텐션 코드에 `if (chrome.tabs && chrome.tabs.onUpdated)` 안전 가드를 적용했습니다.
+   - **서비스 워커 캐시 강제 소거**: 앱 기동 시마다 AppData 아래의 `Service Worker` 캐시 디렉토리를 강제 소거하도록 하여, 캐시 꼬임으로 인한 구버전 바이트코드 중복 구동 버그를 예방했습니다.
+5. **배포 워크플로우 꼬임 방지 (v6.0.4)**:
+   - 일반 빌드(`build.yml`) 트리거에서 `!v*-win7` 태그를 예외 처리하여, 윈도우 7 태그 푸시 시 중복 빌드가 발생하고 잘못된 일반 `.exe` 설치 파일이 윈7용 파일명으로 업로드되어 사용자가 혼란을 겪는 문제를 원천 차단했습니다.
 
 ## 🚀 4. 개발 및 실행 방법
 1. **실행 명령어**: 프로젝트 루트(`E:\vivpr\ai\full-xpider-v9`)에서 터미널을 열고 `npm start`를 실행하면 개발 모드로 XPIDER 브라우저가 기동됩니다.
