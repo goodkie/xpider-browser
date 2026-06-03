@@ -166,7 +166,13 @@
         email: [/email/i, /e-mail/i, /이메일/i, /メール/i, /邮箱/i, /correo/i, /courriel/i, /correo.*electrónico/i],
         subject: [/subject/i, /title/i, /제목/i, /件名/i, /主题/i, /topic/i, /asunto/i, /betreff/i, /objet/i],
         phone: [/phone/i, /tel/i, /mobile/i, /contact/i, /전화/i, /연락처/i, /電話/i, /手机/i, /电话/i, /teléfono/i, /telefon/i, /téléphone/i],
-        message: [/message/i, /content/i, /body/i, /내용/i, /本文/i, /内容/i, /comment/i, /description/i, /inquiry/i, /mensaje/i, /nachricht/i, /\bmessage.*text\b/i, /\bbody.*text\b/i]
+        message: [/message/i, /content/i, /body/i, /내용/i, /本文/i, /内容/i, /comment/i, /description/i, /inquiry/i, /mensaje/i, /nachricht/i, /\bmessage.*text\b/i, /\bbody.*text\b/i],
+        company: [/company/i, /회사/i, /org/i, /firm/i, /business/i, /corporation/i, /회사명/i, /단체/i, /상호/i],
+        address: [/address/i, /주소/i, /addr/i, /location/i, /dirección/i, /adresse/i],
+        streetAddress: [/street/i, /도로명/i, /상세주소/i, /address2/i, /line2/i, /suite/i, /apartment/i, /apt/i, /bldg/i, /fl/i, /floor/i],
+        city: [/city/i, /도시/i, /시\/군\/구/i, /town/i, /ville/i, /ciudad/i],
+        state: [/state/i, /province/i, /시\/도/i, /region/i, /state\/province/i, /kanton/i, /bundesland/i],
+        zip: [/zip/i, /postal/i, /우편/i, /postcode/i, /zipcode/i, /plz/i]
     };
 
     const DOMAIN_BLACKLIST = [
@@ -1406,11 +1412,12 @@
 
                         // 약관/동의 관련 체크박스만 자동 체크
                         const context = (el.textContent || el.getAttribute('aria-label') || '').toLowerCase();
-                        const parentText = (el.parentElement?.textContent || '').toLowerCase().substring(0, 200);
+                        const parentText = (el.parentElement?.textContent || '').toLowerCase().substring(0, 1000);
                         const combined = context + ' ' + parentText;
 
                         const isTerms = ['agree', 'terms', 'policy', 'consent', 'accept', 'privacy',
-                            '동의', '약관', '규정', '개인정보', '수집', '이용약관', 'gdpr'
+                            '동의', '약관', '규정', '개인정보', '수집', '이용약관', 'gdpr',
+                            'ueni', 'cookies policy', 'privacy & cookies policy', 'cooking libra'
                         ].some(k => combined.includes(k));
 
                         // role="radio" 는 그룹 내 첫 번째를 선택
@@ -1655,6 +1662,7 @@
                     return '010-' + String(rand8).substring(0, 4) + '-' + String(rand8).substring(4);
                 }
                 if (/zip|postal|우편/i.test(c)) {
+                    if (tpl.zip && tpl.zip.trim() !== '') return tpl.zip;
                     const rand5 = Math.floor(10000 + Math.random() * 90000);
                     return String(rand5);
                 }
@@ -1672,10 +1680,22 @@
             
             // 3. 텍스트 / 일반 글자 필드
             if (/company|회사|org/i.test(c)) {
-                return (tpl.name || getRandomTemplateVal()) + ' Inc.';
+                return (tpl.company && tpl.company.trim() !== '') ? tpl.company : ((tpl.name || getRandomTemplateVal()) + ' Inc.');
+            }
+            if (/address2|street|line2|suite|apt/i.test(c)) {
+                return (tpl.address2 && tpl.address2.trim() !== '') ? tpl.address2 : 'Apt 101';
             }
             if (/address|주소/i.test(c)) {
-                return '123 Business Rd, New York, NY';
+                return (tpl.address && tpl.address.trim() !== '') ? tpl.address : '123 Business Rd, New York, NY';
+            }
+            if (/city|도시/i.test(c)) {
+                return (tpl.city && tpl.city.trim() !== '') ? tpl.city : 'Seoul';
+            }
+            if (/state|province|시\/도/i.test(c)) {
+                return (tpl.state && tpl.state.trim() !== '') ? tpl.state : 'Seoul';
+            }
+            if (/zip|postal|우편/i.test(c)) {
+                return (tpl.zip && tpl.zip.trim() !== '') ? tpl.zip : '10001';
             }
             if (/subject|제목|title/i.test(c)) {
                 return tpl.subject || '';
@@ -1732,8 +1752,9 @@
             }
 
             // 4. 시각적 비가시 판정 (안전하게 display:none, visibility:hidden, opacity:0 인 경우만 기본 판정)
+            // 단, 체크박스와 라디오 버튼은 opacity: 0 이라도 허니팟으로 보지 않는다 (커스텀 스타일링된 경우가 많으므로)
             const style = window.getComputedStyle(el);
-            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+            if (style.display === 'none' || style.visibility === 'hidden' || (style.opacity === '0' && el.type !== 'checkbox' && el.type !== 'radio')) {
                 return true;
             }
 
@@ -1781,12 +1802,13 @@
             if (isHoneypotV4(el)) continue;
             if (el.type === 'checkbox') {
                 const labelText = getLabelFor(el).toLowerCase();
-                const containerText = (el.closest('div, label, span, p')?.textContent || '').toLowerCase().substring(0, 300);
+                const containerText = (el.closest('div, label, span, p')?.textContent || '').toLowerCase().substring(0, 1000);
                 const combined = labelText + ' ' + containerText;
                 const termsKeywords = [
                     'agree', 'terms', 'policy', 'consent', 'accept', 'privacy',
                     '동의', '규정', '약관', '개인정보', '수집', '이용',
-                    'gdpr', 'einwilligung', 'datenschutz', 'consentement', 'aceptar'
+                    'gdpr', 'einwilligung', 'datenschutz', 'consentement', 'aceptar',
+                    'ueni', 'cookies policy', 'privacy & cookies policy', 'cooking libra'
                 ];
                 if (termsKeywords.some(k => combined.includes(k))) {
                     await applyCheckbox(el);
@@ -1822,6 +1844,12 @@
             if (!isFirstExclusive && !isLastExclusive && await matchField(FIELD_PATTERNS.name, tpl.name, el)) continue;
             if (await matchField(FIELD_PATTERNS.email, tpl.email, el)) continue;
             if (await matchField(FIELD_PATTERNS.phone, tpl.phone, el)) continue;
+            if (await matchField(FIELD_PATTERNS.company, tpl.company, el)) continue;
+            if (await matchField(FIELD_PATTERNS.address, tpl.address, el)) continue;
+            if (await matchField(FIELD_PATTERNS.streetAddress, tpl.address2, el)) continue;
+            if (await matchField(FIELD_PATTERNS.city, tpl.city, el)) continue;
+            if (await matchField(FIELD_PATTERNS.state, tpl.state, el)) continue;
+            if (await matchField(FIELD_PATTERNS.zip, tpl.zip, el)) continue;
             if (await matchField(FIELD_PATTERNS.subject, tpl.subject, el)) continue;
             if (await matchField(FIELD_PATTERNS.message, tpl.message, el)) continue;
         }
@@ -1850,16 +1878,17 @@
                 let val;
                 if (tp === 'email' || hint.includes('email') || hint.includes('mail')) val = tpl.email;
                 else if (tp === 'tel' || hint.includes('phone') || hint.includes('tel') || hint.includes('mobile') || hint.includes('전화') || hint.includes('연락처')) val = tpl.phone;
-                else if (tp === 'number' && (hint.includes('zip') || hint.includes('postal') || hint.includes('우편'))) val = '00000';
+                else if (tp === 'number' && (hint.includes('zip') || hint.includes('postal') || hint.includes('우편'))) val = tpl.zip || '00000';
                 else if (hint.includes('first')) val = tpl.firstName || tpl.name;
                 else if (hint.includes('last') || hint.includes('surname') || hint.includes('family')) val = tpl.lastName || tpl.name;
                 else if (hint.includes('name') || hint.includes('이름') || hint.includes('성함') || hint.includes('氏名')) val = tpl.name;
                 else if (hint.includes('subject') || hint.includes('제목') || hint.includes('title') || hint.includes('件名')) val = tpl.subject;
-                else if (hint.includes('company') || hint.includes('회사') || hint.includes('org') || hint.includes('회사명')) val = (tpl.name || 'Company') + ' Inc.';
-                else if (hint.includes('address') || hint.includes('주소')) val = 'N/A';
-                else if (hint.includes('zip') || hint.includes('postal') || hint.includes('우편')) val = '00000';
-                else if (hint.includes('city') || hint.includes('도시') || hint.includes('시/군/구')) val = 'Seoul';
-                else if (hint.includes('state') || hint.includes('province') || hint.includes('시/도')) val = 'Seoul';
+                else if (hint.includes('company') || hint.includes('회사') || hint.includes('org') || hint.includes('회사명')) val = tpl.company || ((tpl.name || 'Company') + ' Inc.');
+                else if (hint.includes('street') || hint.includes('address2') || hint.includes('상세주소')) val = tpl.address2 || 'Apt 101';
+                else if (hint.includes('address') || hint.includes('주소')) val = tpl.address || 'N/A';
+                else if (hint.includes('zip') || hint.includes('postal') || hint.includes('우편')) val = tpl.zip || '00000';
+                else if (hint.includes('city') || hint.includes('도시') || hint.includes('시/군/구')) val = tpl.city || 'Seoul';
+                else if (hint.includes('state') || hint.includes('province') || hint.includes('시/도')) val = tpl.state || 'Seoul';
                 else if (hint.includes('country') || hint.includes('국가')) val = 'Korea';
                 else if (hint.includes('website') || hint.includes('url') || hint.includes('homepage') || hint.includes('홈페이지')) val = '';  // 웹사이트 필드는 빈칸 허용
                 else if (tp === 'url') val = ''; // URL 필드는 건너뛰기

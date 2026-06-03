@@ -34,17 +34,8 @@ function logToDashboard(msg, isError = false) {
         console.log(`🤖 [UltraSolver Pro] ${msg}`);
     }
     
-    const isWin7 = navigator.userAgent.includes('Windows NT 6.1') || navigator.userAgent.includes('Electron/22');
-    if (isWin7) {
-        invokeXpiderIpc('xpider-usp-log-solver', { message: msg }).catch(() => {});
-        return;
-    }
-
-    chrome.runtime.sendMessage({ action: 'logSolver', message: msg }, () => {
-        if (chrome.runtime.lastError) {
-            invokeXpiderIpc('xpider-usp-log-solver', { message: msg }).catch(() => {});
-        }
-    });
+    // Always use IPC to log to main process extStorage to ensure popup.js sees the logs
+    invokeXpiderIpc('xpider-usp-log-solver', { message: msg }).catch(() => {});
 }
 
 const solvedSitekeys = new Set();
@@ -217,32 +208,10 @@ async function requestSolveCaptcha(params, sitekey, cleanSet) {
                 });
         };
 
-        // Windows 7 (Electron Legacy) 환경이거나 background가 확실히 작동하지 않는 상황인 경우 
-        // chrome.runtime.sendMessage를 생략하고 즉시 direct main-process solve bypass로 진입합니다.
-        const isWin7 = navigator.userAgent.includes('Windows NT 6.1') || navigator.userAgent.includes('Electron/22');
-        if (isWin7) {
-            logToDashboard(`Win7 Legacy Environment detected. Direct routing to main-process solve bypass...`);
-            runDirectMainProcessSolve();
-            return;
-        }
-
-        chrome.runtime.sendMessage({
-            action: "solveCaptcha",
-            params: params
-        }, (response) => {
-            const hasError = chrome.runtime.lastError;
-            if (hasError) {
-                logToDashboard(`Background unreachable. Running direct main-process solve bypass...`);
-                runDirectMainProcessSolve();
-            } else if (response && response.success && response.token) {
-                logToDashboard(`Solved token received from main process. Injecting...`);
-                handleDirectSolveResult(response.token, sitekey, cleanSet);
-            } else if (response && !response.success) {
-                logToDashboard(`SuperProxy solve failed: ${response.error}`, true);
-                cleanSet.delete(sitekey);
-                document.documentElement.setAttribute('data-usp-solving', 'false');
-            }
-        });
+        // Always use the robust main-process solve bypass directly.
+        // This avoids background service worker suspension issues and storage disconnects.
+        logToDashboard(`Routing to main-process solve bypass...`);
+        runDirectMainProcessSolve();
     } catch (e) {
         logToDashboard(`Failed to check XPIDER tokens: ${e.message}`, true);
         cleanSet.delete(sitekey);

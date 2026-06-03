@@ -3490,6 +3490,13 @@ if (!extStorage.language)    extStorage.language    = 'en';
 if (!extStorage.xpider_lang) extStorage.xpider_lang = 'en';
 if (extStorage.autoSelect === undefined) extStorage.autoSelect = true;
 
+// [v6.0.21] Initialize UltraSolver Pro state if missing
+if (!extStorage.solverLogs || extStorage.solverLogs.length === 0) {
+    const time = new Date().toLocaleTimeString();
+    extStorage.solverLogs = [`[${time}] [System] UltraSolver Pro is ready.`];
+    extStorage.solverStatus = 'Ready (Idle)';
+    extStorage.solverState = 'idle';
+}
 
 function saveExtStorage() {
     try { fs.writeFileSync(storagePath, JSON.stringify(extStorage, null, 2)); } catch(e) {}
@@ -4716,4 +4723,33 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// ─── [XPIDER-Browser] 글로벌 크래쉬 안전장치 (메인 프로세스 중단 방지) ───
+process.on('uncaughtException', (error) => {
+  console.error('[XPIDER-CRASH] Uncaught Exception:', error);
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const { app } = require('electron');
+    const userDataPath = app.getPath('userData');
+    const logPath = path.join(userDataPath, 'crash-log.txt');
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] Uncaught Exception: ${error.stack || error}\n\n`);
+  } catch (e) {
+    console.error('[XPIDER-CRASH] Failed to write crash log:', e);
+  }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[XPIDER-CRASH] Unhandled Rejection at:', promise, 'reason:', reason);
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const { app } = require('electron');
+    const userDataPath = app.getPath('userData');
+    const logPath = path.join(userDataPath, 'crash-log.txt');
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] Unhandled Rejection: ${reason?.stack || reason}\n\n`);
+  } catch (e) {
+    console.error('[XPIDER-CRASH] Failed to write crash log:', e);
+  }
 });
