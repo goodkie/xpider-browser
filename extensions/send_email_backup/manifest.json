@@ -36,17 +36,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "https://www.google.com/recaptcha/*"
-      ],
-      "js": [
-        "solver-content.js"
-      ],
-      "all_frames": true
-    }
-  ],
+
   "web_accessible_resources": [
     {
       "resources": [

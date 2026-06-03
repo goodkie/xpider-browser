@@ -171,6 +171,18 @@ let i18nData = null;
 let lastLogMessage = "Ready...";
 let remainingTargets = 0;
 
+// [v1.3.1] 3333 Global Blacklist (Portals, Gov, Org, etc.) & EXCLUDED_DOMAINS Filter
+const EXCLUDED_DOMAINS = /gov|go\.kr|go\.jp|mil|google|facebook|instagram|youtube|gmail|microsoft|twitter|x\.com|linkedin|pinterest|github|naver|daum|kakao|tistory|yahoo|bing|msn|wikipedia|apple|amazon|netflix|zoom|slack|skype|telegram|whatsapp|adobe|oracle|salesforce|ibm|intel|amd|nvidia|qualcomm|samsung|lg|hyundai|kia|kakaocorp|line|coupang|gmarket|11st|auction|danawa|interpark|wemakeprice|tmon|kurly|musinsa|zigzag|aboki|mutnam|stylenanda|imvely|dahong|jogunshop|keyward|abcmart|folder|folderstyle|shoemarker|lesmore|s-market|grandstage|jd-sports|footlocker/i;
+
+function getNormalizedUrlKey(urlStr) {
+    try {
+        const parsed = new URL(urlStr);
+        return parsed.hostname.toLowerCase().replace(/^www\./, '') + parsed.pathname.toLowerCase().replace(/\/$/, '');
+    } catch(e) {
+        return urlStr.toLowerCase().trim().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, '');
+    }
+}
+
 // [v19.0] XPIDER_INVOKE: Direct IPC bridge to main process (bypasses background.js)
 function xpiderInvoke(channel, args) {
     return new Promise((resolve, reject) => {
@@ -426,7 +438,7 @@ async function initializeAsyncComponents() {
             const latestKey = res.xpider_stt_api_key || res.audioSttKey || res.witKey || '';
             if (latestKey.trim() === '') {
                 const setupModal = document.getElementById('stt-setup-modal-overlay');
-                if (setupModal) setupModal.classList.remove('hidden');
+                if (setupModal) setupModal.classList.add('hidden'); // Keep hidden even if empty
             } else {
                 const sttKeyInput = document.getElementById('audio-stt-key');
                 if (sttKeyInput) sttKeyInput.value = latestKey;
@@ -503,12 +515,18 @@ function updateRealTimeStatus(data) {
     if (data.totalTargets !== undefined) {
         totalTargets = data.totalTargets;
     }
+    if (data.successCount !== undefined) {
+        successCount = data.successCount;
+    }
+    if (data.remainingCount !== undefined) {
+        remainingTargets = data.remainingCount;
+    }
     
     let completedCount = 0;
     if (data.completedCount !== undefined) {
         completedCount = data.completedCount;
-    } else if (data.remainingCount !== undefined) {
-        completedCount = totalTargets - data.remainingCount;
+    } else {
+        completedCount = totalTargets - remainingTargets;
     }
     if (completedCount < 0) completedCount = 0;
     
@@ -516,50 +534,44 @@ function updateRealTimeStatus(data) {
     const completedDisplay = document.getElementById('completed-count-display');
     if (completedDisplay) completedDisplay.textContent = completedCount;
 
-    if (data.successCount !== undefined) {
-        successCount = data.successCount;
-        const display = document.getElementById('success-count-display');
-        if (display) display.textContent = successCount;
+    // Update Success count display
+    const display = document.getElementById('success-count-display');
+    if (display) display.textContent = successCount;
 
-        // Refresh the label if it has a placeholder
-        const statusLabel = document.querySelector('[data-i18n="status_finished"]');
-        if (statusLabel) {
-            const lang = document.getElementById('language-select')?.value || 'en';
-            const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
-            let text = dict['status_finished'] || 'Campaign Status: {count} sent';
-            
-            const parts = text.split('{count}');
-            const prefixText = parts[0] ? parts[0].trim() : 'Campaign Status:';
-            const suffixText = parts[1] ? parts[1].trim() : 'sent';
-            
-            statusLabel.textContent = prefixText;
-            
-            const suffixLabel = document.querySelector('.status-suffix');
-            if (suffixLabel) {
-                suffixLabel.textContent = suffixText;
-            }
+    // Update Remaining count display
+    const remainingDisplay = document.getElementById('remaining-count-display');
+    if (remainingDisplay) remainingDisplay.textContent = remainingTargets;
+
+    // Refresh the label if it has a placeholder
+    const statusLabel = document.querySelector('[data-i18n="status_finished"]');
+    if (statusLabel) {
+        const lang = document.getElementById('language-select')?.value || 'en';
+        const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
+        let text = dict['status_finished'] || 'Campaign Status: {count} sent';
+        
+        const parts = text.split('{count}');
+        const prefixText = parts[0] ? parts[0].trim() : 'Campaign Status:';
+        const suffixText = parts[1] ? parts[1].trim() : 'sent';
+        
+        statusLabel.textContent = prefixText;
+        
+        const suffixLabel = document.querySelector('.status-suffix');
+        if (suffixLabel) {
+            suffixLabel.textContent = suffixText;
         }
     }
     
-    if (data.remainingCount !== undefined) {
-        remainingTargets = data.remainingCount;
-        
-        // Update Remaining count display
-        const remainingDisplay = document.getElementById('remaining-count-display');
-        if (remainingDisplay) remainingDisplay.textContent = totalTargets - completedCount;
+    const progress = totalTargets > 0 ? Math.round((completedCount / totalTargets) * 100) : 0;
+    updateProgress(progress);
+    
+    refreshStatusDetailUI();
 
-        const progress = totalTargets > 0 ? Math.round((completedCount / totalTargets) * 100) : 0;
-        updateProgress(progress);
-        
-        refreshStatusDetailUI();
-
-        const countDisplay = document.getElementById('url-count-display');
-        if (countDisplay) {
-            const lang = document.getElementById('language-select')?.value || 'en';
-            const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
-            const remainingLabel = dict.remaining_suffix || 'remaining';
-            countDisplay.textContent = `${remainingTargets} (${remainingLabel}) / ${totalTargets} URLs`;
-        }
+    const countDisplay = document.getElementById('url-count-display');
+    if (countDisplay) {
+        const lang = document.getElementById('language-select')?.value || 'en';
+        const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
+        const remainingLabel = dict.remaining_suffix || 'remaining';
+        countDisplay.textContent = `${remainingTargets} (${remainingLabel}) / ${totalTargets} URLs`;
     }
 }
 
@@ -878,11 +890,68 @@ function renderUrlsPreview(urls) {
         return;
     }
 
-    urls.forEach(url => {
+    urls.forEach((url, index) => {
         const div = document.createElement('div');
         div.className = 'preview-item';
-        div.textContent = url;
-        div.title = url;
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
+        div.style.alignItems = 'center';
+        div.style.gap = '10px';
+
+        const textSpan = document.createElement('span');
+        textSpan.textContent = url;
+        textSpan.title = url;
+        textSpan.style.overflow = 'hidden';
+        textSpan.style.textOverflow = 'ellipsis';
+        textSpan.style.whiteSpace = 'nowrap';
+        textSpan.style.flex = '1';
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.innerHTML = '&times;';
+        deleteBtn.style.background = 'none';
+        deleteBtn.style.border = 'none';
+        deleteBtn.style.color = '#ef4444';
+        deleteBtn.style.cursor = 'pointer';
+        deleteBtn.style.fontSize = '1.3rem';
+        deleteBtn.style.fontWeight = 'bold';
+        deleteBtn.style.padding = '0 6px';
+        deleteBtn.style.lineHeight = '1';
+        deleteBtn.style.opacity = '0.7';
+        deleteBtn.style.transition = 'opacity 0.2s, transform 0.2s';
+        deleteBtn.addEventListener('mouseenter', () => { deleteBtn.style.opacity = '1'; deleteBtn.style.transform = 'scale(1.2)'; });
+        deleteBtn.addEventListener('mouseleave', () => { deleteBtn.style.opacity = '0.7'; deleteBtn.style.transform = 'scale(1)'; });
+
+        deleteBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            
+            // 큐에서 아이템 제거
+            campaignQueue.splice(index, 1);
+            totalTargets = campaignQueue.length;
+            
+            // UI 갱신
+            renderUrlsPreview(campaignQueue);
+            
+            const countDisplay = document.getElementById('url-count-display');
+            if (countDisplay) {
+                countDisplay.textContent = `${totalTargets} URLs found`;
+            }
+            
+            // 스토리지 갱신
+            await chrome.storage.local.set({
+                xpider_queue: campaignQueue,
+                xpider_total: totalTargets
+            });
+            
+            // 만약 진행 중인 캠페인이 있다면 큐 실시간 갱신
+            try {
+                await xpiderInvoke('xpider-campaign-update-queue', { queue: campaignQueue });
+            } catch(err) {}
+            
+            console.log(`[Popup] Removed URL: ${url}. Remaining: ${totalTargets}`);
+        });
+
+        div.appendChild(textSpan);
+        div.appendChild(deleteBtn);
         previewList.appendChild(div);
     });
 
@@ -918,11 +987,29 @@ async function handleFileUpload(e) {
         }
     });
     
-    // [v1.3.1] 3333 Global Blacklist (Portals, Gov, Org, etc.)
     const blacklist = window.XPIDER_BLACKLIST || [];
     
-    campaignQueue = [...new Set(matches)].filter(url => {
+    // 중복 제거 고도화 (Protocol/www 무시하고 Host + Path가 같으면 중복 제거)
+    const seen = new Set();
+    const uniqueMatches = [];
+    matches.forEach(u => {
+        const key = getNormalizedUrlKey(u);
+        if (!seen.has(key)) {
+            seen.add(key);
+            uniqueMatches.push(u);
+        }
+    });
+
+    campaignQueue = uniqueMatches.filter(url => {
         const lowerUrl = url.toLowerCase();
+        try {
+            const hostname = new URL(url).hostname.toLowerCase();
+            if (EXCLUDED_DOMAINS.test(hostname) || EXCLUDED_DOMAINS.test(lowerUrl)) {
+                return false;
+            }
+        } catch(e) {
+            if (EXCLUDED_DOMAINS.test(lowerUrl)) return false;
+        }
         return !blacklist.some(domain => lowerUrl.includes(domain));
     });
 
@@ -1097,8 +1184,25 @@ async function addSingleUrl() {
     try {
         new URL(url); // Validation
         
-        // [v1.3.5] Apply Blacklist to manual entries as well
         const lowerUrl = url.toLowerCase();
+        
+        // [v1.3.1] EXCLUDED_DOMAINS Filter (Government, Portals, SNS, etc.)
+        try {
+            const hostname = new URL(url).hostname.toLowerCase();
+            if (EXCLUDED_DOMAINS.test(hostname) || EXCLUDED_DOMAINS.test(lowerUrl)) {
+                addLog(`⚠️ Excluded domain (Government/Portal/SNS): ${url}`, 'warning');
+                input.value = '';
+                return;
+            }
+        } catch(e) {
+            if (EXCLUDED_DOMAINS.test(lowerUrl)) {
+                addLog(`⚠️ Excluded domain (Government/Portal/SNS): ${url}`, 'warning');
+                input.value = '';
+                return;
+            }
+        }
+
+        // [v1.3.5] Apply Blacklist to manual entries as well
         const blacklist = window.XPIDER_BLACKLIST || [];
         if (blacklist.some(domain => lowerUrl.includes(domain))) {
             addLog(`⚠️ Blacklisted domain: ${url}`, 'warning');
@@ -1106,29 +1210,37 @@ async function addSingleUrl() {
             return;
         }
         
-        // Add to ACTIVE queue
-        if (!campaignQueue.includes(url)) {
-            campaignQueue.push(url);
-            totalTargets = campaignQueue.length;
-            const countDisplay = document.getElementById('url-count-display');
-            if (countDisplay) {
-                const lang = document.getElementById('language-select')?.value || 'en';
-                const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
-                const suffix = dict.remaining_suffix || 'URLs';
-                countDisplay.textContent = `${totalTargets} ${suffix}`;
-            }
-            const fileInfo = document.getElementById('file-info');
-            if (fileInfo) fileInfo.classList.remove('hidden');
-
-            // Show URLs Preview in UI for manually added items as well
-            renderUrlsPreview(campaignQueue);
-            
-            // Sync active queue to storage so background can access if needed
-            chrome.storage.local.set({ 
-                xpider_queue: campaignQueue,
-                xpider_total: totalTargets
-            });
+        // 중복 제거 고도화 (Protocol/www 무시하고 Host + Path가 같으면 중복 제거)
+        const newKey = getNormalizedUrlKey(url);
+        const seenKeys = new Set(campaignQueue.map(u => getNormalizedUrlKey(u)));
+        
+        if (seenKeys.has(newKey)) {
+            addLog(`⚠️ Duplicate URL ignored: ${url}`, 'warning');
+            input.value = '';
+            return;
         }
+        
+        // Add to ACTIVE queue
+        campaignQueue.push(url);
+        totalTargets = campaignQueue.length;
+        const countDisplay = document.getElementById('url-count-display');
+        if (countDisplay) {
+            const lang = document.getElementById('language-select')?.value || 'en';
+            const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
+            const suffix = dict.remaining_suffix || 'URLs';
+            countDisplay.textContent = `${totalTargets} ${suffix}`;
+        }
+        const fileInfo = document.getElementById('file-info');
+        if (fileInfo) fileInfo.classList.remove('hidden');
+
+        // Show URLs Preview in UI for manually added items as well
+        renderUrlsPreview(campaignQueue);
+        
+        // Sync active queue to storage so background can access if needed
+        chrome.storage.local.set({ 
+            xpider_queue: campaignQueue,
+            xpider_total: totalTargets
+        });
         
         // [v1.2.1] NEW: Save to Permanent "Manual Entries" List
         const lang = document.getElementById('language-select')?.value || 'en';
@@ -1145,7 +1257,8 @@ async function addSingleUrl() {
         }
         
         // Avoid duplicate in the manual list
-        if (!manualList.urls.includes(url)) {
+        const manualSeenKeys = new Set(manualList.urls.map(u => getNormalizedUrlKey(u)));
+        if (!manualSeenKeys.has(newKey)) {
             manualList.urls.push(url);
             manualList.date = new Date().toISOString();
         }

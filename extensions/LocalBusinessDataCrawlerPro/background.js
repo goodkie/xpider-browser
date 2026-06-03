@@ -76,7 +76,6 @@ importScripts('global_blacklist.js');
 importScripts('language_filters.js');
 importScripts('noise_dictionary.js');
 importScripts('business_filters.js');
-importScripts('captcha_solver.js');
 
 // [v1.0.0 Pro] Robust State Management for MV3 Persistence
 const SW_STATE_KEYS = ['isSearching', 'sessionResults', 'sessionLogs', 'currentProgressPercent', 'isPaused', 'isPausedByCaptcha', 'isSecondaryQuizWaiting', 'secondaryCountdown', 'statusDetail', 'isHardBlocked', 'hardBlockCountdown', 'vpnCheckEnabled', 'slowModeEnabled', 'xpider_crawler_results_backup'];
@@ -738,40 +737,6 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
             }
 
             // ── 3. 캡차 및 AI 해결 핸들러 ──
-            if (m.action === 'PERFORM_TRANSCRIPTION') {
-                try {
-                    // [BugFix v4.12.18] xpider_stt_api_key 포함 세 가지 키 모두 읽기
-                    const settings = await chrome.storage.local.get(['captchaMethod', 'captchaApiKey', 'xpider_stt_api_key', 'audioSttKey', 'witKey']);
-                    // audioSttKey가 없으면 다른 키로 보완
-                    if (!settings.audioSttKey) {
-                        settings.audioSttKey = settings.xpider_stt_api_key || settings.witKey || '';
-                    }
-                    console.log('[v24.0 BugFix] Transcription request:', { 
-                        hasAudioSttKey: !!settings.audioSttKey, 
-                        keyPreview: settings.audioSttKey ? settings.audioSttKey.substring(0, 8) + '...' : 'NONE',
-                        captchaMethod: settings.captchaMethod,
-                        hasCaptchaApiKey: !!settings.captchaApiKey,
-                        hasAudioData: !!m.audioData,
-                        audioDataLength: m.audioData ? m.audioData.length : 0
-                    });
-                    
-                    // [v24.0] Direct call - NO runWithTimeout wrapper. Expose ALL errors.
-                    const text = await CAPTCHA_SOLVER.transcribeAudio(m.url, settings, m.audioData);
-                    
-                    if (!text) return { error: "Engine returned empty result" };
-                    return { text };
-                } catch (err) {
-                    console.error('[v24.0] Transcription REAL Error:', err.message);
-                    return { error: err.message || "Unknown analysis error" };
-                }
-            }
-
-            if (m.action === 'SOLVE_IMAGE_GRID') {
-                const res = await chrome.storage.local.get(['captchaApiKey', 'captchaMethod']);
-                const indices = await CAPTCHA_SOLVER.solveImageGridNopeCHA(m.url, m.task, res.captchaApiKey);
-                return { indices };
-            }
-
             if (m.action === 'RESOLVE_HARD_BLOCK') {
                 if (m.choice === 'wait') {
                     startHardBlockRecoveryTimer();
@@ -786,35 +751,8 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                 }
             }
 
-            if (m.action === 'START_NATIVE_STT') {
-                const requestId = Math.random().toString(36).substring(2);
-                return new Promise(async (resolve) => {
-                    nativeSttRequests.set(requestId, (text) => {
-                        resolve({ text });
-                    });
-                    await ensureOffscreenDocument();
-                    chrome.runtime.sendMessage({ 
-                        action: 'START_NATIVE_STT', 
-                        audioUrl: m.audioUrl, 
-                        audioData: m.audioData, // Pass the pre-fetched data
-                        requestId 
-                    });
-                });
-            }
-
             if (m.action === 'PERFORM_OCR') {
                 try {
-                    const keys = await chrome.storage.local.get(['twoCaptchaKey', 'nopeChaKey', 'captchaApiKey']);
-                    // Use captchaApiKey as fallback if specific keys missing (backwards compatibility)
-                    const combinedKeys = { 
-                        twoCaptchaKey: keys.twoCaptchaKey || keys.captchaApiKey, 
-                        nopeChaKey: keys.nopeChaKey || keys.captchaApiKey 
-                    };
-
-                    // Try professional solvers first
-                    const apiText = await CAPTCHA_SOLVER.solveNormalImage(m.imageB64, combinedKeys);
-                    if (apiText) return { text: apiText };
-
                     // Fallback to local Tesseract OCR
                     const requestId = Math.random().toString(36).substring(2);
                     return new Promise(async (resolve) => {
@@ -839,31 +777,6 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                 const callback = ocrRequests.get(m.requestId);
                 if (callback) { callback(m.text || ""); ocrRequests.delete(m.requestId); }
                 return { status: 'ok' };
-            }
-
-            if (m.action === 'NATIVE_STT_RESULT') {
-                const callback = nativeSttRequests.get(m.requestId);
-                if (callback) { callback(m.text || ""); nativeSttRequests.delete(m.requestId); }
-                return { status: 'ok' };
-            }
-
-            if (m.action === 'UPDATE_WIT_KEY') {
-                const key = m.key || '';
-                console.log(`[WitKey-Sync] Crawler BG: Received update key: ${key ? key.substring(0, 8) + '...' : 'NONE'}`);
-                
-                // witKey와 audioSttKey 두 군데에 동시 저장
-                await chrome.storage.local.set({ 
-                    witKey: key,
-                    audioSttKey: key
-                });
-                
-                // 필요할 경우 CAPTCHA_SOLVER 인스턴스의 설정도 갱신할 수 있는지 확인
-                if (typeof CAPTCHA_SOLVER !== 'undefined' && CAPTCHA_SOLVER.config) {
-                    CAPTCHA_SOLVER.config.witKey = key;
-                    CAPTCHA_SOLVER.config.audioSttKey = key;
-                }
-                
-                return { success: true };
             }
 
             if (m.action === 'MANUAL_CAPTCHA_RESOLVED') {
@@ -957,30 +870,7 @@ chrome.runtime.onMessage.addListener((m, sender, sendResponse) => {
                 return { status: 'relayed' };
             }
 
-            // ── OPEN_WIT_EXTERNAL_LINK: background.js에서는 shell.openExternal 직접 호출 불가
-            // 현재 활성 탭에 XPIDER_SEND 메시지를 주입 → ext-preload.js → ipcRenderer.send('open-wit-external-link') → main.js shell.openExternal()
-            if (m.action === 'OPEN_WIT_EXTERNAL_LINK') {
-                const witUrl = m.url || 'https://wit.ai/apps';
-                try {
-                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                        if (tabs && tabs[0] && tabs[0].id) {
-                            chrome.scripting.executeScript({
-                                target: { tabId: tabs[0].id },
-                                world: 'MAIN',
-                                func: (url) => {
-                                    window.postMessage({
-                                        type: 'XPIDER_SEND',
-                                        channel: 'open-wit-external-link',
-                                        data: url
-                                    }, '*');
-                                },
-                                args: [witUrl]
-                            }).catch(() => {});
-                        }
-                    });
-                } catch(e) {}
-                return { status: 'relayed' };
-            }
+
 
             return { error: 'Unknown action: ' + m.action };
         } catch (err) {
@@ -1256,32 +1146,7 @@ async function checkLockdown(tabId = null) {
             chrome.runtime.sendMessage({ action: 'CAPTCHA_STATUS', status: 'detected' }).catch(() => {});
         }
         
-        // [v1.0.0 Pro] Automated Solver Integration (Only if actually paused by captcha)
-        const storage = await chrome.storage.local.get(['captchaSolveEnabled', 'captchaMethod', 'captchaApiKey']);
-        if (isPausedByCaptcha && storage.captchaSolveEnabled && !isSolvingCaptcha && tabId) {
-            isSolvingCaptcha = true;
-            try {
-                sendLog(`[Solver] 🤖 Attempting auto-solve... (Method: ${storage.captchaMethod})`);
-                if (storage.captchaMethod === 'audio') {
-                    // [v3.1] Audio Solving is now handled primarily by challenge_solver_content.js
-                    // This prevents dual-orchestration and race conditions.
-                    // Background script remains ready to handle transcription messages.
-                } else {
-                    sendLog(`⚠️ [Solver] Unsupported method: ${storage.captchaMethod}. Defaulting to manual or audio.`);
-                }
 
-                // [v2.0] Stealth Mode: Add extra organic pause after resolution
-                if (storage.stealthModeEnabled) {
-                    const delay = 3000 + Math.random() * 5000;
-                    sendLog(`🛡️ [Stealth] Waiting ${Math.round(delay/1000)}s longer (Simulating human behavior)...`);
-                    await new Promise(r => setTimeout(r, delay));
-                }
-            } catch (err) {
-                sendLog(`❌ [Solver] Error: ${err.message}`);
-            } finally {
-                isSolvingCaptcha = false;
-            }
-        }
         
         if (tabId) {
             const blockStatus = await checkCaptchaOnTab(tabId);

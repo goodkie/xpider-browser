@@ -2245,13 +2245,7 @@ async function pollAllFrames(wc) {
             return { success: true, reason: 'SUBMITTED_SUCCESSFULLY' };
         }
         
-        // 3. URL 리다이렉트 성공 감지
-        const currentUrl = window.location.href.toLowerCase();
-        if (currentUrl.includes('thank-you') || currentUrl.includes('thankyou') || currentUrl.includes('/success') || currentUrl.includes('submission-success') || currentUrl.includes('form-success')) {
-            return { success: true, reason: 'SUBMITTED_SUCCESSFULLY' };
-        }
-        
-        // 4. 성공 문구 감지
+        // 3. 성공 문구 감지
         const hasSuccessText = /thank you|thank-you|thank.?you|메시지를 보냈습니다|문의가 접수되었습니다|성공적으로 전송|접수 완료|successfully|your message (has been|was) sent|form has been submitted|your form|form submitted|form submission|we('ll| will) be in touch|we have received|message received|we received your|we got your|inquiry received|contact received|submitted successfully|will be in touch|will contact you|will get back|submitted|등록되었습니다|성공|완료|전송되었습니다|wpcf7-mail-sent-ok|gform_confirmation_message|g-recaptcha-success/i.test(bodyText) ||
                                htmlText.includes('wpcf7-mail-sent-ok') ||
                                htmlText.includes('wpforms-confirmation-container-id') ||

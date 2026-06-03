@@ -1122,7 +1122,7 @@ body.template-active .action-buttons {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    max-height: 150px;
+    max-height: 350px;
 }
 
 .file-urls-preview .preview-header {
@@ -1140,15 +1140,16 @@ body.template-active .action-buttons {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    max-height: 110px;
+    max-height: 300px;
     padding-right: 4px;
 }
 
 .file-urls-preview .preview-item {
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     color: var(--text-primary);
     background: rgba(255, 255, 255, 0.02);
-    padding: 4px 8px;
+    padding: 16px 12px;
+    line-height: 1.4;
     border-radius: 4px;
     white-space: nowrap;
     overflow: hidden;

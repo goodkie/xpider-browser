@@ -12,7 +12,9 @@ const sidePanelTitle   = document.getElementById('side-panel-title');
 const closeSidePanelBtn = document.getElementById('close-side-panel-btn');
 const extensionWebview = document.getElementById('extension-webview');
 
-// ─── 토큰 실시간 연동 및 모니터링 ──────────────────────────────
+// 10초마다 자동으로 토큰 잔액 갱신
+setInterval(updateTokenDisplay, 10000);
+
 async function updateTokenDisplay() {
     try {
         // 1. 유저 프로필 조회하여 로그인 상태 확인 (비로그인 상태에서 락 걸림 방지)
@@ -43,9 +45,6 @@ async function updateTokenDisplay() {
         console.error('Failed to update token display:', e);
     }
 }
-
-// 10초마다 자동으로 토큰 잔액 갱신
-setInterval(updateTokenDisplay, 10000);
 
 // 페이지 로드 및 로그인 시 토큰 및 위젯 연동
 async function initUserStatusWidgets() {

@@ -73,7 +73,7 @@ if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage)
 })();
 // ── END DEV LOG BRIDGE ───────────────────────────────────────────────────
 try {
-  importScripts('business_filters.js', 'captcha_solver.js');
+  importScripts('business_filters.js');
 } catch (e) {
   console.error("Worker import failed:", e);
 }
@@ -117,7 +117,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendLog('🛑 Discovery cancelled by user.');
   }
 
-  // Captcha & Solver Actions
+  // Captcha & Solver Actions (DISABLED - delegated to UltraSolver Pro)
+  /*
   if (request.action === 'PERFORM_TRANSCRIPTION') {
       handleTranscription(request.audioData, request.url, sendResponse);
       return true; // async
@@ -130,6 +131,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           // Logic for starting wait countdown
       }
   }
+  */
 
   if (request.action === 'clearData') {
       scrapedData = [];
@@ -196,7 +198,8 @@ async function sendLog(msg) {
   chrome.runtime.sendMessage({ action: 'log', message: msg }).catch(() => {});
 }
 
-// ─── CAPTCHA 핸들러 ───────────────────────────────────────────────
+// ─── CAPTCHA 핸들러 (DISABLED - delegated to UltraSolver Pro) ──────────────────
+/*
 async function handleTranscription(audioData, audioUrl, sendResponse) {
     const keys = await chrome.storage.local.get(['xpider_stt_api_key', 'witKey', 'audioSttKey', 'captchaMethod']);
     const activeKey = keys.xpider_stt_api_key || keys.witKey || keys.audioSttKey || '';
@@ -235,6 +238,7 @@ async function solveCaptcha(tabId) {
         isSolvingCaptcha = false;
     }
 }
+*/
 
 async function createOffscreen() {
   if (await chrome.offscreen.hasDocument()) return;

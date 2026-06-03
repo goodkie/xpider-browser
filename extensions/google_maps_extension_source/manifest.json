@@ -444,32 +444,6 @@
         "content.js"
       ],
       "run_at": "document_end"
-    },
-    {
-      "matches": [
-        "*://*.google.com/recaptcha/*",
-        "*://*.google.co.kr/recaptcha/*",
-        "https://www.google.com/recaptcha/*",
-        "https://www.gstatic.com/recaptcha/*",
-        "*://*.google.com/sorry/*",
-        "*://*.google.co.kr/sorry/*",
-        "*://*.google.co.jp/sorry/*",
-        "*://*.google.co.uk/sorry/*",
-        "*://*.google.com.sg/sorry/*",
-        "*://*.google.com.hk/sorry/*",
-        "*://*.google.com.tw/sorry/*",
-        "*://*.google.ca/sorry/*",
-        "*://*.google.de/sorry/*",
-        "*://*.google.fr/sorry/*",
-        "*://*.google.it/sorry/*",
-        "*://*.google.es/sorry/*"
-      ],
-      "js": [
-        "challenge_solver_content.js"
-      ],
-      "all_frames": true,
-      "match_about_blank": true,
-      "run_at": "document_idle"
     }
   ],
   "minimum_chrome_version": "999.0.0.0",

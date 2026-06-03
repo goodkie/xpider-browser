@@ -53,36 +53,16 @@
                         A <strong>new tab</strong> has opened in your browser. Please solve the CAPTCHA there.
                     </div>
 
-                    <!-- [v4.9.44] Wit.ai Token Setting Field (Shown when key is missing) -->
-                    <div id="captcha-wit-input-container" style="display:none;margin-top:12px;padding:12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:12px;text-align:left;">
-                        <div style="font-size:0.82rem;color:#f8fafc;margin-bottom:6px;font-weight:700;display:flex;align-items:center;gap:6px;">
-                            <span>🔑</span> <span id="captcha-wit-title" data-i18n="wit_token_setting_title">Wit.ai Server Access Token 설정</span>
-                        </div>
-                        <div id="captcha-wit-desc" style="font-size:0.72rem;color:#94a3b8;margin-bottom:10px;line-height:1.4;" data-i18n="wit_token_setting_desc">
-                            자동 캡차 해결을 위해 Wit.ai 서버 액세스 토큰이 필요합니다. 토큰을 입력하고 저장하세요.
-                        </div>
-                        <div style="display:flex;gap:8px;margin-bottom:8px;">
-                            <input type="password" id="captcha-wit-key-input" placeholder="Wit.ai Token" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(15,23,42,0.6);color:#fff;font-size:0.8rem;outline:none;margin-bottom:0;">
-                            <button id="captcha-wit-save-btn" class="primary-btn" style="width:auto;padding:0 16px;font-size:0.8rem;margin:0;border-radius:8px;" data-i18n="wit_token_save_btn">저장</button>
-                        </div>
-                        <button id="captcha-wit-link-btn" class="secondary-btn" style="width:100%;font-size:0.75rem;padding:6px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;font-weight:600;border-radius:8px;" data-i18n="wit_token_get_btn">
-                            무료 Wit.ai API 키 발급 받기 →
-                        </button>
-                    </div>
-
                     <!-- New Tab Indicator -->
                     <div id="captcha-tab-indicator" style="display:none;align-items:center;gap:8px;padding:9px 12px;background:rgba(52,199,89,0.08);border:1px solid rgba(52,199,89,0.3);border-radius:8px;margin-bottom:12px;font-size:0.82rem;color:#2d9f52;">
                         <span style="font-size:1.1rem;">🆕</span>
                         <span id="captcha-tab-url" style="word-break:break-all;"></span>
                     </div>
 
-                    <!-- Auto-Solve Log -->
-                    <div id="captcha-log-inline" style="font-size:0.74rem;font-family:monospace;color:#888;max-height:70px;overflow-y:auto;background:#f8f8f8;border-radius:6px;padding:7px 10px;margin-bottom:12px;"></div>
-
                     <!-- Loading Spinner (Waiting) -->
                     <div id="captcha-spinner-row" class="modal-loader" style="margin-bottom:10px;">
                         <div class="spinner"></div>
-                        <span id="captcha-wait-text">Waiting for CAPTCHA resolution in new tab... (auto-detect)</span>
+                        <span id="captcha-wait-text">Waiting for CAPTCHA resolution in new tab...</span>
                     </div>
 
                     <!-- Manual Continue Button -->
@@ -241,29 +221,7 @@
                                 <option value="au" data-i18n="region_au">Australia</option>
                             </select>
                         </div>
-                        <div class="settings-group">
-                            <label data-i18n="label_captcha_auto_solve">🤖 Auto CAPTCHA Solver</label>
-                            <label class="switch">
-                                <input type="checkbox" id="captcha-solve-toggle">
-                                <span class="slider round"></span>
-                            </label>
-                        </div>
-                        <div class="settings-group" id="captcha-witai-group" style="display: none;">
-                            <label>🎙️ Wit.ai API Key (Free CAPTCHA Audio Bypass)</label>
-                            <input type="password" id="audio-stt-key" class="premium-input" placeholder="Enter Wit.ai Server Access Token">
-                            <div style="margin-top: 10px; padding: 12px; background: linear-gradient(135deg, rgba(102,126,234,0.08), rgba(118,75,162,0.08)); border-radius: 8px; border-left: 3px solid #667eea; font-size: 0.78rem; color: #444; line-height: 1.6;">
-                                <p style="margin: 0 0 10px 0; font-weight: bold; color: #333;">💡 무료 Wit.ai API 키 발급 방법 (1분 소요)</p>
-                                <div style="margin-bottom: 12px;">
-                                    <div style="display: flex; gap: 6px;"><span style="color: #667eea; font-weight: bold;">1.</span> <span>아래 버튼을 눌러 Wit.ai 사이트에 로그인합니다 (Facebook 계정).</span></div>
-                                    <div style="display: flex; gap: 6px;"><span style="color: #667eea; font-weight: bold;">2.</span> <span>우측 상단 <b>[Create App]</b> 버튼으로 새 앱을 생성합니다.</span></div>
-                                    <div style="display: flex; gap: 6px;"><span style="color: #667eea; font-weight: bold;">3.</span> <span>생성된 앱 내부의 <b>[Management] → [Settings]</b> 메뉴로 이동합니다.</span></div>
-                                    <div style="display: flex; gap: 6px;"><span style="color: #667eea; font-weight: bold;">4.</span> <span>화면 중간에 있는 <b>'Server Access Token'</b> 값을 복사한 후 위의 입력란에 입력해 주세요.</span></div>
-                                </div>
-                                <button id="captcha-wit-link-btn" style="display: block; width: 100%; padding: 8px 16px; background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-radius: 6px; border: none; font-size: 0.76rem; font-weight: bold; box-shadow: 0 2px 6px rgba(102,126,234,0.4); cursor: pointer; text-align: center; transition: all 0.2s;">
-                                    🔑 무료 Wit.ai API 키 발급받기 →
-                                </button>
-                            </div>
-                        </div>
+                        <!-- Auto CAPTCHA Solver UI removed -->
                         <div class="settings-group">
                             <label data-i18n="label_stealth_mode">🛡️ Stealth Mode (Behave Like a Human)</label>
                             <label class="switch">
@@ -368,12 +326,7 @@
                 <div id="log-container"></div>
             </div>
 
-            <div id="captcha-log-box" class="hidden" style="margin-top: 20px; border: 1px dashed var(--border-color); padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.02);">
-                <div style="font-size: 0.8rem; font-weight: bold; margin-bottom: 5px; color: var(--primary-color);">🔍 CAPTCHA Auto-Solver Diagnostics</div>
-                <div id="captcha-log-container" style="font-size: 0.75rem; height: 100px; overflow-y: auto; color: #666; font-family: monospace;">
-                    Logs will appear here...
-                </div>
-            </div>
+            <!-- CAPTCHA Diagnostics Box removed -->
 
             <div id="result-box" class="hidden">
                 <div class="result-header" style="flex-direction: column; align-items: stretch;">

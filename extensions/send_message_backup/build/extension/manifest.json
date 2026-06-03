@@ -34,26 +34,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "*://*.google.com/recaptcha/*",
-        "*://*.google.co.kr/recaptcha/*",
-        "*://*.recaptcha.net/*",
-        "*://*.hcaptcha.com/*",
-        "*://*.cloudflare.com/turnstile/*",
-        "*://challenges.cloudflare.com/*",
-        "*://*.google.com/sorry/*",
-        "*://*.google.co.kr/sorry/*"
-      ],
-      "js": [
-        "solver-content.js"
-      ],
-      "all_frames": true,
-      "match_about_blank": true,
-      "run_at": "document_start"
-    }
-  ],
+
   "web_accessible_resources": [
     {
       "resources": [

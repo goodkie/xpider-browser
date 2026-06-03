@@ -143,7 +143,6 @@ app.on('quit', releaseProfileLock);
 // ─── 윈도우 핸들 ──────────────────────────────────────────────
 let splashWindow = null;
 let loginWindow  = null;
-let witSettingsWindow = null;
 let userPanelWindow   = null;  // [UserPanel] 일반 사용자 패널 저
 let loadedExtensionsInfo = [];
 let lastActiveTabByWindow = {}; // Cache active tab per windowId
@@ -536,18 +535,7 @@ ipcMain.on('auth-success', () => {
 
 ipcMain.on('auth-close-app', () => app.quit());
 
-ipcMain.on('close-wit-settings-window', () => {
-  if (witSettingsWindow && !witSettingsWindow.isDestroyed()) {
-    witSettingsWindow.close();
-    witSettingsWindow = null;
-  }
-});
 
-ipcMain.on('open-wit-external-link', (event, url) => {
-  if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
-    shell.openExternal(url);
-  }
-});
 
 // ─── Hard Block VPN 패널 열기 (content.js → XPIDER_INVOKE → here → renderer_ui.js) ──
 ipcMain.handle('open-xpider-vpn-panel', async (event) => {
@@ -1008,39 +996,7 @@ ipcMain.on('xpider-ext-update-stealth-settings', (event, { stealthHeadersEnabled
   log.info(`[Stealth] 스텔스 헤더 필터 활성화 상태 변경: ${_stealthHeadersEnabled}`);
 });
 
-// 2-2) Wit.ai API Key 전역 동기화 및 연동 통합 시스템
-let _sharedWitKey = '';
-ipcMain.handle('xpider-ext-sync-wit-key', async (event, { key }) => {
-  _sharedWitKey = key || '';
-  log.info(`[WitKey-Sync] 전역 Wit.ai Key 동기화 수신: ${_sharedWitKey ? _sharedWitKey.substring(0, 8) + '...' : 'NONE'}`);
-  
-  // 메인 프로세스 전역 스토리지 객체에 직접 주입하여 즉시 반영되도록 보장!
-  if (typeof extStorage !== 'undefined') {
-    extStorage['xpider_stt_api_key'] = _sharedWitKey;
-    extStorage['witKey'] = _sharedWitKey;
-    extStorage['audioSttKey'] = _sharedWitKey;
-    if (typeof saveExtStorage === 'function') {
-      saveExtStorage();
-    }
-  }
 
-  // 스토리지 변경 사항 브로드캐스트
-  const changes = {
-    xpider_stt_api_key: { oldValue: undefined, newValue: _sharedWitKey },
-    witKey: { oldValue: undefined, newValue: _sharedWitKey },
-    audioSttKey: { oldValue: undefined, newValue: _sharedWitKey }
-  };
-  webContents.getAllWebContents().forEach(wc => {
-      try { wc.send('xpider-ext-storage-changed', changes); } catch(e) {}
-  });
-
-  broadcastExtMessage({ action: 'UPDATE_WIT_KEY', key: _sharedWitKey });
-  return { success: true };
-});
-
-ipcMain.handle('xpider-ext-get-wit-key', async () => {
-  return { key: _sharedWitKey };
-});
 
 // 3) 스텔스 헤더 필터 강제 적용 (구글 전역 검색 요청 도메인 타겟팅)
 app.whenReady().then(() => {
@@ -3347,16 +3303,7 @@ if (fs.existsSync(storagePath)) {
 if (!extStorage.language)    extStorage.language    = 'en';
 if (!extStorage.xpider_lang) extStorage.xpider_lang = 'en';
 if (extStorage.autoSelect === undefined) extStorage.autoSelect = true;
-if (extStorage.captchaSolveEnabled === undefined) extStorage.captchaSolveEnabled = true;
 
-// [WitKey-Sync] 초기 실행 시 저장된 Wit.ai Key가 있다면 상호 동기화 및 전역 변수 초기화
-const initialWitKey = extStorage.xpider_stt_api_key || extStorage.witKey || extStorage.audioSttKey || '';
-if (initialWitKey) {
-    extStorage.xpider_stt_api_key = initialWitKey;
-    extStorage.witKey = initialWitKey;
-    extStorage.audioSttKey = initialWitKey;
-    _sharedWitKey = initialWitKey;
-}
 
 function saveExtStorage() {
     try { fs.writeFileSync(storagePath, JSON.stringify(extStorage, null, 2)); } catch(e) {}
@@ -3380,32 +3327,7 @@ ipcMain.handle('xpider-ext-storage-set', async (event, { items }) => {
         changes[key] = { oldValue: extStorage[key], newValue: val };
         extStorage[key] = val;
     }
-    
-    // [WitKey-Sync] Wit.ai 키 상호 동기화를 메인 스토리지 레벨에서 감지하여 자동 연동 및 복사 적용!
-    let witKeyToSync = null;
-    if (items.xpider_stt_api_key !== undefined) {
-        witKeyToSync = items.xpider_stt_api_key;
-    } else if (items.witKey !== undefined) {
-        witKeyToSync = items.witKey;
-    } else if (items.audioSttKey !== undefined) {
-        witKeyToSync = items.audioSttKey;
-    }
-    
-    if (witKeyToSync !== null) {
-        const targetKeys = ['xpider_stt_api_key', 'witKey', 'audioSttKey'];
-        targetKeys.forEach(tk => {
-            if (extStorage[tk] !== witKeyToSync) {
-                changes[tk] = { oldValue: extStorage[tk], newValue: witKeyToSync };
-                extStorage[tk] = witKeyToSync;
-            }
-        });
-        _sharedWitKey = witKeyToSync; // 전역 메모리 변수도 동기화
-        
-        // 실시간으로 열려있는 UI 갱신을 위해 브로드캐스트 이벤트도 보장
-        setTimeout(() => {
-            broadcastExtMessage({ action: 'UPDATE_WIT_KEY', key: witKeyToSync });
-        }, 100);
-    }
+
 
     saveExtStorage();
     // Broadcast change to all webContents
@@ -3442,6 +3364,23 @@ ipcMain.handle('xpider-ext-storage-clear', async () => {
 // ─── RUNTIME MESSAGE RELAY (Content -> Sidepanel) ───────────
 ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => {
     if (!message) return { success: false };
+
+    // [UltraSolver Pro] XPIDER 토큰 정보 조회 액션
+    if (message.action === 'getXpiderTokens') {
+        const userId = authService.getCurrentUserId();
+        if (!userId) return { success: true, tokens: 0 };
+        const tokens = await authService.getTokensRemaining(userId);
+        return { success: true, tokens };
+    }
+
+    // [UltraSolver Pro] XPIDER 토큰 차감 액션 (1 USP당 3토큰 사용)
+    if (message.action === 'deductXpiderTokens') {
+        const userId = authService.getCurrentUserId();
+        if (!userId) return { success: false, error: 'Login required' };
+        const count = message.count || 3;
+        const result = await authService.deductToken(userId, count, 'UltraSolverPro', 'solve', 'CAPTCHA Auto Solve');
+        return result;
+    }
 
     // ── XPIDER 전용 익스텐션 실행 보안 토큰 검증 핸드셰이크 (3중 락 고도화) ──
     if (message.action === 'xpider-verify-secure-handshake') {
@@ -3628,36 +3567,7 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
         return { success: true };
     }
 
-    // ── OPEN_WIT_SETTINGS_POPUP: show the beautiful large setting window for Wit.ai ──
-    if (message.action === 'OPEN_WIT_SETTINGS_POPUP') {
-        const path = require('path');
-        if (!witSettingsWindow || witSettingsWindow.isDestroyed()) {
-            witSettingsWindow = new BrowserWindow({
-                width: 520,
-                height: 460,
-                frame: false,
-                resizable: false,
-                show: false,
-                alwaysOnTop: true,
-                webPreferences: {
-                    nodeIntegration: false,
-                    contextIsolation: true,
-                    preload: path.join(__dirname, 'wit-preload.js')
-                }
-            });
 
-            witSettingsWindow.loadFile(path.join(__dirname, 'wit_settings.html'));
-
-            witSettingsWindow.once('ready-to-show', () => {
-                witSettingsWindow.show();
-                witSettingsWindow.focus();
-            });
-        } else {
-            witSettingsWindow.show();
-            witSettingsWindow.focus();
-        }
-        return { success: true };
-    }
 
     // 2. Relay message to all other webContents (Sidepanel/Content Scripts)
     const all = webContents.getAllWebContents();
@@ -4419,6 +4329,7 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createLoginWindow();
   });
+
 });
 
 app.on('window-all-closed', () => {
