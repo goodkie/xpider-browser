@@ -246,7 +246,7 @@ try {
     Object.defineProperty(window.chrome.storage, 'local', {
         value: customStorageLocal,
         writable: false,
-        configurable: false
+        configurable: true
     });
 } catch (e) {
     window.chrome.storage.local = customStorageLocal;
@@ -269,7 +269,7 @@ try {
     Object.defineProperty(window.chrome.storage, 'onChanged', {
         value: customStorageOnChanged,
         writable: false,
-        configurable: false
+        configurable: true
     });
 } catch(e) {
     window.chrome.storage.onChanged = customStorageOnChanged;
@@ -321,7 +321,7 @@ try {
     Object.defineProperty(window.chrome.runtime, 'sendMessage', {
         value: customSendMessage,
         writable: false,
-        configurable: false
+        configurable: true
     });
 } catch(e) {
     window.chrome.runtime.sendMessage = customSendMessage;
@@ -357,7 +357,7 @@ try {
     Object.defineProperty(window.chrome.runtime, 'onMessage', {
         value: customOnMessage,
         writable: false,
-        configurable: false
+        configurable: true
     });
 } catch(e) {
     window.chrome.runtime.onMessage = customOnMessage;
@@ -451,7 +451,7 @@ try {
     Object.defineProperty(window.chrome.runtime, 'connect', {
         value: customRuntimeConnect,
         writable: false,
-        configurable: false
+        configurable: true
     });
 } catch(e) {
     window.chrome.runtime.connect = customRuntimeConnect;

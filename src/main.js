@@ -300,14 +300,9 @@ function createWindow() {
     webPreferences.contextIsolation = false;
     webPreferences.nodeIntegration = true;
     
-    // [v4.9.68] preload가 상대 경로로 지정된 경우, Electron 메인 프로세스 기준 절대 경로로 자동 변환
-    if (webPreferences.preload) {
-      if (!path.isAbsolute(webPreferences.preload)) {
-        webPreferences.preload = path.join(__dirname, webPreferences.preload);
-      }
-    } else if (!webPreferences.preloadURL) {
-      webPreferences.preload = path.join(__dirname, 'ext-preload.js');
-    }
+    // [Win7/Electron22 preload 경로 엉킴 방지 패치] URL 형식이나 상대 경로 엉킴을 막기 위해 
+    // 메인 프로세스 기준의 물리적 절대 경로로 무조건 강제 지정합니다.
+    webPreferences.preload = path.join(__dirname, 'ext-preload.js');
   });
 
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
