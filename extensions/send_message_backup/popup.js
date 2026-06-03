@@ -833,7 +833,7 @@ function bindEvents() {
 
     // Persistence for Template
     ['tpl-first-name', 'tpl-last-name', 'tpl-name', 'tpl-email', 'tpl-phone',
-     'tpl-company', 'tpl-address', 'tpl-address2', 'tpl-city', 'tpl-state', 'tpl-zip',
+     'tpl-company', 'tpl-address', 'tpl-street-address', 'tpl-city', 'tpl-state', 'tpl-zip',
      'tpl-subject', 'tpl-message'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', saveTemplate);
@@ -1125,7 +1125,7 @@ async function saveTemplateChanges() {
         phone:     document.getElementById('tpl-phone').value.trim(),
         company:   (document.getElementById('tpl-company') || {}).value?.trim() || '',
         address:   (document.getElementById('tpl-address') || {}).value?.trim() || '',
-        address2:  (document.getElementById('tpl-address2') || {}).value?.trim() || '',
+        address2:  (document.getElementById('tpl-street-address') || {}).value?.trim() || '',
         city:      (document.getElementById('tpl-city') || {}).value?.trim() || '',
         state:     (document.getElementById('tpl-state') || {}).value?.trim() || '',
         zip:       (document.getElementById('tpl-zip') || {}).value?.trim() || '',
@@ -1176,7 +1176,7 @@ Email:        ${tpl.email || 'N/A'}
 Phone:        ${tpl.phone || 'N/A'}
 Company:      ${tpl.company || 'N/A'}
 Address:      ${tpl.address || 'N/A'}
-Suite/Fl/Bldg:${tpl.address2 || 'N/A'}
+Street Address:${tpl.address2 || 'N/A'}
 City:         ${tpl.city || 'N/A'}
 State:        ${tpl.state || 'N/A'}
 Zip:          ${tpl.zip || 'N/A'}
@@ -1307,6 +1307,12 @@ async function startCampaign() {
         name: document.getElementById('tpl-name').value,
         email: document.getElementById('tpl-email').value,
         phone: document.getElementById('tpl-phone').value,
+        company: (document.getElementById('tpl-company') || {}).value || '',
+        address: (document.getElementById('tpl-address') || {}).value || '',
+        address2: (document.getElementById('tpl-street-address') || {}).value || '',
+        city: (document.getElementById('tpl-city') || {}).value || '',
+        state: (document.getElementById('tpl-state') || {}).value || '',
+        zip: (document.getElementById('tpl-zip') || {}).value || '',
         subject: document.getElementById('tpl-subject').value,
         message: document.getElementById('tpl-message').value
     };
@@ -1527,7 +1533,7 @@ function saveTemplate() {
         phone: document.getElementById('tpl-phone').value,
         company: (document.getElementById('tpl-company') || {}).value || '',
         address: (document.getElementById('tpl-address') || {}).value || '',
-        address2: (document.getElementById('tpl-address2') || {}).value || '',
+        address2: (document.getElementById('tpl-street-address') || {}).value || '',
         city: (document.getElementById('tpl-city') || {}).value || '',
         state: (document.getElementById('tpl-state') || {}).value || '',
         zip: (document.getElementById('tpl-zip') || {}).value || '',
@@ -1615,6 +1621,13 @@ function loadTemplateFromLibrary() {
         document.getElementById('tpl-subject').value     = tpl.subject   || '';
         document.getElementById('tpl-message').value     = tpl.message   || '';
 
+        if (document.getElementById('tpl-company')) document.getElementById('tpl-company').value = tpl.company || '';
+        if (document.getElementById('tpl-address')) document.getElementById('tpl-address').value = tpl.address || '';
+        if (document.getElementById('tpl-street-address')) document.getElementById('tpl-street-address').value = tpl.address2 || '';
+        if (document.getElementById('tpl-city')) document.getElementById('tpl-city').value = tpl.city || '';
+        if (document.getElementById('tpl-state')) document.getElementById('tpl-state').value = tpl.state || '';
+        if (document.getElementById('tpl-zip')) document.getElementById('tpl-zip').value = tpl.zip || '';
+
         chrome.storage.local.set({ xpider_tpl: tpl });
         addLog(`✅ Loaded template: ${tpl.fileName || tpl.subject || 'Template'}`, 'success');
     });
@@ -1659,12 +1672,28 @@ function importMessageFromFile(event) {
                 const matchPhone = line.match(/Phone:\s*(.*)/i);
                 const matchSubject = line.match(/Subject:\s*(.*)/i);
 
+                const matchCompany = line.match(/Company:\s*(.*)/i);
+                const matchAddress = line.match(/Address:\s*(.*)/i);
+                const matchStreet = line.match(/Street Address:\s*(.*)/i);
+                const matchAddress2 = line.match(/Suite\/Fl\/Bldg:\s*(.*)/i);
+                const matchCity = line.match(/City:\s*(.*)/i);
+                const matchState = line.match(/State:\s*(.*)/i);
+                const matchZip = line.match(/Zip:\s*(.*)/i);
+
                 if (matchName) document.getElementById('tpl-name').value = matchName[1].trim();
                 if (matchFirst) document.getElementById('tpl-first-name').value = matchFirst[1].trim();
                 if (matchLast) document.getElementById('tpl-last-name').value = matchLast[1].trim();
                 if (matchEmail) document.getElementById('tpl-email').value = matchEmail[1].trim();
                 if (matchPhone) document.getElementById('tpl-phone').value = matchPhone[1].trim();
                 if (matchSubject) document.getElementById('tpl-subject').value = matchSubject[1].trim();
+
+                if (matchCompany && document.getElementById('tpl-company')) document.getElementById('tpl-company').value = matchCompany[1].trim();
+                if (matchAddress && document.getElementById('tpl-address')) document.getElementById('tpl-address').value = matchAddress[1].trim();
+                if (matchStreet && document.getElementById('tpl-street-address')) document.getElementById('tpl-street-address').value = matchStreet[1].trim();
+                if (matchAddress2 && document.getElementById('tpl-street-address') && !matchStreet) document.getElementById('tpl-street-address').value = matchAddress2[1].trim();
+                if (matchCity && document.getElementById('tpl-city')) document.getElementById('tpl-city').value = matchCity[1].trim();
+                if (matchState && document.getElementById('tpl-state')) document.getElementById('tpl-state').value = matchState[1].trim();
+                if (matchZip && document.getElementById('tpl-zip')) document.getElementById('tpl-zip').value = matchZip[1].trim();
             });
 
             // Clean up message body text
@@ -1692,6 +1721,12 @@ function importMessageFromFile(event) {
             name: document.getElementById('tpl-name').value,
             email: document.getElementById('tpl-email').value,
             phone: document.getElementById('tpl-phone').value,
+            company: (document.getElementById('tpl-company') || {}).value || '',
+            address: (document.getElementById('tpl-address') || {}).value || '',
+            address2: (document.getElementById('tpl-street-address') || {}).value || '',
+            city: (document.getElementById('tpl-city') || {}).value || '',
+            state: (document.getElementById('tpl-state') || {}).value || '',
+            zip: (document.getElementById('tpl-zip') || {}).value || '',
             subject: document.getElementById('tpl-subject').value,
             message: document.getElementById('tpl-message').value
         };
@@ -1810,7 +1845,7 @@ async function loadSettings() {
         if (document.getElementById('tpl-phone')) document.getElementById('tpl-phone').value = data.xpider_tpl.phone || '';
         if (document.getElementById('tpl-company')) document.getElementById('tpl-company').value = data.xpider_tpl.company || '';
         if (document.getElementById('tpl-address')) document.getElementById('tpl-address').value = data.xpider_tpl.address || '';
-        if (document.getElementById('tpl-address2')) document.getElementById('tpl-address2').value = data.xpider_tpl.address2 || '';
+        if (document.getElementById('tpl-street-address')) document.getElementById('tpl-street-address').value = data.xpider_tpl.address2 || '';
         if (document.getElementById('tpl-city')) document.getElementById('tpl-city').value = data.xpider_tpl.city || '';
         if (document.getElementById('tpl-state')) document.getElementById('tpl-state').value = data.xpider_tpl.state || '';
         if (document.getElementById('tpl-zip')) document.getElementById('tpl-zip').value = data.xpider_tpl.zip || '';
