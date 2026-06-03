@@ -80,6 +80,84 @@ jobs:
             console.log('✅ package.json patched for Win7 build');
           "
 
+      # ── [핵심 Fix] MV3 익스텐션을 MV2로 자동 패치 (Electron 22 / Chromium 108 호환) ──
+      # Electron 22(Chromium 108)는 MV3의 background.service_worker를 완전히 지원하지 않습니다.
+      # 서비스 워커가 기동되지 않으면 content script와의 모든 통신이 마비됩니다.
+      # 따라서 Win7 빌드 시 MV3 서비스 워커 방식을 MV2 persistent background page로 자동 변환합니다.
+      - name: Patch Extension Manifests MV3 → MV2 for Electron 22
+        shell: bash
+        run: |
+          echo "📌 Patching all MV3 extension manifests to MV2 for Electron 22 compatibility..."
+          node -e "
+            const fs = require('fs');
+            const path = require('path');
+
+            const extDir = path.join(__dirname || '.', 'extensions');
+            if (!fs.existsSync(extDir)) {
+              console.log('No extensions directory found, skipping.');
+              process.exit(0);
+            }
+
+            const entries = fs.readdirSync(extDir, { withFileTypes: true });
+            let patchedCount = 0;
+
+            for (const entry of entries) {
+              if (!entry.isDirectory()) continue;
+              const manifestPath = path.join(extDir, entry.name, 'manifest.json');
+              if (!fs.existsSync(manifestPath)) continue;
+
+              try {
+                const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+                // MV3 + service_worker 조합만 패치 대상
+                if (manifest.manifest_version !== 3 || !manifest.background || !manifest.background.service_worker) {
+                  console.log('  SKIP (not MV3 SW):', entry.name);
+                  continue;
+                }
+
+                const swFile = manifest.background.service_worker;
+                console.log('  PATCHING:', entry.name, '  SW:', swFile, '→ MV2 persistent background page');
+
+                // MV3 → MV2 핵심 변환
+                manifest.manifest_version = 2;
+
+                // background: { service_worker } → background: { scripts: [...], persistent: true }
+                manifest.background = {
+                  scripts: [swFile],
+                  persistent: true
+                };
+
+                // MV3 전용 host_permissions를 MV2 permissions로 병합
+                if (manifest.host_permissions) {
+                  manifest.permissions = manifest.permissions || [];
+                  manifest.host_permissions.forEach(hp => {
+                    if (!manifest.permissions.includes(hp)) {
+                      manifest.permissions.push(hp);
+                    }
+                  });
+                  delete manifest.host_permissions;
+                }
+
+                // MV3 action → MV2 browser_action
+                if (manifest.action) {
+                  manifest.browser_action = manifest.action;
+                  delete manifest.action;
+                }
+
+                // minimum_chrome_version 제거 (Chromium 108 호환)
+                delete manifest.minimum_chrome_version;
+
+                fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+                patchedCount++;
+                console.log('  ✅ Patched:', entry.name);
+              } catch (e) {
+                console.error('  ❌ Failed to patch:', entry.name, e.message);
+              }
+            }
+
+            console.log('Patch complete. Total patched:', patchedCount);
+          "
+
       # ── 의존성 설치 ─────────────────────────────────────────
       - name: Install dependencies (Win7 versions)
         run: npm install --legacy-peer-deps
@@ -92,6 +170,7 @@ jobs:
         run: npx electron-forge make --platform=win32 --arch=x64 --targets=@electron-forge/maker-zip
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
 
       # ── 파일명 변환 ─────────────────────────────────────────
       - name: Rename output ZIP

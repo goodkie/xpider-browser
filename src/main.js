@@ -4006,13 +4006,57 @@ async function loadLocalExtensions() {
       const manifestPath = path.join(extPath, 'manifest.json');
       if (!fs.existsSync(manifestPath)) continue;
 
-      // ─── [V999 설치 제한 우회] Manifest 임시 변조 기법 ───
+      // ─── [V999 설치 제한 우회 + Win7 MV3→MV2 자동 패치] Manifest 임시 변조 기법 ───
+      // Electron 22 (Chromium 108) 기반 Windows 7 빌드에서는 MV3의 background.service_worker가
+      // 완전히 지원되지 않습니다. 백그라운드 SW가 기동되지 않으면 content script와의 통신이
+      // 전면 마비됩니다. 따라서 Electron 22 환경에서는 MV3를 MV2로 자동 변환합니다.
+      const electronMajorVer = parseInt((process.versions.electron || '0').split('.')[0], 10);
+      const isLegacyElectron = electronMajorVer <= 22;
+
       let originalManifestText = null;
       try {
         originalManifestText = fs.readFileSync(manifestPath, 'utf8');
         const manifestJson = JSON.parse(originalManifestText);
+        let manifestChanged = false;
+
+        // 1. minimum_chrome_version 제거 (항상 적용)
         if (manifestJson.minimum_chrome_version) {
           delete manifestJson.minimum_chrome_version;
+          manifestChanged = true;
+        }
+
+        // 2. [Win7/Electron22 전용] MV3 service_worker → MV2 persistent background page 변환
+        if (isLegacyElectron &&
+            manifestJson.manifest_version === 3 &&
+            manifestJson.background &&
+            manifestJson.background.service_worker) {
+          const swFile = manifestJson.background.service_worker;
+          log.info(`[Extensions] [Win7 Compat] Downgrading MV3→MV2 for ${entry.name} (SW: ${swFile})`);
+
+          manifestJson.manifest_version = 2;
+
+          // background: { service_worker } → background: { scripts: [...], persistent: true }
+          manifestJson.background = { scripts: [swFile], persistent: true };
+
+          // host_permissions → permissions 병합
+          if (manifestJson.host_permissions) {
+            manifestJson.permissions = manifestJson.permissions || [];
+            manifestJson.host_permissions.forEach(hp => {
+              if (!manifestJson.permissions.includes(hp)) manifestJson.permissions.push(hp);
+            });
+            delete manifestJson.host_permissions;
+          }
+
+          // MV3 action → MV2 browser_action
+          if (manifestJson.action) {
+            manifestJson.browser_action = manifestJson.action;
+            delete manifestJson.action;
+          }
+
+          manifestChanged = true;
+        }
+
+        if (manifestChanged) {
           fs.writeFileSync(manifestPath, JSON.stringify(manifestJson, null, 2), 'utf8');
         }
       } catch (err) {
