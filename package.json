@@ -1,6 +1,6 @@
 {
   "name": "xpider-browser",
-  "version": "6.0.3",
+  "version": "6.0.4",
   "description": "Custom Chromium Browser for XPIDER",
   "main": "src/main.js",
   "scripts": {
@@ -39,6 +39,7 @@
     "dotenv": "^17.4.2",
     "electron-log": "^5.0.0",
     "electron-updater": "^6.1.7",
+    "node-fetch": "^2.7.0",
     "stripe": "^22.1.1"
   }
 }
