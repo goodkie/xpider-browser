@@ -1,5 +1,20 @@
 # XPIDER AutoForm Sender Pro 폼 자동작성 고도화 및 최초 STT 설정 팝업 Walkthrough
 
+## 🚀 [v6.0.24] Windows 7 / Legacy Electron 익스텐션 로드 및 재로드 오류 핫픽스
+
+Windows 7 및 Electron 22 이하의 레거시 환경에서 크롬 익스텐션이 정상적으로 로드 및 재로드되지 않는 중대 오류를 정밀 해결하였습니다!
+
+- **재로드(Reload) IPC 오타 수정**:
+  - **대상 파일**: [main.js](file:///e:/vivpr/ai/full-xpider-v9/src/main.js#L1082-L1088)
+  - **내용**: `reload-extensions` IPC 리스너에서 존재하지 않는 `loadExtensions()`를 호출하던 오타를 실제 정의된 [loadLocalExtensions](file:///e:/vivpr/ai/full-xpider-v9/src/main.js#L4258)로 올바르게 교체하여, 런타임 ReferenceError 발생으로 인한 재로드 먹통 현상을 근본적으로 차단했습니다.
+- **Electron API 호환성 분기 처리**:
+  - **대상 파일**: [main.js](file:///e:/vivpr/ai/full-xpider-v9/src/main.js#L4432)
+  - **내용**: Electron 22 이하 환경에서는 `session.loadExtension` 호출 시 `{ allowFileAccess: true }` 옵션 객체가 존재할 경우 TypeError가 발생하거나 로드가 스킵됩니다. `isLegacyElectron` 여부에 따라 옵션을 분기 적용(Win7/레거시의 경우 옵션 없이 호출)하여 안정성을 극대화했습니다.
+- **검증 결과**:
+  - 로컬 구동 시 `Legacy Electron 22 detected`가 활성화되며, 예외 없이 정상적으로 로드 루프가 완료되는 디버그 로그를 최종 확인했습니다.
+
+---
+
 ## 🚀 [v4.12.14] Crawler Auto CAPTCHA 디폴트 'on' 세팅 및 Sender 실시간 onChanged 동기화 핫픽스
 
 전역 양방향 스토리지 동기화 시스템을 더욱 정밀화하여, 사용자가 둘 중 어느 곳에서 키를 저장하더라도 샌더와 크롤러 팝업창 및 백그라운드의 모든 Wit.ai key 입력창과 셋업 상태가 **실시간으로 즉각 갱신 및 완전 공유**되도록 연동을 완료하였으며, 신규 설치 시에도 캡차 자동 풀이가 활성화되도록 기본값을 보정했습니다!

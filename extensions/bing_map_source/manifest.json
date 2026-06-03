@@ -1,12 +1,11 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "Bing Maps Business Finder",
   "version": "1.1.59",
   "description": "빙 맵스(Bing Maps)에서 비즈니스 정보를 추출하고 이메일 및 연락처를 발굴하는 전문가용 데이터 수집 엔진입니다.",
   "permissions": [
     "storage",
     "tabs",
-    "scripting",
     "notifications",
     "sidePanel",
     "offscreen",
@@ -15,9 +14,7 @@
     "proxy",
     "webRequest",
     "webRequestAuthProvider",
-    "webNavigation"
-  ],
-  "host_permissions": [
+    "webNavigation",
     "https://www.bing.com/maps*",
     "https://www.bing.com/search*",
     "*://*.bing.com/*",
@@ -29,19 +26,14 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "action": {
-    "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    }
-  },
   "side_panel": {
     "default_path": "sidepanel.html"
   },
   "background": {
-    "service_worker": "background.js"
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": true
   },
   "content_scripts": [
     {
@@ -54,15 +46,15 @@
       "run_at": "document_end"
     }
   ],
-  "minimum_chrome_version": "999.0.0.0",
   "web_accessible_resources": [
-    {
-      "resources": [
-        "security-token.json"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
+    "security-token.json"
+  ],
+  "browser_action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
     }
-  ]
+  }
 }

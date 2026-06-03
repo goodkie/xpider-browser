@@ -1081,7 +1081,7 @@ app.whenReady().then(() => {
 
 // 익스텐션 재로드 IPC
 ipcMain.on('reload-extensions', async () => {
-  loadedExtensionsInfo = await loadExtensions();
+  loadedExtensionsInfo = await loadLocalExtensions();
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('extensions_loaded', loadedExtensionsInfo);
   }
@@ -4429,7 +4429,9 @@ async function loadLocalExtensions() {
           log.warn(`[Extensions] Cache removal skipped (${entry.name}): ${removeErr.message}`);
         }
 
-        const ext = await extManager.loadExtension(extPath, { allowFileAccess: true });
+        const ext = isLegacyElectron
+          ? await extManager.loadExtension(extPath)
+          : await extManager.loadExtension(extPath, { allowFileAccess: true });
 
         // ─── [V999 설치 제한 복원] 로드 성공 후 원래대로 복구 ───
         // ⚠️ Win7/Electron22 레거시에서는 복원 금지!
