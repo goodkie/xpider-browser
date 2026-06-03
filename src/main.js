@@ -294,6 +294,12 @@ function createWindow() {
     // 서브프레임(iframe)에서도 preload 실행 허용
     webPreferences.nodeIntegrationInSubFrames = true;
     
+    // [Win7/Electron22 USP 통신 보강] contextIsolation을 false로 설정하여
+    // preload 스크립트와 content.js 간에 동일한 window context를 공유하도록 보장하고,
+    // preload 내부에서 require('electron') 통신이 원활히 동작하도록 nodeIntegration을 true로 설정합니다.
+    webPreferences.contextIsolation = false;
+    webPreferences.nodeIntegration = true;
+    
     // [v4.9.68] preload가 상대 경로로 지정된 경우, Electron 메인 프로세스 기준 절대 경로로 자동 변환
     if (webPreferences.preload) {
       if (!path.isAbsolute(webPreferences.preload)) {
