@@ -215,6 +215,11 @@ async function requestSolveCaptcha(params, sitekey, cleanSet) {
                         cleanSet.delete(sitekey);
                         document.documentElement.setAttribute('data-usp-solving', 'false');
                     });
+            } else if (response && response.success && response.token) {
+                // [Win7 Fix] main.js의 xpider-ext-runtime-send-message에서
+                // 직접 해결한 토큰을 응답으로 반환한 경우 직접 DOM에 주입
+                logToDashboard(`Solved token received from main process. Injecting...`);
+                handleDirectSolveResult(response.token, sitekey, cleanSet);
             } else if (response && !response.success) {
                 logToDashboard(`SuperProxy solve failed: ${response.error}`, true);
                 cleanSet.delete(sitekey);

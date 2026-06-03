@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listen for background state changes in real time
     chrome.storage.onChanged.addListener((changes, namespace) => {
-        if (namespace !== 'local') return;
+        if (namespace && namespace !== 'local') return;
 
         if (changes.solvesCount) {
             solvesVal.textContent = changes.solvesCount.newValue || 0;

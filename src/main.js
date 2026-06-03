@@ -3579,6 +3579,123 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
         return { success: true };
     }
 
+    // ─── [Win7 Critical Fix] UltraSolver Pro 액션 직접 처리 ───────────────────
+    // Win7/Electron22에서는 content.js → chrome.runtime.sendMessage → ext-preload
+    // → ipcMain('xpider-ext-runtime-send-message') 경로로 라우팅됩니다.
+    // background.js의 onMessage 리스너가 동작하지 않으므로 여기서 직접 처리합니다.
+    if (message.action === 'logSolver') {
+        try {
+            logSolver(message.message || '');
+        } catch(e) {
+            log.error('[USP-Runtime] logSolver error:', e.message);
+        }
+        return { success: true };
+    }
+
+    if (message.action === 'solveCaptcha') {
+        log.info('[USP-Runtime] Received solveCaptcha via runtime-send-message bridge');
+        try {
+            const params = message.params;
+            if (!params) return { success: false, error: 'No params provided' };
+
+            // 메인 프로세스의 USP Fallback 솔버를 직접 호출
+            const proxyDomain = 'http://67.205.138.207/api';
+            const apiKey = '377171be0ad2abf253c58a851de6a2de';
+
+            logSolver(`Received CAPTCHA solve request for: ${params.type}`);
+            updateStatus("Creating CAPTCHA solving task...", "processing");
+
+            const createRes = await fetch(`${proxyDomain}/createTask`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientKey: apiKey, task: params })
+            });
+
+            if (!createRes.ok) {
+                const errText = await createRes.text();
+                throw new Error(`HTTP Error ${createRes.status}: ${errText}`);
+            }
+
+            const createData = await createRes.json();
+            if (createData.errorId !== 0) {
+                throw new Error(createData.errorDescription || `Error ID ${createData.errorId}`);
+            }
+
+            const taskId = createData.taskId;
+            if (!taskId) throw new Error("Failed to retrieve Task ID from SuperProxy");
+
+            logSolver(`Task created. ID: ${taskId}. Starting polling...`);
+            updateStatus(`Solving (ID: ${taskId})...`, "solving");
+
+            let attempts = 0;
+            const maxAttempts = 50;
+
+            const token = await new Promise((resolve, reject) => {
+                const interval = setInterval(async () => {
+                    attempts++;
+                    if (attempts > maxAttempts) {
+                        clearInterval(interval);
+                        updateStatus("Task timeout.", "error");
+                        reject(new Error("Timeout waiting for solution"));
+                        return;
+                    }
+                    try {
+                        const resultRes = await fetch(`${proxyDomain}/getTaskResult`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ clientKey: apiKey, taskId })
+                        });
+                        if (!resultRes.ok) return;
+                        const data = await resultRes.json();
+                        if (data.errorId !== 0) {
+                            clearInterval(interval);
+                            reject(new Error(data.errorDescription || `Error ${data.errorId}`));
+                            return;
+                        }
+                        if (data.status === "ready") {
+                            clearInterval(interval);
+                            const resToken = data.solution?.gRecaptchaResponse ||
+                                             data.solution?.token ||
+                                             data.solution?.text;
+                            if (!resToken) reject(new Error("Solution received but token was empty"));
+                            else resolve(resToken);
+                        } else if (data.status === "processing") {
+                            updateStatus(`Solving (Attempt ${attempts})...`, "solving");
+                        } else {
+                            clearInterval(interval);
+                            reject(new Error(`Unknown status: ${data.status}`));
+                        }
+                    } catch (err) {
+                        log.error("🤖 Polling exception:", err);
+                    }
+                }, 8000);
+            });
+
+            updateStatus("CAPTCHA Solved successfully!", "success");
+
+            // Solves count 증가
+            const currentSolves = extStorage.solvesCount || 0;
+            extStorage.solvesCount = currentSolves + 1;
+            saveExtStorage();
+            const solvesChanges = { solvesCount: { oldValue: currentSolves, newValue: currentSolves + 1 } };
+            webContents.getAllWebContents().forEach(wc => {
+                try { wc.send('xpider-ext-storage-changed', solvesChanges); } catch(e) {}
+            });
+
+            return { success: true, token };
+        } catch (e) {
+            log.error('[USP-Runtime] solveCaptcha error:', e.message);
+            updateStatus(`Failed: ${e.message}`, "error");
+            return { success: false, error: e.message };
+        }
+    }
+
+    if (message.action === 'injectionResult') {
+        log.info(`[USP-Runtime] Injection result: success=${message.success}, injectionId=${message.injectionId}`);
+        return { success: true };
+    }
+    // ─── [End Win7 Critical Fix] ─────────────────────────────────────────────────
+
     log.info(`[ExtBridge] Received runtime message: action=${message.action}`);
     
     // ── 여분의 브라우저 새 탭 일괄 닫기 브릿지 ──

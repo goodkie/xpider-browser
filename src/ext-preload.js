@@ -258,11 +258,11 @@ if (!window.chrome.storage.onChanged) {
             // Listen via postMessage XPIDER_EVENT (for pages where IPC is indirect)
             window.addEventListener('message', (e) => {
                 if (e.data && e.data.type === 'XPIDER_EVENT' && e.data.name === 'storage-changed') {
-                    callback(e.data.data);
+                    callback(e.data.data, 'local');
                 }
             });
             // Also listen directly via IPC
-            ipcRenderer.on('xpider-ext-storage-changed', (event, changes) => callback(changes));
+            ipcRenderer.on('xpider-ext-storage-changed', (event, changes) => callback(changes, 'local'));
         }
     };
 }
