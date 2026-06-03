@@ -4058,6 +4058,29 @@ async function loadLocalExtensions() {
           manifestChanged = true;
         }
 
+        // 3. [Win7/Electron22 전용] web_accessible_resources 변환 (MV3 [ { resources, matches } ] → MV2 [ string ])
+        if (isLegacyElectron && manifestJson.web_accessible_resources) {
+          let needsResourceConvert = false;
+          if (Array.isArray(manifestJson.web_accessible_resources)) {
+            needsResourceConvert = manifestJson.web_accessible_resources.some(r => typeof r === 'object' && r !== null);
+          }
+          if (needsResourceConvert) {
+            log.info(`[Extensions] [Win7 Compat] Downgrading web_accessible_resources for ${entry.name}`);
+            const mv2Resources = [];
+            manifestJson.web_accessible_resources.forEach(resObj => {
+              if (typeof resObj === 'object' && resObj !== null && Array.isArray(resObj.resources)) {
+                resObj.resources.forEach(r => {
+                  if (!mv2Resources.includes(r)) mv2Resources.push(r);
+                });
+              } else if (typeof resObj === 'string') {
+                if (!mv2Resources.includes(resObj)) mv2Resources.push(resObj);
+              }
+            });
+            manifestJson.web_accessible_resources = mv2Resources;
+            manifestChanged = true;
+          }
+        }
+
         if (manifestChanged) {
           fs.writeFileSync(manifestPath, JSON.stringify(manifestJson, null, 2), 'utf8');
         }

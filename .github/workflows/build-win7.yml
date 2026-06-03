@@ -144,6 +144,27 @@ jobs:
                   delete manifest.action;
                 }
 
+                // MV3 web_accessible_resources → MV2
+                if (manifest.web_accessible_resources) {
+                  let needsResourceConvert = false;
+                  if (Array.isArray(manifest.web_accessible_resources)) {
+                    needsResourceConvert = manifest.web_accessible_resources.some(r => typeof r === 'object' && r !== null);
+                  }
+                  if (needsResourceConvert) {
+                    const mv2Resources = [];
+                    manifest.web_accessible_resources.forEach(resObj => {
+                      if (typeof resObj === 'object' && resObj !== null && Array.isArray(resObj.resources)) {
+                        resObj.resources.forEach(r => {
+                          if (!mv2Resources.includes(r)) mv2Resources.push(r);
+                        });
+                      } else if (typeof resObj === 'string') {
+                        if (!mv2Resources.includes(resObj)) mv2Resources.push(resObj);
+                      }
+                    });
+                    manifest.web_accessible_resources = mv2Resources;
+                  }
+                }
+
                 // minimum_chrome_version 제거 (Chromium 108 호환)
                 delete manifest.minimum_chrome_version;
 
