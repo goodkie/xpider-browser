@@ -1,3 +1,12 @@
+// Node.js 16 / Electron 22 이하 환경에서 fetch 및 Headers 폴리필 적용
+if (typeof global.Headers === 'undefined' || typeof global.fetch === 'undefined') {
+  const fetch = require('node-fetch');
+  global.fetch = global.fetch || fetch;
+  global.Headers = global.Headers || fetch.Headers;
+  global.Request = global.Request || fetch.Request;
+  global.Response = global.Response || fetch.Response;
+}
+
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
