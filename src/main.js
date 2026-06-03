@@ -3981,6 +3981,11 @@ async function loadLocalExtensions() {
     const results = [];
     const entries = fs.readdirSync(extDir, { withFileTypes: true });
 
+    // Electron 22 (Win7) 여부를 루프 시작 전에 한 번만 판단
+    const _electronMajorForExt = parseInt((process.versions.electron || '0').split('.')[0], 10);
+    const isLegacyElectron = _electronMajorForExt <= 22;
+    if (isLegacyElectron) log.info(`[Extensions] Legacy Electron ${_electronMajorForExt} detected - MV3 extensions will be auto-downgraded to MV2 for Win7 compatibility`);
+
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       // [v1.1.0] _나 .으로 시작하는 레거시/숨김 폴더는 로드 제외
@@ -4010,9 +4015,6 @@ async function loadLocalExtensions() {
       // Electron 22 (Chromium 108) 기반 Windows 7 빌드에서는 MV3의 background.service_worker가
       // 완전히 지원되지 않습니다. 백그라운드 SW가 기동되지 않으면 content script와의 통신이
       // 전면 마비됩니다. 따라서 Electron 22 환경에서는 MV3를 MV2로 자동 변환합니다.
-      const electronMajorVer = parseInt((process.versions.electron || '0').split('.')[0], 10);
-      const isLegacyElectron = electronMajorVer <= 22;
-
       let originalManifestText = null;
       try {
         originalManifestText = fs.readFileSync(manifestPath, 'utf8');
@@ -4113,7 +4115,10 @@ async function loadLocalExtensions() {
         const ext = await extManager.loadExtension(extPath, { allowFileAccess: true });
 
         // ─── [V999 설치 제한 복원] 로드 성공 후 원래대로 복구 ───
-        if (originalManifestText) {
+        // ⚠️ Win7/Electron22 레거시에서는 복원 금지!
+        // MV3→MV2로 패치한 manifest를 다시 MV3로 되돌리면 Electron이 혼란에 빠져
+        // 익스텐션 로드가 실패합니다. 레거시 환경에서는 MV2 상태를 유지해야 합니다.
+        if (originalManifestText && !isLegacyElectron) {
           try {
             fs.writeFileSync(manifestPath, originalManifestText, 'utf8');
           } catch (restoreErr) {
@@ -4134,7 +4139,8 @@ async function loadLocalExtensions() {
         log.info(`[Extensions] ✅ Loaded FRESH: ${manifest.name} v${manifest.version} (${entry.name})`);
       } catch (e) {
         // ─── [V999 설치 제한 복원] 로드 실패 시에도 원래대로 복구 ───
-        if (originalManifestText) {
+        // ⚠️ Win7/Electron22 레거시에서는 복원 금지!
+        if (originalManifestText && !isLegacyElectron) {
           try {
             fs.writeFileSync(manifestPath, originalManifestText, 'utf8');
           } catch (restoreErr) {
