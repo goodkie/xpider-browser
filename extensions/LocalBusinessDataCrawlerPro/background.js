@@ -529,70 +529,72 @@ async function ensureOffscreenDocument() {
 // 대상: google.com/sorry/index 만 (일반 비즈니스 폼 CAPTCHA 제외)
 // _captchaTabId, _captchaResolvedAt은 95번 줄에 선언됨
 
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (!changeInfo.url) return;
-    const url = changeInfo.url;
+if (chrome.tabs && chrome.tabs.onUpdated) {
+    chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+        if (!changeInfo.url) return;
+        const url = changeInfo.url;
 
-    // ── Google /sorry/ CAPTCHA 감지 (구글 전용, 비즈니스 폼 제외) ──
-    const isGoogleSorry = url.includes('google.com/sorry/') ||
-                          (url.includes('google.') && url.includes('/sorry/'));
+        // ── Google /sorry/ CAPTCHA 감지 (구글 전용, 비즈니스 폼 제외) ──
+        const isGoogleSorry = url.includes('google.com/sorry/') ||
+                              (url.includes('google.') && url.includes('/sorry/'));
 
-    // [v3.3] 쿨다운: 해결 후 15초 내 재감지 억제 — ghost popup 방지
-    const _now = Date.now();
-    const _cooldown = 15000;
-    if (isGoogleSorry && typeof _captchaResolvedAt !== 'undefined' && (_now - _captchaResolvedAt) < _cooldown) {
-        console.log('[CAPTCHA-BG] 쿨다운 중 재감지 무시 (' + Math.round((_now - _captchaResolvedAt)/1000) + 's)');
-        return;
-    }
+        // [v3.3] 쿨다운: 해결 후 15초 내 재감지 억제 — ghost popup 방지
+        const _now = Date.now();
+        const _cooldown = 15000;
+        if (isGoogleSorry && typeof _captchaResolvedAt !== 'undefined' && (_now - _captchaResolvedAt) < _cooldown) {
+            console.log('[CAPTCHA-BG] 쿨다운 중 재감지 무시 (' + Math.round((_now - _captchaResolvedAt)/1000) + 's)');
+            return;
+        }
 
-    if (isGoogleSorry && isSearching && !isPausedByCaptcha) {
-        _captchaTabId = tabId;
-        isPausedByCaptcha = true;
-        await updateState({ isPausedByCaptcha: true });
+        if (isGoogleSorry && isSearching && !isPausedByCaptcha) {
+            _captchaTabId = tabId;
+            isPausedByCaptcha = true;
+            await updateState({ isPausedByCaptcha: true });
 
-        sendLog('⏸️ [CAPTCHA] Google CAPTCHA 감지 → 모든 수집 즉시 일시중지');
-        sendLog(`🔗 CAPTCHA URL: ${url.substring(0, 80)}`);
+            sendLog('⏸️ [CAPTCHA] Google CAPTCHA 감지 → 모든 수집 즉시 일시중지');
+            sendLog(`🔗 CAPTCHA URL: ${url.substring(0, 80)}`);
 
-        // 팝업에 CAPTCHA 모달 표시
-        chrome.runtime.sendMessage({
-            action: 'CAPTCHA_STATUS',
-            status: 'detected',
-            captchaUrl: url,
-            tabOpened: true
-        }).catch(() => {});
-
-        // 진행 상태 표시
-        chrome.runtime.sendMessage({
-            action: 'statusDetail',
-            message: '⏸️ Google CAPTCHA 감지 — 해결 후 자동 재개됩니다'
-        }).catch(() => {});
-    }
-
-    // ── CAPTCHA 해결 감지: CAPTCHA 탭이 /sorry/ 에서 정상 URL로 이동 ──
-    if (isPausedByCaptcha && tabId === _captchaTabId) {
-        const isResolved = !url.includes('/sorry/') &&
-                           !url.includes('recaptcha') &&
-                           (url.includes('google.com/search') || url.startsWith('about:'));
-
-        if (isResolved) {
-            _captchaTabId = null;
-            isPausedByCaptcha = false;
-            _captchaResolvedAt = Date.now(); // [v3.3] 쿨다운 시각 기록
-            await updateState({ isPausedByCaptcha: false });
-
-            sendLog('▶️ [CAPTCHA] CAPTCHA 해결 감지 → 수집 자동 재개');
+            // 팝업에 CAPTCHA 모달 표시
             chrome.runtime.sendMessage({
                 action: 'CAPTCHA_STATUS',
-                status: 'resolved',
-                auto: true
+                status: 'detected',
+                captchaUrl: url,
+                tabOpened: true
             }).catch(() => {});
+
+            // 진행 상태 표시
             chrome.runtime.sendMessage({
                 action: 'statusDetail',
-                message: '▶️ CAPTCHA 해결됨 — 수집 재개 중...'
+                message: '⏸️ Google CAPTCHA 감지 — 해결 후 자동 재개됩니다'
             }).catch(() => {});
         }
-    }
-});
+
+        // ── CAPTCHA 해결 감지: CAPTCHA 탭이 /sorry/ 에서 정상 URL로 이동 ──
+        if (isPausedByCaptcha && tabId === _captchaTabId) {
+            const isResolved = !url.includes('/sorry/') &&
+                               !url.includes('recaptcha') &&
+                               (url.includes('google.com/search') || url.startsWith('about:'));
+
+            if (isResolved) {
+                _captchaTabId = null;
+                isPausedByCaptcha = false;
+                _captchaResolvedAt = Date.now(); // [v3.3] 쿨다운 시각 기록
+                await updateState({ isPausedByCaptcha: false });
+
+                sendLog('▶️ [CAPTCHA] CAPTCHA 해결 감지 → 수집 자동 재개');
+                chrome.runtime.sendMessage({
+                    action: 'CAPTCHA_STATUS',
+                    status: 'resolved',
+                    auto: true
+                }).catch(() => {});
+                chrome.runtime.sendMessage({
+                    action: 'statusDetail',
+                    message: '▶️ CAPTCHA 해결됨 — 수집 재개 중...'
+                }).catch(() => {});
+            }
+        }
+    });
+}
 
 // ─── [v3.1] 수동 [계속] 버튼 처리 ────────────────────────────────────────
 // popup.js의 ✅ 버튼 → chrome.runtime.sendMessage → 여기서 처리

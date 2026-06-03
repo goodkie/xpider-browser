@@ -441,17 +441,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ── Sync with Tab Updates ─────────────────────────────────────
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'loading' || changeInfo.url) {
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs && tabs[0] && tabs[0].id === tabId) {
-          currentPageUrl = tabs[0].url;
-          pageEmailsArea.value = '⏳ Scanning page...';
-          pageCountLabel.textContent = '0';
-        }
-      });
-    }
-  });
+  if (chrome.tabs && chrome.tabs.onUpdated) {
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      if (changeInfo.status === 'loading' || changeInfo.url) {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs && tabs[0] && tabs[0].id === tabId) {
+            currentPageUrl = tabs[0].url;
+            pageEmailsArea.value = '⏳ Scanning page...';
+            pageCountLabel.textContent = '0';
+          }
+        });
+      }
+    });
+  }
 
   // ── [XPIDER] Listen for browser language-change broadcast ─────
   window.addEventListener('message', (event) => {

@@ -101,6 +101,18 @@ const getPortableDataPath = () => {
 app.setPath('userData', getPortableDataPath());
 log.info(`[Portable] UserData Path: ${app.getPath('userData')}`);
 
+// Service Worker 캐시가 꼬여 옛날 버전의 익스텐션 코드가 동작하는 문제를 해결하기 위해,
+// 시작할 때 Service Worker 캐시 디렉토리를 비워줍니다.
+try {
+  const swDir = path.join(app.getPath('userData'), 'Service Worker');
+  if (fs.existsSync(swDir)) {
+    fs.rmSync(swDir, { recursive: true, force: true });
+    log.info('[Portable] Service Worker cache directory cleared successfully.');
+  }
+} catch (swErr) {
+  log.warn(`[Portable] Service Worker cache clear skipped: ${swErr.message}`);
+}
+
 // ─── [v4.9.86 FIX] 프로필 전용 커스텀 락 (멀티 인스턴스 허용 및 좀비 방지) ───
 // 특정 PID 프로세스가 현재 구동 중인지 교차 플랫폼 테스트하는 유틸리티
 function isProcessRunning(pid) {
@@ -4040,11 +4052,12 @@ async function loadLocalExtensions() {
         // [v1.1.0 Fix] Electron은 동일 경로 익스텐션을 세션에 캐시합니다.
         // 브라우저 재시작 시 manifest 변경사항(이름, 버전 등)이 반영되지 않으므로,
         // 로드 전에 기존 캐시를 제거하여 항상 최신 버전이 로드되도록 합니다.
+        const extManager = session.defaultSession.extensions || session.defaultSession;
         try {
-          const allLoaded = session.defaultSession.extensions.getAllExtensions();
+          const allLoaded = extManager.getAllExtensions();
           for (const [cachedId, cachedExt] of Object.entries(allLoaded)) {
             if (cachedExt.path === extPath) {
-              await session.defaultSession.extensions.removeExtension(cachedId);
+              await extManager.removeExtension(cachedId);
               log.info(`[Extensions] Removed cached extension: ${cachedId} (${entry.name})`);
               break;
             }
@@ -4053,7 +4066,7 @@ async function loadLocalExtensions() {
           log.warn(`[Extensions] Cache removal skipped (${entry.name}): ${removeErr.message}`);
         }
 
-        const ext = await session.defaultSession.extensions.loadExtension(extPath, { allowFileAccess: true });
+        const ext = await extManager.loadExtension(extPath, { allowFileAccess: true });
 
         // ─── [V999 설치 제한 복원] 로드 성공 후 원래대로 복구 ───
         if (originalManifestText) {

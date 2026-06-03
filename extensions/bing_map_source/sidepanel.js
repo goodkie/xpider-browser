@@ -290,9 +290,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   checkCurrentTab();
-  chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.status === 'complete') checkCurrentTab();
-  });
+  if (chrome.tabs && chrome.tabs.onUpdated) {
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+      if (changeInfo.status === 'complete') checkCurrentTab();
+    });
+  }
 
   function isSupportedMap(url) {
     if (!url) return false;
