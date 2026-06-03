@@ -402,3 +402,32 @@ function triggerPageCallback(token) {
         logToDashboard("Callback trigger error: " + e.message, true);
     }
 }
+
+// Keep-Alive Connection to Extension Service Worker (prevents termination in Electron 22 / Win7)
+let keepAlivePort = null;
+function connectKeepAlive() {
+    try {
+        if (keepAlivePort) {
+            try { keepAlivePort.disconnect(); } catch(e) {}
+            keepAlivePort = null;
+        }
+        keepAlivePort = chrome.runtime.connect({ name: "ultrasolver-keepalive" });
+        keepAlivePort.onDisconnect.addListener(() => {
+            setTimeout(() => {
+                if (!keepAlivePort) connectKeepAlive();
+            }, 3000);
+        });
+        console.log("🤖 [UltraSolver Pro] Keep-alive port connected.");
+    } catch (e) {
+        console.warn("🤖 [UltraSolver Pro] Keep-alive connection failed:", e.message);
+    }
+}
+
+// Connect immediately
+connectKeepAlive();
+
+// Refresh port every 4 minutes to reset MV3 SW 5-minute termination timer
+setInterval(() => {
+    console.log("🤖 [UltraSolver Pro] Refreshing keep-alive port...");
+    connectKeepAlive();
+}, 240000);

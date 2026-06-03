@@ -174,4 +174,12 @@ document.addEventListener('DOMContentLoaded', () => {
             toast.classList.remove('show');
         }, 2000);
     }
+
+    // Keep-Alive Connection to Extension Service Worker (prevents termination in Electron 22 / Win7)
+    try {
+        chrome.runtime.connect({ name: "ultrasolver-keepalive" });
+        console.log("🤖 [UltraSolver Pro] Keep-alive port connected from Popup.");
+    } catch (e) {
+        console.warn("🤖 [UltraSolver Pro] Keep-alive connection from popup failed:", e.message);
+    }
 });

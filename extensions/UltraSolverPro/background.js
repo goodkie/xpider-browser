@@ -251,3 +251,13 @@ function logSolver(msg) {
         chrome.storage.local.set({ solverLogs: logs });
     });
 }
+
+// Keep-Alive connection listener to prevent MV3 Service Worker sleep mode on legacy platforms (Electron 22 / Win7)
+chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === "ultrasolver-keepalive") {
+        console.log("🤖 [UltraSolver Pro] Keep-alive connection established.");
+        port.onDisconnect.addListener(() => {
+            console.log("🤖 [UltraSolver Pro] Keep-alive connection port disconnected.");
+        });
+    }
+});
