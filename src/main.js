@@ -2049,6 +2049,170 @@ ipcMain.handle('xpider-ext-send-message', async (event, data) => {
     }
 });
 
+// ─── [UltraSolver Pro Windows 7 Legacy Fallback Bypass] ───────────────────────
+function logSolver(msg) {
+    try {
+        log.info(`🤖 [UltraSolver Pro] ${msg}`);
+        const logs = extStorage.solverLogs || [];
+        const time = new Date().toLocaleTimeString();
+        logs.push(`[${time}] ${msg}`);
+        if (logs.length > 50) logs.shift();
+        
+        extStorage.solverLogs = logs;
+        saveExtStorage();
+        
+        // Broadcast changes to popups
+        const changes = { solverLogs: { oldValue: null, newValue: logs } };
+        webContents.getAllWebContents().forEach(wc => {
+            try { wc.send('xpider-ext-storage-changed', changes); } catch(e) {}
+        });
+    } catch(e) {
+        log.error('[USP-Fallback] logSolver error:', e.message);
+    }
+}
+
+function updateStatus(message, state) {
+    try {
+        extStorage.solverStatus = message;
+        extStorage.solverState = state;
+        extStorage.lastUpdated = Date.now();
+        saveExtStorage();
+        
+        const changes = {
+            solverStatus: { oldValue: null, newValue: message },
+            solverState: { oldValue: null, newValue: state }
+        };
+        webContents.getAllWebContents().forEach(wc => {
+            try { wc.send('xpider-ext-storage-changed', changes); } catch(e) {}
+        });
+        logSolver(message);
+    } catch(e) {
+        log.error('[USP-Fallback] updateStatus error:', e.message);
+    }
+}
+
+ipcMain.handle('xpider-usp-log-solver', async (event, { message }) => {
+    logSolver(message);
+    return { success: true };
+});
+
+ipcMain.handle('xpider-usp-solve-captcha', async (event, params) => {
+    const proxyDomain = 'http://67.205.138.207/api';
+    const apiKey = '377171be0ad2abf253c58a851de6a2de';
+    
+    logSolver(`[USP-Fallback] Received solve request for: ${params.type}`);
+    try {
+        updateStatus("Creating CAPTCHA solving task...", "processing");
+        
+        // API 요청
+        const createRes = await fetch(`${proxyDomain}/createTask`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clientKey: apiKey,
+                task: params
+            })
+        });
+
+        if (!createRes.ok) {
+            const errText = await createRes.text();
+            throw new Error(`HTTP Error ${createRes.status}: ${errText}`);
+        }
+
+        const createData = await createRes.json();
+        if (createData.errorId !== 0) {
+            throw new Error(createData.errorDescription || `Error ID ${createData.errorId}`);
+        }
+
+        const taskId = createData.taskId;
+        if (!taskId) {
+            throw new Error("Failed to retrieve Task ID from SuperProxy");
+        }
+
+        logSolver(`Task created successfully. ID: ${taskId}. Starting polling...`);
+        updateStatus(`Solving (ID: ${taskId})...`, "solving");
+
+        // Polling loop
+        let attempts = 0;
+        const maxAttempts = 50;
+        
+        const token = await new Promise((resolve, reject) => {
+            const interval = setInterval(async () => {
+                attempts++;
+                if (attempts > maxAttempts) {
+                    clearInterval(interval);
+                    updateStatus("Task timeout.", "error");
+                    reject(new Error("Timeout waiting for solution"));
+                    return;
+                }
+
+                try {
+                    const resultRes = await fetch(`${proxyDomain}/getTaskResult`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            clientKey: apiKey,
+                            taskId: taskId
+                        })
+                    });
+
+                    if (!resultRes.ok) {
+                        log.warn(`🤖 [UltraSolver Pro] Polling HTTP ${resultRes.status}`);
+                        return;
+                    }
+
+                    const data = await resultRes.json();
+                    if (data.errorId !== 0) {
+                        clearInterval(interval);
+                        const errMsg = data.errorDescription || `Error ${data.errorId}`;
+                        updateStatus(`Solve failed: ${errMsg}`, "error");
+                        reject(new Error(errMsg));
+                        return;
+                    }
+
+                    if (data.status === "ready") {
+                        clearInterval(interval);
+                        const resToken = data.solution?.gRecaptchaResponse || 
+                                         data.solution?.token || 
+                                         data.solution?.text;
+                        if (!resToken) {
+                            reject(new Error("Solution received but token was empty"));
+                        } else {
+                            resolve(resToken);
+                        }
+                    } else if (data.status === "processing") {
+                        updateStatus(`Solving (Attempt ${attempts})...`, "solving");
+                    } else {
+                        clearInterval(interval);
+                        reject(new Error(`Unknown status: ${data.status}`));
+                    }
+                } catch (err) {
+                    log.error("🤖 Polling exception:", err);
+                }
+            }, 8000);
+        });
+
+        updateStatus("CAPTCHA Solved successfully!", "success");
+        
+        // Solves count 증가
+        const currentSolves = extStorage.solvesCount || 0;
+        extStorage.solvesCount = currentSolves + 1;
+        saveExtStorage();
+        
+        const solvesChanges = { solvesCount: { oldValue: currentSolves, newValue: currentSolves + 1 } };
+        webContents.getAllWebContents().forEach(wc => {
+            try { wc.send('xpider-ext-storage-changed', solvesChanges); } catch(e) {}
+        });
+
+        return { success: true, token };
+
+    } catch (e) {
+        log.error("🤖 Task creation exception:", e);
+        updateStatus(`Failed to start: ${e.message}`, "error");
+        return { success: false, error: e.message };
+    }
+});
+
 ipcMain.handle('xpider-ext-get-script', async (event, { extId, scriptPath }) => {
     try {
         const ext = loadedExtensionsInfo.find(e => e.id === extId);

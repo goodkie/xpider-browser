@@ -33,7 +33,11 @@ function logToDashboard(msg, isError = false) {
     } else {
         console.log(`🤖 [UltraSolver Pro] ${msg}`);
     }
-    chrome.runtime.sendMessage({ action: 'logSolver', message: msg }, () => { if (chrome.runtime.lastError) {} });
+    chrome.runtime.sendMessage({ action: 'logSolver', message: msg }, () => {
+        if (chrome.runtime.lastError) {
+            invokeXpiderIpc('xpider-usp-log-solver', { message: msg }).catch(() => {});
+        }
+    });
 }
 
 const solvedSitekeys = new Set();
@@ -57,6 +61,121 @@ function invokeXpiderIpc(channel, args = {}) {
     });
 }
 
+// ─── [Bypass Check] 직접 캡차를 해결한 결과를 주입 및 차감하는 헬퍼 함수 ───
+function handleDirectSolveResult(token, sitekey, cleanSet) {
+    let attempts = 0;
+    const maxAttempts = 20; // 4 seconds
+    const intervalTime = 200;
+
+    const runDirectInject = () => {
+        let injected = false;
+        
+        // 1. reCAPTCHA
+        const recaptchaTextareas = document.querySelectorAll(
+            'textarea[id="g-recaptcha-response"], textarea[name="g-recaptcha-response"], [id*="recaptcha-response"], [name*="recaptcha-response"]'
+        );
+        recaptchaTextareas.forEach(textarea => {
+            if (textarea.tagName === 'TEXTAREA' || textarea.tagName === 'INPUT') {
+                textarea.value = token;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                injected = true;
+            }
+        });
+
+        // 2. hCaptcha
+        const hcaptchaTextareas = document.querySelectorAll(
+            'textarea[id="h-captcha-response"], textarea[name="h-captcha-response"], [id*="h-captcha-response"], [name*="h-captcha-response"]'
+        );
+        hcaptchaTextareas.forEach(textarea => {
+            if (textarea.tagName === 'TEXTAREA' || textarea.tagName === 'INPUT') {
+                textarea.value = token;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                injected = true;
+            }
+        });
+
+        // 3. Turnstile
+        const turnstileInputs = document.querySelectorAll(
+            'input[name="cf-turnstile-response"], input[id="cf-turnstile-response"], [id*="turnstile-response"], [name*="turnstile-response"], [name*="turnstile"]'
+        );
+        turnstileInputs.forEach(input => {
+            if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
+                input.value = token;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                injected = true;
+            }
+        });
+
+        // 3-1. Turnstile (WP CF7 등)
+        if (!injected) {
+            const tsWidgets = document.querySelectorAll('.cf-turnstile, [data-response-field-name]');
+            tsWidgets.forEach(widget => {
+                const fieldName = widget.getAttribute('data-response-field-name');
+                if (fieldName) {
+                    const customInputs = document.querySelectorAll(`input[name="${fieldName}"], textarea[name="${fieldName}"]`);
+                    customInputs.forEach(input => {
+                        input.value = token;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        injected = true;
+                    });
+                }
+            });
+        }
+
+        // 4. Shadow DOM
+        if (!injected) {
+            const allElements = document.querySelectorAll('*');
+            allElements.forEach(el => {
+                if (el.shadowRoot) {
+                    const shadowInputs = el.shadowRoot.querySelectorAll(
+                        'textarea[name*="response"], input[name*="response"], [id*="response"]'
+                    );
+                    shadowInputs.forEach(input => {
+                        const name = input.name || '';
+                        const id = input.id || '';
+                        if (name.includes('recaptcha') || name.includes('h-captcha') || name.includes('turnstile') ||
+                            id.includes('recaptcha') || id.includes('h-captcha') || id.includes('turnstile')) {
+                            input.value = token;
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                            injected = true;
+                        }
+                    });
+                }
+            });
+        }
+
+        if (injected) {
+            logToDashboard("Token successfully injected into DOM via direct bypass. Triggering callback...");
+            document.documentElement.setAttribute('data-usp-solving', 'done');
+            triggerPageCallback(token);
+            
+            // 토큰 차감 수행 (Top Frame 인 경우에만)
+            if (window.self === window.top) {
+                console.log(`🤖 [UltraSolver Pro] Executing token deduction directly for bypass`);
+                invokeXpiderIpc('xpider-token-deduct', { count: 3, extName: 'UltraSolverPro', action: 'solve', details: 'CAPTCHA Auto Solve (Bypass)' })
+                    .then(function(res) { logToDashboard("Deducted 3 XPIDER tokens via bypass. Result: " + JSON.stringify(res)); })
+                    .catch(function(err) { logToDashboard("Failed to deduct tokens via bypass: " + err.message, true); });
+            }
+        } else {
+            attempts++;
+            if (attempts < maxAttempts) {
+                setTimeout(runDirectInject, intervalTime);
+            } else {
+                logToDashboard("No response fields found in this frame for direct injection.", true);
+                document.documentElement.setAttribute('data-usp-solving', 'false');
+                cleanSet.delete(sitekey);
+            }
+        }
+    };
+
+    runDirectInject();
+}
+
 // Check tokens and request captcha solve from background
 async function requestSolveCaptcha(params, sitekey, cleanSet) {
     try {
@@ -70,14 +189,32 @@ async function requestSolveCaptcha(params, sitekey, cleanSet) {
 
         logToDashboard(`Task accepted. Initiating solve request via SuperProxy...`);
         document.documentElement.setAttribute('data-usp-solving', 'true');
+        
         chrome.runtime.sendMessage({
             action: "solveCaptcha",
             params: params
         }, (response) => {
-            if (chrome.runtime.lastError) {
-                logToDashboard(`Background send error: ${chrome.runtime.lastError.message}`, true);
-                cleanSet.delete(sitekey);
-                document.documentElement.setAttribute('data-usp-solving', 'false');
+            const hasError = chrome.runtime.lastError;
+            if (hasError) {
+                logToDashboard(`Background unreachable. Running direct main-process solve bypass...`);
+                
+                invokeXpiderIpc('xpider-usp-solve-captcha', params)
+                    .then(res => {
+                        if (res && res.success && res.token) {
+                            logToDashboard(`Direct solved token obtained. Injecting directly...`);
+                            handleDirectSolveResult(res.token, sitekey, cleanSet);
+                        } else {
+                            const err = (res && res.error) ? res.error : "Unknown direct solve error";
+                            logToDashboard(`Direct solve failed: ${err}`, true);
+                            cleanSet.delete(sitekey);
+                            document.documentElement.setAttribute('data-usp-solving', 'false');
+                        }
+                    })
+                    .catch(e => {
+                        logToDashboard(`Direct solve exception: ${e.message}`, true);
+                        cleanSet.delete(sitekey);
+                        document.documentElement.setAttribute('data-usp-solving', 'false');
+                    });
             } else if (response && !response.success) {
                 logToDashboard(`SuperProxy solve failed: ${response.error}`, true);
                 cleanSet.delete(sitekey);

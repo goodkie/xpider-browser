@@ -161,7 +161,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'stripe-create-checkout',         // [Stripe] Checkout Session 생성
       'stripe-open-portal',             // [Stripe] 구독 관리 포털 열기
       'xpider-get-usp-cookie',          // [UltraSolver] SuperProxy 쿠키 데이터 조회
-      'xpider-usp-recharge-db'          // [UltraSolver] 가상 결제 승인 시 SSH DB 충전 쿼리 실행
+      'xpider-usp-recharge-db',          // [UltraSolver] 가상 결제 승인 시 SSH DB 충전 쿼리 실행
+      'xpider-usp-solve-captcha',       // [UltraSolver Windows 7 Bypass]
+      'xpider-usp-log-solver'           // [UltraSolver Windows 7 Bypass]
     ];
     if (allowed.includes(channel)) {
       return ipcRenderer.invoke(channel, data);
