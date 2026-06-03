@@ -1607,7 +1607,7 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
         window.electronAPI.send('log-from-renderer', `[MAIN-WEBVIEW] ${e.message}`);
     });
     
-    tabs.push({ id: tabId, url, title: 'New Tab' });
+    tabs.push({ id: tabId, url, title: 'New Tab', zoomFactor: 1.0 });
     
     wv.addEventListener('did-start-loading', () => { 
         if (activeTabId === tabId) reloadBtn.textContent = '✕'; 
@@ -1622,7 +1622,13 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
         const realId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999;
 
         const t = tabs.find(x => x.id === tabId);
-        if (t) { t.url = currentUrl; t.title = currentTitle; }
+        if (t) { 
+            t.url = currentUrl; 
+            t.title = currentTitle; 
+            try {
+                wv.setZoomFactor(t.zoomFactor || 1.0);
+            } catch(e) {}
+        }
         document.getElementById(`tab-title-${tabId}`).textContent = currentTitle;
         if (activeTabId === tabId) {
             addressBar.value = currentUrl;
@@ -1751,6 +1757,12 @@ function switchTab(tabId) {
                 updateBookmarkIcon();
                 document.title = (t.title || 'XPIDER Browser') + (t.title ? ' - XPIDER Browser' : '');
                 wv.focus();
+                
+                // Update zoom display UI
+                const display = document.getElementById('zoom-level-display');
+                if (display) {
+                    display.textContent = `${Math.round((t.zoomFactor || 1.0) * 100)}%`;
+                }
                 
                 // 해당 웹뷰의 현재 로딩 상태에 따라 새로고침 버튼 텍스트 복구
                 if (typeof wv.isLoading === 'function' && wv.isLoading()) {
@@ -1906,3 +1918,63 @@ window.getWebviewById = function(id) {
     }
     return null;
 };
+
+// ─── Zoom Controls ──────────────────────────────────────────
+const zoomInBtn = document.getElementById('zoom-in-btn');
+const zoomOutBtn = document.getElementById('zoom-out-btn');
+const zoomLevelDisplay = document.getElementById('zoom-level-display');
+
+if (zoomInBtn) {
+    zoomInBtn.onclick = () => {
+        const wv = getActiveWebview();
+        if (!wv) return;
+        const t = tabs.find(x => x.id === activeTabId);
+        if (t) {
+            let factor = t.zoomFactor || 1.0;
+            factor = Math.min(2.5, +(factor + 0.1).toFixed(2));
+            t.zoomFactor = factor;
+            try {
+                wv.setZoomFactor(factor);
+                if (zoomLevelDisplay) zoomLevelDisplay.textContent = `${Math.round(factor * 100)}%`;
+            } catch(e) {
+                console.error('[ZOOM] Failed to set zoom factor:', e);
+            }
+        }
+    };
+}
+
+if (zoomOutBtn) {
+    zoomOutBtn.onclick = () => {
+        const wv = getActiveWebview();
+        if (!wv) return;
+        const t = tabs.find(x => x.id === activeTabId);
+        if (t) {
+            let factor = t.zoomFactor || 1.0;
+            factor = Math.max(0.5, +(factor - 0.1).toFixed(2));
+            t.zoomFactor = factor;
+            try {
+                wv.setZoomFactor(factor);
+                if (zoomLevelDisplay) zoomLevelDisplay.textContent = `${Math.round(factor * 100)}%`;
+            } catch(e) {
+                console.error('[ZOOM] Failed to set zoom factor:', e);
+            }
+        }
+    };
+}
+
+if (zoomLevelDisplay) {
+    zoomLevelDisplay.onclick = () => {
+        const wv = getActiveWebview();
+        if (!wv) return;
+        const t = tabs.find(x => x.id === activeTabId);
+        if (t) {
+            t.zoomFactor = 1.0;
+            try {
+                wv.setZoomFactor(1.0);
+                zoomLevelDisplay.textContent = '100%';
+            } catch(e) {
+                console.error('[ZOOM] Failed to reset zoom factor:', e);
+            }
+        }
+    };
+}
