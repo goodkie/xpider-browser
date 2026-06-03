@@ -6,10 +6,12 @@
   const _EXT_NAME = 'Ext[UltraSolverPro]';
   const _xDL = (lvl, msg, ex) => {
     try {
+      // NOTE: 구형 Chromium 108 (Win7/Electron22)에서는 sendMessage가 Promise가 아닌
+      // undefined를 반환하므로 .catch() 대신 콜백 방식으로 처리해야 합니다.
       chrome.runtime.sendMessage({
         _xpider_devlog: true, level: lvl,
         source: _EXT_NAME, msg: String(msg).substring(0, 2048), extra: ex || undefined
-      }).catch(() => {});
+      }, function() { if (chrome.runtime.lastError) { /* suppress */ } });
     } catch(_) {}
   };
   ['log','warn','error','debug','info'].forEach(m => {

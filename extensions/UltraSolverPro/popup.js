@@ -53,7 +53,11 @@ document.addEventListener('DOMContentLoaded', () => {
         btnRefresh.disabled = true;
         btnRefresh.innerText = 'Refreshing...';
         
-        refreshBalances().finally(() => {
+        refreshBalances().then(function() {
+            btnRefresh.disabled = false;
+            btnRefresh.innerText = '🔄 Refresh';
+            showToast('✅ Refreshed successfully!');
+        }).catch(function() {
             btnRefresh.disabled = false;
             btnRefresh.innerText = '🔄 Refresh';
             showToast('✅ Refreshed successfully!');
