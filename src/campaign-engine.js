@@ -3105,118 +3105,42 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
                         if (tempTab && !tempTab.isDestroyed()) {
                             await closeXpiderTab(tempTab);
                         }
+                        if (lightboxTimer) clearInterval(lightboxTimer);
+                        continue;
                     } else {
-                        // [v4.15.0] 성공 미확인 시 33초 대기 후 에러 메시지가 없으면 성공으로 간주
-                        clearTimeout(globalTimer);
+                        // 실패 메시지가 감지되지 않은 기타 상태(NO_RESULT 등)인 경우 즉시 성공 간주 처리
+                        sendLog(`✅ 실패 메시지가 발견되지 않아 성공으로 간주하고 즉시 다음으로 이동합니다.`, 'success');
                         
-                        sendLog(`⏳ 등록/성공 미확인: 33초간 에러 여부를 감시하며 대기합니다. (에러가 없으면 성공 간주)`, 'info');
-                        const holdDuration = 33000; // 33초
-                        const holdStart = Date.now();
-                        let hasErrorDuringHold = false;
-                        let errorReason = '';
-                        
-                        while (Date.now() - holdStart < holdDuration && !state.cancelled) {
-                            // 탭이 파괴되었는지 먼저 체크
-                            if (!tabWC || tabWC.isDestroyed()) {
-                                sendLog(`⚠️ 탭이 닫혀 대기 상태가 종료되었습니다.`, 'warning');
-                                break;
-                            }
-                            
-                            // 성공/실패 메시지 실시간 재확인
-                            try {
-                                const recheckResult = await pollAllFrames(tabWC);
-                                if (recheckResult) {
-                                    if (recheckResult.success) {
-                                        sendLog(`✅ [Hold] 성공 메시지 감지! 탭을 닫고 다음 URL로 이동합니다.`, 'success');
-                                        
-                                        // 토큰 차감 진행
-                                        const userId = authService.getCurrentUserId();
-                                        if (userId) {
-                                            const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl}`);
-                                            if (!deductResult.success) {
-                                                sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
-                                                const mw = _getMainWindow ? _getMainWindow() : null;
-                                                if (mw && !mw.isDestroyed()) {
-                                                    mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
-                                                }
-                                                clearInterval(lightboxTimer);
-                                                done({ success: false, reason: 'TOKEN_DEPLETED' });
-                                                return;
-                                            }
-                                        } else {
-                                            sendLog(`❌ 로그인이 필요합니다.`, 'error');
-                                            clearInterval(lightboxTimer);
-                                            done({ success: false, reason: 'LOGIN_REQUIRED' });
-                                            return;
-                                        }
-
-                                        const tempTab = tabWC;
-                                        setTimeout(() => { if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab); }, 500);
-                                        clearInterval(lightboxTimer);
-                                        done({ success: true });
-                                        return;
-                                    } else if (recheckResult.success === false && recheckResult.reason === 'CLIENT_VALIDATION_FAILED') {
-                                        hasErrorDuringHold = true;
-                                        errorReason = recheckResult.reason;
-                                        sendLog(`❌ [Hold] 실패 메시지(오류) 감지! 실패로 처리하고 대기를 종료합니다.`, 'error');
-                                        break;
-                                    }
+                        // 토큰 차감 진행
+                        const userId = authService.getCurrentUserId();
+                        if (userId) {
+                            const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl} (Assumed success)`);
+                            if (!deductResult.success) {
+                                sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
+                                const mw = _getMainWindow ? _getMainWindow() : null;
+                                if (mw && !mw.isDestroyed()) {
+                                    mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
                                 }
-                            } catch(e) {}
-                            
-                            const remainingSec = Math.ceil((holdDuration - (Date.now() - holdStart)) / 1000);
-                            sendLog(`⏳ [Hold] 성공 및 오류 감시 중... 남은 시간: ${remainingSec}초`, 'debug');
-                            await new Promise(r => setTimeout(r, 3000));
-                        }
-                        
-                        if (state.cancelled) {
-                            sendLog(`🛑 대기 중 사용자가 캠페인을 취소했습니다.`, 'stop');
-                            const tempTab = tabWC;
-                            if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
-                            clearInterval(lightboxTimer);
-                            done({ success: false, reason: 'CANCELLED' });
-                            return;
-                        } else if (hasErrorDuringHold) {
-                            sendLog(`❌ [Hold End] 실패 메시지(오류)가 감지되어 실패로 처리합니다.`, 'warning');
-                            const tempTab = tabWC;
-                            if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
-                            clearInterval(lightboxTimer);
-                            done({ success: false, reason: errorReason || 'CLIENT_VALIDATION_FAILED' });
-                            return;
-                        } else {
-                            sendLog(`✅ [Hold End] 33초 경과. 실패 메시지가 발견되지 않아 성공으로 간주하고 다음 타겟으로 이동합니다.`, 'success');
-                            
-                            // 토큰 차감 진행
-                            const userId = authService.getCurrentUserId();
-                            if (userId) {
-                                const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl} (Assumed success)`);
-                                if (!deductResult.success) {
-                                    sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
-                                    const mw = _getMainWindow ? _getMainWindow() : null;
-                                    if (mw && !mw.isDestroyed()) {
-                                        mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
-                                    }
-                                    const tempTab = tabWC;
-                                    if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
-                                    clearInterval(lightboxTimer);
-                                    done({ success: false, reason: 'TOKEN_DEPLETED' });
-                                    return;
-                                }
-                            } else {
-                                sendLog(`❌ 로그인이 필요합니다.`, 'error');
                                 const tempTab = tabWC;
                                 if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
                                 clearInterval(lightboxTimer);
-                                done({ success: false, reason: 'LOGIN_REQUIRED' });
+                                done({ success: false, reason: 'TOKEN_DEPLETED' });
                                 return;
                             }
-
+                        } else {
+                            sendLog(`❌ 로그인이 필요합니다.`, 'error');
                             const tempTab = tabWC;
                             if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
                             clearInterval(lightboxTimer);
-                            done({ success: true, reason: 'ASSUMED_SUCCESS_NO_ERROR' });
+                            done({ success: false, reason: 'LOGIN_REQUIRED' });
                             return;
                         }
+
+                        const tempTab = tabWC;
+                        if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
+                        clearInterval(lightboxTimer);
+                        done({ success: true, reason: 'ASSUMED_SUCCESS_NO_ERROR' });
+                        return;
                     }
                 }
             }
