@@ -138,6 +138,11 @@ jobs:
                   delete manifest.host_permissions;
                 }
 
+                // MV3 전용 scripting 권한 제거
+                if (manifest.permissions) {
+                  manifest.permissions = manifest.permissions.filter(p => p !== 'scripting');
+                }
+
                 // MV3 action → MV2 browser_action
                 if (manifest.action) {
                   manifest.browser_action = manifest.action;
