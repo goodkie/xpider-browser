@@ -1978,3 +1978,15 @@ if (zoomLevelDisplay) {
         }
     };
 }
+
+// ─── [Hidden Feature] 개발자 로그 콘솔 단축키 (Ctrl+Shift+L) ────────────────
+document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && (e.key === 'L' || e.key === 'l')) {
+        console.log('[Hidden Log] Ctrl+Shift+L triggered. Opening devlog console...');
+        if (window.electronAPI && window.electronAPI.invoke) {
+            window.electronAPI.invoke('xpider-devlog-open-console').catch(err => {
+                console.error('[Hidden Log] Failed to open devlog console:', err);
+            });
+        }
+    }
+});

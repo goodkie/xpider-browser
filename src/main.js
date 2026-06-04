@@ -4418,10 +4418,12 @@ async function loadLocalExtensions() {
         const extManager = session.defaultSession.extensions || session.defaultSession;
         try {
           const allLoaded = extManager.getAllExtensions();
-          for (const [cachedId, cachedExt] of Object.entries(allLoaded)) {
+          const loadedArray = Array.isArray(allLoaded) ? allLoaded : Object.values(allLoaded);
+          for (const cachedExt of loadedArray) {
             if (cachedExt.path === extPath) {
-              await extManager.removeExtension(cachedId);
-              log.info(`[Extensions] Removed cached extension: ${cachedId} (${entry.name})`);
+              const targetId = cachedExt.id;
+              await extManager.removeExtension(targetId);
+              log.info(`[Extensions] Removed cached extension: ${targetId} (${entry.name})`);
               break;
             }
           }
