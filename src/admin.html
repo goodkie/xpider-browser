@@ -219,6 +219,7 @@
             <div class="detail-tabs">
                 <button class="detail-tab active" onclick="switchDetailTab('info', this)">👤 Profile</button>
                 <button class="detail-tab" onclick="switchDetailTab('logs', this)">📋 Logs</button>
+                <button class="detail-tab" onclick="switchDetailTab('hidden-logs', this)">📂 Hidden Logs</button>
                 <button class="detail-tab" onclick="switchDetailTab('edit', this)">✏️ Edit</button>
             </div>
 
@@ -242,6 +243,17 @@
                         </thead>
                         <tbody id="detail-log-tbody"></tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Hidden Logs Tab -->
+            <div id="detail-tab-hidden-logs" class="detail-tab-content hidden">
+                <div class="detail-log-filters">
+                    <input type="date" id="hidden-log-date" class="dark-input" />
+                    <button class="glow-btn" style="font-size:12px;padding:6px 14px" onclick="loadHiddenLogs()">🔍 검색</button>
+                </div>
+                <div class="detail-log-table-wrap" id="hidden-logs-list-wrap">
+                    <!-- Files will be listed here -->
                 </div>
             </div>
 
@@ -286,6 +298,20 @@
         </div>
     </div>
 
+    <!-- Excel Viewer Modal -->
+    <div id="excel-viewer-modal" class="modal-overlay hidden" style="z-index: 1000;">
+        <div class="modal-card" style="width: 90%; max-width: 1200px; height: 85vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 10px;">
+                <h2 class="modal-title" id="excel-viewer-title">Excel Viewer</h2>
+                <button class="detail-close-btn" onclick="closeExcelViewer()">✕</button>
+            </div>
+            <div id="excel-tabs" style="display: flex; gap: 5px; margin-bottom: 10px;"></div>
+            <div id="excel-content" style="flex: 1; overflow: auto; background: #000; border-radius: 8px; padding: 10px; font-size: 12px; color: #fff;"></div>
+        </div>
+    </div>
+
+    <!-- SheetJS for browser-side Excel parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
     <!-- Supabase JS SDK (브라우저 직접 연결용) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="admin.js"></script>

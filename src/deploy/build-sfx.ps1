@@ -3,9 +3,9 @@ $ErrorActionPreference = "Stop"
 Write-Host "=== XPIDER SFX Build ===" -ForegroundColor Cyan
 
 # 1. 포터블 ZIP 파일 찾기
-$zipFile = Get-ChildItem "out\make\zip\win32\x64\*.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
+$zipFile = Get-ChildItem "out\make\zip\win32\x64\*.zip" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $zipFile) {
-    $zipFile = Get-ChildItem "out\make\*.zip" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    $zipFile = Get-ChildItem "out\make\*.zip" -Recurse -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 }
 if (-not $zipFile) {
     Write-Error "ZIP file not found."
@@ -29,11 +29,12 @@ Copy-Item -Path $zipPath -Destination $targetZip -Force
 
 # 3. NuGet 복원 + Release 빌드
 $csprojPath = Join-Path $setupProjDir "XpiderSetup.csproj"
+$dotnetExe = "E:\vivpr\ai\full-xpider-v9\.dotnet\dotnet.exe"
 Write-Host "Restoring packages..." -ForegroundColor Yellow
-& dotnet restore $csprojPath --verbosity quiet
+& $dotnetExe restore $csprojPath --verbosity quiet
 
 Write-Host "Building (Release)..." -ForegroundColor Yellow
-& dotnet build $csprojPath -c Release --no-restore
+& $dotnetExe build $csprojPath -c Release --no-restore
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Build FAILED."

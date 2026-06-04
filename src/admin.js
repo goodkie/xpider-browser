@@ -820,3 +820,135 @@ window.handleSecureLogin = handleSecureLogin;
 window.handleAdminLogout = handleAdminLogout;
 window.triggerGithubBackup = triggerGithubBackup;
 window.triggerGithubRestore = triggerGithubRestore;
+
+// ─── Hidden Logs Viewer ────────────────────────
+async function loadHiddenLogs() {
+    if (!detailUserId) return;
+    const wrap = document.getElementById('hidden-logs-list-wrap');
+    if (!wrap) return;
+    wrap.innerHTML = '<div style="text-align:center;padding:20px;color:#7f90a6">로딩 중...</div>';
+    
+    const dateFilter = document.getElementById('hidden-log-date')?.value;
+    
+    try {
+        const sb = getSbAdmin();
+        const { data, error } = await sb.storage.from('hidden-logs').list(detailUserId, {
+            sortBy: { column: 'name', order: 'desc' }
+        });
+        
+        if (error) throw error;
+        if (!data || data.length === 0) {
+            wrap.innerHTML = '<div style="text-align:center;padding:20px;color:#7f90a6">해당 유저의 히든 로그 파일이 없습니다.</div>';
+            return;
+        }
+        
+        let files = data.filter(f => f.name.endsWith('.xlsx'));
+        if (dateFilter) {
+            files = files.filter(f => f.name.includes(dateFilter));
+        }
+        
+        if (files.length === 0) {
+            wrap.innerHTML = '<div style="text-align:center;padding:20px;color:#7f90a6">선택한 날짜의 히든 로그 파일이 없습니다.</div>';
+            return;
+        }
+        
+        const tableHtml = `
+            <table class="premium-table" style="font-size:12px">
+                <thead><tr><th>파일명</th><th>크기</th><th>생성일</th><th>액션</th></tr></thead>
+                <tbody>
+                    ${files.map(f => `
+                        <tr>
+                            <td>${f.name}</td>
+                            <td>${(f.metadata?.size / 1024).toFixed(1)} KB</td>
+                            <td>${new Date(f.created_at).toLocaleString('ko-KR')}</td>
+                            <td>
+                                <button class="glow-btn" style="font-size:11px;padding:4px 8px" onclick="viewExcelLog('${detailUserId}/${f.name}')">View Excel</button>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+        wrap.innerHTML = tableHtml;
+    } catch(e) {
+        wrap.innerHTML = `<div style="text-align:center;color:#ff3366">${e.message}</div>`;
+    }
+}
+
+async function viewExcelLog(path) {
+    appendDebugLog(`Requesting Excel file: ${path}`, 'api');
+    try {
+        const sb = getSbAdmin();
+        // signed url 생성 (브라우저에서 직접 접근 가능하도록 60초)
+        const { data, error } = await sb.storage.from('hidden-logs').createSignedUrl(path, 60);
+        if (error) throw error;
+        
+        const res = await fetch(data.signedUrl);
+        if (!res.ok) throw new Error('Failed to fetch file');
+        const arrayBuffer = await res.arrayBuffer();
+        
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        
+        document.getElementById('excel-viewer-modal').classList.remove('hidden');
+        document.getElementById('excel-viewer-title').textContent = path;
+        
+        const tabsContainer = document.getElementById('excel-tabs');
+        tabsContainer.innerHTML = '';
+        const contentContainer = document.getElementById('excel-content');
+        contentContainer.innerHTML = '';
+        
+        let firstSheet = true;
+        
+        workbook.SheetNames.forEach(sheetName => {
+            const btn = document.createElement('button');
+            btn.className = 'glow-btn';
+            btn.style.fontSize = '12px';
+            btn.style.padding = '5px 10px';
+            btn.style.border = 'none';
+            btn.style.cursor = 'pointer';
+            btn.style.background = firstSheet ? 'linear-gradient(135deg, #ae75ff 0%, #6c63ff 100%)' : '#222';
+            btn.style.color = '#fff';
+            btn.style.borderRadius = '4px';
+            btn.textContent = sheetName;
+            
+            const html = XLSX.utils.sheet_to_html(workbook.Sheets[sheetName], { editable: false });
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            div.style.display = firstSheet ? 'block' : 'none';
+            
+            const table = div.querySelector('table');
+            if (table) {
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+                table.querySelectorAll('td, th').forEach(cell => {
+                    cell.style.border = '1px solid rgba(255,255,255,0.2)';
+                    cell.style.padding = '4px 8px';
+                });
+            }
+            contentContainer.appendChild(div);
+            
+            btn.onclick = () => {
+                Array.from(tabsContainer.children).forEach(c => c.style.background = '#222');
+                btn.style.background = 'linear-gradient(135deg, #ae75ff 0%, #6c63ff 100%)';
+                Array.from(contentContainer.children).forEach(c => c.style.display = 'none');
+                div.style.display = 'block';
+            };
+            tabsContainer.appendChild(btn);
+            
+            firstSheet = false;
+        });
+        
+    } catch(e) {
+        appendDebugLog(`Failed to load Excel: ${e.message}`, 'error');
+        alert('엑셀 파일을 불러오지 못했습니다: ' + e.message);
+    }
+}
+
+function closeExcelViewer() {
+    document.getElementById('excel-viewer-modal').classList.add('hidden');
+    document.getElementById('excel-content').innerHTML = '';
+}
+
+window.loadHiddenLogs = loadHiddenLogs;
+window.viewExcelLog = viewExcelLog;
+window.closeExcelViewer = closeExcelViewer;

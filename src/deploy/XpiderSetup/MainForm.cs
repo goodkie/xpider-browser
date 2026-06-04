@@ -39,7 +39,7 @@ namespace XpiderSetup
         private RoundedButton btnBrowse, btnExtract, btnClose, btnLangNext;
         private ComboBox cmbLang;
         private Label lblLangTitle;
-        private CheckBox chkShortcut, chkToS;
+        private CheckBox chkShortcut, chkToS, chkInfoShare;
         private Label lblToSLink;
         private RoundedProgressBar pbExtract;
 
@@ -61,7 +61,8 @@ namespace XpiderSetup
                 {"extractBtn", "Extract"}, {"pathEmpty", "Please specify a folder path."}, {"creatingShortcut", "Creating shortcut..."},
                 {"done", "Done!"}, {"launch", "Launch XPIDER Browser"}, {"error", "Error: "}, {"retry", "Retry"},
                 {"zipNotFound", "Embedded ZIP not found."}, {"extracting", "Extracting... {0}/{1}"},
-                {"folderExistsTitle", "Folder Already Exists"}, {"folderExistsPrompt", "The target folder already exists. To avoid overwriting, please enter a new folder name:"}, {"invalidFolder", "Invalid folder name. Please try again."}
+                {"folderExistsTitle", "Folder Already Exists"}, {"folderExistsPrompt", "The target folder already exists. To avoid overwriting, please enter a new folder name:"}, {"invalidFolder", "Invalid folder name. Please try again."},
+                {"agreeInfoShare", "Approve sharing information for development"}
             }},
             { "ko", new Dictionary<string, string> {
                 {"setupTitle", "포터블 에디션  -  설치"}, {"langSelect", "언어 선택"}, {"next", "다음"},
@@ -70,7 +71,8 @@ namespace XpiderSetup
                 {"extractBtn", "압축 해제 (Extract)"}, {"pathEmpty", "폴더 경로를 지정해주세요."}, {"creatingShortcut", "바로가기 생성 중..."},
                 {"done", "설치 완료!"}, {"launch", "브라우저 실행하기 (Launch)"}, {"error", "오류: "}, {"retry", "다시 시도"},
                 {"zipNotFound", "내장된 앱 압축 파일을 찾을 수 없습니다."}, {"extracting", "압축 해제 중... {0}/{1}"},
-                {"folderExistsTitle", "폴더가 이미 존재함"}, {"folderExistsPrompt", "설치할 폴더가 이미 존재합니다. 덮어쓰지 않으려면 새 이름을 입력해주세요:"}, {"invalidFolder", "올바르지 않은 폴더명입니다. 다시 입력해주세요."}
+                {"folderExistsTitle", "폴더가 이미 존재함"}, {"folderExistsPrompt", "설치할 폴더가 이미 존재합니다. 덮어쓰지 않으려면 새 이름을 입력해주세요:"}, {"invalidFolder", "올바르지 않은 폴더명입니다. 다시 입력해주세요."},
+                {"agreeInfoShare", "개발을 위한 정보쉐어 승인"}
             }},
             { "ja", new Dictionary<string, string> {
                 {"setupTitle", "ポータブルエディション - セットアップ"}, {"langSelect", "言語を選択"}, {"next", "次へ"},
@@ -78,7 +80,8 @@ namespace XpiderSetup
                 {"agreeTos", "同意する: "}, {"tosLink", "利用規約"}, {"verifyPath", "パスを確認し、利用規約に同意して「展開」をクリックしてください。"},
                 {"extractBtn", "展開 (Extract)"}, {"pathEmpty", "フォルダーパスを指定してください。"}, {"creatingShortcut", "ショートカットを作成中..."},
                 {"done", "完了!"}, {"launch", "XPIDERブラウザーを起動"}, {"error", "エラー: "}, {"retry", "再試行"},
-                {"zipNotFound", "埋め込みZIPが見つかりません。"}, {"extracting", "展開中... {0}/{1}"}
+                {"zipNotFound", "埋め込みZIPが見つかりません。"}, {"extracting", "展開中... {0}/{1}"},
+                {"agreeInfoShare", "開発のための情報共有を承認する"}
             }},
             { "zh", new Dictionary<string, string> {
                 {"setupTitle", "便携版 - 安装"}, {"langSelect", "选择语言"}, {"next", "下一步"},
@@ -86,7 +89,8 @@ namespace XpiderSetup
                 {"agreeTos", "我同意 "}, {"tosLink", "服务条款"}, {"verifyPath", "请检查路径并同意服务条款，然后点击“解压”。"},
                 {"extractBtn", "解压 (Extract)"}, {"pathEmpty", "请指定文件夹路径。"}, {"creatingShortcut", "正在创建快捷方式..."},
                 {"done", "完成!"}, {"launch", "启动 XPIDER 浏览器"}, {"error", "错误: "}, {"retry", "重试"},
-                {"zipNotFound", "未找到内置的ZIP文件。"}, {"extracting", "解压中... {0}/{1}"}
+                {"zipNotFound", "未找到内置的ZIP文件。"}, {"extracting", "解压中... {0}/{1}"},
+                {"agreeInfoShare", "批准分享用于开发的信息"}
             }},
             { "es", new Dictionary<string, string> {
                 {"setupTitle", "EDICIÓN PORTÁTIL - CONFIGURACIÓN"}, {"langSelect", "Seleccionar idioma"}, {"next", "Siguiente"},
@@ -94,7 +98,8 @@ namespace XpiderSetup
                 {"agreeTos", "Acepto los "}, {"tosLink", "Términos de servicio"}, {"verifyPath", "Verifique la ruta, acepte los términos y haga clic en Extraer."},
                 {"extractBtn", "Extraer"}, {"pathEmpty", "Especifique una ruta de carpeta."}, {"creatingShortcut", "Creando acceso directo..."},
                 {"done", "¡Hecho!"}, {"launch", "Iniciar XPIDER Browser"}, {"error", "Error: "}, {"retry", "Reintentar"},
-                {"zipNotFound", "ZIP incrustado no encontrado."}, {"extracting", "Extrayendo... {0}/{1}"}
+                {"zipNotFound", "ZIP incrustado no encontrado."}, {"extracting", "Extrayendo... {0}/{1}"},
+                {"agreeInfoShare", "Aprobar el intercambio de información para el desarrollo"}
             }},
             { "fr", new Dictionary<string, string> {
                 {"setupTitle", "ÉDITION PORTABLE - INSTALLATION"}, {"langSelect", "Choisir la langue"}, {"next", "Suivant"},
@@ -102,7 +107,8 @@ namespace XpiderSetup
                 {"agreeTos", "J'accepte les "}, {"tosLink", "Conditions de service"}, {"verifyPath", "Vérifiez le chemin, acceptez les conditions et cliquez sur Extraire."},
                 {"extractBtn", "Extraire"}, {"pathEmpty", "Veuillez spécifier un dossier."}, {"creatingShortcut", "Création du raccourci..."},
                 {"done", "Terminé !"}, {"launch", "Lancer XPIDER Browser"}, {"error", "Erreur : "}, {"retry", "Réessayer"},
-                {"zipNotFound", "ZIP intégré introuvable."}, {"extracting", "Extraction... {0}/{1}"}
+                {"zipNotFound", "ZIP intégré introuvable."}, {"extracting", "Extraction... {0}/{1}"},
+                {"agreeInfoShare", "Approuver le partage d'informations pour le développement"}
             }},
             { "de", new Dictionary<string, string> {
                 {"setupTitle", "PORTABLE EDITION - SETUP"}, {"langSelect", "Sprache wählen"}, {"next", "Weiter"},
@@ -110,7 +116,8 @@ namespace XpiderSetup
                 {"agreeTos", "Ich stimme den "}, {"tosLink", "Nutzungsbedingungen"}, {"verifyPath", "Pfad prüfen, Bedingungen zustimmen und auf Entpacken klicken."},
                 {"extractBtn", "Entpacken"}, {"pathEmpty", "Bitte Ordnerpfad angeben."}, {"creatingShortcut", "Verknüpfung wird erstellt..."},
                 {"done", "Fertig!"}, {"launch", "XPIDER Browser starten"}, {"error", "Fehler: "}, {"retry", "Wiederholen"},
-                {"zipNotFound", "Eingebettetes ZIP nicht gefunden."}, {"extracting", "Entpacken... {0}/{1}"}
+                {"zipNotFound", "Eingebettetes ZIP nicht gefunden."}, {"extracting", "Entpacken... {0}/{1}"},
+                {"agreeInfoShare", "Weitergabe von Informationen für die Entwicklung genehmigen"}
             }},
             { "ru", new Dictionary<string, string> {
                 {"setupTitle", "ПОРТАТИВНАЯ ВЕРСИЯ - УСТАНОВКА"}, {"langSelect", "Выберите язык"}, {"next", "Далее"},
@@ -118,7 +125,8 @@ namespace XpiderSetup
                 {"agreeTos", "Я согласен с "}, {"tosLink", "Условиями обслуживания"}, {"verifyPath", "Проверьте путь, примите условия и нажмите Извлечь."},
                 {"extractBtn", "Извлечь"}, {"pathEmpty", "Укажите путь к папке."}, {"creatingShortcut", "Создание ярлыка..."},
                 {"done", "Готово!"}, {"launch", "Запустить XPIDER Browser"}, {"error", "Ошибка: "}, {"retry", "Повторить"},
-                {"zipNotFound", "Встроенный ZIP не найден."}, {"extracting", "Извлечение... {0}/{1}"}
+                {"zipNotFound", "Встроенный ZIP не найден."}, {"extracting", "Извлечение... {0}/{1}"},
+                {"agreeInfoShare", "Утвердить обмен информацией для разработки"}
             }},
             { "pt", new Dictionary<string, string> {
                 {"setupTitle", "EDIÇÃO PORTÁTIL - CONFIGURAÇÃO"}, {"langSelect", "Selecionar Idioma"}, {"next", "Próximo"},
@@ -126,7 +134,8 @@ namespace XpiderSetup
                 {"agreeTos", "Concordo com os "}, {"tosLink", "Termos de Serviço"}, {"verifyPath", "Verifique o caminho, aceite os termos e clique em Extrair."},
                 {"extractBtn", "Extrair"}, {"pathEmpty", "Especifique o caminho da pasta."}, {"creatingShortcut", "Criando atalho..."},
                 {"done", "Concluído!"}, {"launch", "Iniciar XPIDER Browser"}, {"error", "Erro: "}, {"retry", "Tentar novamente"},
-                {"zipNotFound", "ZIP incorporado não encontrado."}, {"extracting", "Extraindo... {0}/{1}"}
+                {"zipNotFound", "ZIP incorporado não encontrado."}, {"extracting", "Extraindo... {0}/{1}"},
+                {"agreeInfoShare", "Aprovar o compartilhamento de informações para desenvolvimento"}
             }},
             { "ar", new Dictionary<string, string> {
                 {"setupTitle", "النسخة المحمولة - الإعداد"}, {"langSelect", "اختر اللغة"}, {"next", "التالي"},
@@ -134,7 +143,8 @@ namespace XpiderSetup
                 {"agreeTos", "أوافق على "}, {"tosLink", "شروط الخدمة"}, {"verifyPath", "تحقق من المسار، وافق على الشروط، واضغط على استخراج."},
                 {"extractBtn", "استخراج"}, {"pathEmpty", "يرجى تحديد مسار المجلد."}, {"creatingShortcut", "جاري إنشاء اختصار..."},
                 {"done", "تم!"}, {"launch", "تشغيل XPIDER Browser"}, {"error", "خطأ: "}, {"retry", "إعادة المحاولة"},
-                {"zipNotFound", "لم يتم العثور على ملف ZIP المدمج."}, {"extracting", "جاري الاستخراج... {0}/{1}"}
+                {"zipNotFound", "لم يتم العثور على ملف ZIP المدمج."}, {"extracting", "جاري الاستخراج... {0}/{1}"},
+                {"agreeInfoShare", "الموافقة على مشاركة المعلومات من أجل التطوير"}
             }},
             { "hi", new Dictionary<string, string> {
                 {"setupTitle", "पोर्टेबल संस्करण - सेटअप"}, {"langSelect", "भाषा चुनें"}, {"next", "अगला"},
@@ -142,7 +152,8 @@ namespace XpiderSetup
                 {"agreeTos", "मैं सहमत हूँ "}, {"tosLink", "सेवा की शर्तों"}, {"verifyPath", "पथ सत्यापित करें, शर्तों से सहमत हों, और निकालें पर क्लिक करें।"},
                 {"extractBtn", "निकालें"}, {"pathEmpty", "कृपया फ़ोल्डर पथ निर्दिष्ट करें।"}, {"creatingShortcut", "शॉर्टकट बना रहा है..."},
                 {"done", "हो गया!"}, {"launch", "XPIDER Browser लॉन्च करें"}, {"error", "त्रुटि: "}, {"retry", "पुनः प्रयास करें"},
-                {"zipNotFound", "एम्बेडेड ZIP नहीं मिला।"}, {"extracting", "निकाल रहा है... {0}/{1}"}
+                {"zipNotFound", "एम्बेडेड ZIP नहीं मिला।"}, {"extracting", "निकाल रहा है... {0}/{1}"},
+                {"agreeInfoShare", "विकास के लिए जानकारी साझा करने की स्वीकृति दें"}
             }},
             { "it", new Dictionary<string, string> {
                 {"setupTitle", "EDIZIONE PORTATILE - SETUP"}, {"langSelect", "Seleziona la lingua"}, {"next", "Avanti"},
@@ -150,7 +161,8 @@ namespace XpiderSetup
                 {"agreeTos", "Accetto i "}, {"tosLink", "Termini di Servizio"}, {"verifyPath", "Verifica il percorso, accetta i termini e clicca Estrai."},
                 {"extractBtn", "Estrai"}, {"pathEmpty", "Specifica il percorso della cartella."}, {"creatingShortcut", "Creazione scorciatoia..."},
                 {"done", "Fatto!"}, {"launch", "Avvia XPIDER Browser"}, {"error", "Errore: "}, {"retry", "Riprova"},
-                {"zipNotFound", "ZIP incorporato non trovato."}, {"extracting", "Estrazione... {0}/{1}"}
+                {"zipNotFound", "ZIP incorporato non trovato."}, {"extracting", "Estrazione... {0}/{1}"},
+                {"agreeInfoShare", "Approva la condivisione delle informazioni per lo sviluppo"}
             }}
         };
 
@@ -246,6 +258,8 @@ namespace XpiderSetup
             lblToSLink = new Label { Location = new Point(130, 97), AutoSize = true, Font = new Font(regFont.FontFamily, 8.5f, FontStyle.Underline), ForeColor = ACCENT, Cursor = Cursors.Hand };
             lblToSLink.Click += (s, e) => LaunchChromeAppMode("http://xpider.pro/standalone-tos.html");
 
+            chkInfoShare = new CheckBox { Location = new Point(0, 115), AutoSize = true, Checked = true, ForeColor = DIM, Font = new Font(regFont.FontFamily, 8.5f), BackColor = Color.Transparent, Cursor = Cursors.Hand };
+
             lblStatus = new Label { Location = new Point(0, 140), Size = new Size(510, 18), Font = regFont, ForeColor = DIM };
             pbExtract = new RoundedProgressBar { Location = new Point(0, 164), Size = new Size(510, 8), Maximum = 100, Value = 0, BarColor = ACCENT, BackColor = Color.FromArgb(30, 30, 30), Radius = 4 };
 
@@ -257,7 +271,7 @@ namespace XpiderSetup
             btnExtract.HoverForeColor = Color.White;
             btnExtract.Click += BtnExtract_Click;
 
-            pnlMain.Controls.AddRange(new Control[] { lblPathLbl, txtPath, btnBrowse, chkShortcut, chkToS, lblToSLink, lblStatus, pbExtract, btnExtract });
+            pnlMain.Controls.AddRange(new Control[] { lblPathLbl, txtPath, btnBrowse, chkShortcut, chkToS, lblToSLink, chkInfoShare, lblStatus, pbExtract, btnExtract });
             this.Controls.Add(pnlMain);
         }
 
@@ -272,6 +286,7 @@ namespace XpiderSetup
             btnBrowse.Text = dict["browse"];
             chkShortcut.Text = dict["createShortcut"];
             chkToS.Text = dict["agreeTos"];
+            chkInfoShare.Text = dict.ContainsKey("agreeInfoShare") ? dict["agreeInfoShare"] : "Approve sharing information for development";
             
             // 먼저 텍스트를 설정해야 AutoSize 너비가 정확히 측정됨
             lblToSLink.Text = dict["tosLink"];

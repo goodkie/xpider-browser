@@ -276,7 +276,7 @@
   }
 
   .log-msg {
-    color: var(--text); flex: 1; word-break: break-all; white-space: pre-wrap;
+    flex: 1; color: var(--text); word-break: break-all; padding-right: 40px;
     font-size: 11.5px;
   }
   .log-msg mark {
@@ -284,10 +284,21 @@
     border-radius: 2px; padding: 0 1px;
   }
   .log-extra {
-    color: var(--text-dim); font-size: 10px; margin-left: 8px;
+    color: var(--text-dim); margin-left: 8px; font-size: 0.95em; opacity: 0.8;
     background: rgba(0,0,0,0.2); padding: 1px 5px; border-radius: 3px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px;
   }
+
+  /* ── 개별 복사 버튼 ── */
+  .log-row { position: relative; }
+  .log-copy-btn {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    opacity: 0; cursor: pointer; transition: opacity 0.2s, background 0.2s;
+    background: rgba(0, 200, 120, 0.15); border: 1px solid var(--border);
+    padding: 3px 6px; border-radius: 4px; font-size: 11px; z-index: 10;
+  }
+  .log-row:hover .log-copy-btn { opacity: 1; }
+  .log-copy-btn:hover { background: rgba(0, 255, 136, 0.3); box-shadow: 0 0 8px var(--green-glow); }
 
   /* ── 상태바 ── */
   #statusbar {
@@ -495,6 +506,8 @@ function buildRow(rec) {
   row.dataset.source = rec.source;
 
   const extraStr = rec.extra ? (' ' + JSON.stringify(rec.extra)).substring(0, 200) : '';
+  const logData = `[${formatTs(rec.ts)}] [${rec.level}] [${rec.source}] ${rec.msg}${rec.extra ? ' ' + JSON.stringify(rec.extra) : ''}`;
+  const escLogData = escHtml(logData).replace(/'/g, "\\'");
 
   row.innerHTML = `
     <span class="log-seq">${rec.seq}</span>
@@ -502,8 +515,19 @@ function buildRow(rec) {
     <span class="log-level ${levelClass(rec.level)}">[${rec.level}]</span>
     <span class="log-source" title="${escHtml(rec.source)}">${escHtml(rec.source)}</span>
     <span class="log-msg">${highlightKw(rec.msg, keyword)}${extraStr ? `<span class="log-extra">${escHtml(extraStr)}</span>` : ''}</span>
+    <span class="log-copy-btn" onclick="copyLogLine('${escLogData}', this)" title="Copy this log">📋</span>
   `;
   return row;
+}
+
+function copyLogLine(text, el) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = el.textContent;
+    el.textContent = '✅';
+    setTimeout(() => { el.textContent = orig; }, 1500);
+  }).catch(err => {
+    console.error('Failed to copy text: ', err);
+  });
 }
 
 /* ── 필터 적용 ─────────────────────────────────────────────────── */

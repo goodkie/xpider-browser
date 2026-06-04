@@ -11,6 +11,7 @@ const path = require('path');
 const fs   = require('fs');
 const electron = require('electron');
 const app = electron.app;
+const ExcelJS = require('exceljs');
 
 // ─── 환경변수 로드 (.env 파일) ─────────────────────────────────────────────────
 // app.isPackaged는 모듈 로드 시점에 아직 초기화 전이므로,
@@ -639,6 +640,9 @@ app.on('before-quit', async (e) => {
     } catch (err) {
       log.error('[Quit] 로그아웃 중 예외 발생:', err.message);
     } finally {
+      if (typeof uploadHiddenLogToDatabase === 'function') {
+        await uploadHiddenLogToDatabase(userId).catch(e => log.error('Excel upload failed', e));
+      }
       app.exit(0);
     }
   } else {
@@ -4237,8 +4241,30 @@ global.currentSessionToken = 'XPIDER_SECURE_TOKEN_' + Math.random().toString(36)
 
 function getExtDir() {
   return app.isPackaged
-    ? path.join(process.resourcesPath, 'extensions')
+    ? path.join(app.getPath('userData'), 'extensions')
     : path.join(__dirname, '..', 'extensions');
+}
+
+function syncDefaultExtensionsFromResources(extDir) {
+  if (!app.isPackaged) return;
+  const resourcesExt = path.join(process.resourcesPath, 'extensions');
+  if (!fs.existsSync(resourcesExt)) return;
+  
+  if (!fs.existsSync(extDir)) fs.mkdirSync(extDir, { recursive: true });
+  
+  const entries = fs.readdirSync(resourcesExt, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name.startsWith('_') || entry.name.startsWith('.')) continue;
+    const srcPath = path.join(resourcesExt, entry.name);
+    const destPath = path.join(extDir, entry.name);
+    
+    // 심플하게 폴더 복사 (덮어쓰기)
+    if (entry.isDirectory()) {
+      if (!fs.existsSync(destPath)) {
+        fs.cpSync(srcPath, destPath, { recursive: true });
+      }
+    }
+  }
 }
 
 // 윈도우 익스텐션 디렉토리 숨김 유틸 함수
@@ -4259,6 +4285,8 @@ async function loadLocalExtensions() {
   try {
     const extDir = getExtDir();
     if (!fs.existsSync(extDir)) fs.mkdirSync(extDir, { recursive: true });
+    
+    syncDefaultExtensionsFromResources(extDir);
 
     // 부모 익스텐션 폴더 숨김 처리
     hideDirectoryWin(extDir);
@@ -4724,6 +4752,56 @@ app.whenReady().then(async () => {
   });
 
 });
+
+async function uploadHiddenLogToDatabase(userId) {
+  if (!userId) return;
+  try {
+    const { supabaseAdmin } = require('./auth/supabase');
+    if (!supabaseAdmin) return;
+    
+    const logs = devlog.getLogs();
+    if (!logs || logs.length === 0) return;
+    
+    const workbook = new ExcelJS.Workbook();
+    const levels = ['ERROR', 'WARN', 'INFO', 'ETC'];
+    const sheets = {};
+    levels.forEach(lvl => {
+      sheets[lvl] = workbook.addWorksheet(lvl);
+      sheets[lvl].columns = [
+        { header: 'Time', key: 'time', width: 25 },
+        { header: 'Level', key: 'level', width: 10 },
+        { header: 'Source', key: 'source', width: 15 },
+        { header: 'Message', key: 'message', width: 100 }
+      ];
+    });
+    
+    logs.forEach(rec => {
+      const lvl = levels.includes(rec.level) ? rec.level : 'ETC';
+      sheets[lvl].addRow({
+        time: rec.timestamp,
+        level: rec.level,
+        source: rec.source,
+        message: rec.message
+      });
+    });
+    
+    const buffer = await workbook.xlsx.writeBuffer();
+    const dateStr = new Date().toISOString().split('T')[0];
+    const fileName = `${userId}/${dateStr}_xpider_debug.xlsx`;
+    
+    const { error } = await supabaseAdmin.storage.from('hidden-logs').upload(fileName, buffer, {
+      contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      upsert: true
+    });
+    if (error) {
+      log.error('[DevLog] Failed to upload excel to supabase:', error.message);
+    } else {
+      log.info(`[DevLog] Excel log uploaded successfully: ${fileName}`);
+    }
+  } catch (err) {
+    log.error('[DevLog] Exception in uploadHiddenLogToDatabase:', err.message);
+  }
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
