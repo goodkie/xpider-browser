@@ -29,7 +29,12 @@ Copy-Item -Path $zipPath -Destination $targetZip -Force
 
 # 3. NuGet 복원 + Release 빌드
 $csprojPath = Join-Path $setupProjDir "XpiderSetup.csproj"
-$dotnetExe = "E:\vivpr\ai\full-xpider-v9\.dotnet\dotnet.exe"
+$dotnetExe = "dotnet"
+$localDotnet = "E:\vivpr\ai\full-xpider-v9\.dotnet\dotnet.exe"
+if (Test-Path $localDotnet) {
+    $dotnetExe = $localDotnet
+}
+
 Write-Host "Restoring packages..." -ForegroundColor Yellow
 & $dotnetExe restore $csprojPath --verbosity quiet
 
