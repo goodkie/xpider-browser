@@ -154,27 +154,7 @@ jobs:
                   const swFilePath = path.join(extDir, entry.name, swFile);
                   if (fs.existsSync(swFilePath)) {
                     let swContent = fs.readFileSync(swFilePath, 'utf8');
-                    const polyfillCode = [
-                      "// --- AUTO-INJECTED CHROME.SCRIPTING POLYFILL FOR WIN7/ELECTRON22 ---",
-                      "if (typeof chrome === 'object' && typeof chrome.scripting === 'undefined') {",
-                      "  chrome.scripting = {",
-                      "    executeScript: function(opts, cb) {",
-                      "      if (opts.func) {",
-                      "        opts.code = '(' + opts.func.toString() + ')();';",
-                      "        delete opts.func;",
-                      "      }",
-                      "      return new Promise(resolve => {",
-                      "        chrome.tabs.executeScript(opts.target.tabId, opts, (res) => {",
-                      "          if (cb) cb(res);",
-                      "          resolve(res);",
-                      "        });",
-                      "      });",
-                      "    }",
-                      "  };",
-                      "}",
-                      "// -------------------------------------------------------------------",
-                      ""
-                    ].join('\n');
+                    const polyfillCode = Buffer.from('Ly8gLS0tIEFVVE8tSU5KRUNURUQgQ0hST01FLlNDUklQVElORyBQT0xZRklMTCBGT1IgV0lONy9FTEVDVFJPTjIyIC0tLQppZiAodHlwZW9mIGNocm9tZSA9PT0gJ29iamVjdCcgJiYgdHlwZW9mIGNocm9tZS5zY3JpcHRpbmcgPT09ICd1bmRlZmluZWQnKSB7CiAgY2hyb21lLnNjcmlwdGluZyA9IHsKICAgIGV4ZWN1dGVTY3JpcHQ6IGZ1bmN0aW9uKG9wdHMsIGNiKSB7CiAgICAgIGlmIChvcHRzLmZ1bmMpIHsKICAgICAgICBvcHRzLmNvZGUgPSAnKCcgKyBvcHRzLmZ1bmMudG9TdHJpbmcoKSArICcpKCk7JzsKICAgICAgICBkZWxldGUgb3B0cy5mdW5jOwogICAgICB9CiAgICAgIHJldHVybiBuZXcgUHJvbWlzZShyZXNvbHZlID0+IHsKICAgICAgICBjaHJvbWUudGFicy5leGVjdXRlU2NyaXB0KG9wdHMudGFyZ2V0LnRhYklkLCBvcHRzLCAocmVzKSA9PiB7CiAgICAgICAgICBpZiAoY2IpIGNiKHJlcyk7CiAgICAgICAgICByZXNvbHZlKHJlcyk7CiAgICAgICAgfSk7CiAgICAgIH0pOwogICAgfQogIH07Cn0KLy8gLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQoK', 'base64').toString('utf8');
                     
                     if (!swContent.includes('AUTO-INJECTED CHROME.SCRIPTING POLYFILL')) {
                       fs.writeFileSync(swFilePath, polyfillCode + swContent, 'utf8');
