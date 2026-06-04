@@ -2002,9 +2002,8 @@ await new Promise(r=>setTimeout(r,1000)); // extra buffer
 const f=await bestForm();
 if(!f){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
 const n=await fill(f);
-if(n < 3){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
 
-// 🛡️ [CAPTCHA Wait Guard] CAPTCHA가 존재하고 아직 풀리지 않았다면 대기
+// 🛡️ [CAPTCHA Wait Guard] CAPTCHA가 존재하고 아직 풀리지 않았다면 대기 (최대 3회 시도)
 try {
   const tsWidgetEl = document.querySelector('.cf-turnstile, [data-sitekey^="0x4"], iframe[src*="challenges.cloudflare.com"]');
   const hasCfTurnstile = !!tsWidgetEl;
@@ -2036,55 +2035,88 @@ try {
   }
 
   if (captchaWaiting) {
-      console.log("⏳ [XPIDER Form Filler] CAPTCHA detected. Checking solver status...");
+      console.log("⏳ [XPIDER Form Filler] CAPTCHA detected. Checking solver status (3 attempts max)...");
+      let solveSuccess = false;
       
-      // [레이스 컨디션 방지] UltraSolver Pro가 캡차를 감지하고 attribute를 심을 때까지 최대 3.5초 선행 대기
-      const startScan = Date.now();
-      while (Date.now() - startScan < 3500) {
-          const isSolving = document.documentElement.getAttribute('data-usp-solving');
-          if (isSolving === 'true' || isSolving === 'done') {
-              console.log("🤖 [XPIDER Form Filler] UltraSolver Pro confirmed solving active: " + isSolving);
-              break;
-          }
-          await new Promise(r => setTimeout(r, 200));
-      }
-
-      console.log("⏳ [XPIDER Form Filler] Waiting for solver to inject token...");
-      const maxCaptchaWait = 90000; // 최대 90초 대기
-      const startWait = Date.now();
-      
-      while (Date.now() - startWait < maxCaptchaWait) {
-          const solverState = document.documentElement.getAttribute('data-usp-solving');
-          const isSolverStillSolving = solverState === 'true';
-
-          const recTextarea = document.querySelector('textarea[name="g-recaptcha-response"], textarea[id="g-recaptcha-response"], [name*="recaptcha-response"], [id*="recaptcha-response"]');
-          const hTextarea = document.querySelector('textarea[name="h-captcha-response"], textarea[id="h-captcha-response"], [name*="h-captcha-response"], [id*="h-captcha-response"]');
+      for (let attempt = 1; attempt <= 3; attempt++) {
+          console.log("⏳ [XPIDER Form Filler] Attempt " + attempt + "/3 to solve CAPTCHA...");
           
-          let cfInput = document.querySelector('input[name="cf-turnstile-response"]');
-          if (!cfInput) {
-              const tsWidget = document.querySelector('.cf-turnstile, [data-response-field-name]');
-              const fieldName = tsWidget ? tsWidget.getAttribute('data-response-field-name') : null;
-              if (fieldName) {
-                  cfInput = document.querySelector('input[name="' + fieldName + '"], textarea[name="' + fieldName + '"]');
+          // [레이스 컨디션 방지] UltraSolver Pro가 캡차를 감지하고 attribute를 심을 때까지 최대 3.5초 선행 대기
+          const startScan = Date.now();
+          while (Date.now() - startScan < 3500) {
+              const isSolving = document.documentElement.getAttribute('data-usp-solving');
+              if (isSolving === 'true' || isSolving === 'done') {
+                  break;
               }
+              await new Promise(r => setTimeout(r, 200));
           }
-          if (!cfInput) {
-              cfInput = document.querySelector('input[name*="turnstile"], textarea[name*="turnstile"]');
+
+          console.log("⏳ [XPIDER Form Filler] Waiting for solver to inject token for attempt " + attempt + "...");
+          const attemptTimeout = 30000; // 시도당 30초 대기
+          const startWait = Date.now();
+          let currentAttemptSuccess = false;
+          
+          while (Date.now() - startWait < attemptTimeout) {
+              const solverState = document.documentElement.getAttribute('data-usp-solving');
+              const isSolverStillSolving = solverState === 'true';
+
+              const recTextarea = document.querySelector('textarea[name="g-recaptcha-response"], textarea[id="g-recaptcha-response"], [name*="recaptcha-response"], [id*="recaptcha-response"]');
+              const hTextarea = document.querySelector('textarea[name="h-captcha-response"], textarea[id="h-captcha-response"], [name*="h-captcha-response"], [id*="h-captcha-response"]');
+              
+              let cfInput = document.querySelector('input[name="cf-turnstile-response"]');
+              if (!cfInput) {
+                  const tsWidget = document.querySelector('.cf-turnstile, [data-response-field-name]');
+                  const fieldName = tsWidget ? tsWidget.getAttribute('data-response-field-name') : null;
+                  if (fieldName) {
+                      cfInput = document.querySelector('input[name="' + fieldName + '"], textarea[name="' + fieldName + '"]');
+                  }
+              }
+              if (!cfInput) {
+                  cfInput = document.querySelector('input[name*="turnstile"], textarea[name*="turnstile"]');
+              }
+              
+              const recVal = recTextarea ? recTextarea.value : '';
+              const hVal = hTextarea ? hTextarea.value : '';
+              const cfVal = cfInput ? cfInput.value : '';
+              
+              const isRecaptchaReady = !hasRecaptcha || (recTextarea && recVal && recVal.trim() !== '');
+              const isHcaptchaReady = !hasHcaptcha || (hTextarea && hVal && hVal.trim() !== '');
+              const isCfTurnstileReady = !hasCfTurnstile || (cfInput && cfVal && cfVal.trim() !== '');
+              
+              if (isRecaptchaReady && isHcaptchaReady && isCfTurnstileReady && !isSolverStillSolving) {
+                  currentAttemptSuccess = true;
+                  break;
+              }
+              await new Promise(r => setTimeout(r, 1000));
           }
           
-          const recVal = recTextarea ? recTextarea.value : '';
-          const hVal = hTextarea ? hTextarea.value : '';
-          const cfVal = cfInput ? cfInput.value : '';
-          
-          const isRecaptchaReady = !hasRecaptcha || (recTextarea && recVal && recVal.trim() !== '');
-          const isHcaptchaReady = !hasHcaptcha || (hTextarea && hVal && hVal.trim() !== '');
-          const isCfTurnstileReady = !hasCfTurnstile || (cfInput && cfVal && cfVal.trim() !== '');
-          
-          if (isRecaptchaReady && isHcaptchaReady && isCfTurnstileReady && !isSolverStillSolving) {
-              console.log("🎯 [XPIDER Form Filler] CAPTCHA token successfully injected! Proceeding to submit...");
+          if (currentAttemptSuccess) {
+              solveSuccess = true;
+              console.log("🎯 [XPIDER Form Filler] CAPTCHA successfully solved on attempt " + attempt + "!");
               break;
+          } else if (attempt < 3) {
+              console.log("⚠️ [XPIDER Form Filler] Attempt " + attempt + " failed. Resetting CAPTCHA for retry...");
+              try {
+                  if (hasRecaptcha && window.grecaptcha && typeof window.grecaptcha.reset === 'function') {
+                      window.grecaptcha.reset();
+                  }
+                  if (hasHcaptcha && window.hcaptcha && typeof window.hcaptcha.reset === 'function') {
+                      window.hcaptcha.reset();
+                  }
+                  if (hasCfTurnstile && window.turnstile && typeof window.turnstile.reset === 'function') {
+                      const ts = document.querySelector('.cf-turnstile');
+                      if (ts) window.turnstile.reset(ts);
+                      else window.turnstile.reset();
+                  }
+              } catch(e) {}
+              await new Promise(r => setTimeout(r, 2000));
           }
-          await new Promise(r => setTimeout(r, 1000));
+      }
+      
+      // 캅챠를 해결 성공하면 모든 폼이 입력되었는지 확인
+      if (solveSuccess) {
+          console.log("📝 [XPIDER Form Filler] Re-verifying and filling all form fields...");
+          await fill(f);
       }
   }
 } catch(e) {
@@ -2094,6 +2126,9 @@ try {
 // Human-like pause before submit
 await new Promise(r=>setTimeout(r, typeof submitDelayMs !== 'undefined' ? submitDelayMs : 1200));
 const ok = await submit(f);
+
+// 충분히 기다리기 (제출 후 5초간 대기하여 페이지 상태 변화가 반영되도록 보장)
+await new Promise(r => setTimeout(r, 5000));
 
 // 🔍 [Precision Submission Verifier] 실시간 초정밀 성공 관측 루프 (최대 20초)
 let finalSuccess = ok;
