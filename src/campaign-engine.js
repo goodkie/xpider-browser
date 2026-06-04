@@ -382,7 +382,7 @@ async function bypassTurnstileWidget() {
     const cfIframes = document.querySelectorAll('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]');
     for (const iframe of cfIframes) {
       try {
-        const iDoc = iframe.contentDocument || (iframe.contentWindow ? iframe.contentWindow.document : null);
+        const iDoc = iframe.contentDocument || iframe.contentWindow?.document;
         if (iDoc) {
           const checkbox = iDoc.querySelector('input[type="checkbox"], .cb-i, [id*="checkbox"]');
           if (checkbox && !checkbox.checked) {
@@ -580,8 +580,8 @@ async function tv(el,v){
     try{
       const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
       if(rk){
-        const props=el[rk] ? (el[rk].memoizedProps||el[rk].pendingProps||el[rk]) : el[rk];
-        if(props && typeof props.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+        const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
+        if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
       }
     }catch(e){}
     return el.value === v;
@@ -652,8 +652,8 @@ async function tv(el,v){
   try{
     const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
     if(rk){
-      const props=el[rk] ? (el[rk].memoizedProps||el[rk].pendingProps||el[rk]) : el[rk];
-      if(props && typeof props.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+      const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
+      if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
     }
   }catch(e){}
   
@@ -770,8 +770,8 @@ async function fillSelect(el){
   try{
     const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
     if(rk){
-      const props=el[rk] ? (el[rk].memoizedProps||el[rk].pendingProps||el[rk]) : el[rk];
-      if(props && typeof props.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+      const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
+      if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
     }
   }catch(e){}
   await new Promise(r=>setTimeout(r,100+Math.random()*100));
@@ -843,7 +843,7 @@ async function fillPhoneCountryCode(container) {
     for (const inp of telInputs) {
       // intl-tel-input 인스턴스 탐색
       try {
-        const iti = (window.intlTelInputGlobals ? window.intlTelInputGlobals.getInstance(inp) : null) || inp.__iti || inp._iti;
+        const iti = window.intlTelInputGlobals?.getInstance(inp) || inp.__iti || inp._iti;
         if (iti && typeof iti.setCountry === 'function') {
           iti.setCountry('us');
           filled++;
@@ -1509,7 +1509,7 @@ async function fill(c){
           if (/\blast.?name\b|\bsurname\b|\bfamily.?name\b|\blname\b/i.test(lbl.textContent || '')) {
             const forAttr = lbl.getAttribute('for');
             const targetEl = forAttr ? (c.querySelector('#' + CSS.escape(forAttr)) || document.getElementById(forAttr)) : null;
-            const linkedEl = targetEl || lbl.querySelector('input,textarea') || (lbl.parentElement ? lbl.parentElement.querySelector('input,textarea') : null);
+            const linkedEl = targetEl || lbl.querySelector('input,textarea') || lbl.parentElement?.querySelector('input,textarea');
             if (linkedEl && linkedEl.value !== lastVal && !linkedEl.disabled && !linkedEl.readOnly) {
               if (await tv(linkedEl, lastVal)) { used.add('lastName'); n++; break; }
             }
@@ -1541,7 +1541,7 @@ async function fill(c){
           if (/\bfirst.?name\b|\bgiven.?name\b|\bfname\b|\bforename\b/i.test(lbl.textContent || '')) {
             const forAttr = lbl.getAttribute('for');
             const targetEl = forAttr ? (c.querySelector('#' + CSS.escape(forAttr)) || document.getElementById(forAttr)) : null;
-            const linkedEl = targetEl || lbl.querySelector('input,textarea') || (lbl.parentElement ? lbl.parentElement.querySelector('input,textarea') : null);
+            const linkedEl = targetEl || lbl.querySelector('input,textarea') || lbl.parentElement?.querySelector('input,textarea');
             if (linkedEl && linkedEl.value !== firstVal && !linkedEl.disabled && !linkedEl.readOnly) {
               if (await tv(linkedEl, firstVal)) { used.add('firstName'); n++; break; }
             }
@@ -1662,8 +1662,8 @@ async function fill(c){
         try {
           const rk = Object.keys(el).find(k => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
           if (rk) {
-            const props = el[rk] ? (el[rk].memoizedProps || el[rk].pendingProps || el[rk]) : el[rk];
-            if (props && typeof props.onChange === 'function') {
+            const props = (el[rk]?.memoizedProps || el[rk]?.pendingProps || el[rk]);
+            if (typeof props?.onChange === 'function') {
               props.onChange({ target: el, currentTarget: el, type: 'change', bubbles: true });
             }
           }
@@ -1773,27 +1773,67 @@ async function submit(c){
       // 사람과 유사하게 15ms 시간 차이를 두며 이벤트를 연쇄 격발
       const sleep = ms => new Promise(r => setTimeout(r, ms));
       
-      el.dispatchEvent(new PointerEvent('pointerover', eventOpts));
+      const createPointerEvent = (type, opts) => {
+        try {
+          if (typeof window.PointerEvent === 'function') {
+            return new PointerEvent(type, opts);
+          }
+        } catch(e) {}
+        try {
+          const ev = document.createEvent('PointerEvent');
+          ev.initMouseEvent(
+            type, opts.bubbles, opts.cancelable, opts.view,
+            0, opts.screenX, opts.screenY, opts.clientX, opts.clientY,
+            false, false, false, false, opts.button, null
+          );
+          return ev;
+        } catch(e) {}
+        return null;
+      };
+
+      const createMouseEvent = (type, opts) => {
+        try {
+          return new MouseEvent(type, opts);
+        } catch(e) {}
+        try {
+          const ev = document.createEvent('MouseEvent');
+          ev.initMouseEvent(
+            type, opts.bubbles, opts.cancelable, opts.view,
+            0, opts.screenX, opts.screenY, opts.clientX, opts.clientY,
+            false, false, false, false, opts.button, null
+          );
+          return ev;
+        } catch(e) {}
+        return null;
+      };
+
+      const dispatchSafe = (target, ev) => {
+        if (target && ev) {
+          try { target.dispatchEvent(ev); } catch(e) {}
+        }
+      };
+      
+      dispatchSafe(el, createPointerEvent('pointerover', eventOpts));
       await sleep(15);
-      el.dispatchEvent(new MouseEvent('mouseover', eventOpts));
+      dispatchSafe(el, createMouseEvent('mouseover', eventOpts));
       await sleep(15);
-      el.dispatchEvent(new PointerEvent('pointerdown', eventOpts));
+      dispatchSafe(el, createPointerEvent('pointerdown', eventOpts));
       await sleep(15);
-      el.dispatchEvent(new MouseEvent('mousedown', eventOpts));
+      dispatchSafe(el, createMouseEvent('mousedown', eventOpts));
       await sleep(15);
       
       try { el.focus(); } catch(e){}
       
-      el.dispatchEvent(new PointerEvent('pointerup', eventOpts));
+      dispatchSafe(el, createPointerEvent('pointerup', eventOpts));
       await sleep(15);
-      el.dispatchEvent(new MouseEvent('mouseup', eventOpts));
+      dispatchSafe(el, createMouseEvent('mouseup', eventOpts));
       await sleep(15);
-      el.dispatchEvent(new PointerEvent('click', eventOpts));
+      dispatchSafe(el, createPointerEvent('click', eventOpts));
       await sleep(15);
-      el.dispatchEvent(new MouseEvent('click', eventOpts));
+      dispatchSafe(el, createMouseEvent('click', eventOpts));
       
       // 네이티브 click() 호출
-      el.click();
+      try { el.click(); } catch(e){}
       
       // 폼 제출 트리거 (AJAX 및 프레임워크 리스너를 우회하지 않도록 requestSubmit 우선 적용!)
       const form = el.form || el.closest('form');
@@ -1802,9 +1842,22 @@ async function submit(c){
           if (typeof form.requestSubmit === 'function') {
             form.requestSubmit(el);
           } else {
-            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-            form.dispatchEvent(submitEvent);
-            if (!submitEvent.defaultPrevented) {
+            let submitEvent;
+            try {
+              submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+            } catch(evtErr) {
+              try {
+                submitEvent = document.createEvent('Event');
+                submitEvent.initEvent('submit', true, true);
+              } catch(err) {}
+            }
+            
+            if (submitEvent) {
+              form.dispatchEvent(submitEvent);
+              if (!submitEvent.defaultPrevented) {
+                HTMLFormElement.prototype.submit.call(form);
+              }
+            } else {
               HTMLFormElement.prototype.submit.call(form);
             }
           }
@@ -1949,7 +2002,7 @@ await new Promise(r=>setTimeout(r,1000)); // extra buffer
 const f=await bestForm();
 if(!f){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
 const n=await fill(f);
-if(n < 1){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
+if(n < 3){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
 
 // 🛡️ [CAPTCHA Wait Guard] CAPTCHA가 존재하고 아직 풀리지 않았다면 대기
 try {
@@ -2282,8 +2335,8 @@ async function checkFormPresenceInAllFrames(wc) {
         // 실질적인 입력 가능한 필드 총합
         const totalFields = inputs.length + editables.length;
         
-        // 1개 이상의 폼 필드가 존재할 때만 폼이 있는 것으로 간주 (폼 인식율 극대화)
-        if (totalFields >= 1) return true;
+        // 3개 이상의 폼 필드가 존재할 때만 폼이 있는 것으로 간주 (메시지 전송 목적의 유효 폼 필터)
+        if (totalFields >= 3) return true;
 
         // [외부 폼 서비스 iframe 감지] HubSpot / Marketo / Pardot / Typeform 등은
         // 별도 iframe 안에 폼을 렌더링하므로 iframe src 패턴으로 감지
