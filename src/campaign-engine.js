@@ -382,7 +382,7 @@ async function bypassTurnstileWidget() {
     const cfIframes = document.querySelectorAll('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]');
     for (const iframe of cfIframes) {
       try {
-        const iDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        const iDoc = iframe.contentDocument || (iframe.contentWindow ? iframe.contentWindow.document : null);
         if (iDoc) {
           const checkbox = iDoc.querySelector('input[type="checkbox"], .cb-i, [id*="checkbox"]');
           if (checkbox && !checkbox.checked) {
@@ -580,8 +580,8 @@ async function tv(el,v){
     try{
       const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
       if(rk){
-        const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
-        if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+        const props=(el[rk] ? (el[rk].memoizedProps||el[rk].pendingProps) : null) || el[rk];
+        if(props && typeof props.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
       }
     }catch(e){}
     return el.value === v;
@@ -652,8 +652,8 @@ async function tv(el,v){
   try{
     const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
     if(rk){
-      const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
-      if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+      const props=(el[rk] ? (el[rk].memoizedProps||el[rk].pendingProps) : null) || el[rk];
+      if(props && typeof props.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
     }
   }catch(e){}
   
@@ -770,8 +770,8 @@ async function fillSelect(el){
   try{
     const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
     if(rk){
-      const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
-      if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+      const props=(el[rk] ? (el[rk].memoizedProps||el[rk].pendingProps) : null) || el[rk];
+      if(props && typeof props.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
     }
   }catch(e){}
   await new Promise(r=>setTimeout(r,100+Math.random()*100));
@@ -843,7 +843,7 @@ async function fillPhoneCountryCode(container) {
     for (const inp of telInputs) {
       // intl-tel-input 인스턴스 탐색
       try {
-        const iti = window.intlTelInputGlobals?.getInstance(inp) || inp.__iti || inp._iti;
+        const iti = (window.intlTelInputGlobals ? window.intlTelInputGlobals.getInstance(inp) : null) || inp.__iti || inp._iti;
         if (iti && typeof iti.setCountry === 'function') {
           iti.setCountry('us');
           filled++;
@@ -1509,7 +1509,7 @@ async function fill(c){
           if (/\blast.?name\b|\bsurname\b|\bfamily.?name\b|\blname\b/i.test(lbl.textContent || '')) {
             const forAttr = lbl.getAttribute('for');
             const targetEl = forAttr ? (c.querySelector('#' + CSS.escape(forAttr)) || document.getElementById(forAttr)) : null;
-            const linkedEl = targetEl || lbl.querySelector('input,textarea') || lbl.parentElement?.querySelector('input,textarea');
+            const linkedEl = targetEl || lbl.querySelector('input,textarea') || (lbl.parentElement ? lbl.parentElement.querySelector('input,textarea') : null);
             if (linkedEl && linkedEl.value !== lastVal && !linkedEl.disabled && !linkedEl.readOnly) {
               if (await tv(linkedEl, lastVal)) { used.add('lastName'); n++; break; }
             }
@@ -1541,7 +1541,7 @@ async function fill(c){
           if (/\bfirst.?name\b|\bgiven.?name\b|\bfname\b|\bforename\b/i.test(lbl.textContent || '')) {
             const forAttr = lbl.getAttribute('for');
             const targetEl = forAttr ? (c.querySelector('#' + CSS.escape(forAttr)) || document.getElementById(forAttr)) : null;
-            const linkedEl = targetEl || lbl.querySelector('input,textarea') || lbl.parentElement?.querySelector('input,textarea');
+            const linkedEl = targetEl || lbl.querySelector('input,textarea') || (lbl.parentElement ? lbl.parentElement.querySelector('input,textarea') : null);
             if (linkedEl && linkedEl.value !== firstVal && !linkedEl.disabled && !linkedEl.readOnly) {
               if (await tv(linkedEl, firstVal)) { used.add('firstName'); n++; break; }
             }
@@ -1662,8 +1662,8 @@ async function fill(c){
         try {
           const rk = Object.keys(el).find(k => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
           if (rk) {
-            const props = (el[rk]?.memoizedProps || el[rk]?.pendingProps || el[rk]);
-            if (typeof props?.onChange === 'function') {
+            const props = (el[rk] ? (el[rk].memoizedProps || el[rk].pendingProps) : null) || el[rk];
+            if (props && typeof props.onChange === 'function') {
               props.onChange({ target: el, currentTarget: el, type: 'change', bubbles: true });
             }
           }
