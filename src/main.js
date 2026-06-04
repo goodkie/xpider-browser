@@ -4260,9 +4260,7 @@ function syncDefaultExtensionsFromResources(extDir) {
     
     // 심플하게 폴더 복사 (덮어쓰기)
     if (entry.isDirectory()) {
-      if (!fs.existsSync(destPath)) {
-        fs.cpSync(srcPath, destPath, { recursive: true });
-      }
+      fs.cpSync(srcPath, destPath, { recursive: true, force: true });
     }
   }
 }

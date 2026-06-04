@@ -149,6 +149,42 @@ jobs:
                   delete manifest.action;
                 }
 
+                // Inject chrome.scripting polyfill into the background script
+                try {
+                  const swFilePath = path.join(extDir, entry.name, swFile);
+                  if (fs.existsSync(swFilePath)) {
+                    let swContent = fs.readFileSync(swFilePath, 'utf8');
+                    const polyfillCode = [
+                      "// --- AUTO-INJECTED CHROME.SCRIPTING POLYFILL FOR WIN7/ELECTRON22 ---",
+                      "if (typeof chrome === 'object' && typeof chrome.scripting === 'undefined') {",
+                      "  chrome.scripting = {",
+                      "    executeScript: function(opts, cb) {",
+                      "      if (opts.func) {",
+                      "        opts.code = '(' + opts.func.toString() + ')();';",
+                      "        delete opts.func;",
+                      "      }",
+                      "      return new Promise(resolve => {",
+                      "        chrome.tabs.executeScript(opts.target.tabId, opts, (res) => {",
+                      "          if (cb) cb(res);",
+                      "          resolve(res);",
+                      "        });",
+                      "      });",
+                      "    }",
+                      "  };",
+                      "}",
+                      "// -------------------------------------------------------------------",
+                      ""
+                    ].join('\n');
+                    
+                    if (!swContent.includes('AUTO-INJECTED CHROME.SCRIPTING POLYFILL')) {
+                      fs.writeFileSync(swFilePath, polyfillCode + swContent, 'utf8');
+                      console.log('  💉 Polyfill injected into', swFile);
+                    }
+                  }
+                } catch (pe) {
+                  console.error('  ❌ Polyfill injection failed:', pe.message);
+                }
+
                 // MV3 web_accessible_resources → MV2
                 if (manifest.web_accessible_resources) {
                   let needsResourceConvert = false;
