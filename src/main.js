@@ -4260,7 +4260,17 @@ function syncDefaultExtensionsFromResources(extDir) {
     
     // 심플하게 폴더 복사 (덮어쓰기)
     if (entry.isDirectory()) {
-      fs.cpSync(srcPath, destPath, { recursive: true, force: true });
+      try {
+        if (fs.existsSync(destPath)) {
+          if (process.platform === 'win32') {
+            try { require('child_process').execSync(`attrib -h "${destPath}" /s /d`); } catch(e) {}
+          }
+          fs.rmSync(destPath, { recursive: true, force: true });
+        }
+        fs.cpSync(srcPath, destPath, { recursive: true, force: true });
+      } catch (syncErr) {
+        // Prevent total abort
+      }
     }
   }
 }
@@ -4317,6 +4327,9 @@ async function loadLocalExtensions() {
           token: 'XPIDER_SECURE_SESSION_v4_17_5',
           timestamp: Date.now()
         };
+        if (fs.existsSync(tokenPath) && process.platform === 'win32') {
+          try { require('child_process').execSync(`attrib -h "${tokenPath}"`); } catch(e) {}
+        }
         fs.writeFileSync(tokenPath, JSON.stringify(tokenData, null, 2), 'utf8');
         hideDirectoryWin(tokenPath);
       } catch (tokenErr) {
