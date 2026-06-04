@@ -1617,6 +1617,14 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     wv.addEventListener('did-stop-loading', () => {
         document.getElementById(`tab-ui-${tabId}`).classList.remove('loading');
         if (activeTabId === tabId) reloadBtn.textContent = '↻';
+        
+        // Restore Zoom Factor on reload/navigate
+        const tInfo = tabs.find(x => x.id === tabId);
+        let factor = (tInfo && tInfo.zoomFactor) ? tInfo.zoomFactor : 1.0;
+        if (typeof wv.setZoomFactor === 'function') {
+            wv.setZoomFactor(factor);
+        }
+
         const currentUrl = wv.getURL();
         const currentTitle = wv.getTitle() || currentUrl;
         const realId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : 999999;
@@ -1751,6 +1759,13 @@ function switchTab(tabId) {
                 updateBookmarkIcon();
                 document.title = (t.title || 'XPIDER Browser') + (t.title ? ' - XPIDER Browser' : '');
                 wv.focus();
+
+                // Restore Zoom Factor when switching tabs
+                const tInfo = tabs.find(x => x.id === tabId);
+                let factor = (tInfo && tInfo.zoomFactor) ? tInfo.zoomFactor : 1.0;
+                if (typeof wv.setZoomFactor === 'function') {
+                    wv.setZoomFactor(factor);
+                }
                 
                 // 해당 웹뷰의 현재 로딩 상태에 따라 새로고침 버튼 텍스트 복구
                 if (typeof wv.isLoading === 'function' && wv.isLoading()) {
@@ -1906,3 +1921,44 @@ window.getWebviewById = function(id) {
     }
     return null;
 };
+
+// --- Zoom Functionality ---
+function applyZoom(tabId, factor) {
+    const wv = document.getElementById(`webview-${tabId}`);
+    if (wv && typeof wv.setZoomFactor === 'function') {
+        wv.setZoomFactor(factor);
+    }
+    const t = tabs.find(x => x.id === tabId);
+    if (t) {
+        t.zoomFactor = factor;
+    }
+}
+
+function handleZoomIn() {
+    if (!activeTabId) return;
+    const t = tabs.find(x => x.id === activeTabId);
+    let factor = (t && t.zoomFactor) ? t.zoomFactor : 1.0;
+    if (factor < 5.0) {
+        factor = parseFloat((factor + 0.1).toFixed(1));
+        applyZoom(activeTabId, factor);
+    }
+}
+
+function handleZoomOut() {
+    if (!activeTabId) return;
+    const t = tabs.find(x => x.id === activeTabId);
+    let factor = (t && t.zoomFactor) ? t.zoomFactor : 1.0;
+    if (factor > 0.25) {
+        factor = parseFloat((factor - 0.1).toFixed(1));
+        applyZoom(activeTabId, factor);
+    }
+}
+
+function handleZoomReset() {
+    if (!activeTabId) return;
+    applyZoom(activeTabId, 1.0);
+}
+
+window.electronAPI.on('zoom-in', handleZoomIn);
+window.electronAPI.on('zoom-out', handleZoomOut);
+window.electronAPI.on('zoom-reset', handleZoomReset);

@@ -4753,3 +4753,28 @@ process.on('unhandledRejection', (reason, promise) => {
     console.error('[XPIDER-CRASH] Failed to write crash log:', e);
   }
 });
+
+// --- Zoom Global Shortcuts ---
+app.on('web-contents-created', (event, contents) => {
+  contents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && input.control) {
+      if (input.key === '=' || input.key === '+') {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('zoom-in');
+          event.preventDefault();
+        }
+      } else if (input.key === '-') {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('zoom-out');
+          event.preventDefault();
+        }
+      } else if (input.key === '0') {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('zoom-reset');
+          event.preventDefault();
+        }
+      }
+    }
+  });
+});
+
