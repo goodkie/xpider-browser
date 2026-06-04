@@ -68,6 +68,17 @@
     box-shadow: 0 2px 20px rgba(0,255,100,0.08);
     -webkit-app-region: drag;
   }
+  
+  /* ── 윈도우 우측 상단 X 닫기 버튼 ── */
+  #window-close-btn {
+    position: absolute; right: 0; top: 0;
+    width: 48px; height: var(--toolbar-h);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-dim); font-size: 16px; cursor: pointer;
+    -webkit-app-region: no-drag;
+    transition: background 0.2s, color 0.2s;
+  }
+  #window-close-btn:hover { background: #e81123; color: #fff; }
 
   #toolbar > * { -webkit-app-region: no-drag; }
 
@@ -387,11 +398,13 @@
 
   <!-- 액션 버튼들 -->
   <div class="action-btns">
-    <button class="action-btn" id="btn-export-clipboard">📋 Copy</button>
+    <button class="action-btn" id="btn-export-clipboard">📋 Copy All</button>
     <button class="action-btn" id="btn-open-file">📁 Open File</button>
     <button class="action-btn danger" id="btn-clear">🗑 Clear</button>
-    <button class="action-btn close-btn" id="btn-close">✕ Close</button>
   </div>
+  
+  <!-- 우측 상단 X 닫기 버튼 -->
+  <div id="window-close-btn">✕</div>
 </div>
 
 <!-- ── 로그 컨테이너 ──────────────────────────────────────────────────── -->
@@ -588,15 +601,15 @@ $tsToggle.addEventListener('click', () => {
   $container.classList.toggle('ts-hidden', !showTs);
 });
 
-/* ── 클립보드 복사 ───────────────────────────────────────────────── */
+/* ── 클립보드 모두 복사 ───────────────────────────────────────────────── */
 document.getElementById('btn-export-clipboard').addEventListener('click', () => {
-  const text = filteredLogs.map(r =>
+  const text = allLogs.map(r =>
     `[${r.seq}] ${r.ts} [${r.level}] ${r.source} — ${r.msg}${r.extra ? ' ' + JSON.stringify(r.extra) : ''}`
   ).join('\n');
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById('btn-export-clipboard');
-    btn.textContent = '✅ Copied!';
-    setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000);
+    btn.textContent = '✅ Copied All!';
+    setTimeout(() => { btn.textContent = '📋 Copy All'; }, 2000);
   });
 });
 
@@ -618,7 +631,7 @@ document.getElementById('btn-clear').addEventListener('click', () => {
 });
 
 /* ── 창 닫기 ─────────────────────────────────────────────────────── */
-document.getElementById('btn-close').addEventListener('click', () => {
+document.getElementById('window-close-btn').addEventListener('click', () => {
   api.closeConsole();
 });
 
