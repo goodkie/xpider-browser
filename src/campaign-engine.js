@@ -382,7 +382,7 @@ async function bypassTurnstileWidget() {
     const cfIframes = document.querySelectorAll('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]');
     for (const iframe of cfIframes) {
       try {
-        const iDoc = iframe.contentDocument || iframe.contentWindow?.document;
+        const iDoc = iframe.contentDocument || (iframe.contentWindow ? iframe.contentWindow.document : null);
         if (iDoc) {
           const checkbox = iDoc.querySelector('input[type="checkbox"], .cb-i, [id*="checkbox"]');
           if (checkbox && !checkbox.checked) {
@@ -580,8 +580,8 @@ async function tv(el,v){
     try{
       const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
       if(rk){
-        const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
-        if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+        const props=el[rk] ? (el[rk].memoizedProps||el[rk].pendingProps||el[rk]) : el[rk];
+        if(props && typeof props.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
       }
     }catch(e){}
     return el.value === v;
@@ -652,8 +652,8 @@ async function tv(el,v){
   try{
     const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
     if(rk){
-      const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
-      if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+      const props=el[rk] ? (el[rk].memoizedProps||el[rk].pendingProps||el[rk]) : el[rk];
+      if(props && typeof props.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
     }
   }catch(e){}
   
@@ -770,8 +770,8 @@ async function fillSelect(el){
   try{
     const rk=Object.keys(el).find(k=>k.startsWith('__reactFiber')||k.startsWith('__reactInternalInstance'));
     if(rk){
-      const props=(el[rk]?.memoizedProps||el[rk]?.pendingProps||el[rk]);
-      if(typeof props?.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
+      const props=el[rk] ? (el[rk].memoizedProps||el[rk].pendingProps||el[rk]) : el[rk];
+      if(props && typeof props.onChange==='function')props.onChange({target:el,currentTarget:el,type:'change',bubbles:true});
     }
   }catch(e){}
   await new Promise(r=>setTimeout(r,100+Math.random()*100));
@@ -843,7 +843,7 @@ async function fillPhoneCountryCode(container) {
     for (const inp of telInputs) {
       // intl-tel-input 인스턴스 탐색
       try {
-        const iti = window.intlTelInputGlobals?.getInstance(inp) || inp.__iti || inp._iti;
+        const iti = (window.intlTelInputGlobals ? window.intlTelInputGlobals.getInstance(inp) : null) || inp.__iti || inp._iti;
         if (iti && typeof iti.setCountry === 'function') {
           iti.setCountry('us');
           filled++;
@@ -1509,7 +1509,7 @@ async function fill(c){
           if (/\blast.?name\b|\bsurname\b|\bfamily.?name\b|\blname\b/i.test(lbl.textContent || '')) {
             const forAttr = lbl.getAttribute('for');
             const targetEl = forAttr ? (c.querySelector('#' + CSS.escape(forAttr)) || document.getElementById(forAttr)) : null;
-            const linkedEl = targetEl || lbl.querySelector('input,textarea') || lbl.parentElement?.querySelector('input,textarea');
+            const linkedEl = targetEl || lbl.querySelector('input,textarea') || (lbl.parentElement ? lbl.parentElement.querySelector('input,textarea') : null);
             if (linkedEl && linkedEl.value !== lastVal && !linkedEl.disabled && !linkedEl.readOnly) {
               if (await tv(linkedEl, lastVal)) { used.add('lastName'); n++; break; }
             }
@@ -1541,7 +1541,7 @@ async function fill(c){
           if (/\bfirst.?name\b|\bgiven.?name\b|\bfname\b|\bforename\b/i.test(lbl.textContent || '')) {
             const forAttr = lbl.getAttribute('for');
             const targetEl = forAttr ? (c.querySelector('#' + CSS.escape(forAttr)) || document.getElementById(forAttr)) : null;
-            const linkedEl = targetEl || lbl.querySelector('input,textarea') || lbl.parentElement?.querySelector('input,textarea');
+            const linkedEl = targetEl || lbl.querySelector('input,textarea') || (lbl.parentElement ? lbl.parentElement.querySelector('input,textarea') : null);
             if (linkedEl && linkedEl.value !== firstVal && !linkedEl.disabled && !linkedEl.readOnly) {
               if (await tv(linkedEl, firstVal)) { used.add('firstName'); n++; break; }
             }
@@ -1662,8 +1662,8 @@ async function fill(c){
         try {
           const rk = Object.keys(el).find(k => k.startsWith('__reactFiber') || k.startsWith('__reactInternalInstance'));
           if (rk) {
-            const props = (el[rk]?.memoizedProps || el[rk]?.pendingProps || el[rk]);
-            if (typeof props?.onChange === 'function') {
+            const props = el[rk] ? (el[rk].memoizedProps || el[rk].pendingProps || el[rk]) : el[rk];
+            if (props && typeof props.onChange === 'function') {
               props.onChange({ target: el, currentTarget: el, type: 'change', bubbles: true });
             }
           }
@@ -1949,7 +1949,7 @@ await new Promise(r=>setTimeout(r,1000)); // extra buffer
 const f=await bestForm();
 if(!f){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
 const n=await fill(f);
-if(n < 3){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
+if(n < 1){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
 
 // 🛡️ [CAPTCHA Wait Guard] CAPTCHA가 존재하고 아직 풀리지 않았다면 대기
 try {
@@ -2282,8 +2282,8 @@ async function checkFormPresenceInAllFrames(wc) {
         // 실질적인 입력 가능한 필드 총합
         const totalFields = inputs.length + editables.length;
         
-        // 3개 이상의 폼 필드가 존재할 때만 폼이 있는 것으로 간주 (메시지 전송 목적의 유효 폼 필터)
-        if (totalFields >= 3) return true;
+        // 1개 이상의 폼 필드가 존재할 때만 폼이 있는 것으로 간주 (폼 인식율 극대화)
+        if (totalFields >= 1) return true;
 
         // [외부 폼 서비스 iframe 감지] HubSpot / Marketo / Pardot / Typeform 등은
         // 별도 iframe 안에 폼을 렌더링하므로 iframe src 패턴으로 감지
