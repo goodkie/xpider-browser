@@ -4365,11 +4365,6 @@ async function loadLocalExtensions() {
             });
             delete manifestJson.host_permissions;
           }
-          
-          // [Win7/Electron22 Compat] MV2에 존재하지 않는 'scripting' 권한 제거
-          if (manifestJson.permissions) {
-            manifestJson.permissions = manifestJson.permissions.filter(p => p !== 'scripting');
-          }
 
           // MV3 action → MV2 browser_action
           if (manifestJson.action) {
@@ -4377,6 +4372,12 @@ async function loadLocalExtensions() {
             delete manifestJson.action;
           }
 
+          manifestChanged = true;
+        }
+
+        // [Win7/Electron22 Compat] MV2에 존재하지 않는 'scripting' 권한 제거 (캐시된 깨진 매니페스트 복구용)
+        if (isLegacyElectron && manifestJson.permissions && manifestJson.permissions.includes('scripting')) {
+          manifestJson.permissions = manifestJson.permissions.filter(p => p !== 'scripting');
           manifestChanged = true;
         }
 
