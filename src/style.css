@@ -1642,3 +1642,10 @@ body, html {
 .btn:hover { background: var(--bg-hover); border-color: var(--text-dim); }
 .btn-yellow { background: var(--accent); color: #000; border: none; }
 .btn-yellow:hover { background: #eab308; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(234, 179, 8, 0.3); }
+
+/* Zoom Controls */
+.zoom-controls { display: flex; align-items: center; gap: 4px; margin-right: 12px; background: rgba(255, 255, 255, 0.05); padding: 4px 8px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); }
+.zoom-btn { background: transparent; border: none; color: #a4b3c6; font-size: 16px; cursor: pointer; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 0.2s, color 0.2s; }
+.zoom-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.zoom-level { font-size: 12px; font-weight: 600; color: #fff; min-width: 40px; text-align: center; cursor: pointer; user-select: none; }
+.zoom-level:hover { color: #f5a623; }

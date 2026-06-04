@@ -137,7 +137,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-download-progress',     // [v4.0] 다운로드 진행률
       'xpider-download-error',        // [v4.0] 다운로드 오류
       'xpider-vpn-state',              // [VPN] VPN 연결 상태 이벤트
-      'hot-update-progress'             // [HotUpdate] 업데이트 진행률 실시간 스트림
+      'hot-update-progress',             // [HotUpdate] 업데이트 진행률 실시간 스트림
+      'zoom-in', 'zoom-out', 'zoom-reset'
     ];
     if (allowed.includes(channel)) {
       ipcRenderer.on(channel, (_, ...args) => func(...args));

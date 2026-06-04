@@ -1764,6 +1764,11 @@ function switchTab(tabId) {
                 window.lastActiveTabInfo = tabInfo;
                 window.electronAPI.send('xpider-ext-report-active-tab', tabInfo);
 
+                // Update Zoom UI for the activated tab
+                const tInfo = tabs.find(x => x.id === tabId);
+                let factor = (tInfo && tInfo.zoomFactor) ? tInfo.zoomFactor : 1.0;
+                if (typeof updateZoomUI === 'function') updateZoomUI(factor);
+
                 // --- 맵 드래그 감지 및 자동 스크랩 트리거 ---
                 if (!wv.hasAttribute('data-drag-attached')) {
                     wv.setAttribute('data-drag-attached', 'true');
@@ -1906,3 +1911,60 @@ window.getWebviewById = function(id) {
     }
     return null;
 };
+
+// --- Zoom Functionality ---
+window.updateZoomUI = function(factor) {
+    const text = document.getElementById('zoom-level-text');
+    if (text) text.textContent = Math.round(factor * 100) + '%';
+};
+
+function applyZoom(tabId, factor) {
+    const wv = document.getElementById(`webview-${tabId}`);
+    if (wv && typeof wv.setZoomFactor === 'function') {
+        wv.setZoomFactor(factor);
+    }
+    const t = tabs.find(x => x.id === tabId);
+    if (t) {
+        t.zoomFactor = factor;
+    }
+    if (activeTabId === tabId) {
+        window.updateZoomUI(factor);
+    }
+}
+
+function handleZoomIn() {
+    if (!activeTabId) return;
+    const t = tabs.find(x => x.id === activeTabId);
+    let factor = (t && t.zoomFactor) ? t.zoomFactor : 1.0;
+    if (factor < 5.0) {
+        factor = parseFloat((factor + 0.1).toFixed(1));
+        applyZoom(activeTabId, factor);
+    }
+}
+
+function handleZoomOut() {
+    if (!activeTabId) return;
+    const t = tabs.find(x => x.id === activeTabId);
+    let factor = (t && t.zoomFactor) ? t.zoomFactor : 1.0;
+    if (factor > 0.25) {
+        factor = parseFloat((factor - 0.1).toFixed(1));
+        applyZoom(activeTabId, factor);
+    }
+}
+
+function handleZoomReset() {
+    if (!activeTabId) return;
+    applyZoom(activeTabId, 1.0);
+}
+
+const zoomInBtn = document.getElementById('zoom-in-btn');
+const zoomOutBtn = document.getElementById('zoom-out-btn');
+const zoomLevelText = document.getElementById('zoom-level-text');
+
+if (zoomInBtn) zoomInBtn.addEventListener('click', handleZoomIn);
+if (zoomOutBtn) zoomOutBtn.addEventListener('click', handleZoomOut);
+if (zoomLevelText) zoomLevelText.addEventListener('click', handleZoomReset);
+
+window.electronAPI.on('zoom-in', handleZoomIn);
+window.electronAPI.on('zoom-out', handleZoomOut);
+window.electronAPI.on('zoom-reset', handleZoomReset);
