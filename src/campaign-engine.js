@@ -511,8 +511,12 @@ function generateSmartRandomValue(el) {
   // 3. 텍스트 / 일반 글자 필드
   const templateVals = [tpl.firstName, tpl.lastName, tpl.name, tpl.email, tpl.phone, tpl.subject, tpl.message].filter(v => typeof v === 'string' && v.trim() !== '');
   const getRandomTemplateVal = () => {
-    if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
-    return "Inquiry";
+    const randSuffix = Math.random().toString(36).substring(2, 7);
+    if (templateVals.length > 0) {
+      const val = templateVals[Math.floor(Math.random() * templateVals.length)];
+      return val + '_' + randSuffix;
+    }
+    return "Inquiry_" + randSuffix;
   };
   
   if (/company|회사|org/i.test(c)) {
@@ -732,61 +736,32 @@ async function humanClick(el){
   await new Promise(r=>setTimeout(r,55+Math.random()*60));
 }
 
-// [v4.12.25] Smart SELECT dropdown filler
+// [v4.12.25] Smart SELECT dropdown filler (Random selection)
 async function fillSelect(el){
   if(!el||el.tagName!=='SELECT'||el.disabled)return false;
   const opts=Array.from(el.options);
   if(opts.length<=1)return false;
   // Skip if already has a valid non-default selection
   if(el.selectedIndex>0 && el.value && el.value.trim()!=='')return false;
-  const id=getFieldId(el);
-  let bestIdx=-1;
-  // Smart label-based matching
-  // [전화번호 국가코드 select] phone/dial/country-code 전용 드롭다운 → 미국(+1) 우선 선택
-  const isPhoneCodeSelect = /\\bphone.?code\\b|\\bdial.?code\\b|\\bcountry.?code\\b|\\bcalling.?code\\b|\\barea.?code\\b|\\bintl\\b|\\bcountry.?dial\\b/i.test(id) ||
-    opts.some(o => /^\\+1\\b|\\bUS\\b|\\bUSA\\b|United States/i.test(o.text) && opts.some(o2 => /^\\+44\\b|\\bUK\\b|United Kingdom/i.test(o2.text)));
-  if (isPhoneCodeSelect) {
-    // +1 / US / United States 우선
-    const usIdx = opts.findIndex(o => /^\\+1$|^1$|\\bUS\\b|\\bUSA\\b|United States/i.test(o.text.trim()) || o.value === '1' || o.value === '+1' || o.value === 'US' || o.value === 'us');
-    if (usIdx > 0) { bestIdx = usIdx; }
-    // 못 찾으면 +1이 포함된 항목 검색
-    if (bestIdx < 0) {
-      const plusOne = opts.findIndex(o => o.text.includes('+1') || o.value === '+1' || o.value === '1');
-      if (plusOne > 0) bestIdx = plusOne;
+  
+  // Pick random non-empty and non-disabled option (skip default 0-index option if others exist)
+  const validIndices = [];
+  for (let i = 1; i < opts.length; i++) {
+    if (opts[i].value && opts[i].value.trim() !== '' && !opts[i].disabled) {
+      validIndices.push(i);
     }
   }
-  if (bestIdx < 0 && /country|region|location|지역|국가|地域|国家/i.test(id)) {
-    // 일반 country select → 미국 우선
-    const prefs = ['united states', 'us', 'usa', 'united kingdom', 'uk', 'canada', 'australia'];
-    for (const pref of prefs) {
-      const idx = opts.findIndex(o => o.text.toLowerCase().includes(pref));
-      if (idx > 0) { bestIdx = idx; break; }
+  if (validIndices.length === 0) {
+    for (let i = 0; i < opts.length; i++) {
+      if (!opts[i].disabled) {
+        validIndices.push(i);
+      }
     }
   }
-  if(bestIdx<0 && /subject|topic|reason|purpose|inquiry|service|문의|件名|主题/i.test(id)){
-    // Try to match tpl.subject
-    if(tpl.subject){
-      const idx=opts.findIndex(o=>o.text.toLowerCase().includes(tpl.subject.toLowerCase().substring(0,15)));
-      if(idx>0)bestIdx=idx;
-    }
-    if(bestIdx<0){
-      const genIdx=opts.findIndex(o=>/general|other|기타|その他|其他|inquiry|info/i.test(o.text));
-      if(genIdx>0)bestIdx=genIdx;
-    }
-  }
-  if(bestIdx<0 && /salutation|title|prefix|호칭|敬称|称谓/i.test(id)){
-    const mrIdx=opts.findIndex(o=>/^mr\\.?$/i.test(o.text.trim())||/^ms\\.?$/i.test(o.text.trim()));
-    if(mrIdx>0)bestIdx=mrIdx;
-  }
-  if(bestIdx<0 && /how.*hear|how.*find|referral|알게/i.test(id)){
-    const webIdx=opts.findIndex(o=>/internet|website|web|search|google|online/i.test(o.text));
-    if(webIdx>0)bestIdx=webIdx;
-  }
-  // Fallback: pick first non-empty option
-  if(bestIdx<0){
-    bestIdx=opts.findIndex((o,i)=>i>0 && o.value && o.value.trim()!=='' && !o.disabled);
-  }
-  if(bestIdx<0)return false;
+  
+  if (validIndices.length === 0) return false;
+  const bestIdx = validIndices[Math.floor(Math.random() * validIndices.length)];
+  
   await humanClick(el);
   el.selectedIndex=bestIdx;
   el.value=opts[bestIdx].value;
@@ -803,7 +778,7 @@ async function fillSelect(el){
   return true;
 }
 
-// [v4.12.25] Smart radio group filler
+// [v4.12.25] Smart radio group filler (Random selection)
 async function fillRadioGroups(container){
   const radios=Array.from(container.querySelectorAll('input[type=radio]'));
   if(radios.length===0)return 0;
@@ -817,21 +792,12 @@ async function fillRadioGroups(container){
   for(const[name,items] of Object.entries(groups)){
     // Skip if already selected
     if(items.some(r=>r.checked))continue;
-    let chosen=null;
-    // Prefer positive/agreeable options
-    for(const r of items){
-      const lt=(lbl(r)+' '+(r.value||'')).toLowerCase();
-      if(/^yes$|agree|accept|confirm|동의|はい|同意|other|기타/i.test(lt)){chosen=r;break;}
-    }
-    // Prefer 'general' or first option
-    if(!chosen){
-      for(const r of items){
-        const lt=(lbl(r)+' '+(r.value||'')).toLowerCase();
-        if(/general|inquiry|info|문의|お問い合わせ|咨询/i.test(lt)){chosen=r;break;}
-      }
-    }
-    if(!chosen)chosen=items[0];
-    if(chosen && !chosen.disabled){
+    
+    const available = items.filter(r => !r.disabled);
+    if(available.length === 0) continue;
+    
+    const chosen = available[Math.floor(Math.random() * available.length)];
+    if(chosen){
       await humanClick(chosen);
       chosen.checked=true;
       ['input','change'].forEach(t=>chosen.dispatchEvent(new Event(t,{bubbles:true})));
@@ -842,7 +808,7 @@ async function fillRadioGroups(container){
   return filled;
 }
 
-// [v4.12.25] Smart checkbox filler (supports custom checkbox widgets and advanced labels)
+// [v4.12.25] Smart checkbox filler (Force check all available checkboxes)
 async function fillCheckboxes(container){
   const cbs = Array.from(container.querySelectorAll('input[type=checkbox], [role=checkbox], [class*="checkbox" i]:not(label):not(input)'));
   if(cbs.length===0)return 0;
@@ -851,27 +817,16 @@ async function fillCheckboxes(container){
     const isChecked = cb.type === 'checkbox' ? cb.checked : (cb.getAttribute('aria-checked') === 'true' || cb.classList.contains('checked') || cb.classList.contains('active'));
     if(isChecked || cb.disabled || cb.getAttribute('disabled') !== null) continue;
     
-    const lt=(getFieldId(cb)+' '+lbl(cb)).toLowerCase();
-    
-    // Must-check: required, terms, privacy, agree, policy, ueni, cookies
-    const mustCheck = cb.required || cb.getAttribute('required')!==null || cb.getAttribute('aria-required')==='true' || 
-                      /agree|terms|privacy|policy|consent|accept|ueni|cookies|decor|done.wright|heather|recaptcha|필수|동의|약관|同意|規約|条款|confirm|acknowledge/i.test(lt);
-    
-    // Skip opt-in marketing/newsletter
-    const isOptIn = /newsletter|subscribe|marketing|promo|offer|수신|구독|メルマガ|订阅/i.test(lt);
-    
-    if(mustCheck && !isOptIn){
-      await humanClick(cb);
-      if (cb.type === 'checkbox') {
-        cb.checked = true;
-      } else {
-        cb.setAttribute('aria-checked', 'true');
-        cb.classList.add('checked');
-      }
-      ['input','change','click'].forEach(t=>cb.dispatchEvent(new Event(t,{bubbles:true})));
-      filled++;
-      await new Promise(r=>setTimeout(r,80+Math.random()*80));
+    await humanClick(cb);
+    if (cb.type === 'checkbox') {
+      cb.checked = true;
+    } else {
+      cb.setAttribute('aria-checked', 'true');
+      cb.classList.add('checked');
     }
+    ['input','change','click'].forEach(t=>cb.dispatchEvent(new Event(t,{bubbles:true})));
+    filled++;
+    await new Promise(r=>setTimeout(r,80+Math.random()*80));
   }
   return filled;
 }
@@ -3049,8 +3004,15 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
                         } catch(e) {}
                     }
                     
-                    if (isNotFoundOrNoForm) {
-                        sendLog(`🛑 없는 페이지거나 폼이 존재하지 않는 탭입니다. 대기 없이 탭을 즉시 닫고 다음 타겟으로 이동합니다.`, 'info');
+                    // 실패 메시지가 확인된 경우 (CLIENT_VALIDATION_FAILED)
+                    const isClientValidationFailed = (reason === 'CLIENT_VALIDATION_FAILED');
+                    
+                    if (isNotFoundOrNoForm || isClientValidationFailed) {
+                        if (isClientValidationFailed) {
+                            sendLog(`❌ 실패 메시지(오류)가 감지되었습니다. 대기 없이 탭을 즉시 닫고 다음 타겟으로 이동합니다.`, 'warning');
+                        } else {
+                            sendLog(`🛑 없는 페이지거나 폼이 존재하지 않는 탭입니다. 대기 없이 탭을 즉시 닫고 다음 타겟으로 이동합니다.`, 'info');
+                        }
                         const tempTab = tabWC;
                         if (tempTab && !tempTab.isDestroyed()) {
                             await closeXpiderTab(tempTab);

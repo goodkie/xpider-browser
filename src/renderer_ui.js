@@ -1619,8 +1619,7 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
         if (activeTabId === tabId) reloadBtn.textContent = '↻';
         
         // Restore Zoom Factor on reload/navigate
-        const tInfo = tabs.find(x => x.id === tabId);
-        let factor = (tInfo && tInfo.zoomFactor) ? tInfo.zoomFactor : 1.0;
+        let factor = (window.globalZoomFactor !== undefined) ? window.globalZoomFactor : 1.0;
         if (typeof wv.setZoomFactor === 'function') {
             wv.setZoomFactor(factor);
         }
@@ -1761,8 +1760,7 @@ function switchTab(tabId) {
                 wv.focus();
 
                 // Restore Zoom Factor when switching tabs
-                const tInfo = tabs.find(x => x.id === tabId);
-                let factor = (tInfo && tInfo.zoomFactor) ? tInfo.zoomFactor : 1.0;
+                let factor = (window.globalZoomFactor !== undefined) ? window.globalZoomFactor : 1.0;
                 if (typeof wv.setZoomFactor === 'function') {
                     wv.setZoomFactor(factor);
                 }
@@ -1923,21 +1921,23 @@ window.getWebviewById = function(id) {
 };
 
 // --- Zoom Functionality ---
+window.globalZoomFactor = 1.0;
+
 function applyZoom(tabId, factor) {
-    const wv = document.getElementById(`webview-${tabId}`);
-    if (wv && typeof wv.setZoomFactor === 'function') {
-        wv.setZoomFactor(factor);
-    }
-    const t = tabs.find(x => x.id === tabId);
-    if (t) {
+    window.globalZoomFactor = factor;
+    const allWebviews = document.querySelectorAll('webview');
+    allWebviews.forEach(wv => {
+        if (typeof wv.setZoomFactor === 'function') {
+            wv.setZoomFactor(factor);
+        }
+    });
+    tabs.forEach(t => {
         t.zoomFactor = factor;
-    }
+    });
 }
 
 function handleZoomIn() {
-    if (!activeTabId) return;
-    const t = tabs.find(x => x.id === activeTabId);
-    let factor = (t && t.zoomFactor) ? t.zoomFactor : 1.0;
+    let factor = (window.globalZoomFactor !== undefined) ? window.globalZoomFactor : 1.0;
     if (factor < 5.0) {
         factor = parseFloat((factor + 0.1).toFixed(1));
         applyZoom(activeTabId, factor);
@@ -1945,9 +1945,7 @@ function handleZoomIn() {
 }
 
 function handleZoomOut() {
-    if (!activeTabId) return;
-    const t = tabs.find(x => x.id === activeTabId);
-    let factor = (t && t.zoomFactor) ? t.zoomFactor : 1.0;
+    let factor = (window.globalZoomFactor !== undefined) ? window.globalZoomFactor : 1.0;
     if (factor > 0.25) {
         factor = parseFloat((factor - 0.1).toFixed(1));
         applyZoom(activeTabId, factor);
@@ -1955,7 +1953,6 @@ function handleZoomOut() {
 }
 
 function handleZoomReset() {
-    if (!activeTabId) return;
     applyZoom(activeTabId, 1.0);
 }
 
