@@ -1,4 +1,15 @@
 // Electron/Node.js environment polyfill for Supabase
+if (typeof global.ReadableStream === 'undefined') {
+  try {
+    const webStream = require('stream/web');
+    global.ReadableStream = webStream.ReadableStream;
+    global.WritableStream = webStream.WritableStream;
+    global.TransformStream = webStream.TransformStream;
+  } catch (e) {
+    console.error('Failed to polyfill web streams:', e);
+  }
+}
+
 if (typeof global.Headers === 'undefined') {
   global.Headers = require('undici').Headers;
 }
