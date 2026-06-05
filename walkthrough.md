@@ -1,5 +1,17 @@
 # XPIDER AutoForm Sender Pro 폼 자동작성 고도화 및 최초 STT 설정 팝업 Walkthrough
 
+## 🚀 [v7.0.20] 웹 브라우저 단독 구동 시 Brevo API CORS 프록시 우회 추가 핫픽스
+
+어드민이 데스크톱 앱을 전혀 실행하지 않은 상태에서 최초로 웹 브라우저(Amplify)를 통해 대시보드에만 단독 접속했을 경우, Supabase 캐시가 없어 Brevo 크레딧 정보가 여전히 `API Error`로 노출되는 현상을 완벽히 규명하여 추가 핫픽스를 배포했습니다!
+- **CORS 프록시 우회 연동**:
+  - `admin.js`, `mobile.js`, `user-panel.js` 내부에서 현재 구동 환경이 웹 브라우저 단독 모드인지를 자동 판별하는 환경 인지 기능을 구현했습니다.
+  - 웹 브라우저 환경에서 직접 `api.brevo.com`으로 요청을 보낼 때, 헤더를 정상적으로 보존하고 우회 전달하는 무료 CORS 프록시 서비스인 `corsproxy.io`를 경유해 요청하도록 경로를 전면 수정했습니다.
+  - 이로써, 로컬 Electron 앱을 구동하고 있지 않더라도 브라우저에서 직접 실시간으로 Brevo 계정의 최신 크레딧 정보를 100% 정상 수신할 수 있게 완비했습니다.
+- **배포 및 빌드 갱신**:
+  - 배포 아카이브 `admin-deploy.zip` 및 `landing-deploy.zip`을 재빌드하고 package.json 버전을 `7.0.20`으로 릴리즈하여 깃 태그(`v7.0.20`) 및 origin main에 푸시 완료했습니다.
+
+---
+
 ## 🚀 [v7.0.19] 웹 대시보드 Brevo CORS 에러 우회 및 Electron 외경 링크 버그 핫픽스
 
 웹 브라우저 환경에서 Brevo API 직접 호출 시 발생하는 CORS 제한 에러 및 Electron 데스크톱 앱 내에서 `target="_blank"` 외부 링크 클릭 시 브라우저 새 창이 열리지 않던 결함을 완벽히 정밀 분석하여 완전히 해결했습니다!

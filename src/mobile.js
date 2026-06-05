@@ -656,7 +656,11 @@ async function loadBrevoCreditsMobile() {
             return;
         }
 
-        const accountRes = await fetch('https://api.brevo.com/v3/accounts', {
+        const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
+        const targetUrl = 'https://api.brevo.com/v3/accounts';
+        const finalUrl = isBrowser ? `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}` : targetUrl;
+
+        const accountRes = await fetch(finalUrl, {
             method: 'GET',
             headers: {
                 'accept': 'application/json',
