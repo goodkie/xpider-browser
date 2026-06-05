@@ -146,6 +146,16 @@ function renderProfile(profile) {
   } else if (lastLogin) {
     lastLogin.textContent = 'Just Now';
   }
+
+  // 어드민 전용 Command Center 제어
+  const adminPanel = document.getElementById('admin-panel');
+  if (adminPanel) {
+    if (profile.plan === 'admin') {
+      adminPanel.classList.remove('hidden');
+    } else {
+      adminPanel.classList.add('hidden');
+    }
+  }
 }
 
 // ─── Load Logs ──────────────────────────────────────────
