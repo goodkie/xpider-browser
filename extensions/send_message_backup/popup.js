@@ -832,7 +832,7 @@ function bindEvents() {
     }
 
     // Persistence for Template
-    ['tpl-first-name', 'tpl-last-name', 'tpl-name', 'tpl-email', 'tpl-phone', 'tpl-subject', 'tpl-message'].forEach(id => {
+    ['tpl-first-name', 'tpl-last-name', 'tpl-name', 'tpl-email', 'tpl-phone', 'tpl-company-name', 'tpl-address', 'tpl-city', 'tpl-state', 'tpl-zip', 'tpl-subject', 'tpl-message'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', saveTemplate);
     });
@@ -1118,6 +1118,11 @@ async function saveTemplateChanges() {
         name:      document.getElementById('tpl-name').value.trim(),
         email:     document.getElementById('tpl-email').value.trim(),
         phone:     document.getElementById('tpl-phone').value.trim(),
+        companyName: document.getElementById('tpl-company-name') ? document.getElementById('tpl-company-name').value.trim() : '',
+        address:     document.getElementById('tpl-address') ? document.getElementById('tpl-address').value.trim() : '',
+        city:        document.getElementById('tpl-city') ? document.getElementById('tpl-city').value.trim() : '',
+        state:       document.getElementById('tpl-state') ? document.getElementById('tpl-state').value.trim() : '',
+        zip:         document.getElementById('tpl-zip') ? document.getElementById('tpl-zip').value.trim() : '',
         subject:   document.getElementById('tpl-subject').value.trim(),
         message:   document.getElementById('tpl-message').value.trim()
     };
@@ -1158,12 +1163,17 @@ async function saveTemplateChanges() {
 function buildTemplateFileContent(tpl) {
     return `[XPIDER MESSAGE TEMPLATE]
 -----------------------------------------
-Full Name:  ${tpl.name || 'N/A'}
-First Name: ${tpl.firstName || 'N/A'}
-Last Name:  ${tpl.lastName || 'N/A'}
-Email:      ${tpl.email || 'N/A'}
-Phone:      ${tpl.phone || 'N/A'}
-Subject:    ${tpl.subject || 'N/A'}
+Full Name:     ${tpl.name || 'N/A'}
+First Name:    ${tpl.firstName || 'N/A'}
+Last Name:     ${tpl.lastName || 'N/A'}
+Email:         ${tpl.email || 'N/A'}
+Phone:         ${tpl.phone || 'N/A'}
+Company Name:  ${tpl.companyName || 'N/A'}
+Address:       ${tpl.address || 'N/A'}
+City:          ${tpl.city || 'N/A'}
+State:         ${tpl.state || 'N/A'}
+Zip Code:      ${tpl.zip || 'N/A'}
+Subject:       ${tpl.subject || 'N/A'}
 
 [MESSAGE BODY]
 -----------------------------------------
@@ -1290,6 +1300,11 @@ async function startCampaign() {
         name: document.getElementById('tpl-name').value,
         email: document.getElementById('tpl-email').value,
         phone: document.getElementById('tpl-phone').value,
+        companyName: document.getElementById('tpl-company-name') ? document.getElementById('tpl-company-name').value : '',
+        address: document.getElementById('tpl-address') ? document.getElementById('tpl-address').value : '',
+        city: document.getElementById('tpl-city') ? document.getElementById('tpl-city').value : '',
+        state: document.getElementById('tpl-state') ? document.getElementById('tpl-state').value : '',
+        zip: document.getElementById('tpl-zip') ? document.getElementById('tpl-zip').value : '',
         subject: document.getElementById('tpl-subject').value,
         message: document.getElementById('tpl-message').value
     };
@@ -1508,6 +1523,11 @@ function saveTemplate() {
         name: document.getElementById('tpl-name').value,
         email: document.getElementById('tpl-email').value,
         phone: document.getElementById('tpl-phone').value,
+        companyName: document.getElementById('tpl-company-name') ? document.getElementById('tpl-company-name').value : '',
+        address: document.getElementById('tpl-address') ? document.getElementById('tpl-address').value : '',
+        city: document.getElementById('tpl-city') ? document.getElementById('tpl-city').value : '',
+        state: document.getElementById('tpl-state') ? document.getElementById('tpl-state').value : '',
+        zip: document.getElementById('tpl-zip') ? document.getElementById('tpl-zip').value : '',
         subject: document.getElementById('tpl-subject').value,
         message: document.getElementById('tpl-message').value
     };
@@ -1589,6 +1609,11 @@ function loadTemplateFromLibrary() {
         document.getElementById('tpl-name').value        = tpl.name      || '';
         document.getElementById('tpl-email').value       = tpl.email     || '';
         document.getElementById('tpl-phone').value       = tpl.phone     || '';
+        if (document.getElementById('tpl-company-name')) document.getElementById('tpl-company-name').value = tpl.companyName || '';
+        if (document.getElementById('tpl-address'))      document.getElementById('tpl-address').value      = tpl.address      || '';
+        if (document.getElementById('tpl-city'))         document.getElementById('tpl-city').value         = tpl.city         || '';
+        if (document.getElementById('tpl-state'))        document.getElementById('tpl-state').value        = tpl.state        || '';
+        if (document.getElementById('tpl-zip'))          document.getElementById('tpl-zip').value          = tpl.zip          || '';
         document.getElementById('tpl-subject').value     = tpl.subject   || '';
         document.getElementById('tpl-message').value     = tpl.message   || '';
 
@@ -1634,6 +1659,11 @@ function importMessageFromFile(event) {
                 const matchLast = line.match(/Last Name:\s*(.*)/i);
                 const matchEmail = line.match(/Email:\s*(.*)/i);
                 const matchPhone = line.match(/Phone:\s*(.*)/i);
+                const matchCompany = line.match(/Company Name:\s*(.*)/i);
+                const matchAddress = line.match(/Address:\s*(.*)/i);
+                const matchCity = line.match(/City:\s*(.*)/i);
+                const matchState = line.match(/State:\s*(.*)/i);
+                const matchZip = line.match(/(Zip Code|Zip):\s*(.*)/i);
                 const matchSubject = line.match(/Subject:\s*(.*)/i);
 
                 if (matchName) document.getElementById('tpl-name').value = matchName[1].trim();
@@ -1641,6 +1671,11 @@ function importMessageFromFile(event) {
                 if (matchLast) document.getElementById('tpl-last-name').value = matchLast[1].trim();
                 if (matchEmail) document.getElementById('tpl-email').value = matchEmail[1].trim();
                 if (matchPhone) document.getElementById('tpl-phone').value = matchPhone[1].trim();
+                if (matchCompany && document.getElementById('tpl-company-name')) document.getElementById('tpl-company-name').value = matchCompany[1].trim();
+                if (matchAddress && document.getElementById('tpl-address')) document.getElementById('tpl-address').value = matchAddress[1].trim();
+                if (matchCity && document.getElementById('tpl-city')) document.getElementById('tpl-city').value = matchCity[1].trim();
+                if (matchState && document.getElementById('tpl-state')) document.getElementById('tpl-state').value = matchState[1].trim();
+                if (matchZip && document.getElementById('tpl-zip')) document.getElementById('tpl-zip').value = matchZip[2].trim();
                 if (matchSubject) document.getElementById('tpl-subject').value = matchSubject[1].trim();
             });
 
@@ -1669,6 +1704,11 @@ function importMessageFromFile(event) {
             name: document.getElementById('tpl-name').value,
             email: document.getElementById('tpl-email').value,
             phone: document.getElementById('tpl-phone').value,
+            companyName: document.getElementById('tpl-company-name') ? document.getElementById('tpl-company-name').value : '',
+            address: document.getElementById('tpl-address') ? document.getElementById('tpl-address').value : '',
+            city: document.getElementById('tpl-city') ? document.getElementById('tpl-city').value : '',
+            state: document.getElementById('tpl-state') ? document.getElementById('tpl-state').value : '',
+            zip: document.getElementById('tpl-zip') ? document.getElementById('tpl-zip').value : '',
             subject: document.getElementById('tpl-subject').value,
             message: document.getElementById('tpl-message').value
         };
@@ -1785,6 +1825,11 @@ async function loadSettings() {
         if (document.getElementById('tpl-name')) document.getElementById('tpl-name').value = data.xpider_tpl.name || '';
         if (document.getElementById('tpl-email')) document.getElementById('tpl-email').value = data.xpider_tpl.email || '';
         if (document.getElementById('tpl-phone')) document.getElementById('tpl-phone').value = data.xpider_tpl.phone || '';
+        if (document.getElementById('tpl-company-name')) document.getElementById('tpl-company-name').value = data.xpider_tpl.companyName || '';
+        if (document.getElementById('tpl-address'))      document.getElementById('tpl-address').value      = data.xpider_tpl.address      || '';
+        if (document.getElementById('tpl-city'))         document.getElementById('tpl-city').value         = data.xpider_tpl.city         || '';
+        if (document.getElementById('tpl-state'))        document.getElementById('tpl-state').value        = data.xpider_tpl.state        || '';
+        if (document.getElementById('tpl-zip'))          document.getElementById('tpl-zip').value          = data.xpider_tpl.zip          || '';
         if (document.getElementById('tpl-subject')) document.getElementById('tpl-subject').value = data.xpider_tpl.subject || '';
         if (document.getElementById('tpl-message')) document.getElementById('tpl-message').value = data.xpider_tpl.message || '';
     }

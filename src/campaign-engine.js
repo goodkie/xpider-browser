@@ -442,6 +442,11 @@ const P={
   lastName:[/\\blast.?name\\b/i,/\\bfamily.?name\\b/i,/\\bsurname\\b/i,/\\blname\\b/i,/\\blast\\b/i,/\\bfamily\\b/i,/성(?!명|함)/i,/苗字/i,/姓/i,/\\bapellido\\b/i,/\\bnom\\b/i,/\\bnachname\\b/i],
   name:[/\\bname\\b/i,/\\bfull.?name\\b/i,/\\byour.*name\\b/i,/\\bcontact.*name\\b/i,/\\bcustomer.*name\\b/i,/\\bsender.*name\\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/\bcontact.*person\b/i,/\bclient.*name\b/i],
   email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i],
+  companyName:[/company/i,/\\borg(anization)?\\b/i,/\\bcorp(oration)?\\b/i,/\\bfirm\\b/i,/\\bbusiness\\b/i,/회사/i,/기업/i,/상호/i],
+  address:[/[\\b]?add?ress\\b/i,/\\bstreet\\b/i,/\\baddr\\b/i,/\\bst\\b/i,/주소/i,/도로명/i],
+  city:[/\\bcity\\b/i,/\\btown\\b/i,/도시/i,/시\\.?군\\.?구/i,/시구/i],
+  state:[/\\bstate\\b/i,/\\bprovince\\b/i,/\\bcounty\\b/i,/\\bregion\\b/i,/주(?!소)/i,/도(?!록)/i,/시\\.?도/i],
+  zip:[/\\bzip\\b/i,/\\bpostal\\b/i,/\\bpost.?code\\b/i,/우편/i,/우편번호/i],
   subject:[/subject/i,/title(?!.*name)/i,/제목/i,/件名/i,/主题/i,/topic/i,/heading/i],
   phone:[/phone/i,/mobile/i,/tel(?!eg)/i,/전화/i,/手机/i,/电话/i,/fax/i],
   message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/detail/i,/note/i,/\\bmessage.*text\\b/i,/\\bbody.*text\\b/i]
@@ -519,10 +524,19 @@ function generateSmartRandomValue(el) {
   };
   
   if (/company|회사|org/i.test(c)) {
-    return (tpl.name || getRandomTemplateVal()) + ' Inc.';
+    return tpl.companyName || (tpl.name || getRandomTemplateVal()) + ' Inc.';
   }
   if (/address|주소/i.test(c)) {
-    return '123 Business Rd, New York, NY';
+    return tpl.address || '123 Business Rd, New York, NY';
+  }
+  if (/city|도시/i.test(c)) {
+    return tpl.city || 'New York';
+  }
+  if (/state|province|county|주(?!소)/i.test(c)) {
+    return tpl.state || 'NY';
+  }
+  if (/zip|postal|우편/i.test(c)) {
+    return tpl.zip || '10001';
   }
   if (/subject|제목|title/i.test(c)) {
     return tpl.subject || '';
@@ -1487,7 +1501,7 @@ async function fill(c){
     }
     
     // Default matching fallback for other primary fields
-    for(const k of['firstName','lastName','name','email','phone','subject','message']){
+    for(const k of['firstName','lastName','name','email','phone','companyName','address','city','state','zip','subject','message']){
       if(used.has(k)&&k!=='message')continue;
       
       let val = tpl[k];
