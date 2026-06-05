@@ -2067,27 +2067,141 @@ try {
   }
 
   if (captchaWaiting) {
+      // [v18.70.0] Real-time Captcha Solver Logs Floating Popup UI
+      const showSolverLogsPopup = () => {
+          if (document.getElementById('xpider-solver-popup')) return;
+          
+          const popup = document.createElement('div');
+          popup.id = 'xpider-solver-popup';
+          
+          const targetEl = document.querySelector('.g-recaptcha') || 
+                           document.querySelector('iframe[src*="recaptcha/api2/anchor"]') ||
+                           document.querySelector('.cf-turnstile') ||
+                           document.querySelector('iframe[src*="challenges.cloudflare.com"]') ||
+                           document.querySelector('[data-sitekey]');
+                           
+          let popupStyle = 'position: fixed; width: 380px; height: 200px; background: rgba(15, 23, 42, 0.92); ' +
+                           'backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.15); ' +
+                           'border-radius: 12px; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; ' +
+                           'box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65); z-index: 100000000; display: flex; flex-direction: column; ' +
+                           'overflow: hidden; transition: all 0.3s ease; ';
+
+          if (targetEl) {
+              const rect = targetEl.getBoundingClientRect();
+              const top = Math.max(10, Math.min(window.innerHeight - 220, rect.top - 210 + window.scrollY));
+              const left = Math.max(10, Math.min(window.innerWidth - 400, rect.left + rect.width / 2 - 190 + window.scrollX));
+              popupStyle += 'position: absolute; top: ' + top + 'px; left: ' + left + 'px; animation: xpiderFadeIn 0.3s ease-out forwards;';
+          } else {
+              popupStyle += 'position: fixed; bottom: 24px; right: 24px; animation: xpiderFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;';
+          }
+          
+          popup.style.cssText = popupStyle;
+
+          const style = document.createElement('style');
+          style.textContent = '@keyframes xpiderFadeIn { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } } ' +
+                              '@keyframes xpiderPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } } ' +
+                              '.solver-log-line { margin: 4px 0; font-size: 11px; line-height: 1.4; font-family: monospace; border-left: 2px solid #38bdf8; padding-left: 6px; } ' +
+                              '.solver-log-success { border-left-color: #4ade80 !important; color: #4ade80; } ' +
+                              '.solver-log-warn { border-left-color: #fbbf24 !important; color: #fbbf24; } ' +
+                              '.solver-log-info { border-left-color: #38bdf8 !important; color: #e2e8f0; }';
+          document.head.appendChild(style);
+
+          const header = document.createElement('div');
+          header.style.cssText = 'padding: 10px 14px; background: rgba(30, 41, 59, 0.5); border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; align-items: center; gap: 8px;';
+
+          const dot = document.createElement('div');
+          dot.id = 'xpider-solver-dot';
+          dot.style.cssText = 'width: 8px; height: 8px; background-color: #0ea5e9; border-radius: 50%; animation: xpiderPulse 1.5s infinite;';
+
+          const title = document.createElement('span');
+          title.id = 'xpider-solver-title';
+          title.innerText = 'REAL-TIME SOLVER LOGS';
+          title.style.cssText = 'font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: #38bdf8;';
+
+          header.appendChild(dot);
+          header.appendChild(title);
+
+          const consoleArea = document.createElement('div');
+          consoleArea.id = 'xpider-solver-console';
+          consoleArea.style.cssText = 'flex: 1; padding: 12px; overflow-y: auto; font-size: 11px; background: rgba(2, 6, 23, 0.4);';
+
+          popup.appendChild(header);
+          popup.appendChild(consoleArea);
+          document.body.appendChild(popup);
+      };
+
+      const addSolverLog = (msg, type = 'info') => {
+          try { showSolverLogsPopup(); } catch(e){}
+          const consoleArea = document.getElementById('xpider-solver-console');
+          if (!consoleArea) return;
+
+          const line = document.createElement('div');
+          line.className = 'solver-log-line solver-log-' + type;
+          
+          const now = new Date();
+          const pad = (n) => String(n).padStart(2, '0');
+          const timeStr = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+          
+          line.innerText = '[' + timeStr + '] ' + msg;
+          consoleArea.appendChild(line);
+          consoleArea.scrollTop = consoleArea.scrollHeight;
+      };
+
+      const closeSolverLogsPopup = (success = true) => {
+          const popup = document.getElementById('xpider-solver-popup');
+          if (!popup) return;
+
+          const title = document.getElementById('xpider-solver-title');
+          const dot = document.getElementById('xpider-solver-dot');
+          if (title && dot) {
+              title.innerText = success ? 'SOLVER SUCCESS' : 'SOLVER FAILED / TIMEOUT';
+              title.style.color = success ? '#4ade80' : '#f87171';
+              dot.style.backgroundColor = success ? '#4ade80' : '#f87171';
+              dot.style.animation = 'none';
+          }
+
+          setTimeout(() => {
+              popup.style.opacity = '0';
+              popup.style.transform = 'translateY(15px) scale(0.95)';
+              setTimeout(() => {
+                  popup.remove();
+              }, 300);
+          }, success ? 2000 : 3500);
+      };
+
       console.log("⏳ [XPIDER Form Filler] CAPTCHA detected. Checking solver status (3 attempts max)...");
+      addSolverLog("CAPTCHA detected. Checking solver status...", "info");
       let solveSuccess = false;
       
       for (let attempt = 1; attempt <= 3; attempt++) {
           console.log("⏳ [XPIDER Form Filler] Attempt " + attempt + "/3 to solve CAPTCHA...");
+          addSolverLog("Attempt " + attempt + "/3 to solve CAPTCHA...", "info");
           
           // [레이스 컨디션 방지] UltraSolver Pro가 캡차를 감지하고 attribute를 심을 때까지 최대 3.5초 선행 대기
           const startScan = Date.now();
+          let isUspActive = false;
           while (Date.now() - startScan < 3500) {
               const isSolving = document.documentElement.getAttribute('data-usp-solving');
               if (isSolving === 'true' || isSolving === 'done') {
+                  isUspActive = true;
                   break;
               }
               await new Promise(r => setTimeout(r, 200));
           }
+          
+          if (isUspActive) {
+              addSolverLog("Solver active (UltraSolver Pro engaged).", "info");
+          } else {
+              addSolverLog("Waiting for UltraSolver Pro initialization...", "warn");
+          }
 
           console.log("⏳ [XPIDER Form Filler] Waiting for solver to inject token for attempt " + attempt + "...");
+          addSolverLog("Solving CAPTCHA. Waiting for response token...", "info");
           const attemptTimeout = 30000; // 시도당 30초 대기
           const startWait = Date.now();
           let currentAttemptSuccess = false;
           
+          let lastTimeLeft = -1;
           while (Date.now() - startWait < attemptTimeout) {
               const solverState = document.documentElement.getAttribute('data-usp-solving');
               const isSolverStillSolving = solverState === 'true';
@@ -2119,15 +2233,25 @@ try {
                   currentAttemptSuccess = true;
                   break;
               }
+              
+              const elapsed = Math.floor((Date.now() - startWait) / 1000);
+              const timeLeft = Math.max(0, 30 - elapsed);
+              if (timeLeft % 5 === 0 && timeLeft !== lastTimeLeft && timeLeft > 0) {
+                  addSolverLog("Token pending... (" + timeLeft + "s remaining)", "info");
+                  lastTimeLeft = timeLeft;
+              }
               await new Promise(r => setTimeout(r, 1000));
           }
           
           if (currentAttemptSuccess) {
               solveSuccess = true;
               console.log("🎯 [XPIDER Form Filler] CAPTCHA successfully solved on attempt " + attempt + "!");
+              addSolverLog("CAPTCHA successfully solved on attempt " + attempt + "!", "success");
+              try { closeSolverLogsPopup(true); } catch(e){}
               break;
           } else if (attempt < 3) {
               console.log("⚠️ [XPIDER Form Filler] Attempt " + attempt + " failed. Resetting CAPTCHA for retry...");
+              addSolverLog("Attempt " + attempt + " failed. Resetting CAPTCHA for retry...", "warn");
               try {
                   if (hasRecaptcha && window.grecaptcha && typeof window.grecaptcha.reset === 'function') {
                       window.grecaptcha.reset();
@@ -2138,6 +2262,9 @@ try {
                   }
               } catch(e) {}
               await new Promise(r => setTimeout(r, 2000)); // 리셋 후 2초 대기
+          } else {
+              addSolverLog("All 3 attempts to solve CAPTCHA failed.", "warn");
+              try { closeSolverLogsPopup(false); } catch(e){}
           }
       }
   }
@@ -2855,7 +2982,7 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
                 closeXpiderTab(tempTabWC);
             }
             done({ success: false, reason: 'TIMEOUT' });
-        }, 120000);
+        }, 360000);
 
         try {
             // [블랙리스트 필터] 관공서 및 대기업/IT 유명 도메인 차단
