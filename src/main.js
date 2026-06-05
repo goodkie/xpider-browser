@@ -3925,7 +3925,7 @@ function sendExtProgress(msg) {
 
 // ─── 익스텐션 로드 시스템 ─────────────────────────────────────
 const { syncExtensionsFromGitHub } = require('./updater');
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
 
 // 3중 락용 프로그램 기동 시 고유 무작위 세션 토큰 생성
 global.currentSessionToken = 'XPIDER_SECURE_TOKEN_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -3934,6 +3934,17 @@ function getExtDir() {
   return app.isPackaged
     ? path.join(process.resourcesPath, 'extensions')
     : path.join(__dirname, '..', 'extensions');
+}
+
+// 윈도우 익스텐션 디렉토리 숨김 속성 해제 유틸 함수
+function unhidePathWin(targetPath) {
+  if (process.platform !== 'win32') return;
+  if (!targetPath || !fs.existsSync(targetPath)) return;
+  try {
+    execSync(`attrib -h -r -s "${targetPath}"`);
+  } catch (e) {
+    log.error(`[Extensions] Failed to unhide path ${targetPath}: ${e.message}`);
+  }
 }
 
 // 윈도우 익스텐션 디렉토리 숨김 유틸 함수
@@ -3958,9 +3969,6 @@ async function loadLocalExtensions() {
     // 부모 익스텐션 폴더 숨김 처리
     hideDirectoryWin(extDir);
 
-    // 개발모드 직접 편집: extensions/ 폴더를 직접 작업 위치로 사용
-    // (syncLocalExtensions 불필요 — browser/extensions/ 폴더에서 바로 편집)
-
     // 2. 로컬 폴더 스캔 → 브라우저에 로드
     const results = [];
     const entries = fs.readdirSync(extDir, { withFileTypes: true });
@@ -3977,6 +3985,7 @@ async function loadLocalExtensions() {
       // 동적 일회성 세션 토큰 파일 생성
       const tokenPath = path.join(extPath, 'security-token.json');
       try {
+        unhidePathWin(tokenPath); // 파일 쓰기 전 숨김 속성 해제
         const tokenData = {
           token: 'XPIDER_SECURE_SESSION_v4_17_5',
           timestamp: Date.now()
@@ -3993,6 +4002,7 @@ async function loadLocalExtensions() {
       // ─── [V999 설치 제한 우회] Manifest 임시 변조 기법 ───
       let originalManifestText = null;
       try {
+        unhidePathWin(manifestPath); // 파일 수정 전 숨김 속성 해제
         originalManifestText = fs.readFileSync(manifestPath, 'utf8');
         const manifestJson = JSON.parse(originalManifestText);
         if (manifestJson.minimum_chrome_version) {
@@ -4036,11 +4046,14 @@ async function loadLocalExtensions() {
         // [v1.1.0 Fix] Electron은 동일 경로 익스텐션을 세션에 캐시합니다.
         // 브라우저 재시작 시 manifest 변경사항(이름, 버전 등)이 반영되지 않으므로,
         // 로드 전에 기존 캐시를 제거하여 항상 최신 버전이 로드되도록 합니다.
+        // [DPI/Fallback] session.defaultSession.extensions 또는 session.defaultSession을 동적으로 선택
+        const extManager = session.defaultSession.extensions || session.defaultSession;
+
         try {
-          const allLoaded = session.defaultSession.extensions.getAllExtensions();
+          const allLoaded = extManager.getAllExtensions();
           for (const [cachedId, cachedExt] of Object.entries(allLoaded)) {
             if (cachedExt.path === extPath) {
-              await session.defaultSession.extensions.removeExtension(cachedId);
+              await extManager.removeExtension(cachedId);
               log.info(`[Extensions] Removed cached extension: ${cachedId} (${entry.name})`);
               break;
             }
@@ -4049,11 +4062,12 @@ async function loadLocalExtensions() {
           log.warn(`[Extensions] Cache removal skipped (${entry.name}): ${removeErr.message}`);
         }
 
-        const ext = await session.defaultSession.extensions.loadExtension(extPath, { allowFileAccess: true });
+        const ext = await extManager.loadExtension(extPath, { allowFileAccess: true });
 
         // ─── [V999 설치 제한 복원] 로드 성공 후 원래대로 복구 ───
         if (originalManifestText) {
           try {
+            unhidePathWin(manifestPath); // 파일 수정 전 숨김 속성 해제
             fs.writeFileSync(manifestPath, originalManifestText, 'utf8');
           } catch (restoreErr) {
             log.error(`[Extensions] Manifest restoration failed for ${entry.name}: ${restoreErr.message}`);
@@ -4075,6 +4089,7 @@ async function loadLocalExtensions() {
         // ─── [V999 설치 제한 복원] 로드 실패 시에도 원래대로 복구 ───
         if (originalManifestText) {
           try {
+            unhidePathWin(manifestPath); // 파일 수정 전 숨김 속성 해제
             fs.writeFileSync(manifestPath, originalManifestText, 'utf8');
           } catch (restoreErr) {
              // 조용한 실패
