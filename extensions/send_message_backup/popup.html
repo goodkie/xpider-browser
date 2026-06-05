@@ -101,12 +101,12 @@
                 </div>
 
                 <div class="control-group speed-slider-group">
-                    <!-- 수집 속도 -->
+                    <!-- 글로벌 타임아웃 제한 -->
                     <div class="slider-label-box">
-                        <label data-i18n="label_delay_collect">Collection Speed (Target Delay)</label>
-                        <span id="speed-collect-display" class="neon-yellow-text">Level 6 <small>(10s)</small></span>
+                        <label data-i18n="label_global_timeout">Global Timeout (Max Wait)</label>
+                        <span id="speed-collect-display" class="neon-yellow-text">300s</span>
                     </div>
-                    <input type="range" id="delay-input-collect" value="6" min="0" max="9" step="1" class="premium-slider">
+                    <input type="range" id="delay-input-collect" value="6" min="0" max="6" step="1" class="premium-slider">
                     
                     <!-- 자동 입력 속도 -->
                     <div class="slider-label-box" style="margin-top: 12px;">

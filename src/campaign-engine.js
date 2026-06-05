@@ -3044,7 +3044,7 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
                 closeXpiderTab(tempTabWC);
             }
             done({ success: false, reason: 'TIMEOUT' });
-        }, 360000);
+        }, state.globalTimeoutMs || 360000);
 
         try {
             // [블랙리스트 필터] 관공서 및 대기업/IT 유명 도메인 차단
@@ -3451,7 +3451,7 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
 }
 
 // ─── Main Campaign Loop ───────────────────────────────────────
-async function runCampaign(urls, template, delayMs, fillDelayMs = 300, submitDelayMs = 1500, fillMode = 'instant') {
+async function runCampaign(urls, template, delayMs, fillDelayMs = 300, submitDelayMs = 1500, fillMode = 'instant', globalTimeoutMs = 360000) {
     state.active = true; state.cancelled = false; state.paused = false;
     
     // [초기 필터링] 관공서 및 유명 사이트, 비즈니스 목적이 아닌 웹사이트를 큐 진입 시점에 사전 배제
@@ -3475,6 +3475,7 @@ async function runCampaign(urls, template, delayMs, fillDelayMs = 300, submitDel
     state.fillDelayMs = fillDelayMs || 300;
     state.submitDelayMs = submitDelayMs || 1500;
     state.fillMode = fillMode || 'instant';
+    state.globalTimeoutMs = globalTimeoutMs || 360000;
     state.successCount = 0; state.completedCount = 0; state.totalTargets = filteredUrls.length; state.sessionId++;
 
     sendLog(`🚀 Native Engine v3.0 (Super-Intelligent Form Filler) starting: ${filteredUrls.length} target(s)`, 'start');
@@ -3514,9 +3515,9 @@ async function runCampaign(urls, template, delayMs, fillDelayMs = 300, submitDel
     sendStats();
 }
 
-function start(urls, template, delayMs, fillDelayMs, submitDelayMs, fillMode) {
+function start(urls, template, delayMs, fillDelayMs, submitDelayMs, fillMode, globalTimeoutMs) {
     if (state.active) { sendLog('⚠️ Already running. Stop first.', 'warning'); return { success: false, error: 'Already running' }; }
-    runCampaign(urls, template, delayMs, fillDelayMs, submitDelayMs, fillMode).catch(e => sendLog(`❌ Engine crash: ${e.message}`, 'error'));
+    runCampaign(urls, template, delayMs, fillDelayMs, submitDelayMs, fillMode, globalTimeoutMs).catch(e => sendLog(`❌ Engine crash: ${e.message}`, 'error'));
     return { success: true, status: 'acknowledged' };
 }
 

@@ -546,15 +546,17 @@ function updateSpeedLabels() {
     const lang = document.getElementById('language-select')?.value || 'en';
     const dict = i18nData ? (i18nData[lang] || i18nData['en'] || {}) : {};
     
-    // 1. 수집 속도 매핑 라벨
+    // 1. 글로벌 타임아웃 매핑 라벨
     const collectSlider = document.getElementById('delay-input-collect');
     const collectDisplay = document.getElementById('speed-collect-display');
     if (collectSlider && collectDisplay) {
-        const level = collectSlider.value;
-        const msArr = [60000, 45000, 30000, 25000, 20000, 15000, 10000, 7000, 5000, 3000];
-        const sec = (msArr[parseInt(level)] || 10000) / 1000;
-        let label = `${dict.speed_level || 'Level'} ${level} <small>(${sec}s)</small>`;
-        if (level === '6') label += ` <small>${dict.speed_normal || '(Normal)'}</small>`;
+        const level = parseInt(collectSlider.value) || 0;
+        const timeouts = [30, 60, 90, 120, 180, 240, 300];
+        const sec = timeouts[level] || 300;
+        let label = `${sec}s`;
+        if (sec === 300) {
+            label += ` <small>(Default)</small>`;
+        }
         collectDisplay.innerHTML = label;
         
         // 레거시 연동용으로 hidden delay-input의 value도 대변 업데이트
@@ -1266,11 +1268,15 @@ async function startCampaign() {
     const levelFill = parseInt(delayFillInput ? delayFillInput.value : 6);
     const levelSubmit = parseInt(delaySubmitInput ? delaySubmitInput.value : 6);
     
-    const levelToCollectMs = [60000, 45000, 30000, 25000, 20000, 15000, 10000, 7000, 5000, 3000];
+    // 수집 딜레이는 10초(10000ms) 고정
+    const delayMs = 10000;
     const levelToFillMs = [2000, 1500, 1000, 800, 500, 400, 300, 200, 150, 100];
     const levelToSubmitMs = [5000, 4000, 3000, 2500, 2000, 1800, 1500, 1000, 700, 500];
     
-    const delayMs = levelToCollectMs[levelCollect] || 10000;
+    // 글로벌 타임아웃 매핑
+    const levelToTimeoutMs = [30000, 60000, 90000, 120000, 180000, 240000, 300000];
+    const globalTimeoutMs = levelToTimeoutMs[levelCollect] || 300000;
+    
     const fillDelayMs = levelToFillMs[levelFill] || 300;
     const submitDelayMs = levelToSubmitMs[levelSubmit] || 1500;
 
@@ -1281,7 +1287,8 @@ async function startCampaign() {
         template: currentTpl,
         delayMs,
         fillDelayMs,
-        submitDelayMs
+        submitDelayMs,
+        globalTimeoutMs
     }).then(response => {
         if (response && response.success) {
             addLog("✅ [Native Engine] Campaign started!", "success");
