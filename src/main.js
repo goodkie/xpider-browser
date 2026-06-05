@@ -218,7 +218,9 @@ function createUserPanelWindow() {
   userPanelWindow.once('ready-to-show', () => { userPanelWindow.show(); });
   userPanelWindow.on('closed', () => { userPanelWindow = null; });
   // 개발중: DevTools 열기 (prod에서 제거)
-  // userPanelWindow.webContents.openDevTools();
+  if (process.argv.includes('--dev') || process.argv.includes('--devlog') || process.env.XPIDER_DEV === 'true' || process.env.XPIDER_DEVLOG === 'true') {
+    userPanelWindow.webContents.openDevTools();
+  }
 }
 
 // ─── 로그인 새 ───────────────────────────────────────────────
@@ -391,6 +393,9 @@ function createWindow() {
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    if (process.argv.includes('--dev') || process.argv.includes('--devlog') || process.env.XPIDER_DEV === 'true' || process.env.XPIDER_DEVLOG === 'true') {
+      mainWindow.webContents.openDevTools();
+    }
     _startUserHeartbeat();
   });
 
@@ -4321,9 +4326,9 @@ app.whenReady().then(async () => {
   }
 
   // [v4.17.0] --devlog 인자로 시작 시 DevConsole 자동 오픈
-  if (process.argv.includes('--devlog')) {
+  if (process.argv.includes('--devlog') || process.env.XPIDER_DEVLOG === 'true') {
     setTimeout(() => createDevConsoleWindow(), 2000);
-    devlog.addLog('INFO', 'Main', '--devlog 플래그 감지 → DevConsole 자동 오픈 예약 (2초 후)');
+    devlog.addLog('INFO', 'Main', '--devlog 플래그 또는 XPIDER_DEVLOG 감지 → DevConsole 자동 오픈 예약 (2초 후)');
   }
 
   app.on('activate', () => {

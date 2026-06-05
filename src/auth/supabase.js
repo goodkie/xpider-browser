@@ -1,3 +1,17 @@
+// Electron/Node.js environment polyfill for Supabase
+if (typeof global.Headers === 'undefined') {
+  global.Headers = require('undici').Headers;
+}
+if (typeof global.Request === 'undefined') {
+  global.Request = require('undici').Request;
+}
+if (typeof global.Response === 'undefined') {
+  global.Response = require('undici').Response;
+}
+if (typeof global.fetch === 'undefined') {
+  global.fetch = require('undici').fetch;
+}
+
 const { createClient } = require('@supabase/supabase-js');
 
 const SUPABASE_URL = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
