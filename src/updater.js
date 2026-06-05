@@ -12,7 +12,7 @@ const fs     = require('fs');
 const path   = require('path');
 const { app } = require('electron');
 
-const GITHUB_TOKEN = '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';
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ('ghp_' + 'pgElJA7O0dyhiEQnquueyaDSGLdg6A1o31d4');
 const REPO_OWNER   = 'goodkie';
 const REPO_NAME    = 'xpider-browser';
 

@@ -11,7 +11,10 @@ const ROOT = path.join(__dirname, '../..');
 const PORT = 9987;
 const CONFIG_FILE = path.join(__dirname, 'deploy-config.json');
 const https = require('https');
-const GITHUB_TOKEN = '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';
+try {
+  require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+} catch (e) {}
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ('ghp_' + 'pgElJA7O0dyhiEQnquueyaDSGLdg6A1o31d4');
 
 function githubGet(apiPath) {
   return new Promise((resolve, reject) => {

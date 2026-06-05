@@ -99,6 +99,49 @@
       if (_nativeFns.has(this)) return `function ${this.name || ''}() { [native code] }`;
       return _origToString.call(this);
     };
+
+    // ── 4. [v5.0.0] Alert / Confirm / Prompt Dialog Blocker (Main World & Isolated World) ───
+    const { webFrame } = require('electron');
+    if (webFrame) {
+      webFrame.executeJavaScript(`
+        (function() {
+          try {
+            window.alert = function alert(msg) {
+              console.log('[XPIDER Main World Blocker] Blocked alert:', msg);
+              return true;
+            };
+            window.confirm = function confirm(msg) {
+              console.log('[XPIDER Main World Blocker] Blocked confirm:', msg);
+              return true;
+            };
+            window.prompt = function prompt(msg, defaultText) {
+              console.log('[XPIDER Main World Blocker] Blocked prompt:', msg);
+              return defaultText || '';
+            };
+          } catch(e) {
+            console.error('[XPIDER Main World Blocker] Injection failed:', e);
+          }
+        })();
+      `);
+    }
+
+    // Isolated World 대화상자 차단 폴백
+    window.alert = function alert(msg) {
+      console.log('[XPIDER Dialog Blocker] Blocked alert:', msg);
+      return true;
+    };
+    window.confirm = function confirm(msg) {
+      console.log('[XPIDER Dialog Blocker] Blocked confirm:', msg);
+      return true;
+    };
+    window.prompt = function prompt(msg, defaultText) {
+      console.log('[XPIDER Dialog Blocker] Blocked prompt:', msg);
+      return defaultText || '';
+    };
+
+    [window.alert, window.confirm, window.prompt].forEach(fn => {
+      if (typeof fn === 'function') _nativeFns.add(fn);
+    });
   } catch(e) {}
 })();
 
