@@ -112,6 +112,87 @@
             </div>
         </section>
 
+        <!-- Developer Resource Monitor (Only visible after secure login) -->
+        <section class="admin-resource-section" style="margin-top: 30px;">
+            <div class="section-header" style="margin-bottom: 20px;">
+                <h2 style="font-size: 20px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px;">⚙️</span> Developer Resource Monitor
+                </h2>
+                <p style="font-size: 13px; color: #7f90a6; margin-top: 4px;">Real-time balance status for active solver accounts, VPN nodes, and outbox SMTP relays.</p>
+            </div>
+            
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                <!-- 1. UltraSolver Pro -->
+                <div class="stat-card" style="border: 1px solid rgba(0, 242, 254, 0.15); background: linear-gradient(180deg, rgba(0, 242, 254, 0.03) 0%, transparent 100%); flex-direction: column; align-items: flex-start;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px; width: 100%;">
+                        <div class="stat-icon-wrap" style="color: #00f2fe; background: rgba(0, 242, 254, 0.1); box-shadow: 0 0 15px rgba(0, 242, 254, 0.2); width: 44px; height: 44px; font-size: 18px; margin: 0;">🤖</div>
+                        <div class="stat-label" style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">UltraSolver Pro</div>
+                    </div>
+                    <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #a4b3c6;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Remaining Tokens:</span>
+                            <span style="font-weight: 700; color: #fff;">1,250 Tokens</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 6px;">
+                            <span>Balance:</span>
+                            <span style="font-weight: 700; color: #00f2fe;">$2.50</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px; width: 100%;">
+                        <a href="https://2captcha.com?from=18329628" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px; border-radius: 8px; background: rgba(0, 242, 254, 0.1); border: 1px solid rgba(0, 242, 254, 0.25); color: #00f2fe; text-decoration: none; font-size: 12px; font-weight: 700; transition: all 0.2s;" onmouseover="this.style.background='rgba(0, 242, 254, 0.2)'" onmouseout="this.style.background='rgba(0, 242, 254, 0.1)'">
+                            <span>Recharge Solver</span> ⚡
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 2. XPIDER VPN -->
+                <div class="stat-card" style="border: 1px solid rgba(139, 92, 246, 0.15); background: linear-gradient(180deg, rgba(139, 92, 246, 0.03) 0%, transparent 100%); flex-direction: column; align-items: flex-start;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px; width: 100%;">
+                        <div class="stat-icon-wrap" style="color: #a78bfa; background: rgba(139, 92, 246, 0.1); box-shadow: 0 0 15px rgba(139, 92, 246, 0.2); width: 44px; height: 44px; font-size: 18px; margin: 0;">🛡️</div>
+                        <div class="stat-label" style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">XPIDER VPN</div>
+                    </div>
+                    <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #a4b3c6;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Remaining Traffic:</span>
+                            <span style="font-weight: 700; color: #fff;">45 GB (24 Days)</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 6px;">
+                            <span>Balance:</span>
+                            <span style="font-weight: 700; color: #a78bfa;">$12.00</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px; width: 100%;">
+                        <a href="https://xpider.pro/vpn-recharge" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px; border-radius: 8px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.25); color: #a78bfa; text-decoration: none; font-size: 12px; font-weight: 700; transition: all 0.2s;" onmouseover="this.style.background='rgba(139, 92, 246, 0.2)'" onmouseout="this.style.background='rgba(139, 92, 246, 0.1)'">
+                            <span>Recharge VPN</span> 🌍
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 3. XPIDER SendForce Mailer Pro -->
+                <div class="stat-card" style="border: 1px solid rgba(236, 72, 153, 0.15); background: linear-gradient(180deg, rgba(236, 72, 153, 0.03) 0%, transparent 100%); flex-direction: column; align-items: flex-start;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px; width: 100%;">
+                        <div class="stat-icon-wrap" style="color: #ec4899; background: rgba(236, 72, 153, 0.1); box-shadow: 0 0 15px rgba(236, 72, 153, 0.2); width: 44px; height: 44px; font-size: 18px; margin: 0;">✈️</div>
+                        <div class="stat-label" style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">SendForce Mailer Pro</div>
+                    </div>
+                    <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #a4b3c6;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Remaining Emails:</span>
+                            <span style="font-weight: 700; color: #fff;">15,000 Emails</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 6px;">
+                            <span>Balance:</span>
+                            <span style="font-weight: 700; color: #ec4899;">$8.50</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px; width: 100%;">
+                        <a href="https://xpider.pro/mailer-recharge" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px; border-radius: 8px; background: rgba(236, 72, 153, 0.1); border: 1px solid rgba(236, 72, 153, 0.25); color: #ec4899; text-decoration: none; font-size: 12px; font-weight: 700; transition: all 0.2s;" onmouseover="this.style.background='rgba(236, 72, 153, 0.2)'" onmouseout="this.style.background='rgba(236, 72, 153, 0.1)'">
+                            <span>Top-up Outbox</span> 🔑
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Dynamic Dashboard Grid -->
         <main class="dashboard-grid">
             <!-- Left Side: Control & Monitoring -->
