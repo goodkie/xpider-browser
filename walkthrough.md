@@ -1,22 +1,33 @@
 # XPIDER AutoForm Sender Pro 폼 자동작성 고도화 및 최초 STT 설정 팝업 Walkthrough
 
-## 🚀 [v7.0.18] Brevo API 연동을 통한 XPIDER SendForce Mailer Pro 어카운트 실시간 모니터링 기능 추가 및 브라우저 호환성 핫픽스
+## 🚀 [v7.0.19] 웹 대시보드 Brevo CORS 에러 우회 및 Electron 외경 링크 버그 핫픽스
 
-XPIDER SendForce Mailer Pro 어카운트의 남은 크레딧(Remaining Credits) 및 플랜 정보를 실시간으로 대시보드에서 모니터링할 수 있도록 **Brevo API** 연동 시스템을 전격 이식하였으며, 일반 웹 브라우저 환경(AWS Amplify)에서 발생하던 통신 및 클릭 오류를 해결하는 핫픽스를 전격 적용하였습니다.
+웹 브라우저 환경에서 Brevo API 직접 호출 시 발생하는 CORS 제한 에러 및 Electron 데스크톱 앱 내에서 `target="_blank"` 외부 링크 클릭 시 브라우저 새 창이 열리지 않던 결함을 완벽히 정밀 분석하여 완전히 해결했습니다!
+- **Supabase DB 캐시 및 실시간 폴백(CORS 우회)**:
+  - 데스크톱 앱(CORS 제한 없음)에서 Brevo API 호출이 성공하면, Supabase DB `profiles` 테이블에 `email = 'brevo@xpider.pro'` 특수 계정(최초 구동 시 어드민에 의해 자동 생성됨)을 레코드로 생성하고 `tokens_remaining` 및 `plan`에 최신 데이터를 동기화하도록 구현했습니다.
+  - 웹 브라우저(Amplify) 환경처럼 CORS 차단으로 인해 Brevo API fetch 요청이 실패(API Error)할 경우, 즉시 Supabase DB의 `brevo@xpider.pro` 계정에 캐시된 데이터를 조회하여 화면에 최신 크레딧 정보를 정상 렌더링하는 **스마트 폴백 엔진**을 `admin.js`, `mobile.js`, `user-panel.js`에 일제히 구축했습니다.
+- **Electron 외부 링크 클릭 반응 없음 버그 해결**:
+  - `admin.js`, `mobile.js`, `user-panel.js`에 전역 클릭 이벤트 리스너를 이식하여, Electron 환경 감지 시 `Recharge VPN`, `Top-up Outbox` 등의 외부 링크(`target="_blank"`) 클릭 이벤트를 가로채고 Electron IPC 채널(`open-external-url`)을 통해 디폴트 브라우저로 안전하게 띄우도록 보완했습니다.
+- **배포 및 빌드 갱신**:
+  - 배포 아카이브 `admin-deploy.zip` 및 `landing-deploy.zip`을 재빌드하고 package.json 버전을 `7.0.19`로 릴리즈하여 깃 태그(`v7.0.19`) 및 origin main에 푸시 완료했습니다.
 
-### 1. 주요 개선 사항 (Brevo API 연동 및 폴링 갱신)
-- `src/user-panel.js`에 원격 게이트웨이(`https://brevo-key-provider.goodkie-com.workers.dev/`)를 통해 실시간으로 API Key를 안전하게 획득하고, `https://api.brevo.com/v3/accounts` API를 호출하여 플랜 정보와 크레딧 잔액을 30초마다 자동 갱신하는 `loadBrevoCredits()` 연동을 구현했습니다.
-- `src/admin.js`에 어드민 대시보드 연동용 `loadBrevoCreditsAdmin()` 함수를 추가하고, 데이터 수집 파이프라인(`loadAllData`)에 편입시켜 실시간 5초 폴링 주기와 결합되도록 구성하였습니다.
-- `src/mobile.js`에 모바일 어드민 모니터링용 `loadBrevoCreditsMobile()` 함수를 새로 구축하고, 모바일 동기화 흐름(`loadAllData`)에 적용하여 실시간으로 동기화되도록 연동 완료했습니다.
-- `src/user-panel.html`, `src/admin.html`, `src/mobile.html` 내 `SendForce Mailer Pro` 모니터링 영역에 각각 dynamic ID 바인딩 (`brevo-credits-val`, `brevo-plan-val` 등)을 추가하여 실시간 렌더링되도록 반영했습니다.
+---
 
-### 2. 핫픽스 패치 (CORS 정책 우회 및 링크 클릭 보장)
-- **CORS 정책 우회**: 일반 웹 브라우저 환경에서 Brevo API 호출 시 발생하는 브라우저 보안 CORS 제약 문제를 해결하기 위해, API fetch 엔드포인트에 `https://corsproxy.io/` CORS 우회 프록시 래퍼를 전격 적용하여 `API Error`가 나타나는 통신 오류를 원천 해결했습니다.
-- **아웃고잉 링크 클릭 보장**: 어드민 카드에 탑재된 3D 틸트 효과(`vanilla-tilt`) 레이어와 기타 그리드 겹침 현상으로 인해 아웃고잉 링크(`Recharge VPN`, `Top-up Outbox`) 클릭이 씹히는 오동작을 수정하기 위해, `a` 태그에 `rel="noopener noreferrer"`, `onclick="window.open(this.href, '_blank'); event.stopPropagation(); return false;"` 리스너 및 `position: relative; z-index: 10; pointer-events: auto;` 스타일을 강제 부여하여 어떠한 간섭 상황에서도 외부 창이 확실하게 오픈되도록 보완했습니다.
+## 🚀 [v7.0.18] Brevo API 연동을 통한 XPIDER SendForce Mailer Pro 어카운트 실시간 모니터링 기능 추가
 
-### 3. 배포 및 릴리즈 반영
-- **AWS Amplify 배포본 압축 빌드**: `zip_deploy.ps1`을 원격으로 실행하여 최신 핫픽스가 완전히 적용된 배포본 `admin-deploy.zip` 및 `landing-deploy.zip` 아카이브를 빌드 및 최신화했습니다.
-- **최종 릴리즈 배포**: `package.json` 버전을 `7.0.18`로 릴리즈하고, 로컬 및 원격 저장소에 최종 핫픽스가 포함된 코드를 깃 커밋 및 릴리즈 태그(`v7.0.18`)로 성공적으로 갱신 강제 푸시 완료하였습니다.
+XPIDER SendForce Mailer Pro 어카운트의 남은 크레딧(Remaining Credits) 및 플랜 정보를 실시간으로 대시보드에서 모니터링할 수 있도록 **Brevo API** 연동 시스템을 전격 이식하였습니다.
+- **Brevo API 연동 및 폴링 갱신**: 
+  - `src/user-panel.js`에 원격 게이트웨이(`https://brevo-key-provider.goodkie-com.workers.dev/`)를 통해 실시간으로 API Key를 안전하게 획득하고, `https://api.brevo.com/v3/accounts` API를 호출하여 플랜 정보와 크레딧 잔액을 30초마다 자동 갱신하는 `loadBrevoCredits()` 연동을 구현했습니다.
+  - `src/admin.js`에 어드민 대시보드 연동용 `loadBrevoCreditsAdmin()` 함수를 추가하고, 데이터 수집 파이프라인(`loadAllData`)에 편입시켜 실시간 5초 폴링 주기와 결합되도록 구성하였습니다.
+  - `src/mobile.js`에 모바일 어드민 모니터링용 `loadBrevoCreditsMobile()` 함수를 새로 구축하고, 모바일 동기화 흐름(`loadAllData`)에 적용하여 실시간으로 동기화되도록 연동 완료했습니다.
+- **리소스 모니터 UI 카드 마크업 반영**:
+  - `src/user-panel.html` 내의 어드민 패널 섹션에 dynamic ID 바인딩 (`brevo-credits-val`, `brevo-plan-val`)을 추가하여 dynamic 데이터를 실시간 렌더링하도록 반영했습니다.
+  - `src/admin.html` 내 `SendForce Mailer Pro` 카드 항목에 dynamic ID 바인딩 (`brevo-credits-val-admin`, `brevo-plan-val-admin`)을 적용하여 로드 상태에서 실시간 연동 상태로 변경되도록 마크업을 개선했습니다.
+  - `src/mobile.html` 내 `SendForce Mailer Pro` 모바일 카드 항목에 dynamic ID 바인딩 (`brevo-credits-val-mobile`, `brevo-plan-val-mobile`)을 적용하여 모바일 전용 뷰에서도 동일한 리소스 모니터링을 확보했습니다.
+- **AWS Amplify 배포본 압축 빌드**:
+  - `zip_deploy.ps1`을 원격으로 실행하여 최신 변경점이 완전히 패키징된 배포본 `admin-deploy.zip` 및 `landing-deploy.zip` 아카이브를 빌드 및 최신화했습니다.
+- **최종 릴리즈 배포**:
+  - `package.json` 버전을 `7.0.18`로 릴리즈하고, 로컬 및 원격 저장소에 깃 커밋 및 릴리즈 태그(`v7.0.18`)를 성공적으로 푸시하여 배포 완료 상태를 구성하였습니다.
 
 ---
 

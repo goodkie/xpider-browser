@@ -594,8 +594,7 @@ async function loadBrevoCredits() {
       return;
     }
 
-    // CORS 우회를 위해 corsproxy.io 프록시 사용
-    const accountRes = await fetch('https://corsproxy.io/?https://api.brevo.com/v3/accounts', {
+    const accountRes = await fetch('https://api.brevo.com/v3/accounts', {
       method: 'GET',
       headers: {
         'accept': 'application/json',
@@ -618,13 +617,43 @@ async function loadBrevoCredits() {
       planName = accountData.plan[0].type || planName;
     }
 
-    creditsVal.textContent = totalCredits.toLocaleString() + ' Credits';
     const planLabels = { payAsYouGo: 'Pay As You Go', free: 'Free Plan', subscription: 'Subscription' };
+    creditsVal.textContent = totalCredits.toLocaleString() + ' Credits';
     planVal.textContent = planLabels[planName] || planName;
 
   } catch (e) {
     console.error('[UserPanel] Brevo API Error:', e);
+    
+    // CORS 등 에러 시 Supabase에서 캐시된 데이터 로드 폴백
+    try {
+      if (typeof sbClient !== 'undefined' && sbClient) {
+        const { data, error } = await sbClient.from('profiles').select('tokens_remaining, plan').eq('email', 'brevo@xpider.pro').maybeSingle();
+        if (data && !error) {
+          const planLabels = { payAsYouGo: 'Pay As You Go', free: 'Free Plan', subscription: 'Subscription' };
+          creditsVal.textContent = data.tokens_remaining.toLocaleString() + ' Credits';
+          planVal.textContent = planLabels[data.plan] || data.plan;
+          return;
+        }
+      }
+    } catch (dbErr) {
+      console.error('[UserPanel] Brevo Fallback DB Error:', dbErr);
+    }
+    
     creditsVal.textContent = 'API Error';
     planVal.textContent = 'Connection Fail';
   }
 }
+
+// 외부 target="_blank" 링크를 Electron 환경에서 브라우저로 열도록 가로채는 리스너
+document.addEventListener('click', (e) => {
+  const anchor = e.target.closest('a');
+  if (anchor && anchor.getAttribute('target') === '_blank') {
+    const href = anchor.getAttribute('href');
+    const isElectron = window.electronAPI && typeof window.electronAPI.send === 'function' && !window.electronAPI.isBrowserFallback;
+    if (isElectron && href && (href.startsWith('http://') || href.startsWith('https://'))) {
+      e.preventDefault();
+      window.electronAPI.send('open-external-url', href);
+    }
+  }
+});
+
