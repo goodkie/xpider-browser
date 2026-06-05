@@ -491,15 +491,23 @@ function toggleCaptchaApiVisibility() {
 /**
  * [v2.0.0] Shared Email Extraction Engine
  * Matches any valid email format across messy text / CSV / TXT
+ * [v2.0.1] Applied super-strong filter to completely block portal, government, org, gov domains.
  */
 function extractEmails(text) {
     if (!text) return [];
     const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
     const matches = text.match(emailRegex) || [];
     
-    // [v1.3.1] Email Blacklist (Persistent)
+    // [v1.3.2] Super-strong Email Blacklist (Excludes portals, government offices, org, gov domains)
     const blacklist = [
-        '.gov', '.go.kr', 'noreply', 'no-reply', 'admin', 'postmaster'
+        // 관공서 및 공공기관 도메인
+        '.gov', '.go.kr', 'korea.kr', 'police.go.kr', 'spo.go.kr', 'assembly.go.kr', 'scourt.go.kr',
+        // .org 및 비영리/기타 공공 도메인
+        '.org', '.or.kr', 
+        // 유명 포탈 도메인
+        'naver.com', 'daum.net', 'hanmail.net', 'gmail.com', 'outlook.com', 'hotmail.com', 'nate.com', 'yahoo.com', 'yahoo.co.kr', 'icloud.com',
+        // 기본 제외 키워드
+        'noreply', 'no-reply', 'admin', 'postmaster'
     ];
     
     return [...new Set(matches)].filter(email => {
@@ -714,6 +722,13 @@ async function addSingleEmail() {
     
     if (!emailRegex.test(email)) {
         addLog(`Invalid email format: ${email}`, 'error');
+        return;
+    }
+
+    // Apply super-strong blacklist filter
+    const cleaned = extractEmails(email);
+    if (cleaned.length === 0) {
+        addLog(`Blocked by blackbox filter (portal/gov/org/system): ${email}`, 'error');
         return;
     }
 
