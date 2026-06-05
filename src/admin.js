@@ -249,6 +249,9 @@ async function loadAllData(isManual = false) {
         
         // 4. Brevo Credits Sync
         loadBrevoCreditsAdmin().catch(() => {});
+
+        // 5. SMTP Relay Provider 설정 로드
+        loadSmtpProviderSetting().catch(() => {});
         
         if (isManual) {
             refreshAllBtn.textContent = '🔄 Sync Database';
@@ -932,3 +935,141 @@ document.addEventListener('click', (e) => {
 
 window.triggerGithubBackup = triggerGithubBackup;
 window.triggerGithubRestore = triggerGithubRestore;
+
+// ─── SMTP Relay Server 설정 연동 ───
+
+/**
+ * Supabase에서 현재 SMTP provider 설정을 로드하고 토글 UI에 적용
+ */
+async function loadSmtpProviderSetting() {
+    try {
+        const sb = getSbAdmin();
+        if (!sb) return;
+
+        // smtp-config@xpider.pro 특수 행에서 provider 설정 읽기
+        const { data, error } = await sb
+            .from('profiles')
+            .select('plan')
+            .eq('email', 'smtp-config@xpider.pro')
+            .maybeSingle();
+
+        let provider = 'brevo'; // 기본값
+        if (data && data.plan && (data.plan === 'brevo' || data.plan === 'mailgun')) {
+            provider = data.plan;
+        }
+
+        updateSmtpToggleUI(provider);
+        appendDebugLog(`📡 SMTP Relay: ${provider.toUpperCase()} 로드됨.`, 'info');
+    } catch (e) {
+        console.warn('[SmtpConfig] 로드 실패:', e.message);
+    }
+}
+
+/**
+ * 어드민이 토글 스위치 조작 시 호출 — provider 변경 및 Supabase 저장
+ * @param {boolean} isMailgun - true: Mailgun, false: Brevo
+ */
+async function handleSmtpToggle(isMailgun) {
+    const provider = isMailgun ? 'mailgun' : 'brevo';
+    const statusEl = document.getElementById('smtp-save-status');
+    if (statusEl) { statusEl.textContent = '🔄 저장 중...'; statusEl.style.color = '#6b7a8d'; }
+
+    try {
+        const sb = getSbAdmin();
+        if (!sb) throw new Error('Supabase 미연결');
+
+        // smtp-config@xpider.pro 행이 없으면 생성, 있으면 업데이트
+        const { data: exist } = await sb
+            .from('profiles')
+            .select('id')
+            .eq('email', 'smtp-config@xpider.pro')
+            .maybeSingle();
+
+        if (!exist) {
+            // 새 행 생성 (직접 insert)
+            await sb.from('profiles').insert({
+                email: 'smtp-config@xpider.pro',
+                username: 'SMTP Config',
+                plan: provider,
+                is_active: true,
+                last_active_at: new Date().toISOString()
+            });
+        } else {
+            await sb.from('profiles').update({
+                plan: provider,
+                last_active_at: new Date().toISOString()
+            }).eq('email', 'smtp-config@xpider.pro');
+        }
+
+        updateSmtpToggleUI(provider);
+
+        if (statusEl) {
+            statusEl.textContent = `✅ ${provider.toUpperCase()} 릴레이 서버로 저장되었습니다.`;
+            statusEl.style.color = '#39ff14';
+            setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+        }
+        appendDebugLog(`📡 SMTP Relay 변경: ${provider.toUpperCase()}`, 'success');
+
+    } catch (e) {
+        console.error('[SmtpConfig] 저장 실패:', e.message);
+        if (statusEl) {
+            statusEl.textContent = `❌ 저장 실패: ${e.message}`;
+            statusEl.style.color = '#ff4d6d';
+        }
+    }
+}
+
+/**
+ * provider에 따라 토글 스위치 UI 상태 업데이트
+ * @param {'brevo'|'mailgun'} provider
+ */
+function updateSmtpToggleUI(provider) {
+    const toggle = document.getElementById('smtp-relay-toggle');
+    const track = document.getElementById('smtp-toggle-track');
+    const thumb = document.getElementById('smtp-toggle-thumb');
+    const badge = document.getElementById('smtp-status-badge');
+    const brevoLabel = document.getElementById('smtp-label-brevo');
+    const mailgunLabel = document.getElementById('smtp-label-mailgun');
+    if (!toggle) return;
+
+    const isMailgun = (provider === 'mailgun');
+    toggle.checked = isMailgun;
+
+    if (isMailgun) {
+        // Mailgun 활성
+        track.style.background = 'rgba(251,146,60,0.4)';
+        track.style.borderColor = 'rgba(251,146,60,0.5)';
+        track.style.boxShadow = '0 0 10px rgba(251,146,60,0.4)';
+        thumb.style.left = '27px';
+        badge.textContent = 'MAILGUN';
+        badge.style.color = '#fb923c';
+        // Mailgun 레이블 하이라이트
+        mailgunLabel.style.border = '1px solid rgba(251,146,60,0.5)';
+        mailgunLabel.style.background = 'rgba(251,146,60,0.1)';
+        mailgunLabel.querySelector('span:last-child').style.color = '#fb923c';
+        // Brevo 레이블 닙우기
+        brevoLabel.style.border = '1px solid rgba(255,255,255,0.08)';
+        brevoLabel.style.background = 'rgba(255,255,255,0.03)';
+        brevoLabel.querySelector('span:last-child').style.color = '#6b7a8d';
+    } else {
+        // Brevo 활성
+        track.style.background = 'rgba(99,179,237,0.4)';
+        track.style.borderColor = 'rgba(99,179,237,0.5)';
+        track.style.boxShadow = '0 0 10px rgba(99,179,237,0.3)';
+        thumb.style.left = '3px';
+        badge.textContent = 'BREVO';
+        badge.style.color = '#63b3ed';
+        // Brevo 레이블 하이라이트
+        brevoLabel.style.border = '1px solid rgba(99,179,237,0.3)';
+        brevoLabel.style.background = 'rgba(99,179,237,0.1)';
+        brevoLabel.querySelector('span:last-child').style.color = '#63b3ed';
+        // Mailgun 레이블 닙우기
+        mailgunLabel.style.border = '1px solid rgba(255,255,255,0.08)';
+        mailgunLabel.style.background = 'rgba(255,255,255,0.03)';
+        mailgunLabel.querySelector('span:last-child').style.color = '#6b7a8d';
+    }
+}
+
+// 항수들을 window에 노출
+window.handleSmtpToggle = handleSmtpToggle;
+window.loadSmtpProviderSetting = loadSmtpProviderSetting;
