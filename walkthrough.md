@@ -1,5 +1,25 @@
 # XPIDER AutoForm Sender Pro 폼 자동작성 고도화 및 최초 STT 설정 팝업 Walkthrough
 
+## 🚀 [v7.0.18] Brevo API 연동을 통한 XPIDER SendForce Mailer Pro 어카운트 실시간 모니터링 기능 추가 및 브라우저 호환성 핫픽스
+
+XPIDER SendForce Mailer Pro 어카운트의 남은 크레딧(Remaining Credits) 및 플랜 정보를 실시간으로 대시보드에서 모니터링할 수 있도록 **Brevo API** 연동 시스템을 전격 이식하였으며, 일반 웹 브라우저 환경(AWS Amplify)에서 발생하던 통신 및 클릭 오류를 해결하는 핫픽스를 전격 적용하였습니다.
+
+### 1. 주요 개선 사항 (Brevo API 연동 및 폴링 갱신)
+- `src/user-panel.js`에 원격 게이트웨이(`https://brevo-key-provider.goodkie-com.workers.dev/`)를 통해 실시간으로 API Key를 안전하게 획득하고, `https://api.brevo.com/v3/accounts` API를 호출하여 플랜 정보와 크레딧 잔액을 30초마다 자동 갱신하는 `loadBrevoCredits()` 연동을 구현했습니다.
+- `src/admin.js`에 어드민 대시보드 연동용 `loadBrevoCreditsAdmin()` 함수를 추가하고, 데이터 수집 파이프라인(`loadAllData`)에 편입시켜 실시간 5초 폴링 주기와 결합되도록 구성하였습니다.
+- `src/mobile.js`에 모바일 어드민 모니터링용 `loadBrevoCreditsMobile()` 함수를 새로 구축하고, 모바일 동기화 흐름(`loadAllData`)에 적용하여 실시간으로 동기화되도록 연동 완료했습니다.
+- `src/user-panel.html`, `src/admin.html`, `src/mobile.html` 내 `SendForce Mailer Pro` 모니터링 영역에 각각 dynamic ID 바인딩 (`brevo-credits-val`, `brevo-plan-val` 등)을 추가하여 실시간 렌더링되도록 반영했습니다.
+
+### 2. 핫픽스 패치 (CORS 정책 우회 및 링크 클릭 보장)
+- **CORS 정책 우회**: 일반 웹 브라우저 환경에서 Brevo API 호출 시 발생하는 브라우저 보안 CORS 제약 문제를 해결하기 위해, API fetch 엔드포인트에 `https://corsproxy.io/` CORS 우회 프록시 래퍼를 전격 적용하여 `API Error`가 나타나는 통신 오류를 원천 해결했습니다.
+- **아웃고잉 링크 클릭 보장**: 어드민 카드에 탑재된 3D 틸트 효과(`vanilla-tilt`) 레이어와 기타 그리드 겹침 현상으로 인해 아웃고잉 링크(`Recharge VPN`, `Top-up Outbox`) 클릭이 씹히는 오동작을 수정하기 위해, `a` 태그에 `rel="noopener noreferrer"`, `onclick="window.open(this.href, '_blank'); event.stopPropagation(); return false;"` 리스너 및 `position: relative; z-index: 10; pointer-events: auto;` 스타일을 강제 부여하여 어떠한 간섭 상황에서도 외부 창이 확실하게 오픈되도록 보완했습니다.
+
+### 3. 배포 및 릴리즈 반영
+- **AWS Amplify 배포본 압축 빌드**: `zip_deploy.ps1`을 원격으로 실행하여 최신 핫픽스가 완전히 적용된 배포본 `admin-deploy.zip` 및 `landing-deploy.zip` 아카이브를 빌드 및 최신화했습니다.
+- **최종 릴리즈 배포**: `package.json` 버전을 `7.0.18`로 릴리즈하고, 로컬 및 원격 저장소에 최종 핫픽스가 포함된 코드를 깃 커밋 및 릴리즈 태그(`v7.0.18`)로 성공적으로 갱신 강제 푸시 완료하였습니다.
+
+---
+
 ## 🚀 [v4.12.14] Crawler Auto CAPTCHA 디폴트 'on' 세팅 및 Sender 실시간 onChanged 동기화 핫픽스
 
 전역 양방향 스토리지 동기화 시스템을 더욱 정밀화하여, 사용자가 둘 중 어느 곳에서 키를 저장하더라도 샌더와 크롤러 팝업창 및 백그라운드의 모든 Wit.ai key 입력창과 셋업 상태가 **실시간으로 즉각 갱신 및 완전 공유**되도록 연동을 완료하였으며, 신규 설치 시에도 캡차 자동 풀이가 활성화되도록 기본값을 보정했습니다!

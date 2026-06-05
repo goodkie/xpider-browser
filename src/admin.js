@@ -247,6 +247,9 @@ async function loadAllData(isManual = false) {
         renderLiveBeacons();
         renderUsersTable();
         
+        // 4. Brevo Credits Sync
+        loadBrevoCreditsAdmin().catch(() => {});
+        
         if (isManual) {
             refreshAllBtn.textContent = '🔄 Sync Database';
         }
@@ -818,5 +821,58 @@ async function triggerGithubRestore() {
 // 윈도우 글로벌 바인딩 등록
 window.handleSecureLogin = handleSecureLogin;
 window.handleAdminLogout = handleAdminLogout;
+
+// ─── Brevo Credits 실시간 모니터링 ───
+async function loadBrevoCreditsAdmin() {
+    const creditsVal = document.getElementById('brevo-credits-val-admin');
+    const planVal = document.getElementById('brevo-plan-val-admin');
+    if (!creditsVal || !planVal) return;
+
+    try {
+        const gatewayUrl = 'https://brevo-key-provider.goodkie-com.workers.dev/';
+        const keyRes = await fetch(gatewayUrl, { cache: 'no-store' });
+        if (!keyRes.ok) throw new Error('Failed to fetch API key');
+        const apiKey = (await keyRes.text()).trim();
+
+        if (!apiKey) {
+            creditsVal.textContent = 'Key Missing';
+            planVal.textContent = 'Unconfigured';
+            return;
+        }
+
+        // CORS 우회를 위해 corsproxy.io 프록시 사용
+        const accountRes = await fetch('https://corsproxy.io/?https://api.brevo.com/v3/accounts', {
+            method: 'GET',
+            headers: {
+                'accept': 'application/json',
+                'api-key': apiKey
+            }
+        });
+
+        if (!accountRes.ok) throw new Error(`HTTP ${accountRes.status}`);
+        const accountData = await accountRes.json();
+
+        let totalCredits = 0;
+        let planName = 'Free Plan';
+
+        if (accountData.plan && accountData.plan.length > 0) {
+            accountData.plan.forEach(p => {
+                if (p.credits !== undefined) {
+                    totalCredits += p.credits;
+                }
+            });
+            planName = accountData.plan[0].type || planName;
+        }
+
+        creditsVal.textContent = totalCredits.toLocaleString() + ' Credits';
+        const planLabels = { payAsYouGo: 'Pay As You Go', free: 'Free Plan', subscription: 'Subscription' };
+        planVal.textContent = planLabels[planName] || planName;
+
+    } catch (e) {
+        console.error('[AdminPanel] Brevo API Error:', e);
+        creditsVal.textContent = 'API Error';
+        planVal.textContent = 'Connection Fail';
+    }
+}
 window.triggerGithubBackup = triggerGithubBackup;
 window.triggerGithubRestore = triggerGithubRestore;

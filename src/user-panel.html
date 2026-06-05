@@ -144,7 +144,7 @@
             </div>
           </div>
           <div class="admin-card-footer">
-            <a href="https://xpider.pro/vpn-recharge" target="_blank" class="admin-btn-action">
+            <a href="https://xpider.pro/vpn-recharge" target="_blank" rel="noopener noreferrer" onclick="window.open(this.href, '_blank'); event.stopPropagation(); return false;" class="admin-btn-action" style="position: relative; z-index: 10; pointer-events: auto;">
               <span>Recharge VPN</span>
               <i class="fa-solid fa-globe"></i>
             </a>
@@ -157,16 +157,16 @@
           <div class="admin-card-title">SendForce Mailer Pro</div>
           <div class="admin-stats-row">
             <div class="admin-stat-item">
-              <span class="admin-stat-label">Remaining Emails</span>
-              <span class="admin-stat-value">15,000 Emails</span>
+              <span class="admin-stat-label">Remaining Credits</span>
+              <span class="admin-stat-value" id="brevo-credits-val">Loading...</span>
             </div>
             <div class="admin-stat-item">
-              <span class="admin-stat-label">Balance</span>
-              <span class="admin-stat-value">$8.50</span>
+              <span class="admin-stat-label">Account Plan</span>
+              <span class="admin-stat-value" id="brevo-plan-val">Loading...</span>
             </div>
           </div>
           <div class="admin-card-footer">
-            <a href="https://xpider.pro/mailer-recharge" target="_blank" class="admin-btn-action">
+            <a href="https://xpider.pro/mailer-recharge" target="_blank" rel="noopener noreferrer" onclick="window.open(this.href, '_blank'); event.stopPropagation(); return false;" class="admin-btn-action" style="position: relative; z-index: 10; pointer-events: auto;">
               <span>Top-up Outbox</span>
               <i class="fa-solid fa-key"></i>
             </a>

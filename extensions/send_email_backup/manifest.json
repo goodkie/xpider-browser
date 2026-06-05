@@ -8,9 +8,7 @@
     "tabs",
     "scripting",
     "activeTab",
-    "sidePanel",
-    "alarms",
-    "downloads"
+    "alarms"
   ],
   "host_permissions": [
     "<all_urls>",

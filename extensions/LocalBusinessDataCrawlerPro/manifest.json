@@ -13,13 +13,10 @@
     "scripting",
     "storage",
     "activeTab",
-    "sidePanel",
     "webNavigation",
     "offscreen",
-    "audioCapture",
     "proxy",
-    "webRequest",
-    "webRequestAuthProvider"
+    "webRequest"
   ],
   "host_permissions": [
     "<all_urls>"
