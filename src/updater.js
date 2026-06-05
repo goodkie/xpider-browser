@@ -90,23 +90,35 @@ function downloadFile(url, destPath) {
 async function checkAppUpdate() {
   try {
     const current = app.getVersion();
-    const res = await githubGet(`/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`);
-    if (res.status !== 200) {
+    const res = await githubGet(`/repos/${REPO_OWNER}/${REPO_NAME}/releases`);
+    if (res.status !== 200 || !Array.isArray(res.body)) {
       return { hasUpdate: false, latestVersion: current, currentVersion: current,
                error: `GitHub API ${res.status}` };
     }
 
-    const latest = res.body.tag_name?.replace(/^v/, '') || current;
+    // -win7 또는 win7-전용 버전을 배제하여 필터링
+    const validReleases = res.body.filter(r => 
+      !r.draft && 
+      !r.prerelease && 
+      !(r.tag_name && r.tag_name.toLowerCase().includes('-win7'))
+    );
+
+    if (validReleases.length === 0) {
+      return { hasUpdate: false, latestVersion: current, currentVersion: current, error: "No valid releases found" };
+    }
+
+    const latestRelease = validReleases[0];
+    const latest = latestRelease.tag_name?.replace(/^v/, '') || current;
     const hasUpdate = compareVersions(latest, current) > 0;
 
-    const assets = res.body.assets || [];
+    const assets = latestRelease.assets || [];
     let asset;
 
     // ── 플랫폼별 최적 에셋 선택 ──
     if (process.platform === 'win32') {
-      // Windows: SFX Setup.exe 우선, 없으면 ZIP
-      asset = assets.find(a => /setup|sfx/i.test(a.name) && a.name.endsWith('.exe'))
-           || assets.find(a => a.name.endsWith('.exe'))
+      // Windows: SFX Setup.exe 우선, 없으면 ZIP. 자산명에 win7이 들어간 것도 안전하게 배제
+      asset = assets.find(a => /setup|sfx/i.test(a.name) && a.name.endsWith('.exe') && !a.name.toLowerCase().includes('win7'))
+           || assets.find(a => a.name.endsWith('.exe') && !a.name.toLowerCase().includes('win7'))
            || assets.find(a => /windows/i.test(a.name) && a.name.endsWith('.zip'))
            || assets.find(a => a.name.endsWith('.zip'));
     } else if (process.platform === 'darwin') {
@@ -137,9 +149,9 @@ async function checkAppUpdate() {
       hasUpdate,
       latestVersion: latest,
       currentVersion: current,
-      releaseUrl:    res.body.html_url || '',
-      downloadUrl:   asset?.browser_download_url || res.body.html_url || '',
-      releaseNotes:  res.body.body || ''
+      releaseUrl:    latestRelease.html_url || '',
+      downloadUrl:   asset?.browser_download_url || latestRelease.html_url || '',
+      releaseNotes:  latestRelease.body || ''
     };
   } catch (e) {
     console.error('[Updater] App check error:', e.message);

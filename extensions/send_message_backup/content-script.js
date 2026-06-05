@@ -182,13 +182,13 @@
     };
 
     const FIELD_PATTERNS = {
-        firstName: [/\bfirst.?name\b/i,/\bgiven.?name\b/i,/\bforename\b/i,/\bfname\b/i,/\bfirst\b/i,/\bgiven\b/i,/이름/i,/성함/i,/名前/i,/名/i,/given/i,/\bnombre\b/i,/\bprenom\b/i,/\bvorname\b/i],
-        lastName: [/\blast.?name\b/i,/\bfamily.?name\b/i,/\bsurname\b/i,/\blname\b/i,/\blast\b/i,/\bfamily\b/i,/성(?!명|함)/i,/苗字/i,/姓/i,/\bapellido\b/i,/\bnom\b/i,/\bnachname\b/i],
-        name: [/\bname\b/i,/\bfull.?name\b/i,/\byour.*name\b/i,/\bcontact.*name\b/i,/\bcustomer.*name\b/i,/\bsender.*name\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/\bcontact.*person\b/i,/\bclient.*name\b/i],
-        email: [/email/i, /e-mail/i, /이메일/i, /メール/i, /邮箱/i, /correo/i, /courriel/i, /correo.*electrónico/i],
-        subject: [/subject/i, /title/i, /제목/i, /件名/i, /主题/i, /topic/i, /asunto/i, /betreff/i, /objet/i],
-        phone: [/phone/i, /tel/i, /mobile/i, /contact/i, /전화/i, /연락처/i, /電話/i, /手机/i, /电话/i, /teléfono/i, /telefon/i, /téléphone/i],
-        message: [/message/i, /content/i, /body/i, /내용/i, /本文/i, /内容/i, /comment/i, /description/i, /inquiry/i, /mensaje/i, /nachricht/i, /\bmessage.*text\b/i, /\bbody.*text\b/i]
+        firstName: [/\bfirst.?name\b/i,/\bgiven.?name\b/i,/\bforename\b/i,/\bfname\b/i,/\bfirst\b/i,/\bgiven\b/i,/이름/i,/성함/i,/名前/i,/名/i,/given/i,/\bnombre\b/i,/\bprenom\b/i,/\bvorname\b/i,/이름\(first\)/i,/영문이름/i],
+        lastName: [/\blast.?name\b/i,/\bfamily.?name\b/i,/\bsurname\b/i,/\blname\b/i,/\blast\b/i,/\bfamily\b/i,/성(?!명|함)/i,/苗字/i,/姓/i,/\bapellido\b/i,/\bnom\b/i,/\bnachname\b/i,/성\(last\)/i,/영문성/i],
+        name: [/\bname\b/i,/\bfull.?name\b/i,/\byour.*name\b/i,/\bcontact.*name\b/i,/\bcustomer.*name\b/i,/\bsender.*name\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/\bcontact.*person\b/i,/\bclient.*name\b/i,/문의자/i,/작성자/i,/신청인/i,/대표자/i,/담당자/i],
+        email: [/email/i, /e-mail/i, /이메일/i, /メール/i, /邮箱/i, /correo/i, /courriel/i, /correo.*electrónico/i, /이메일주소/i],
+        subject: [/subject/i, /title/i, /제목/i, /件名/i, /主题/i, /topic/i, /asunto/i, /betreff/i, /objet/i, /문의제목/i],
+        phone: [/phone/i, /tel/i, /mobile/i, /contact/i, /전화/i, /연락처/i, /電話/i, /手机/i, /电话/i, /teléfono/i, /telefon/i, /téléphone/i, /휴대폰/i, /핸드폰/i, /전화번호/i, /연락처/i, /대표전화/i, /휴대폰번호/i],
+        message: [/message/i, /content/i, /body/i, /내용/i, /本文/i, /内容/i, /comment/i, /description/i, /inquiry/i, /mensaje/i, /nachricht/i, /\bmessage.*text\b/i, /\bbody.*text\b/i, /문의사항/i, /문의내용/i, /상세내용/i, /의견/i, /전하고.*싶은.*말/i]
     };
 
     const DOMAIN_BLACKLIST = [
@@ -1600,104 +1600,6 @@
             return false;
         };
 
-        // [v4.12.27] Smart Name Splitter
-        function splitName(fullName) {
-            if (!fullName) return { first: 'John', last: 'Doe' };
-            const trimmed = fullName.trim();
-            const hangulRegex = /^[가-힣]+$/;
-            if (hangulRegex.test(trimmed)) {
-                if (trimmed.length === 3) {
-                    return { last: trimmed.charAt(0), first: trimmed.substring(1) };
-                } else if (trimmed.length === 2) {
-                    return { last: trimmed.charAt(0), first: trimmed.charAt(1) };
-                } else if (trimmed.length === 4) {
-                    const doubleSurnames = ['황보', '독고', '사공', '남궁', '제갈', '서문'];
-                    const prefix2 = trimmed.substring(0, 2);
-                    if (doubleSurnames.includes(prefix2)) {
-                        return { last: prefix2, first: trimmed.substring(2) };
-                    }
-                    return { last: trimmed.charAt(0), first: trimmed.substring(1) };
-                }
-            }
-            const parts = trimmed.split(/\s+/);
-            if (parts.length > 1) {
-                const last = parts.pop();
-                const first = parts.join(' ');
-                return { first, last };
-            }
-            return { first: trimmed, last: trimmed };
-        }
-
-        // [v4.12.27] Smart Value Generator for BruteForce fallback
-        function generateSmartRandomValue(el) {
-            const label = getLabelFor(el).toLowerCase();
-            const placeholder = (el.placeholder || '').toLowerCase();
-            const name = (el.name || '').toLowerCase();
-            const id = (el.id || '').toLowerCase();
-            const cls = (el.className || '').toString().toLowerCase();
-            const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
-            const autocomplete = (el.getAttribute('autocomplete') || '').toLowerCase();
-            const c = `${label} ${placeholder} ${name} ${id} ${cls} ${ariaLabel} ${autocomplete}`.toLowerCase();
-            
-            const type = (el.type || 'text').toLowerCase();
-            
-            // 1. 숫자 전용 필드 판정
-            const isNumeric = type === 'number' || type === 'tel' || 
-                              el.getAttribute('inputmode') === 'numeric' ||
-                              /zip|postal|phone|tel|fax|mobile|number|qty|quantity|code|digit/i.test(c);
-            
-            if (isNumeric) {
-                if (/phone|tel|mobile|fax|전화|연락처|휴대폰/i.test(c)) {
-                    if (tpl.phone && tpl.phone.trim() !== '') return tpl.phone;
-                    const rand8 = Math.floor(10000000 + Math.random() * 90000000);
-                    return '010-' + String(rand8).substring(0, 4) + '-' + String(rand8).substring(4);
-                }
-                if (/zip|postal|우편/i.test(c)) {
-                    const rand5 = Math.floor(10000 + Math.random() * 90000);
-                    return String(rand5);
-                }
-                const rand2 = Math.floor(1 + Math.random() * 98);
-                return String(rand2);
-            }
-            
-            // 2. 이메일 필드 판정
-            const isEmail = type === 'email' || /email|mail/i.test(c);
-            if (isEmail) {
-                if (tpl.email && tpl.email.trim() !== '') return tpl.email;
-                const randChars = Math.random().toString(36).substring(2, 8);
-                return randChars + '@gmail.com';
-            }
-            
-            // 3. 텍스트 / 일반 글자 필드
-            if (/company|회사|org/i.test(c)) {
-                return (tpl.name || getRandomTemplateVal()) + ' Inc.';
-            }
-            if (/address|주소/i.test(c)) {
-                return '123 Business Rd, New York, NY';
-            }
-            if (/subject|제목|title/i.test(c)) {
-                return tpl.subject || '';
-            }
-            if (el.tagName === 'TEXTAREA' || /message|content|body|내용/i.test(c)) {
-                return tpl.message || '';
-            }
-            
-            // 성/이름 필드 스마트 스플리터 적용
-            if (/last.?name|family.?name|surname|성(?!명)/i.test(c)) {
-                const s = splitName(tpl.name);
-                return tpl.lastName || s.last || '';
-            }
-            if (/first.?name|given.?name/i.test(c)) {
-                const s = splitName(tpl.name);
-                return tpl.firstName || s.first || '';
-            }
-            if (/name|이름|성함|성명/i.test(c)) {
-                return tpl.name || '';
-            }
-            
-            return getRandomTemplateVal();
-        }
-
         // 템플릿 유효값 수집
         const templateVals = [
             tpl.firstName, tpl.lastName, tpl.name, tpl.email,
@@ -1861,8 +1763,8 @@
                 else if (hint.includes('country') || hint.includes('국가')) val = 'Korea';
                 else if (hint.includes('website') || hint.includes('url') || hint.includes('homepage') || hint.includes('홈페이지')) val = '';  // 웹사이트 필드는 빈칸 허용
                 else if (tp === 'url') val = ''; // URL 필드는 건너뛰기
-                else val = getRandomTemplateVal().substring(0, 100);
-
+                else val = generateSmartRandomValue(el, tpl);
+                
                 if (val) await applyVal(el, val, 'Fallback-SmartHint');
             }
         }
@@ -1982,7 +1884,7 @@
                     filledFields++;
                 } else {
                     // [v4.12.27] 숫자/글자를 정밀 구별하여 똑똑하게 랜덤 주입
-                    const val = generateSmartRandomValue(el);
+                    const val = generateSmartRandomValue(el, tpl);
                     if (val) {
                         await applyVal(el, val, 'SuperSweeper-Smart');
                         filledFields++;
@@ -2045,6 +1947,115 @@
 
         logDev(`✅ [HyperEngine v4.0] 폼 작성 완료 - 입력 필드 ${filledFields}개 처리됨`);
         return { filledAny: filledFields > 0 };
+    }
+
+    // [v4.12.27] Smart Name Splitter (Global Share)
+    function splitName(fullName) {
+        if (!fullName) return { first: 'John', last: 'Doe' };
+        const trimmed = fullName.trim();
+        const hangulRegex = /^[가-힣]+$/;
+        if (hangulRegex.test(trimmed)) {
+            if (trimmed.length === 3) {
+                return { last: trimmed.charAt(0), first: trimmed.substring(1) };
+            } else if (trimmed.length === 2) {
+                return { last: trimmed.charAt(0), first: trimmed.charAt(1) };
+            } else if (trimmed.length === 4) {
+                const doubleSurnames = ['황보', '독고', '사공', '남궁', '제갈', '서문'];
+                const prefix2 = trimmed.substring(0, 2);
+                if (doubleSurnames.includes(prefix2)) {
+                    return { last: prefix2, first: trimmed.substring(2) };
+                }
+                return { last: trimmed.charAt(0), first: trimmed.substring(1) };
+            }
+        }
+        const parts = trimmed.split(/\s+/);
+        if (parts.length > 1) {
+            const last = parts.pop();
+            const first = parts.join(' ');
+            return { first, last };
+        }
+        return { first: trimmed, last: trimmed };
+    }
+
+    // [v4.12.27] Smart Value Generator for BruteForce fallback & Sweeper (Global Share)
+    function generateSmartRandomValue(el, tpl) {
+        const label = getLabelFor(el).toLowerCase();
+        const placeholder = (el.placeholder || '').toLowerCase();
+        const name = (el.name || '').toLowerCase();
+        const id = (el.id || '').toLowerCase();
+        const cls = (el.className || '').toString().toLowerCase();
+        const ariaLabel = (el.getAttribute('aria-label') || '').toLowerCase();
+        const autocomplete = (el.getAttribute('autocomplete') || '').toLowerCase();
+        const c = `${label} ${placeholder} ${name} ${id} ${cls} ${ariaLabel} ${autocomplete}`.toLowerCase();
+        
+        const type = (el.type || 'text').toLowerCase();
+        
+        // 템플릿 임의 유효값 수집 헬퍼
+        const templateVals = [
+            tpl.firstName, tpl.lastName, tpl.name, tpl.email,
+            tpl.phone, tpl.subject, tpl.message
+        ].filter(v => typeof v === 'string' && v.trim() !== '');
+
+        const getRandomVal = () => {
+            if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
+            return "Inquiry";
+        };
+
+        // 1. 숫자 전용 필드 판정
+        const isNumeric = type === 'number' || type === 'tel' || 
+                          el.getAttribute('inputmode') === 'numeric' ||
+                          /zip|postal|phone|tel|fax|mobile|number|qty|quantity|code|digit/i.test(c);
+        
+        if (isNumeric) {
+            if (/phone|tel|mobile|fax|전화|연락처|휴대폰|핸드폰/i.test(c)) {
+                if (tpl.phone && tpl.phone.trim() !== '') return tpl.phone;
+                const rand8 = Math.floor(10000000 + Math.random() * 90000000);
+                return '010-' + String(rand8).substring(0, 4) + '-' + String(rand8).substring(4);
+            }
+            if (/zip|postal|우편/i.test(c)) {
+                const rand5 = Math.floor(10000 + Math.random() * 90000);
+                return String(rand5);
+            }
+            const rand2 = Math.floor(1 + Math.random() * 98);
+            return String(rand2);
+        }
+        
+        // 2. 이메일 필드 판정
+        const isEmail = type === 'email' || /email|mail|이메일/i.test(c);
+        if (isEmail) {
+            if (tpl.email && tpl.email.trim() !== '') return tpl.email;
+            const randChars = Math.random().toString(36).substring(2, 8);
+            return randChars + '@gmail.com';
+        }
+        
+        // 3. 텍스트 / 일반 글자 필드
+        if (/company|회사|org|상호/i.test(c)) {
+            return (tpl.name || getRandomVal()) + ' Inc.';
+        }
+        if (/address|주소/i.test(c)) {
+            return '123 Business Rd, New York, NY';
+        }
+        if (/subject|제목|title/i.test(c)) {
+            return tpl.subject || getRandomVal();
+        }
+        if (el.tagName === 'TEXTAREA' || /message|content|body|내용|의견|문의/i.test(c)) {
+            return tpl.message || getRandomVal();
+        }
+        
+        // 성/이름 필드 스마트 스플리터 적용
+        if (/last.?name|family.?name|surname|성(?!명)/i.test(c)) {
+            const s = splitName(tpl.name);
+            return tpl.lastName || s.last || '';
+        }
+        if (/first.?name|given.?name/i.test(c)) {
+            const s = splitName(tpl.name);
+            return tpl.firstName || s.first || '';
+        }
+        if (/name|이름|성함|성명/i.test(c)) {
+            return tpl.name || '';
+        }
+        
+        return getRandomVal();
     }
 
     function getLabelFor(el) {
@@ -2472,9 +2483,18 @@
                     logDev(`⚡ [Sweeper] 공란 자동 감지 및 충전 개시: <${el.tagName} id="${el.id}" name="${el.name}">`);
                     
                     if (el.tagName === 'TEXTAREA' || el.contentEditable === 'true' || el.getAttribute('role') === 'textbox') {
-                        await applyVal(el, tpl.message || getRandomTemplateVal(), 'Sweeper-Message');
+                        const templateVals = [
+                            tpl.firstName, tpl.lastName, tpl.name, tpl.email,
+                            tpl.phone, tpl.subject, tpl.message
+                        ].filter(v => typeof v === 'string' && v.trim() !== '');
+                        const getRandomVal = () => {
+                            if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
+                            return "Inquiry";
+                        };
+                        await applyVal(el, tpl.message || getRandomVal(), 'Sweeper-Message');
                     } else {
-                        await applyVal(el, getRandomTemplateVal(), 'Sweeper-Text');
+                        const smartVal = generateSmartRandomValue(el, tpl);
+                        await applyVal(el, smartVal, 'Sweeper-SmartText');
                     }
                 }
 

@@ -96,6 +96,27 @@ let i18nData = null;
 let lastLogMessage = "Ready..."; // [v2.5.5] For 3-line monitor
 let remainingTargets = 0;          // [v2.5.5] For 3-line monitor
 
+// [v19.0] XPIDER_INVOKE: Direct IPC bridge to main process (bypasses background.js)
+function xpiderInvoke(channel, args) {
+    return new Promise((resolve, reject) => {
+        const id = Date.now().toString() + Math.random().toString(36).slice(2);
+        const handler = (e) => {
+            if (e.data && e.data.type === 'XPIDER_RESPONSE' && e.data.id === id) {
+                window.removeEventListener('message', handler);
+                if (e.data.error) reject(new Error(e.data.error));
+                else resolve(e.data.result);
+            }
+        };
+        window.addEventListener('message', handler);
+        window.postMessage({ type: 'XPIDER_INVOKE', channel, args, id }, '*');
+        // Safety timeout
+        setTimeout(() => {
+            window.removeEventListener('message', handler);
+            reject(new Error(`IPC timeout: ${channel}`));
+        }, 30000);
+    });
+}
+
 // [v1.1.1] Global error handler for debugging
 window.onerror = function(msg, url, line) {
     console.error(`[Popup Error] ${msg} at ${url}:${line}`);
@@ -418,10 +439,15 @@ function bindEvents() {
     }
 
     // Persistence for Template
-    ['tpl-sender-name', 'tpl-name', 'tpl-email', 'tpl-subject', 'tpl-message'].forEach(id => {
+    ['tpl-first-name', 'tpl-last-name', 'tpl-name', 'tpl-email', 'tpl-sender-name', 'tpl-phone', 'tpl-subject', 'tpl-message'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', saveTemplate);
     });
+
+    const tplLibrarySelect = document.getElementById('tpl-library-select');
+    if (tplLibrarySelect) {
+        tplLibrarySelect.addEventListener('change', loadTemplateFromLibrary);
+    }
 
     // Clear List Button
     const clearListBtn = document.getElementById('clear-list-btn');
@@ -609,52 +635,57 @@ async function saveTemplateChanges() {
     messageEl.value = message;
 
     const tpl = {
-        senderName: document.getElementById('tpl-sender-name').value,
-        firstName: document.getElementById('tpl-first-name').value,
-        lastName: document.getElementById('tpl-last-name').value,
-        name: document.getElementById('tpl-name').value,
-        email: document.getElementById('tpl-email').value,
-        phone: document.getElementById('tpl-phone').value,
-        subject: document.getElementById('tpl-subject').value,
-        message: message
+        senderName: document.getElementById('tpl-sender-name').value.trim(),
+        firstName: document.getElementById('tpl-first-name').value.trim(),
+        lastName: document.getElementById('tpl-last-name').value.trim(),
+        name: document.getElementById('tpl-name').value.trim(),
+        email: document.getElementById('tpl-email').value.trim(),
+        phone: document.getElementById('tpl-phone').value.trim(),
+        subject: document.getElementById('tpl-subject').value.trim(),
+        message: message.trim()
     };
 
-    const data = await chrome.storage.local.get(['xpider_tpl_lib']);
-    const lib = data.xpider_tpl_lib || [];
-    
-    // Check if current name exists to overwrite or create new
-    const existingIndex = lib.findIndex(t => t.templateName === (tpl.name || 'My Template'));
-    
-    if (existingIndex > -1) {
-        lib[existingIndex] = { ...tpl, templateName: tpl.name || 'My Template' };
-    } else {
-        lib.push({ ...tpl, templateName: tpl.name || 'My Template' });
+    if (!tpl.message && !tpl.subject) return alert('Please enter at least a Subject or Message.');
+
+    const safeName = (tpl.subject || tpl.name || 'XPIDER_Template').replace(/[<>:"/\\|?*]/g, '_');
+    const defaultName = `${safeName}_template.txt`;
+    const content = buildTemplateFileContent(tpl);
+
+    addLog('📁 Opening Save As dialog...', 'info');
+    const result = await xpiderInvoke('xpider-show-save-dialog', { defaultName, content });
+
+    if (!result || !result.success) {
+        if (result && result.reason !== 'cancelled') addLog(`❌ Save failed: ${result.reason}`, 'error');
+        return;
     }
 
-    // [v18.45.0] Export to local file with 'Save As' dialog as requested
-    downloadTemplateFile(tpl);
-    
+    // Save to recent history
+    const historyItem = { ...tpl, fileName: result.fileName, filePath: result.filePath, timestamp: new Date().toISOString() };
+    const data = await chrome.storage.local.get(['xpider_recent_templates']);
+    let recent = data.xpider_recent_templates || [];
+    // Remove duplicate by filePath
+    recent = recent.filter(t => t.filePath !== result.filePath);
+    recent.unshift(historyItem);
+    if (recent.length > 6) recent = recent.slice(0, 6);
+    await chrome.storage.local.set({ xpider_recent_templates: recent });
+
+    await updateTemplateDropdown();
+
     // Provide feedback
     ['save-tpl-btn', 'save-tpl-changes-btn', 'save-tpl-bottom-btn'].forEach(id => {
         const btn = document.getElementById(id);
         if (btn) {
             const originalText = btn.textContent;
-            btn.textContent = "Saved!";
-            setTimeout(() => btn.textContent = originalText, 1500);
+            btn.textContent = "✅ Saved!";
+            setTimeout(() => btn.textContent = originalText, 1800);
         }
     });
 
-    addLog(`Export initiated: ${tpl.name || 'Template'}`, 'info');
+    addLog(`✅ Template saved: ${result.fileName}`, 'success');
 }
 
-/**
- * [v18.45.0] Upgraded to use chrome.downloads for 'Save As' dialog and history tracking
- */
-function downloadTemplateFile(tpl) {
-    const safeName = (tpl.name || 'XPIDER_Template').replace(/[<>:"/\\|?*]/g, '_');
-    const filename = `${safeName}_template.txt`;
-    
-    const content = `[XPIDER MESSAGE TEMPLATE]
+function buildTemplateFileContent(tpl) {
+    return `[XPIDER MESSAGE TEMPLATE]
 -----------------------------------------
 Sender Name:      ${tpl.senderName || 'N/A'}
 Target Full Name: ${tpl.name || 'N/A'}
@@ -670,47 +701,9 @@ ${tpl.message || ''}
 -----------------------------------------
 Generated by XPIDER Send Pro
 `;
-
-    const blob = new Blob([content], { type: 'text/plain' });
-    const reader = new FileReader();
-    
-    reader.onloadend = function() {
-        const dataUrl = reader.result;
-        
-        // Use Chrome Downloads API to show 'Save As' dialog
-        chrome.downloads.download({
-            url: dataUrl,
-            filename: filename,
-            saveAs: true
-        }, async (downloadId) => {
-            if (downloadId) {
-                // Track this export in our custom history
-                const data = await chrome.storage.local.get(['xpider_export_history']);
-                const history = data.xpider_export_history || [];
-                
-                const historyItem = {
-                    ...tpl,
-                    filename: filename,
-                    timestamp: new Date().toISOString()
-                };
-                
-                // Keep unique by suggested filename, most recent first
-                const existingIdx = history.findIndex(h => h.filename === filename);
-                if (existingIdx > -1) history.splice(existingIdx, 1);
-                history.unshift(historyItem);
-                
-                // Limit history to last 50 items
-                if (history.length > 50) history.pop();
-                
-                await chrome.storage.local.set({ xpider_export_history: history });
-                await updateTemplateDropdown();
-                addLog(`File saved and tracked in history: ${filename}`, 'success');
-            }
-        });
-    };
-    
-    reader.readAsDataURL(blob);
 }
+
+
 
 async function addSingleEmail() {
     const input = document.getElementById('manual-url-input');
@@ -994,77 +987,66 @@ async function loadBlackBoxLogs() {
 
 // [v1.7.0] Advanced Template Library Logic
 async function saveTemplateToLibrary() {
-    const tpl = saveTemplate();
-    if (!tpl.subject && !tpl.message) return alert("Please enter at least a subject or message.");
-    
-    const name = tpl.subject || `Template_${new Date().toLocaleTimeString()}`;
-    const data = await chrome.storage.local.get(['xpider_tpl_library']);
-    let library = data.xpider_tpl_library || [];
-    
-    // Replace if exists with same name, or add new
-    const idx = library.findIndex(t => t.subject === tpl.subject && tpl.subject !== '');
-    if (idx > -1) {
-        library[idx] = tpl;
-    } else {
-        library.push(tpl);
-    }
-    
-    await chrome.storage.local.set({ xpider_tpl_library: library });
-    await updateTemplateDropdown();
-    
-    const lang = document.getElementById('language-select')?.value || 'en';
-    const dict = i18nData[lang] || i18nData['en'] || {};
-    alert(dict.msg_tpl_saved || "Template saved!");
+    await saveTemplateChanges();
 }
 
+/**
+ * [v19.0] Update dropdown with last 6 recently saved templates
+ */
 async function updateTemplateDropdown() {
     const select = document.getElementById('tpl-library-select');
     if (!select) return;
-    
-    // [v18.45.0] Shift from internal library to Export History
-    const data = await chrome.storage.local.get(['xpider_export_history']);
-    const history = data.xpider_export_history || [];
-    
+
     const lang = document.getElementById('language-select')?.value || 'en';
-    const dict = i18nData[lang] || i18nData['en'] || {};
-    
-    // Clear and add "Select Template" option (Empty by default as requested)
-    select.innerHTML = `<option value="" disabled selected>${dict.label_select_template || 'Select Template'}</option>`;
-    
-    if (history.length === 0) return;
-    
-    history.forEach((tpl, idx) => {
-        const option = document.createElement('option');
-        option.value = idx;
-        // Show filename as the history item label
-        option.textContent = tpl.filename || tpl.subject || `Template ${idx + 1}`;
-        select.appendChild(option);
+    const dict = (i18nData && i18nData[lang]) ? i18nData[lang] : (i18nData ? i18nData['en'] : {});
+
+    select.innerHTML = `<option value="" disabled selected>${dict.label_select_template || '📂 Select Template'}</option>`;
+
+    const data = await chrome.storage.local.get(['xpider_recent_templates']);
+    const recent = (data.xpider_recent_templates || []).slice(0, 6);
+
+    if (recent.length === 0) {
+        const opt = document.createElement('option');
+        opt.disabled = true;
+        opt.textContent = '— No recent templates —';
+        select.appendChild(opt);
+        return;
+    }
+
+    recent.forEach((tpl, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        const date = tpl.timestamp ? new Date(tpl.timestamp).toLocaleDateString() : '';
+        const label = tpl.fileName || tpl.subject || `Template ${idx + 1}`;
+        opt.textContent = `${label}${date ? '  · ' + date : ''}`;
+        select.appendChild(opt);
     });
 }
 
+/**
+ * [v19.0] Load selected template from dropdown into the form
+ */
 function loadTemplateFromLibrary() {
     const select = document.getElementById('tpl-library-select');
-    const idx = select.value;
-    if (idx === "") return;
-    
-    // [v18.45.0] Load from Export History
-    chrome.storage.local.get(['xpider_export_history'], (data) => {
-        const history = data.xpider_export_history || [];
-        const tpl = history[idx];
-        if (tpl) {
-            document.getElementById('tpl-sender-name').value = tpl.senderName || '';
-            document.getElementById('tpl-first-name').value = tpl.firstName || '';
-            document.getElementById('tpl-last-name').value = tpl.lastName || '';
-            document.getElementById('tpl-name').value = tpl.name || '';
-            document.getElementById('tpl-email').value = tpl.email || '';
-            document.getElementById('tpl-phone').value = tpl.phone || '';
-            document.getElementById('tpl-subject').value = tpl.subject || '';
-            document.getElementById('tpl-message').value = tpl.message || '';
-            
-            // Sync as active tpl for campaign
-            chrome.storage.local.set({ xpider_tpl: tpl });
-            addLog(`Restored from history: ${tpl.filename}`, 'info');
-        }
+    const idx = select?.value;
+    if (idx === '' || idx === null || idx === undefined) return;
+
+    chrome.storage.local.get(['xpider_recent_templates'], (data) => {
+        const recent = data.xpider_recent_templates || [];
+        const tpl = recent[parseInt(idx)];
+        if (!tpl) return;
+
+        document.getElementById('tpl-sender-name').value = tpl.senderName || '';
+        document.getElementById('tpl-first-name').value = tpl.firstName || '';
+        document.getElementById('tpl-last-name').value  = tpl.lastName  || '';
+        document.getElementById('tpl-name').value        = tpl.name      || '';
+        document.getElementById('tpl-email').value       = tpl.email     || '';
+        document.getElementById('tpl-phone').value       = tpl.phone     || '';
+        document.getElementById('tpl-subject').value     = tpl.subject   || '';
+        document.getElementById('tpl-message').value     = tpl.message   || '';
+
+        chrome.storage.local.set({ xpider_tpl: tpl });
+        addLog(`✅ Loaded template: ${tpl.fileName || tpl.subject || 'Template'}`, 'success');
     });
 }
 

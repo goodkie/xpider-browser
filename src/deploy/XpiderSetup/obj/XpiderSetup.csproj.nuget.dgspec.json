@@ -1,0 +1,63 @@
+{
+  "format": 1,
+  "restore": {
+    "E:\\vivpr\\ai\\full-xpider-v9\\src\\deploy\\XpiderSetup\\XpiderSetup.csproj": {}
+  },
+  "projects": {
+    "E:\\vivpr\\ai\\full-xpider-v9\\src\\deploy\\XpiderSetup\\XpiderSetup.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "E:\\vivpr\\ai\\full-xpider-v9\\src\\deploy\\XpiderSetup\\XpiderSetup.csproj",
+        "projectName": "XPIDER-Setup",
+        "projectPath": "E:\\vivpr\\ai\\full-xpider-v9\\src\\deploy\\XpiderSetup\\XpiderSetup.csproj",
+        "packagesPath": "C:\\Users\\vivPR\\.nuget\\packages\\",
+        "outputPath": "E:\\vivpr\\ai\\full-xpider-v9\\src\\deploy\\XpiderSetup\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\vivPR\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net48"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net48": {
+            "targetAlias": "net48",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net48": {
+          "targetAlias": "net48",
+          "dependencies": {
+            "Microsoft.NETFramework.ReferenceAssemblies": {
+              "suppressParent": "All",
+              "target": "Package",
+              "version": "[1.0.3, )",
+              "autoReferenced": true
+            }
+          },
+          "runtimeIdentifierGraphPath": "E:\\vivpr\\ai\\full-xpider-v9\\.dotnet\\sdk\\8.0.421\\RuntimeIdentifierGraph.json"
+        }
+      },
+      "runtimes": {
+        "win7-x86": {
+          "#import": []
+        }
+      }
+    }
+  }
+}

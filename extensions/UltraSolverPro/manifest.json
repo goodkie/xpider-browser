@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "UltraSolver Pro",
+  "name": "UltraSolver Pro reCAPTCHA",
   "version": "1.0.0",
   "description": "Automatic CAPTCHA Solver integrated with Anti-Captcha SuperProxy.",
   "icons": {
@@ -31,7 +31,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "UltraSolver Pro",
+    "default_title": "UltraSolver Pro reCAPTCHA",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
