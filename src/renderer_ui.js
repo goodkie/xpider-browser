@@ -128,6 +128,10 @@ const modalNotes       = document.getElementById('modal-release-notes');
 const updateToast      = document.getElementById('update-toast');
 const toastMsg         = document.getElementById('toast-msg');
 
+const titlebarUpdateWidget = document.getElementById('titlebar-update-widget');
+const titlebarUpdateIcon   = document.getElementById('titlebar-update-icon');
+const titlebarUpdateText   = document.getElementById('titlebar-update-text');
+
 let currentExtensionId = null;
 let currentPanelTab    = 'history';
 let _releaseUrl        = '';
@@ -760,9 +764,38 @@ if (huCloseBtn) {
 // 핫 업데이트 실시간 진행률 수신
 window.electronAPI.on('hot-update-progress', ({ phase, pct, msg }) => {
     showHotUpdatePanel(phase, pct, msg);
-    if (phase === 'done' || phase === 'error') {
+    
+    // 타이틀바 업데이트 상태 반영
+    if (phase === 'download') {
+        if (titlebarUpdateIcon) titlebarUpdateIcon.textContent = '📥';
+        if (titlebarUpdateText) titlebarUpdateText.textContent = `Downloading ${Math.round(pct || 0)}%`;
+        if (titlebarUpdateWidget) {
+            titlebarUpdateWidget.style.color = '#00f2fe';
+            titlebarUpdateWidget.style.background = 'rgba(0,242,254,0.12)';
+            titlebarUpdateWidget.style.borderColor = 'rgba(0,242,254,0.28)';
+        }
+    } else if (phase === 'done') {
         const btn = document.getElementById('modal-hot-update-btn');
         if (btn) { btn.disabled = false; btn.textContent = 'Update Now (Restart Required)'; }
+        
+        if (titlebarUpdateIcon) titlebarUpdateIcon.textContent = '🎈';
+        if (titlebarUpdateText) titlebarUpdateText.textContent = 'Restart to Apply';
+        if (titlebarUpdateWidget) {
+            titlebarUpdateWidget.style.color = '#ff4081';
+            titlebarUpdateWidget.style.background = 'rgba(255,64,129,0.12)';
+            titlebarUpdateWidget.style.borderColor = 'rgba(255,64,129,0.28)';
+        }
+    } else if (phase === 'error') {
+        const btn = document.getElementById('modal-hot-update-btn');
+        if (btn) { btn.disabled = false; btn.textContent = 'Update Now (Restart Required)'; }
+        
+        if (titlebarUpdateIcon) titlebarUpdateIcon.textContent = '❌';
+        if (titlebarUpdateText) titlebarUpdateText.textContent = 'Update Failed';
+        if (titlebarUpdateWidget) {
+            titlebarUpdateWidget.style.color = '#ff6b6b';
+            titlebarUpdateWidget.style.background = 'rgba(255,107,107,0.12)';
+            titlebarUpdateWidget.style.borderColor = 'rgba(255,107,107,0.28)';
+        }
     }
 });
 
@@ -799,10 +832,27 @@ window.electronAPI.on('app-update-result', (result) => {
         if (skipCheckbox) skipCheckbox.checked = false;
         
         updateModal.classList.remove('hidden');
+
+        // 타이틀바 업데이트 상태 반영
+        if (titlebarUpdateIcon) titlebarUpdateIcon.textContent = '✨';
+        if (titlebarUpdateText) titlebarUpdateText.textContent = `Update Available (v${result.latestVersion})`;
+        if (titlebarUpdateWidget) {
+            titlebarUpdateWidget.style.color = '#ffd700';
+            titlebarUpdateWidget.style.background = 'rgba(255,215,0,0.12)';
+            titlebarUpdateWidget.style.borderColor = 'rgba(255,215,0,0.28)';
+        }
     } else {
         // 에러가 있으면 에러 토스트
         if (result.error) {
             if (result.isManual) showToast(`Update check failed: ${result.error}`);
+            
+            if (titlebarUpdateIcon) titlebarUpdateIcon.textContent = '❌';
+            if (titlebarUpdateText) titlebarUpdateText.textContent = 'Update Error';
+            if (titlebarUpdateWidget) {
+                titlebarUpdateWidget.style.color = '#ff6b6b';
+                titlebarUpdateWidget.style.background = 'rgba(255,107,107,0.12)';
+                titlebarUpdateWidget.style.borderColor = 'rgba(255,107,107,0.28)';
+            }
             return;
         }
         // 수동 확인일 때만 "최신 버전" 토스트 표시 (자동 확인 시에는 조용히 종료)
@@ -810,6 +860,15 @@ window.electronAPI.on('app-update-result', (result) => {
             const cur = result.currentVersion || '';
             const lat = result.latestVersion  || cur;
             showToast(`You are on the latest version. (Current: v${cur} / GitHub: v${lat})`, 5000);
+        }
+
+        if (titlebarUpdateIcon) titlebarUpdateIcon.textContent = '✅';
+        const curVer = result.currentVersion || '7.0.1';
+        if (titlebarUpdateText) titlebarUpdateText.textContent = `v${curVer} (Latest)`;
+        if (titlebarUpdateWidget) {
+            titlebarUpdateWidget.style.color = '#22c55e';
+            titlebarUpdateWidget.style.background = 'rgba(34,197,94,0.1)';
+            titlebarUpdateWidget.style.borderColor = 'rgba(34,197,94,0.2)';
         }
     }
 });
@@ -880,6 +939,18 @@ document.getElementById('check-update-btn').onclick = () => {
     showToast('Checking for updates...', 4000);
     window.electronAPI.send('check-for-updates');
 };
+
+if (titlebarUpdateWidget) {
+    titlebarUpdateWidget.onclick = () => {
+        showToast('Checking for updates...', 4000);
+        if (titlebarUpdateIcon) titlebarUpdateIcon.textContent = '🔄';
+        if (titlebarUpdateText) titlebarUpdateText.textContent = 'Checking...';
+        titlebarUpdateWidget.style.color = '#a4b3c6';
+        titlebarUpdateWidget.style.background = 'rgba(255,255,255,0.05)';
+        titlebarUpdateWidget.style.borderColor = 'rgba(255,255,255,0.12)';
+        window.electronAPI.send('check-for-updates');
+    };
+}
 
 // ─── 토스트 유틸 ──────────────────────────────────────────────
 function showToast(msg, duration = 3000) {

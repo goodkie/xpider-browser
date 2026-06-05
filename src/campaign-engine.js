@@ -415,8 +415,7 @@ async function bypassTurnstileWidget() {
 
     // [방법 5] 숨겨진 Turnstile 응답 input에 더미 토큰 주입 (일부 서버에서 클라이언트 검증만 하는 경우)
     const responseInputs = document.querySelectorAll(
-      'input[name="cf-turnstile-response"], input[name="h-captcha-response"], ' +
-      'input[name="g-recaptcha-response"], textarea[name="g-recaptcha-response"]'
+      'input[name="cf-turnstile-response"], input[name="turnstile-response"]'
     );
     responseInputs.forEach(inp => {
       if (!inp.value || inp.value.trim() === '') {
@@ -511,8 +510,12 @@ function generateSmartRandomValue(el) {
   // 3. 텍스트 / 일반 글자 필드
   const templateVals = [tpl.firstName, tpl.lastName, tpl.name, tpl.email, tpl.phone, tpl.subject, tpl.message].filter(v => typeof v === 'string' && v.trim() !== '');
   const getRandomTemplateVal = () => {
-    if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
-    return "Inquiry";
+    const randSuffix = Math.random().toString(36).substring(2, 7);
+    if (templateVals.length > 0) {
+      const val = templateVals[Math.floor(Math.random() * templateVals.length)];
+      return val + '_' + randSuffix;
+    }
+    return "Inquiry_" + randSuffix;
   };
   
   if (/company|회사|org/i.test(c)) {
@@ -782,9 +785,12 @@ async function fillSelect(el){
     const webIdx=opts.findIndex(o=>/internet|website|web|search|google|online/i.test(o.text));
     if(webIdx>0)bestIdx=webIdx;
   }
-  // Fallback: pick first non-empty option
+  // Fallback: pick random non-empty option
   if(bestIdx<0){
-    bestIdx=opts.findIndex((o,i)=>i>0 && o.value && o.value.trim()!=='' && !o.disabled);
+    const validOpts = opts.map((o, idx) => ({o, idx})).filter(item => item.idx > 0 && item.o.value && item.o.value.trim() !== '' && !item.o.disabled);
+    if (validOpts.length > 0) {
+      bestIdx = validOpts[Math.floor(Math.random() * validOpts.length)].idx;
+    }
   }
   if(bestIdx<0)return false;
   await humanClick(el);
@@ -815,22 +821,9 @@ async function fillRadioGroups(container){
   });
   let filled=0;
   for(const[name,items] of Object.entries(groups)){
-    // Skip if already selected
     if(items.some(r=>r.checked))continue;
-    let chosen=null;
-    // Prefer positive/agreeable options
-    for(const r of items){
-      const lt=(lbl(r)+' '+(r.value||'')).toLowerCase();
-      if(/^yes$|agree|accept|confirm|동의|はい|同意|other|기타/i.test(lt)){chosen=r;break;}
-    }
-    // Prefer 'general' or first option
-    if(!chosen){
-      for(const r of items){
-        const lt=(lbl(r)+' '+(r.value||'')).toLowerCase();
-        if(/general|inquiry|info|문의|お問い合わせ|咨询/i.test(lt)){chosen=r;break;}
-      }
-    }
-    if(!chosen)chosen=items[0];
+    
+    const chosen = items[Math.floor(Math.random() * items.length)];
     if(chosen && !chosen.disabled){
       await humanClick(chosen);
       chosen.checked=true;
@@ -848,30 +841,18 @@ async function fillCheckboxes(container){
   if(cbs.length===0)return 0;
   let filled=0;
   for(const cb of cbs){
-    const isChecked = cb.type === 'checkbox' ? cb.checked : (cb.getAttribute('aria-checked') === 'true' || cb.classList.contains('checked') || cb.classList.contains('active'));
-    if(isChecked || cb.disabled || cb.getAttribute('disabled') !== null) continue;
+    if(cb.disabled || cb.getAttribute('disabled') !== null) continue;
     
-    const lt=(getFieldId(cb)+' '+lbl(cb)).toLowerCase();
-    
-    // Must-check: required, terms, privacy, agree, policy, ueni, cookies
-    const mustCheck = cb.required || cb.getAttribute('required')!==null || cb.getAttribute('aria-required')==='true' || 
-                      /agree|terms|privacy|policy|consent|accept|ueni|cookies|decor|done.wright|heather|recaptcha|필수|동의|약관|同意|規約|条款|confirm|acknowledge/i.test(lt);
-    
-    // Skip opt-in marketing/newsletter
-    const isOptIn = /newsletter|subscribe|marketing|promo|offer|수신|구독|メルマガ|订阅/i.test(lt);
-    
-    if(mustCheck && !isOptIn){
-      await humanClick(cb);
-      if (cb.type === 'checkbox') {
-        cb.checked = true;
-      } else {
-        cb.setAttribute('aria-checked', 'true');
-        cb.classList.add('checked');
-      }
-      ['input','change','click'].forEach(t=>cb.dispatchEvent(new Event(t,{bubbles:true})));
-      filled++;
-      await new Promise(r=>setTimeout(r,80+Math.random()*80));
+    await humanClick(cb);
+    if (cb.type === 'checkbox') {
+      cb.checked = true;
+    } else {
+      cb.setAttribute('aria-checked', 'true');
+      cb.classList.add('checked');
     }
+    ['input','change','click'].forEach(t=>cb.dispatchEvent(new Event(t,{bubbles:true})));
+    filled++;
+    await new Promise(r=>setTimeout(r,80+Math.random()*80));
   }
   return filled;
 }
@@ -1993,8 +1974,6 @@ await new Promise(r=>setTimeout(r,1000)); // extra buffer
 
 const f=await bestForm();
 if(!f){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
-const n=await fill(f);
-if(n < 3){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
 
 // 🛡️ [CAPTCHA Wait Guard] CAPTCHA가 존재하고 아직 풀리지 않았다면 대기
 try {
@@ -2028,64 +2007,104 @@ try {
   }
 
   if (captchaWaiting) {
-      console.log("⏳ [XPIDER Form Filler] CAPTCHA detected. Checking solver status...");
+      console.log("⏳ [XPIDER Form Filler] CAPTCHA detected. Checking solver status (3 attempts max)...");
+      let solveSuccess = false;
       
-      // [레이스 컨디션 방지] UltraSolver Pro가 캡차를 감지하고 attribute를 심을 때까지 최대 3.5초 선행 대기
-      const startScan = Date.now();
-      while (Date.now() - startScan < 3500) {
-          const isSolving = document.documentElement.getAttribute('data-usp-solving');
-          if (isSolving === 'true' || isSolving === 'done') {
-              console.log("🤖 [XPIDER Form Filler] UltraSolver Pro confirmed solving active: " + isSolving);
-              break;
-          }
-          await new Promise(r => setTimeout(r, 200));
-      }
-
-      console.log("⏳ [XPIDER Form Filler] Waiting for solver to inject token...");
-      const maxCaptchaWait = 90000; // 최대 90초 대기
-      const startWait = Date.now();
-      
-      while (Date.now() - startWait < maxCaptchaWait) {
-          const solverState = document.documentElement.getAttribute('data-usp-solving');
-          const isSolverStillSolving = solverState === 'true';
-
-          const recTextarea = document.querySelector('textarea[name="g-recaptcha-response"], textarea[id="g-recaptcha-response"], [name*="recaptcha-response"], [id*="recaptcha-response"]');
-          const hTextarea = document.querySelector('textarea[name="h-captcha-response"], textarea[id="h-captcha-response"], [name*="h-captcha-response"], [id*="h-captcha-response"]');
+      for (let attempt = 1; attempt <= 3; attempt++) {
+          console.log("⏳ [XPIDER Form Filler] Attempt " + attempt + "/3 to solve CAPTCHA...");
           
-          let cfInput = document.querySelector('input[name="cf-turnstile-response"]');
-          if (!cfInput) {
-              const tsWidget = document.querySelector('.cf-turnstile, [data-response-field-name]');
-              const fieldName = tsWidget ? tsWidget.getAttribute('data-response-field-name') : null;
-              if (fieldName) {
-                  cfInput = document.querySelector('input[name="' + fieldName + '"], textarea[name="' + fieldName + '"]');
+          // [레이스 컨디션 방지] UltraSolver Pro가 캡차를 감지하고 attribute를 심을 때까지 최대 3.5초 선행 대기
+          const startScan = Date.now();
+          while (Date.now() - startScan < 3500) {
+              const isSolving = document.documentElement.getAttribute('data-usp-solving');
+              if (isSolving === 'true' || isSolving === 'done') {
+                  break;
               }
+              await new Promise(r => setTimeout(r, 200));
           }
-          if (!cfInput) {
-              cfInput = document.querySelector('input[name*="turnstile"], textarea[name*="turnstile"]');
+
+          console.log("⏳ [XPIDER Form Filler] Waiting for solver to inject token for attempt " + attempt + "...");
+          const attemptTimeout = 30000; // 시도당 30초 대기
+          const startWait = Date.now();
+          let currentAttemptSuccess = false;
+          
+          while (Date.now() - startWait < attemptTimeout) {
+              const solverState = document.documentElement.getAttribute('data-usp-solving');
+              const isSolverStillSolving = solverState === 'true';
+
+              const recTextarea = document.querySelector('textarea[name="g-recaptcha-response"], textarea[id="g-recaptcha-response"], [name*="recaptcha-response"], [id*="recaptcha-response"]');
+              const hTextarea = document.querySelector('textarea[name="h-captcha-response"], textarea[id="h-captcha-response"], [name*="h-captcha-response"], [id*="h-captcha-response"]');
+              
+              let cfInput = document.querySelector('input[name="cf-turnstile-response"]');
+              if (!cfInput) {
+                  const tsWidget = document.querySelector('.cf-turnstile, [data-response-field-name]');
+                  const fieldName = tsWidget ? tsWidget.getAttribute('data-response-field-name') : null;
+                  if (fieldName) {
+                      cfInput = document.querySelector('input[name="' + fieldName + '"], textarea[name="' + fieldName + '"]');
+                  }
+              }
+              if (!cfInput) {
+                  cfInput = document.querySelector('input[name*="turnstile"], textarea[name*="turnstile"]');
+              }
+              
+              const recVal = recTextarea ? recTextarea.value : '';
+              const hVal = hTextarea ? hTextarea.value : '';
+              const cfVal = cfInput ? cfInput.value : '';
+              
+              const isRecaptchaReady = !hasRecaptcha || (recTextarea && recVal && recVal.trim() !== '' && !recVal.startsWith('XPIDER_BYPASS_'));
+              const isHcaptchaReady = !hasHcaptcha || (hTextarea && hVal && hVal.trim() !== '' && !hVal.startsWith('XPIDER_BYPASS_'));
+              const isCfTurnstileReady = !hasCfTurnstile || (cfInput && cfVal && cfVal.trim() !== '' && !cfVal.startsWith('XPIDER_BYPASS_'));
+              
+              if (isRecaptchaReady && isHcaptchaReady && isCfTurnstileReady && !isSolverStillSolving) {
+                  currentAttemptSuccess = true;
+                  break;
+              }
+              await new Promise(r => setTimeout(r, 1000));
           }
           
-          const recVal = recTextarea ? recTextarea.value : '';
-          const hVal = hTextarea ? hTextarea.value : '';
-          const cfVal = cfInput ? cfInput.value : '';
-          
-          const isRecaptchaReady = !hasRecaptcha || (recTextarea && recVal && recVal.trim() !== '');
-          const isHcaptchaReady = !hasHcaptcha || (hTextarea && hVal && hVal.trim() !== '');
-          const isCfTurnstileReady = !hasCfTurnstile || (cfInput && cfVal && cfVal.trim() !== '');
-          
-          if (isRecaptchaReady && isHcaptchaReady && isCfTurnstileReady && !isSolverStillSolving) {
-              console.log("🎯 [XPIDER Form Filler] CAPTCHA token successfully injected! Proceeding to submit...");
+          if (currentAttemptSuccess) {
+              solveSuccess = true;
+              console.log("🎯 [XPIDER Form Filler] CAPTCHA successfully solved on attempt " + attempt + "!");
               break;
+          } else if (attempt < 3) {
+              console.log("⚠️ [XPIDER Form Filler] Attempt " + attempt + " failed. Resetting CAPTCHA for retry...");
+              try {
+                  if (hasRecaptcha && window.grecaptcha && typeof window.grecaptcha.reset === 'function') {
+                      window.grecaptcha.reset();
+                  } else if (hasHcaptcha && window.hcaptcha && typeof window.hcaptcha.reset === 'function') {
+                      window.hcaptcha.reset();
+                  } else if (hasCfTurnstile && window.turnstile && typeof window.turnstile.reset === 'function') {
+                      window.turnstile.reset();
+                  }
+              } catch(e) {}
+              await new Promise(r => setTimeout(r, 2000)); // 리셋 후 2초 대기
           }
-          await new Promise(r => setTimeout(r, 1000));
       }
   }
 } catch(e) {
   console.error("Error in CAPTCHA Wait Guard:", e);
 }
 
+// 폼 자동완성을 완벽하게 수행
+const n = await fill(f);
+
 // Human-like pause before submit
 await new Promise(r=>setTimeout(r, typeof submitDelayMs !== 'undefined' ? submitDelayMs : 1200));
+
+// 1차 자동 등록 버튼 제출 시도 (submit 함수 내부에서 각종 리스너 무력화 및 클릭)
 const ok = await submit(f);
+
+// 2차 수동 마우스 클릭 시뮬레이션으로 등록 버튼 추가 클릭 진행
+try {
+  const submitBtn = f.querySelector('input[type="submit"], button[type="submit"], [class*="submit"i], [id*="submit"i], [class*="send"i], [id*="send"i]');
+  if (submitBtn && !submitBtn.disabled) {
+    console.log("🖱️ [XPIDER Form Filler] Stage 2: Performing human-like click simulation on submit button...");
+    await humanClick(submitBtn);
+  }
+} catch(e) {}
+
+// 제출 완료 후 충분한 시간을 대기 (최소 5.5초 버퍼)
+await new Promise(r => setTimeout(r, 5500));
 
 // 🔍 [Precision Submission Verifier] 실시간 초정밀 성공 관측 루프 (최대 20초)
 let finalSuccess = ok;
