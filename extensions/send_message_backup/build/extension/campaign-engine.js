@@ -2067,7 +2067,7 @@ try {
   }
 
   if (captchaWaiting) {
-      // [v18.70.0] Real-time Captcha Solver Logs Floating Popup UI
+      // [v18.80.0] Real-time Captcha Solver Logs Floating Popup UI
       const showSolverLogsPopup = () => {
           if (document.getElementById('xpider-solver-popup')) return;
           
@@ -2154,10 +2154,18 @@ try {
           const title = document.getElementById('xpider-solver-title');
           const dot = document.getElementById('xpider-solver-dot');
           if (title && dot) {
-              title.innerText = success ? 'SOLVER SUCCESS' : 'SOLVER FAILED / TIMEOUT';
-              title.style.color = success ? '#4ade80' : '#f87171';
-              dot.style.backgroundColor = success ? '#4ade80' : '#f87171';
-              dot.style.animation = 'none';
+              if (success) {
+                  title.innerText = 'SOLVER SUCCESS';
+                  title.style.cssText = 'font-size: 20px; font-weight: 900; color: #ffffff; text-shadow: 0 0 10px #4ade80, 0 0 20px #4ade80, 0 0 35px #22c55e, 0 0 50px #22c55e; transition: all 0.3s ease;';
+                  dot.style.backgroundColor = '#4ade80';
+                  dot.style.boxShadow = '0 0 12px #4ade80, 0 0 25px #22c55e';
+                  dot.style.animation = 'none';
+              } else {
+                  title.innerText = 'SOLVER FAILED / TIMEOUT';
+                  title.style.color = '#f87171';
+                  dot.style.backgroundColor = '#f87171';
+                  dot.style.animation = 'none';
+              }
           }
 
           setTimeout(() => {
@@ -2166,18 +2174,43 @@ try {
               setTimeout(() => {
                   popup.remove();
               }, 300);
-          }, success ? 2000 : 3500);
+          }, success ? 4500 : 3500);
+      };
+
+      const getCaptchaSitekey = () => {
+          const el = document.querySelector('.g-recaptcha') || 
+                     document.querySelector('iframe[src*="recaptcha/api2/anchor"]') ||
+                     document.querySelector('.cf-turnstile') ||
+                     document.querySelector('iframe[src*="challenges.cloudflare.com"]') ||
+                     document.querySelector('[data-sitekey]');
+          if (!el) return '';
+          const sk = el.getAttribute('data-sitekey') || '';
+          if (sk) return sk;
+          try {
+              const src = el.src || '';
+              if (src.includes('recaptcha')) {
+                  const kMatch = src.match(/[?&]k=([^&]+)/);
+                  if (kMatch) return kMatch[1];
+              }
+              if (src.includes('hcaptcha.com')) {
+                  const skMatch = src.match(/[?&]sitekey=([^&]+)/);
+                  if (skMatch) return skMatch[1];
+              }
+          } catch(e){}
+          return '';
       };
 
       console.log("⏳ [XPIDER Form Filler] CAPTCHA detected. Checking solver status (3 attempts max)...");
       addSolverLog("CAPTCHA detected. Checking solver status...", "info");
       let solveSuccess = false;
       
+      const initialKey = getCaptchaSitekey();
+      
       for (let attempt = 1; attempt <= 3; attempt++) {
           console.log("⏳ [XPIDER Form Filler] Attempt " + attempt + "/3 to solve CAPTCHA...");
           addSolverLog("Attempt " + attempt + "/3 to solve CAPTCHA...", "info");
           
-          // [레이스 컨디션 방지] UltraSolver Pro가 캡차를 감지하고 attribute를 심을 때까지 최대 3.5초 선행 대기
+          // [레이스 컨디션 방지] UltraSolver Pro가 캡차를 감지하고 attribute를 심을 때까지 최대 3.5초 선행 대기 (조기 통과 최적화)
           const startScan = Date.now();
           let isUspActive = false;
           while (Date.now() - startScan < 3500) {
@@ -2186,7 +2219,25 @@ try {
                   isUspActive = true;
                   break;
               }
-              await new Promise(r => setTimeout(r, 200));
+              
+              // 대기 도중에 이미 토큰이 기입되었는지 초고속 체크 (이미 해결되었으면 즉시 탈출)
+              const recTextarea = document.querySelector('textarea[name="g-recaptcha-response"], textarea[id="g-recaptcha-response"], [name*="recaptcha-response"]');
+              const hTextarea = document.querySelector('textarea[name="h-captcha-response"], [name*="h-captcha-response"]');
+              const cfInput = document.querySelector('input[name="cf-turnstile-response"], [name*="turnstile-response"]');
+              
+              const recVal = recTextarea ? recTextarea.value : '';
+              const hVal = hTextarea ? hTextarea.value : '';
+              const cfVal = cfInput ? cfInput.value : '';
+              
+              const isRecaptchaReady = !hasRecaptcha || (recTextarea && recVal && recVal.trim() !== '' && !recVal.startsWith('XPIDER_BYPASS_'));
+              const isHcaptchaReady = !hasHcaptcha || (hTextarea && hVal && hVal.trim() !== '' && !hVal.startsWith('XPIDER_BYPASS_'));
+              const isCfTurnstileReady = !hasCfTurnstile || (cfInput && cfVal && cfVal.trim() !== '' && !cfVal.startsWith('XPIDER_BYPASS_'));
+              
+              if (isRecaptchaReady && isHcaptchaReady && isCfTurnstileReady) {
+                  isUspActive = true;
+                  break;
+              }
+              await new Promise(r => setTimeout(r, 150));
           }
           
           if (isUspActive) {
@@ -2234,13 +2285,24 @@ try {
                   break;
               }
               
+              // [초고속 강제 리셋 가속] 솔버 상태가 false가 되었거나 새로운 캅차가 발견되면 30초 대기 중단 후 즉시 탈출
+              const currentKey = getCaptchaSitekey();
+              if (currentKey && initialKey && currentKey !== initialKey) {
+                  addSolverLog("New CAPTCHA detected. Aborting current solver task...", "warn");
+                  break;
+              }
+              if (!isSolverStillSolving && !isRecaptchaReady && !isHcaptchaReady && !isCfTurnstileReady && (Date.now() - startWait > 5000)) {
+                  addSolverLog("Solver reported failure or idle state. Breaking to reset...", "warn");
+                  break;
+              }
+              
               const elapsed = Math.floor((Date.now() - startWait) / 1000);
               const timeLeft = Math.max(0, 30 - elapsed);
               if (timeLeft % 5 === 0 && timeLeft !== lastTimeLeft && timeLeft > 0) {
                   addSolverLog("Token pending... (" + timeLeft + "s remaining)", "info");
                   lastTimeLeft = timeLeft;
               }
-              await new Promise(r => setTimeout(r, 1000));
+              await new Promise(r => setTimeout(r, 300)); // 폴링 주기를 1초에서 300ms로 단축
           }
           
           if (currentAttemptSuccess) {
