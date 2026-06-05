@@ -7,7 +7,8 @@
     <script>
         (function() {
             var ua = navigator.userAgent.toLowerCase();
-            var isMobile = /iphone|ipad|ipod|android|blackberry|mini|windows\sphone|mobile/.test(ua) || (window.innerWidth <= 768);
+            // 어드민 페이지: UA만으로 모바일 감지 (innerWidth 조건 제거 — PC에서 창 크기 무관하게 접근 가능)
+            var isMobile = /iphone|ipad|ipod|android|blackberry|windows phone/.test(ua);
             if (isMobile) {
                 window.location.replace('mobile.html');
             }
