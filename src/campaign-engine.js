@@ -436,17 +436,63 @@ const tpl=${tplJson};
 const fillDelayMs=${fillDelay};
 const submitDelayMs=${submitDelay};
 
+// [v18.60.0] Smart Address Parser (Extracts city, state, zip from a single Address string if needed)
+function parseAddress(addrStr) {
+  const res = { street: '', city: '', state: '', zip: '' };
+  if (!addrStr) return res;
+  
+  // 1. 미국식 ZIP Code 검색 (5자리 혹은 5+4자리)
+  const zipMatch = addrStr.match(/(?:\b)(\d{5})(?:-\d{4})?(?:\b)/);
+  if (zipMatch) {
+    res.zip = zipMatch[1];
+  }
+  
+  // 2. 미국식 주(State) 검색 (2글자 대문자 약어)
+  const stateMatch = addrStr.match(/(?:\b)(AL|AK|AS|AZ|AR|CA|CO|CT|DE|DC|FM|FL|GA|GU|HI|ID|IL|IN|IA|KS|KY|LA|ME|MH|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|MP|OH|OK|OR|PW|PA|PR|RI|SC|SD|TN|TX|UT|VT|VI|VA|WA|WV|WI|WY)(?:\b)/i);
+  if (stateMatch) {
+    res.state = stateMatch[1].toUpperCase();
+  }
+  
+  // 3. 쉼표(,) 구분 파싱 시도 (예: "123 Business Rd, New York, NY 10001")
+  const parts = addrStr.split(',').map(p => p.trim());
+  if (parts.length >= 3) {
+    res.street = parts[0];
+    res.city = parts[1];
+  } else {
+    // 4. 한국 주소 파싱 시도
+    const krParts = addrStr.split(/\s+/);
+    if (krParts.length >= 2) {
+      if (/(특별시|광역시|특별자치시|도)$/.test(krParts[0])) {
+        res.state = krParts[0];
+        if (krParts[1].endsWith('시') || krParts[1].endsWith('군') || krParts[1].endsWith('구')) {
+          res.city = krParts[1];
+          if (krParts[2] && (krParts[2].endsWith('구') || krParts[2].endsWith('동') || krParts[2].endsWith('읍') || krParts[2].endsWith('면'))) {
+            res.city += ' ' + krParts[2];
+          }
+        }
+      }
+    }
+  }
+  return res;
+}
+
+// 템플릿의 개별 주소 구성요소가 비어 있을 경우, Address 필드에서 파싱해 복구함
+const parsedAddr = parseAddress(tpl.address);
+if (!tpl.city || tpl.city.trim() === '') tpl.city = parsedAddr.city;
+if (!tpl.state || tpl.state.trim() === '') tpl.state = parsedAddr.state;
+if (!tpl.zip || tpl.zip.trim() === '') tpl.zip = parsedAddr.zip;
+
 // Primary field patterns (v4.12.40 - Multi-lingual Supreme Matchers)
 const P={
   firstName:[/\\bfirst.?name\\b/i,/\\bgiven.?name\\b/i,/\\bforename\\b/i,/\\bfname\\b/i,/\\bfirst\\b/i,/\\bgiven\\b/i,/이름/i,/성함/i,/名前/i,/名/i,/given/i,/\\bnombre\\b/i,/\\bprenom\\b/i,/\\bvorname\\b/i],
   lastName:[/\\blast.?name\\b/i,/\\bfamily.?name\\b/i,/\\bsurname\\b/i,/\\blname\\b/i,/\\blast\\b/i,/\\bfamily\\b/i,/성(?!명|함)/i,/苗字/i,/姓/i,/\\bapellido\\b/i,/\\bnom\\b/i,/\\bnachname\\b/i],
-  name:[/\\bname\\b/i,/\\bfull.?name\\b/i,/\\byour.*name\\b/i,/\\bcontact.*name\\b/i,/\\bcustomer.*name\\b/i,/\\bsender.*name\\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/\bcontact.*person\b/i,/\bclient.*name\b/i],
+  name:[/\\bname\\b/i,/\\bfull.?name\\b/i,/\\byour.*name\\b/i,/\\bcontact.*name\\b/i,/\\bcustomer.*name\\b/i,/\\bsender.*name\\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/\\bcontact.*person\\b/i,/\\bclient.*name\\b/i],
   email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i],
-  companyName:[/company/i,/\\borg(anization)?\\b/i,/\\bcorp(oration)?\\b/i,/\\bfirm\\b/i,/\\bbusiness\\b/i,/회사/i,/기업/i,/상호/i],
-  address:[/[\\b]?add?ress\\b/i,/\\bstreet\\b/i,/\\baddr\\b/i,/\\bst\\b/i,/주소/i,/도로명/i],
-  city:[/\\bcity\\b/i,/\\btown\\b/i,/도시/i,/시\\.?군\\.?구/i,/시구/i],
-  state:[/\\bstate\\b/i,/\\bprovince\\b/i,/\\bcounty\\b/i,/\\bregion\\b/i,/주(?!소)/i,/도(?!록)/i,/시\\.?도/i],
-  zip:[/\\bzip\\b/i,/\\bpostal\\b/i,/\\bpost.?code\\b/i,/우편/i,/우편번호/i],
+  companyName:[/company/i,/\\borg(anization)?\\b/i,/\\bcorp(oration)?\\b/i,/\\bfirm\\b/i,/\\bbusiness\\b/i,/회사/i,/기업/i,/상호/i,/co\\b/i,/\\bbrand\\b/i,/\\bemployer\\b/i,/\\b소속\\b/i,/회사명/i,/직장/i,/단체/i,/상호명/i,/업체명/i],
+  address:[/[\\b]?add?ress\\b/i,/\\bstreet\\b/i,/\\baddr\\b/i,/\\bst\\b/i,/주소/i,/도로명/i,/\\broad\\b/i,/\\blocation\\b/i,/\\bresidence\\b/i,/address1/i,/address2/i,/line1/i,/line2/i,/지번/i,/상세주소/i],
+  city:[/\\bcity\\b/i,/\\btown\\b/i,/도시/i,/시\\.?군\\.?구/i,/시구/i,/\\bmunicipality\\b/i,/\\bsuburb\\b/i,/\\blocality\\b/i,/시(?!도)/i,/군(?!주)/i,/구(?!글)/i,/읍면동/i],
+  state:[/\\bstate\\b/i,/\\bprovince\\b/i,/\\bcounty\\b/i,/\\bregion\\b/i,/주(?!소)/i,/도(?!록)/i,/시\\.?도/i,/\\bterritory\\b/i,/\\bcanton\\b/i,/광역시/i,/특별시/i],
+  zip:[/\\bzip\\b/i,/\\bpostal\\b/i,/\\bpost.?code\\b/i,/우편/i,/우편번호/i,/\\bzipcode\\b/i,/\\bpostalcode\\b/i,/\\bpincode\\b/i],
   subject:[/subject/i,/title(?!.*name)/i,/제목/i,/件名/i,/主题/i,/topic/i,/heading/i],
   phone:[/phone/i,/mobile/i,/tel(?!eg)/i,/전화/i,/手机/i,/电话/i,/fax/i],
   message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/detail/i,/note/i,/\\bmessage.*text\\b/i,/\\bbody.*text\\b/i]

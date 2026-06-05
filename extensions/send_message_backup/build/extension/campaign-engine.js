@@ -415,8 +415,7 @@ async function bypassTurnstileWidget() {
 
     // [방법 5] 숨겨진 Turnstile 응답 input에 더미 토큰 주입 (일부 서버에서 클라이언트 검증만 하는 경우)
     const responseInputs = document.querySelectorAll(
-      'input[name="cf-turnstile-response"], input[name="h-captcha-response"], ' +
-      'input[name="g-recaptcha-response"], textarea[name="g-recaptcha-response"]'
+      'input[name="cf-turnstile-response"], input[name="turnstile-response"]'
     );
     responseInputs.forEach(inp => {
       if (!inp.value || inp.value.trim() === '') {
@@ -437,12 +436,63 @@ const tpl=${tplJson};
 const fillDelayMs=${fillDelay};
 const submitDelayMs=${submitDelay};
 
+// [v18.60.0] Smart Address Parser (Extracts city, state, zip from a single Address string if needed)
+function parseAddress(addrStr) {
+  const res = { street: '', city: '', state: '', zip: '' };
+  if (!addrStr) return res;
+  
+  // 1. 미국식 ZIP Code 검색 (5자리 혹은 5+4자리)
+  const zipMatch = addrStr.match(/(?:\b)(\d{5})(?:-\d{4})?(?:\b)/);
+  if (zipMatch) {
+    res.zip = zipMatch[1];
+  }
+  
+  // 2. 미국식 주(State) 검색 (2글자 대문자 약어)
+  const stateMatch = addrStr.match(/(?:\b)(AL|AK|AS|AZ|AR|CA|CO|CT|DE|DC|FM|FL|GA|GU|HI|ID|IL|IN|IA|KS|KY|LA|ME|MH|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|MP|OH|OK|OR|PW|PA|PR|RI|SC|SD|TN|TX|UT|VT|VI|VA|WA|WV|WI|WY)(?:\b)/i);
+  if (stateMatch) {
+    res.state = stateMatch[1].toUpperCase();
+  }
+  
+  // 3. 쉼표(,) 구분 파싱 시도 (예: "123 Business Rd, New York, NY 10001")
+  const parts = addrStr.split(',').map(p => p.trim());
+  if (parts.length >= 3) {
+    res.street = parts[0];
+    res.city = parts[1];
+  } else {
+    // 4. 한국 주소 파싱 시도
+    const krParts = addrStr.split(/\s+/);
+    if (krParts.length >= 2) {
+      if (/(특별시|광역시|특별자치시|도)$/.test(krParts[0])) {
+        res.state = krParts[0];
+        if (krParts[1].endsWith('시') || krParts[1].endsWith('군') || krParts[1].endsWith('구')) {
+          res.city = krParts[1];
+          if (krParts[2] && (krParts[2].endsWith('구') || krParts[2].endsWith('동') || krParts[2].endsWith('읍') || krParts[2].endsWith('면'))) {
+            res.city += ' ' + krParts[2];
+          }
+        }
+      }
+    }
+  }
+  return res;
+}
+
+// 템플릿의 개별 주소 구성요소가 비어 있을 경우, Address 필드에서 파싱해 복구함
+const parsedAddr = parseAddress(tpl.address);
+if (!tpl.city || tpl.city.trim() === '') tpl.city = parsedAddr.city;
+if (!tpl.state || tpl.state.trim() === '') tpl.state = parsedAddr.state;
+if (!tpl.zip || tpl.zip.trim() === '') tpl.zip = parsedAddr.zip;
+
 // Primary field patterns (v4.12.40 - Multi-lingual Supreme Matchers)
 const P={
   firstName:[/\\bfirst.?name\\b/i,/\\bgiven.?name\\b/i,/\\bforename\\b/i,/\\bfname\\b/i,/\\bfirst\\b/i,/\\bgiven\\b/i,/이름/i,/성함/i,/名前/i,/名/i,/given/i,/\\bnombre\\b/i,/\\bprenom\\b/i,/\\bvorname\\b/i],
   lastName:[/\\blast.?name\\b/i,/\\bfamily.?name\\b/i,/\\bsurname\\b/i,/\\blname\\b/i,/\\blast\\b/i,/\\bfamily\\b/i,/성(?!명|함)/i,/苗字/i,/姓/i,/\\bapellido\\b/i,/\\bnom\\b/i,/\\bnachname\\b/i],
-  name:[/\\bname\\b/i,/\\bfull.?name\\b/i,/\\byour.*name\\b/i,/\\bcontact.*name\\b/i,/\\bcustomer.*name\\b/i,/\\bsender.*name\\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/\bcontact.*person\b/i,/\bclient.*name\b/i],
+  name:[/\\bname\\b/i,/\\bfull.?name\\b/i,/\\byour.*name\\b/i,/\\bcontact.*name\\b/i,/\\bcustomer.*name\\b/i,/\\bsender.*name\\b/i,/성함/i,/氏名/i,/姓名/i,/성명/i,/이름/i,/user/i,/fullname/i,/\\bcontact.*person\\b/i,/\\bclient.*name\\b/i],
   email:[/e.?mail/i,/이메일/i,/メール/i,/邮箱/i],
+  companyName:[/company/i,/\\borg(anization)?\\b/i,/\\bcorp(oration)?\\b/i,/\\bfirm\\b/i,/\\bbusiness\\b/i,/회사/i,/기업/i,/상호/i,/co\\b/i,/\\bbrand\\b/i,/\\bemployer\\b/i,/\\b소속\\b/i,/회사명/i,/직장/i,/단체/i,/상호명/i,/업체명/i],
+  address:[/[\\b]?add?ress\\b/i,/\\bstreet\\b/i,/\\baddr\\b/i,/\\bst\\b/i,/주소/i,/도로명/i,/\\broad\\b/i,/\\blocation\\b/i,/\\bresidence\\b/i,/address1/i,/address2/i,/line1/i,/line2/i,/지번/i,/상세주소/i],
+  city:[/\\bcity\\b/i,/\\btown\\b/i,/도시/i,/시\\.?군\\.?구/i,/시구/i,/\\bmunicipality\\b/i,/\\bsuburb\\b/i,/\\blocality\\b/i,/시(?!도)/i,/군(?!주)/i,/구(?!글)/i,/읍면동/i],
+  state:[/\\bstate\\b/i,/\\bprovince\\b/i,/\\bcounty\\b/i,/\\bregion\\b/i,/주(?!소)/i,/도(?!록)/i,/시\\.?도/i,/\\bterritory\\b/i,/\\bcanton\\b/i,/광역시/i,/특별시/i],
+  zip:[/\\bzip\\b/i,/\\bpostal\\b/i,/\\bpost.?code\\b/i,/우편/i,/우편번호/i,/\\bzipcode\\b/i,/\\bpostalcode\\b/i,/\\bpincode\\b/i],
   subject:[/subject/i,/title(?!.*name)/i,/제목/i,/件名/i,/主题/i,/topic/i,/heading/i],
   phone:[/phone/i,/mobile/i,/tel(?!eg)/i,/전화/i,/手机/i,/电话/i,/fax/i],
   message:[/message/i,/content/i,/body/i,/comment/i,/inquiry/i,/description/i,/내용/i,/本文/i,/内容/i,/detail/i,/note/i,/\\bmessage.*text\\b/i,/\\bbody.*text\\b/i]
@@ -511,15 +561,28 @@ function generateSmartRandomValue(el) {
   // 3. 텍스트 / 일반 글자 필드
   const templateVals = [tpl.firstName, tpl.lastName, tpl.name, tpl.email, tpl.phone, tpl.subject, tpl.message].filter(v => typeof v === 'string' && v.trim() !== '');
   const getRandomTemplateVal = () => {
-    if (templateVals.length > 0) return templateVals[Math.floor(Math.random() * templateVals.length)];
-    return "Inquiry";
+    const randSuffix = Math.random().toString(36).substring(2, 7);
+    if (templateVals.length > 0) {
+      const val = templateVals[Math.floor(Math.random() * templateVals.length)];
+      return val + '_' + randSuffix;
+    }
+    return "Inquiry_" + randSuffix;
   };
   
   if (/company|회사|org/i.test(c)) {
-    return (tpl.name || getRandomTemplateVal()) + ' Inc.';
+    return tpl.companyName || (tpl.name || getRandomTemplateVal()) + ' Inc.';
   }
   if (/address|주소/i.test(c)) {
-    return '123 Business Rd, New York, NY';
+    return tpl.address || '123 Business Rd, New York, NY';
+  }
+  if (/city|도시/i.test(c)) {
+    return tpl.city || 'New York';
+  }
+  if (/state|province|county|주(?!소)/i.test(c)) {
+    return tpl.state || 'NY';
+  }
+  if (/zip|postal|우편/i.test(c)) {
+    return tpl.zip || '10001';
   }
   if (/subject|제목|title/i.test(c)) {
     return tpl.subject || '';
@@ -782,9 +845,12 @@ async function fillSelect(el){
     const webIdx=opts.findIndex(o=>/internet|website|web|search|google|online/i.test(o.text));
     if(webIdx>0)bestIdx=webIdx;
   }
-  // Fallback: pick first non-empty option
+  // Fallback: pick random non-empty option
   if(bestIdx<0){
-    bestIdx=opts.findIndex((o,i)=>i>0 && o.value && o.value.trim()!=='' && !o.disabled);
+    const validOpts = opts.map((o, idx) => ({o, idx})).filter(item => item.idx > 0 && item.o.value && item.o.value.trim() !== '' && !item.o.disabled);
+    if (validOpts.length > 0) {
+      bestIdx = validOpts[Math.floor(Math.random() * validOpts.length)].idx;
+    }
   }
   if(bestIdx<0)return false;
   await humanClick(el);
@@ -815,22 +881,9 @@ async function fillRadioGroups(container){
   });
   let filled=0;
   for(const[name,items] of Object.entries(groups)){
-    // Skip if already selected
     if(items.some(r=>r.checked))continue;
-    let chosen=null;
-    // Prefer positive/agreeable options
-    for(const r of items){
-      const lt=(lbl(r)+' '+(r.value||'')).toLowerCase();
-      if(/^yes$|agree|accept|confirm|동의|はい|同意|other|기타/i.test(lt)){chosen=r;break;}
-    }
-    // Prefer 'general' or first option
-    if(!chosen){
-      for(const r of items){
-        const lt=(lbl(r)+' '+(r.value||'')).toLowerCase();
-        if(/general|inquiry|info|문의|お問い合わせ|咨询/i.test(lt)){chosen=r;break;}
-      }
-    }
-    if(!chosen)chosen=items[0];
+    
+    const chosen = items[Math.floor(Math.random() * items.length)];
     if(chosen && !chosen.disabled){
       await humanClick(chosen);
       chosen.checked=true;
@@ -848,30 +901,18 @@ async function fillCheckboxes(container){
   if(cbs.length===0)return 0;
   let filled=0;
   for(const cb of cbs){
-    const isChecked = cb.type === 'checkbox' ? cb.checked : (cb.getAttribute('aria-checked') === 'true' || cb.classList.contains('checked') || cb.classList.contains('active'));
-    if(isChecked || cb.disabled || cb.getAttribute('disabled') !== null) continue;
+    if(cb.disabled || cb.getAttribute('disabled') !== null) continue;
     
-    const lt=(getFieldId(cb)+' '+lbl(cb)).toLowerCase();
-    
-    // Must-check: required, terms, privacy, agree, policy, ueni, cookies
-    const mustCheck = cb.required || cb.getAttribute('required')!==null || cb.getAttribute('aria-required')==='true' || 
-                      /agree|terms|privacy|policy|consent|accept|ueni|cookies|decor|done.wright|heather|recaptcha|필수|동의|약관|同意|規約|条款|confirm|acknowledge/i.test(lt);
-    
-    // Skip opt-in marketing/newsletter
-    const isOptIn = /newsletter|subscribe|marketing|promo|offer|수신|구독|メルマガ|订阅/i.test(lt);
-    
-    if(mustCheck && !isOptIn){
-      await humanClick(cb);
-      if (cb.type === 'checkbox') {
-        cb.checked = true;
-      } else {
-        cb.setAttribute('aria-checked', 'true');
-        cb.classList.add('checked');
-      }
-      ['input','change','click'].forEach(t=>cb.dispatchEvent(new Event(t,{bubbles:true})));
-      filled++;
-      await new Promise(r=>setTimeout(r,80+Math.random()*80));
+    await humanClick(cb);
+    if (cb.type === 'checkbox') {
+      cb.checked = true;
+    } else {
+      cb.setAttribute('aria-checked', 'true');
+      cb.classList.add('checked');
     }
+    ['input','change','click'].forEach(t=>cb.dispatchEvent(new Event(t,{bubbles:true})));
+    filled++;
+    await new Promise(r=>setTimeout(r,80+Math.random()*80));
   }
   return filled;
 }
@@ -1506,7 +1547,7 @@ async function fill(c){
     }
     
     // Default matching fallback for other primary fields
-    for(const k of['firstName','lastName','name','email','phone','subject','message']){
+    for(const k of['firstName','lastName','name','email','phone','companyName','address','city','state','zip','subject','message']){
       if(used.has(k)&&k!=='message')continue;
       
       let val = tpl[k];
@@ -1993,8 +2034,6 @@ await new Promise(r=>setTimeout(r,1000)); // extra buffer
 
 const f=await bestForm();
 if(!f){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
-const n=await fill(f);
-if(n < 3){window.__xpider_result={success:false,reason:'NO_FORM'};return;}
 
 // 🛡️ [CAPTCHA Wait Guard] CAPTCHA가 존재하고 아직 풀리지 않았다면 대기
 try {
@@ -2028,64 +2067,104 @@ try {
   }
 
   if (captchaWaiting) {
-      console.log("⏳ [XPIDER Form Filler] CAPTCHA detected. Checking solver status...");
+      console.log("⏳ [XPIDER Form Filler] CAPTCHA detected. Checking solver status (3 attempts max)...");
+      let solveSuccess = false;
       
-      // [레이스 컨디션 방지] UltraSolver Pro가 캡차를 감지하고 attribute를 심을 때까지 최대 3.5초 선행 대기
-      const startScan = Date.now();
-      while (Date.now() - startScan < 3500) {
-          const isSolving = document.documentElement.getAttribute('data-usp-solving');
-          if (isSolving === 'true' || isSolving === 'done') {
-              console.log("🤖 [XPIDER Form Filler] UltraSolver Pro confirmed solving active: " + isSolving);
-              break;
-          }
-          await new Promise(r => setTimeout(r, 200));
-      }
-
-      console.log("⏳ [XPIDER Form Filler] Waiting for solver to inject token...");
-      const maxCaptchaWait = 90000; // 최대 90초 대기
-      const startWait = Date.now();
-      
-      while (Date.now() - startWait < maxCaptchaWait) {
-          const solverState = document.documentElement.getAttribute('data-usp-solving');
-          const isSolverStillSolving = solverState === 'true';
-
-          const recTextarea = document.querySelector('textarea[name="g-recaptcha-response"], textarea[id="g-recaptcha-response"], [name*="recaptcha-response"], [id*="recaptcha-response"]');
-          const hTextarea = document.querySelector('textarea[name="h-captcha-response"], textarea[id="h-captcha-response"], [name*="h-captcha-response"], [id*="h-captcha-response"]');
+      for (let attempt = 1; attempt <= 3; attempt++) {
+          console.log("⏳ [XPIDER Form Filler] Attempt " + attempt + "/3 to solve CAPTCHA...");
           
-          let cfInput = document.querySelector('input[name="cf-turnstile-response"]');
-          if (!cfInput) {
-              const tsWidget = document.querySelector('.cf-turnstile, [data-response-field-name]');
-              const fieldName = tsWidget ? tsWidget.getAttribute('data-response-field-name') : null;
-              if (fieldName) {
-                  cfInput = document.querySelector('input[name="' + fieldName + '"], textarea[name="' + fieldName + '"]');
+          // [레이스 컨디션 방지] UltraSolver Pro가 캡차를 감지하고 attribute를 심을 때까지 최대 3.5초 선행 대기
+          const startScan = Date.now();
+          while (Date.now() - startScan < 3500) {
+              const isSolving = document.documentElement.getAttribute('data-usp-solving');
+              if (isSolving === 'true' || isSolving === 'done') {
+                  break;
               }
+              await new Promise(r => setTimeout(r, 200));
           }
-          if (!cfInput) {
-              cfInput = document.querySelector('input[name*="turnstile"], textarea[name*="turnstile"]');
+
+          console.log("⏳ [XPIDER Form Filler] Waiting for solver to inject token for attempt " + attempt + "...");
+          const attemptTimeout = 30000; // 시도당 30초 대기
+          const startWait = Date.now();
+          let currentAttemptSuccess = false;
+          
+          while (Date.now() - startWait < attemptTimeout) {
+              const solverState = document.documentElement.getAttribute('data-usp-solving');
+              const isSolverStillSolving = solverState === 'true';
+
+              const recTextarea = document.querySelector('textarea[name="g-recaptcha-response"], textarea[id="g-recaptcha-response"], [name*="recaptcha-response"], [id*="recaptcha-response"]');
+              const hTextarea = document.querySelector('textarea[name="h-captcha-response"], textarea[id="h-captcha-response"], [name*="h-captcha-response"], [id*="h-captcha-response"]');
+              
+              let cfInput = document.querySelector('input[name="cf-turnstile-response"]');
+              if (!cfInput) {
+                  const tsWidget = document.querySelector('.cf-turnstile, [data-response-field-name]');
+                  const fieldName = tsWidget ? tsWidget.getAttribute('data-response-field-name') : null;
+                  if (fieldName) {
+                      cfInput = document.querySelector('input[name="' + fieldName + '"], textarea[name="' + fieldName + '"]');
+                  }
+              }
+              if (!cfInput) {
+                  cfInput = document.querySelector('input[name*="turnstile"], textarea[name*="turnstile"]');
+              }
+              
+              const recVal = recTextarea ? recTextarea.value : '';
+              const hVal = hTextarea ? hTextarea.value : '';
+              const cfVal = cfInput ? cfInput.value : '';
+              
+              const isRecaptchaReady = !hasRecaptcha || (recTextarea && recVal && recVal.trim() !== '' && !recVal.startsWith('XPIDER_BYPASS_'));
+              const isHcaptchaReady = !hasHcaptcha || (hTextarea && hVal && hVal.trim() !== '' && !hVal.startsWith('XPIDER_BYPASS_'));
+              const isCfTurnstileReady = !hasCfTurnstile || (cfInput && cfVal && cfVal.trim() !== '' && !cfVal.startsWith('XPIDER_BYPASS_'));
+              
+              if (isRecaptchaReady && isHcaptchaReady && isCfTurnstileReady && !isSolverStillSolving) {
+                  currentAttemptSuccess = true;
+                  break;
+              }
+              await new Promise(r => setTimeout(r, 1000));
           }
           
-          const recVal = recTextarea ? recTextarea.value : '';
-          const hVal = hTextarea ? hTextarea.value : '';
-          const cfVal = cfInput ? cfInput.value : '';
-          
-          const isRecaptchaReady = !hasRecaptcha || (recTextarea && recVal && recVal.trim() !== '');
-          const isHcaptchaReady = !hasHcaptcha || (hTextarea && hVal && hVal.trim() !== '');
-          const isCfTurnstileReady = !hasCfTurnstile || (cfInput && cfVal && cfVal.trim() !== '');
-          
-          if (isRecaptchaReady && isHcaptchaReady && isCfTurnstileReady && !isSolverStillSolving) {
-              console.log("🎯 [XPIDER Form Filler] CAPTCHA token successfully injected! Proceeding to submit...");
+          if (currentAttemptSuccess) {
+              solveSuccess = true;
+              console.log("🎯 [XPIDER Form Filler] CAPTCHA successfully solved on attempt " + attempt + "!");
               break;
+          } else if (attempt < 3) {
+              console.log("⚠️ [XPIDER Form Filler] Attempt " + attempt + " failed. Resetting CAPTCHA for retry...");
+              try {
+                  if (hasRecaptcha && window.grecaptcha && typeof window.grecaptcha.reset === 'function') {
+                      window.grecaptcha.reset();
+                  } else if (hasHcaptcha && window.hcaptcha && typeof window.hcaptcha.reset === 'function') {
+                      window.hcaptcha.reset();
+                  } else if (hasCfTurnstile && window.turnstile && typeof window.turnstile.reset === 'function') {
+                      window.turnstile.reset();
+                  }
+              } catch(e) {}
+              await new Promise(r => setTimeout(r, 2000)); // 리셋 후 2초 대기
           }
-          await new Promise(r => setTimeout(r, 1000));
       }
   }
 } catch(e) {
   console.error("Error in CAPTCHA Wait Guard:", e);
 }
 
+// 폼 자동완성을 완벽하게 수행
+const n = await fill(f);
+
 // Human-like pause before submit
 await new Promise(r=>setTimeout(r, typeof submitDelayMs !== 'undefined' ? submitDelayMs : 1200));
+
+// 1차 자동 등록 버튼 제출 시도 (submit 함수 내부에서 각종 리스너 무력화 및 클릭)
 const ok = await submit(f);
+
+// 2차 수동 마우스 클릭 시뮬레이션으로 등록 버튼 추가 클릭 진행
+try {
+  const submitBtn = f.querySelector('input[type="submit"], button[type="submit"], [class*="submit"i], [id*="submit"i], [class*="send"i], [id*="send"i]');
+  if (submitBtn && !submitBtn.disabled) {
+    console.log("🖱️ [XPIDER Form Filler] Stage 2: Performing human-like click simulation on submit button...");
+    await humanClick(submitBtn);
+  }
+} catch(e) {}
+
+// 제출 완료 후 충분한 시간을 대기 (최소 5.5초 버퍼)
+await new Promise(r => setTimeout(r, 5500));
 
 // 🔍 [Precision Submission Verifier] 실시간 초정밀 성공 관측 루프 (최대 20초)
 let finalSuccess = ok;
@@ -2245,7 +2324,13 @@ async function pollAllFrames(wc) {
             return { success: true, reason: 'SUBMITTED_SUCCESSFULLY' };
         }
         
-        // 3. 성공 문구 감지
+        // 3. URL 리다이렉트 성공 감지
+        const currentUrl = window.location.href.toLowerCase();
+        if (currentUrl.includes('thank-you') || currentUrl.includes('thankyou') || currentUrl.includes('/success') || currentUrl.includes('submission-success') || currentUrl.includes('form-success')) {
+            return { success: true, reason: 'SUBMITTED_SUCCESSFULLY' };
+        }
+        
+        // 4. 성공 문구 감지
         const hasSuccessText = /thank you|thank-you|thank.?you|메시지를 보냈습니다|문의가 접수되었습니다|성공적으로 전송|접수 완료|successfully|your message (has been|was) sent|form has been submitted|your form|form submitted|form submission|we('ll| will) be in touch|we have received|message received|we received your|we got your|inquiry received|contact received|submitted successfully|will be in touch|will contact you|will get back|submitted|등록되었습니다|성공|완료|전송되었습니다|wpcf7-mail-sent-ok|gform_confirmation_message|g-recaptcha-success/i.test(bodyText) ||
                                htmlText.includes('wpcf7-mail-sent-ok') ||
                                htmlText.includes('wpforms-confirmation-container-id') ||
