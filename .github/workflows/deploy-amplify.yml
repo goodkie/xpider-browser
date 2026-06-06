@@ -1,0 +1,99 @@
+name: Deploy to AWS Amplify
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'landing/**'
+      - 'src/admin.html'
+      - 'src/admin.js'
+      - 'src/admin.css'
+  workflow_dispatch:   # 수동 실행 버튼
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Landing + Admin to Amplify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # admin 파일을 landing 폴더로 동기화
+      - name: Sync admin files to landing/
+        run: |
+          cp src/admin.html landing/admin.html
+          cp src/admin.js   landing/admin.js
+          cp src/admin.css  landing/admin.css
+          echo "✅ Admin files synced to landing/"
+
+      # landing 폴더 전체를 ZIP 압축
+      - name: Create deployment ZIP
+        run: |
+          cd landing
+          zip -r ../deploy.zip . -x "*.rar"
+          cd ..
+          echo "✅ deploy.zip created ($(du -sh deploy.zip | cut -f1))"
+
+      # Amplify에 배포
+      - name: Deploy to AWS Amplify
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION:    ${{ secrets.AWS_REGION || 'us-east-1' }}
+          AMPLIFY_APP_ID:        ${{ secrets.AMPLIFY_APP_ID || 'd23b8wu27vwban' }}
+        run: |
+          # AWS CLI 설치 확인
+          aws --version
+
+          # Amplify에 ZIP 업로드 및 배포 시작
+          echo "🚀 Starting Amplify deployment for app: $AMPLIFY_APP_ID"
+
+          # 1. 배포 URL 생성
+          DEPLOY_RESP=$(aws amplify create-deployment \
+            --app-id "$AMPLIFY_APP_ID" \
+            --branch-name main \
+            --output json)
+
+          JOB_ID=$(echo "$DEPLOY_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['jobId'])")
+          UPLOAD_URL=$(echo "$DEPLOY_RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['zipUploadUrl'])")
+
+          echo "📦 Job ID: $JOB_ID"
+          echo "📤 Uploading ZIP to Amplify..."
+
+          # 2. ZIP 파일 업로드
+          curl -s -X PUT \
+            -H "Content-Type: application/zip" \
+            --data-binary @deploy.zip \
+            "$UPLOAD_URL"
+
+          echo "✅ ZIP uploaded"
+
+          # 3. 배포 시작
+          aws amplify start-deployment \
+            --app-id "$AMPLIFY_APP_ID" \
+            --branch-name main \
+            --job-id "$JOB_ID"
+
+          echo "🎉 Deployment triggered! Job: $JOB_ID"
+
+      - name: Wait and check deployment status
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION:    ${{ secrets.AWS_REGION || 'us-east-1' }}
+          AMPLIFY_APP_ID:        ${{ secrets.AMPLIFY_APP_ID || 'd23b8wu27vwban' }}
+        run: |
+          echo "⏳ Waiting for deployment to complete..."
+          sleep 30
+          STATUS=$(aws amplify get-branch \
+            --app-id "$AMPLIFY_APP_ID" \
+            --branch-name main \
+            --query 'branch.activeJobId' \
+            --output text 2>/dev/null || echo "unknown")
+          echo "Deployment status check complete. Active Job: $STATUS"
+          echo ""
+          echo "🌐 Your site: https://${AMPLIFY_APP_ID}.amplifyapp.com"
