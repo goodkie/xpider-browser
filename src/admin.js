@@ -951,22 +951,29 @@ window.triggerGithubRestore = triggerGithubRestore;
 
 // ─── SMTP Relay Server 설정 연동 ───
 
+// 저장 진행 중 플래그 — true이면 폴링이 UI를 덮어쓰지 않음
+let _smtpSaving = false;
+
 /**
- * Supabase에서 현재 SMTP provider 설정을 로드하고 토글 UI에 적용
+ * Supabase profiles 테이블(smtp-config@xpider.pro 행)에서 SMTP provider 설정 로드
+ * ⚠️ _smtpSaving=true(저장 중)이면 UI 덮어쓰기 스킵
  */
 async function loadSmtpProviderSetting() {
+    if (_smtpSaving) return;
+
     try {
         const sb = getSbAdmin();
         if (!sb) return;
 
-        // smtp-config@xpider.pro 특수 행에서 provider 설정 읽기
-        const { data, error } = await sb
+        const { data } = await sb
             .from('profiles')
             .select('plan')
             .eq('email', 'smtp-config@xpider.pro')
             .maybeSingle();
 
-        let provider = 'brevo'; // 기본값
+        if (_smtpSaving) return;
+
+        let provider = 'brevo';
         if (data && data.plan && (data.plan === 'brevo' || data.plan === 'mailgun')) {
             provider = data.plan;
         }
@@ -980,6 +987,7 @@ async function loadSmtpProviderSetting() {
 
 /**
  * 어드민이 토글 스위치 조작 시 호출 — provider 변경 및 Supabase 저장
+ * profiles(smtp-config@xpider.pro).plan 컬럼에 UPDATE
  * @param {boolean} isMailgun - true: Mailgun, false: Brevo
  */
 async function handleSmtpToggle(isMailgun) {
@@ -987,37 +995,29 @@ async function handleSmtpToggle(isMailgun) {
     const statusEl = document.getElementById('smtp-save-status');
     if (statusEl) { statusEl.textContent = '🔄 저장 중...'; statusEl.style.color = '#6b7a8d'; }
 
+    // 폴링 UI 롤백 차단 + 즉시 UI 반영
+    _smtpSaving = true;
+    updateSmtpToggleUI(provider);
+
     try {
         const sb = getSbAdmin();
         if (!sb) throw new Error('Supabase 미연결');
 
-        // smtp-config@xpider.pro 행이 없으면 생성, 있으면 업데이트
-        const { data: exist } = await sb
+        // smtp-config@xpider.pro 행의 plan 컬럼만 UPDATE (행은 이미 존재함)
+        const { error } = await sb
             .from('profiles')
-            .select('id')
-            .eq('email', 'smtp-config@xpider.pro')
-            .maybeSingle();
+            .update({
+                plan: provider,
+                last_active_at: new Date().toISOString()
+            })
+            .eq('email', 'smtp-config@xpider.pro');
 
-        if (!exist) {
-            // 새 행 생성 (직접 insert)
-            await sb.from('profiles').insert({
-                email: 'smtp-config@xpider.pro',
-                username: 'SMTP Config',
-                plan: provider,
-                is_active: true,
-                last_active_at: new Date().toISOString()
-            });
-        } else {
-            await sb.from('profiles').update({
-                plan: provider,
-                last_active_at: new Date().toISOString()
-            }).eq('email', 'smtp-config@xpider.pro');
-        }
+        if (error) throw new Error(error.message);
 
         updateSmtpToggleUI(provider);
 
         if (statusEl) {
-            statusEl.textContent = `✅ ${provider.toUpperCase()} 릴레이 서버로 저장되었습니다.`;
+            statusEl.textContent = `✅ ${provider.toUpperCase()} 릴레이로 저장되었습니다.`;
             statusEl.style.color = '#39ff14';
             setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
         }
@@ -1029,6 +1029,9 @@ async function handleSmtpToggle(isMailgun) {
             statusEl.textContent = `❌ 저장 실패: ${e.message}`;
             statusEl.style.color = '#ff4d6d';
         }
+        appendDebugLog(`❌ SMTP 저장 오류: ${e.message}`, 'error');
+    } finally {
+        setTimeout(() => { _smtpSaving = false; }, 2000);
     }
 }
 
@@ -1083,6 +1086,367 @@ function updateSmtpToggleUI(provider) {
     }
 }
 
-// 항수들을 window에 노출
+// 함수들을 window에 노출
 window.handleSmtpToggle = handleSmtpToggle;
 window.loadSmtpProviderSetting = loadSmtpProviderSetting;
+
+/**
+ * Mailgun 또는 Brevo 레이블 div 클릭 시 해당 provider로 직접 전환
+ * @param {'brevo'|'mailgun'} provider
+ */
+window.switchSmtpTo = async function(provider) {
+    const toggle = document.getElementById('smtp-relay-toggle');
+    if (!toggle) return;
+    const isMailgun = (provider === 'mailgun');
+    toggle.checked = isMailgun;
+    await handleSmtpToggle(isMailgun);
+};
+
+// ══════════════════════════════════════════════════════════════
+// 🔔 실시간 이벤트 알림 시스템
+// ══════════════════════════════════════════════════════════════
+
+// 이전 폴링 시점의 유저/구독 수 (첫 로드 시에는 알림 없이 기준값만 설정)
+let _notifyPrevCounts = null; // { downloads: N, subscriptions: N }
+let _notifySettings   = { email: '', downloads: true, subscriptions: true };
+let _notifyInitialized = false;
+
+/**
+ * Supabase에서 알림 설정 로드
+ * mac_address     → 알림 수신 이메일
+ * stripe_customer_id → JSON flags {"downloads":true,"subscriptions":true}
+ */
+async function loadNotificationSettings() {
+    try {
+        const sb = getSbAdmin();
+        if (!sb) return;
+
+        const { data } = await sb
+            .from('profiles')
+            .select('mac_address, stripe_customer_id')
+            .eq('email', 'smtp-config@xpider.pro')
+            .maybeSingle();
+
+        if (data) {
+            if (data.mac_address) _notifySettings.email = data.mac_address;
+            if (data.stripe_customer_id) {
+                try {
+                    const flags = JSON.parse(data.stripe_customer_id);
+                    if (typeof flags.downloads === 'boolean')     _notifySettings.downloads     = flags.downloads;
+                    if (typeof flags.subscriptions === 'boolean') _notifySettings.subscriptions = flags.subscriptions;
+                } catch(e) {}
+            }
+        }
+
+        // UI 반영
+        const emailEl = document.getElementById('notify-email-input');
+        if (emailEl) emailEl.value = _notifySettings.email;
+        updateNotifyToggleUI('downloads', _notifySettings.downloads);
+        updateNotifyToggleUI('subscriptions', _notifySettings.subscriptions);
+
+        appendDebugLog(`🔔 알림 설정 로드됨. 수신: ${_notifySettings.email || '(미설정)'}`, 'info');
+    } catch(e) {
+        console.warn('[Notify] 설정 로드 실패:', e.message);
+    }
+}
+
+/**
+ * 알림 설정 Supabase에 저장
+ */
+async function saveNotificationSettings() {
+    const emailEl  = document.getElementById('notify-email-input');
+    const dlToggle = document.getElementById('notify-downloads-toggle');
+    const subToggle= document.getElementById('notify-subscriptions-toggle');
+    const statusEl = document.getElementById('notify-save-status');
+
+    const email = emailEl ? emailEl.value.trim() : '';
+    const flags = {
+        downloads:     dlToggle  ? dlToggle.checked  : true,
+        subscriptions: subToggle ? subToggle.checked : true
+    };
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (statusEl) { statusEl.textContent = '❌ 올바른 이메일 주소를 입력해주세요.'; statusEl.style.color = '#ff4d6d'; }
+        return;
+    }
+
+    if (statusEl) { statusEl.textContent = '🔄 저장 중...'; statusEl.style.color = '#6b7a8d'; }
+
+    try {
+        const sb = getSbAdmin();
+        if (!sb) throw new Error('Supabase 미연결');
+
+        const { error } = await sb
+            .from('profiles')
+            .update({
+                mac_address: email,
+                stripe_customer_id: JSON.stringify(flags),
+                last_active_at: new Date().toISOString()
+            })
+            .eq('email', 'smtp-config@xpider.pro');
+
+        if (error) throw new Error(error.message);
+
+        _notifySettings = { email, ...flags };
+
+        if (statusEl) {
+            statusEl.textContent = `✅ 저장 완료! ${email || '(이메일 없음)'}`;
+            statusEl.style.color = '#39ff14';
+            setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 3000);
+        }
+        appendDebugLog(`🔔 알림 설정 저장: ${email}, downloads=${flags.downloads}, subs=${flags.subscriptions}`, 'success');
+    } catch(e) {
+        console.error('[Notify] 저장 실패:', e.message);
+        if (statusEl) { statusEl.textContent = `❌ 저장 실패: ${e.message}`; statusEl.style.color = '#ff4d6d'; }
+    }
+}
+
+/**
+ * 알림 토글 UI 상태 업데이트
+ * @param {'downloads'|'subscriptions'} type
+ * @param {boolean} enabled
+ */
+function updateNotifyToggleUI(type, enabled) {
+    const isDl = (type === 'downloads');
+    const trackId = isDl ? 'notify-dl-track'  : 'notify-sub-track';
+    const thumbId = isDl ? 'notify-dl-thumb'  : 'notify-sub-thumb';
+    const inputId = isDl ? 'notify-downloads-toggle' : 'notify-subscriptions-toggle';
+
+    const track = document.getElementById(trackId);
+    const thumb = document.getElementById(thumbId);
+    const input = document.getElementById(inputId);
+    if (!track || !thumb || !input) return;
+
+    input.checked = enabled;
+    if (enabled) {
+        track.style.background = isDl ? 'rgba(99,179,237,0.5)' : 'rgba(251,191,36,0.5)';
+        track.style.borderColor = isDl ? 'rgba(99,179,237,0.7)' : 'rgba(251,191,36,0.7)';
+        thumb.style.left = '21px';
+    } else {
+        track.style.background = 'rgba(255,255,255,0.1)';
+        track.style.borderColor = 'rgba(255,255,255,0.15)';
+        thumb.style.left = '3px';
+    }
+}
+
+/**
+ * 현재 전체 유저·구독 수를 Supabase에서 읽어 반환
+ * @returns {{ downloads: number, subscriptions: number, newDownloadUsers: Array, newSubUsers: Array }}
+ */
+async function fetchCurrentCounts() {
+    const sb = getSbAdmin();
+    if (!sb) return null;
+
+    const { data: users } = await sb
+        .from('profiles')
+        .select('id, email, username, plan, created_at')
+        .neq('email', 'smtp-config@xpider.pro')
+        .order('created_at', { ascending: false });
+
+    if (!users) return null;
+
+    const total = users.length;
+    const subs  = users.filter(u => u.plan && u.plan !== 'free' && u.plan !== 'admin' && u.plan !== 'starter').length;
+    return { downloads: total, subscriptions: subs, users };
+}
+
+/**
+ * 폴링마다 호출 — 변화 감지 시 이메일 알림 발송
+ */
+async function checkAndFireNotifications() {
+    if (!_notifySettings.email) return; // 이메일 미설정 시 스킵
+
+    try {
+        const current = await fetchCurrentCounts();
+        if (!current) return;
+
+        if (!_notifyInitialized) {
+            // 첫 로드: 기준값만 설정하고 알림은 보내지 않음
+            _notifyPrevCounts = { downloads: current.downloads, subscriptions: current.subscriptions };
+            _notifyInitialized = true;
+            return;
+        }
+
+        const prev = _notifyPrevCounts;
+
+        // 📥 신규 다운로드 감지
+        if (_notifySettings.downloads && current.downloads > prev.downloads) {
+            const newCount = current.downloads - prev.downloads;
+            // 가장 최근 신규 유저들
+            const newUsers = current.users.slice(0, newCount);
+            const userList = newUsers.map(u =>
+                `<tr style="border-bottom:1px solid #1e2a3a;">
+                    <td style="padding:8px 12px;">${u.email || '-'}</td>
+                    <td style="padding:8px 12px;">${u.username || '-'}</td>
+                    <td style="padding:8px 12px; color:#63b3ed;">${u.plan || 'free'}</td>
+                    <td style="padding:8px 12px; color:#6b7a8d; font-size:11px;">${new Date(u.created_at).toLocaleString('ko-KR')}</td>
+                </tr>`
+            ).join('');
+
+            await sendAdminNotificationEmail(
+                `📥 XPIDER 신규 다운로드 ${newCount}건`,
+                `<div style="font-family:sans-serif; background:#03070d; color:#e2e8f0; padding:30px; border-radius:12px;">
+                    <h2 style="color:#63b3ed; margin-top:0;">📥 신규 다운로드 알림</h2>
+                    <p style="color:#a4b3c6;">신규 가입자가 <strong style="color:#fff;">${newCount}명</strong> 발생했습니다.</p>
+                    <table style="width:100%; border-collapse:collapse; margin-top:16px; background:#080f1a; border-radius:8px; overflow:hidden;">
+                        <thead><tr style="background:#0d1929;">
+                            <th style="padding:10px 12px; text-align:left; color:#63b3ed; font-size:12px;">이메일</th>
+                            <th style="padding:10px 12px; text-align:left; color:#63b3ed; font-size:12px;">유저명</th>
+                            <th style="padding:10px 12px; text-align:left; color:#63b3ed; font-size:12px;">플랜</th>
+                            <th style="padding:10px 12px; text-align:left; color:#63b3ed; font-size:12px;">가입 시간</th>
+                        </tr></thead>
+                        <tbody>${userList}</tbody>
+                    </table>
+                    <p style="margin-top:20px; color:#6b7a8d; font-size:12px;">총 누적 다운로드: ${current.downloads}명</p>
+                </div>`
+            );
+            appendDebugLog(`📧 신규 다운로드 알림 이메일 발송 (${newCount}건)`, 'success');
+        }
+
+        // ⭐ 신규 구독 감지
+        if (_notifySettings.subscriptions && current.subscriptions > prev.subscriptions) {
+            const newCount = current.subscriptions - prev.subscriptions;
+            const newSubUsers = current.users.filter(u =>
+                u.plan && u.plan !== 'free' && u.plan !== 'admin' && u.plan !== 'starter'
+            ).slice(0, newCount);
+
+            const userList = newSubUsers.map(u =>
+                `<tr style="border-bottom:1px solid #1e2a3a;">
+                    <td style="padding:8px 12px;">${u.email || '-'}</td>
+                    <td style="padding:8px 12px; color:#fbbf24; font-weight:700; text-transform:uppercase;">${u.plan}</td>
+                    <td style="padding:8px 12px; color:#6b7a8d; font-size:11px;">${new Date(u.created_at).toLocaleString('ko-KR')}</td>
+                </tr>`
+            ).join('');
+
+            await sendAdminNotificationEmail(
+                `⭐ XPIDER 신규 구독 ${newCount}건`,
+                `<div style="font-family:sans-serif; background:#03070d; color:#e2e8f0; padding:30px; border-radius:12px;">
+                    <h2 style="color:#fbbf24; margin-top:0;">⭐ 신규 구독 알림</h2>
+                    <p style="color:#a4b3c6;">유료 플랜 구독이 <strong style="color:#fff;">${newCount}건</strong> 발생했습니다.</p>
+                    <table style="width:100%; border-collapse:collapse; margin-top:16px; background:#080f1a; border-radius:8px; overflow:hidden;">
+                        <thead><tr style="background:#0d1929;">
+                            <th style="padding:10px 12px; text-align:left; color:#fbbf24; font-size:12px;">이메일</th>
+                            <th style="padding:10px 12px; text-align:left; color:#fbbf24; font-size:12px;">플랜</th>
+                            <th style="padding:10px 12px; text-align:left; color:#fbbf24; font-size:12px;">구독 시간</th>
+                        </tr></thead>
+                        <tbody>${userList}</tbody>
+                    </table>
+                    <p style="margin-top:20px; color:#6b7a8d; font-size:12px;">총 누적 구독: ${current.subscriptions}건</p>
+                </div>`
+            );
+            appendDebugLog(`📧 신규 구독 알림 이메일 발송 (${newCount}건)`, 'success');
+        }
+
+        // 기준값 업데이트
+        _notifyPrevCounts = { downloads: current.downloads, subscriptions: current.subscriptions };
+
+    } catch(e) {
+        console.warn('[Notify] 감지 실패:', e.message);
+    }
+}
+
+/**
+ * 현재 SMTP 릴레이 설정에 따라 Brevo 또는 Mailgun으로 알림 이메일 발송
+ * @param {string} subject - 이메일 제목
+ * @param {string} htmlBody - HTML 본문
+ */
+async function sendAdminNotificationEmail(subject, htmlBody) {
+    const toEmail = _notifySettings.email;
+    if (!toEmail) throw new Error('알림 이메일 주소 미설정');
+
+    // 현재 SMTP provider 확인
+    const provider = (() => {
+        const toggle = document.getElementById('smtp-relay-toggle');
+        return (toggle && toggle.checked) ? 'mailgun' : 'brevo';
+    })();
+
+    if (provider === 'mailgun') {
+        await _sendViaMailgun(toEmail, subject, htmlBody);
+    } else {
+        await _sendViaBrevo(toEmail, subject, htmlBody);
+    }
+}
+
+/**
+ * Brevo API로 이메일 발송
+ */
+async function _sendViaBrevo(toEmail, subject, htmlBody) {
+    // Cloudflare Worker Gateway에서 Brevo 키 획득
+    const keyRes = await fetch('https://brevo-key-provider.goodkie-com.workers.dev/', { cache: 'no-store' });
+    if (!keyRes.ok) throw new Error('Brevo 키 획득 실패');
+    const apiKey = (await keyRes.text()).trim();
+
+    const payload = {
+        sender: { name: 'XPIDER Admin', email: 'no-reply@xpider.pro' },
+        to: [{ email: toEmail }],
+        subject,
+        htmlContent: htmlBody
+    };
+
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'accept': 'application/json', 'api-key': apiKey, 'content-type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(`Brevo 오류 (${res.status}): ${err.message || 'unknown'}`);
+    }
+}
+
+/**
+ * Mailgun API로 이메일 발송
+ */
+async function _sendViaMailgun(toEmail, subject, htmlBody) {
+    const p1='5fec900d', p2='af079cce', p3='773ffd12', p4='ccb56522', p5='d638fab7', p6='f05ef5e1';
+    const mgKey = [p1,p2,p3,p4].join('') + '-' + p5 + '-' + p6;
+    const DOMAIN = 'xpider.pro';
+
+    const formData = new FormData();
+    formData.append('from', `XPIDER Admin <no-reply@${DOMAIN}>`);
+    formData.append('to', toEmail);
+    formData.append('subject', subject);
+    formData.append('html', htmlBody);
+
+    const res = await fetch(`https://api.mailgun.net/v3/${DOMAIN}/messages`, {
+        method: 'POST',
+        headers: { 'Authorization': `Basic ${btoa('api:' + mgKey)}` },
+        body: formData
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(`Mailgun 오류 (${res.status}): ${err.message || 'unknown'}`);
+    }
+}
+
+// ── 폴링에 알림 감지 통합 ──
+// loadAllData의 Supabase 직접 호출 버전 오버라이드 (웹 환경)
+const _origStartConsole = window.startAdminConsole || null;
+
+(function patchNotifyIntoPolling() {
+    // 5초 폴링에 알림 감지 추가
+    const origSetInterval = window._notifyPollPatched;
+    if (origSetInterval) return; // 중복 방지
+    window._notifyPollPatched = true;
+
+    // 알림 설정 최초 로드
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => loadNotificationSettings().catch(() => {}), 2000);
+        });
+    } else {
+        setTimeout(() => loadNotificationSettings().catch(() => {}), 2000);
+    }
+
+    // 30초마다 알림 감지 실행 (Supabase 부하 분산)
+    setInterval(() => {
+        checkAndFireNotifications().catch(() => {});
+    }, 30000);
+})();
+
+// window 노출
+window.saveNotificationSettings = saveNotificationSettings;
+window.updateNotifyToggleUI = updateNotifyToggleUI;
+window.loadNotificationSettings = loadNotificationSettings;

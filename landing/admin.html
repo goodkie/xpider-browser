@@ -191,7 +191,7 @@
                         <div style="font-size: 11px; font-weight: 700; color: #6b7a8d; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px;">📡 SMTP Relay Server</div>
                         <div style="display: flex; align-items: center; gap: 10px; justify-content: space-between;">
                             <!-- Brevo Label -->
-                            <div id="smtp-label-brevo" style="display:flex; align-items:center; gap:6px; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(99,179,237,0.3); background: rgba(99,179,237,0.1); transition: all 0.3s;">
+                            <div id="smtp-label-brevo" onclick="switchSmtpTo('brevo')" style="display:flex; align-items:center; gap:6px; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(99,179,237,0.3); background: rgba(99,179,237,0.1); transition: all 0.3s; cursor: pointer;" title="Brevo로 전환">
                                 <span style="font-size: 16px;">💌</span>
                                 <span style="font-size: 12px; font-weight: 700; color: #63b3ed;">Brevo</span>
                             </div>
@@ -218,12 +218,67 @@
                             </div>
 
                             <!-- Mailgun Label -->
-                            <div id="smtp-label-mailgun" style="display:flex; align-items:center; gap:6px; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); transition: all 0.3s;">
+                            <div id="smtp-label-mailgun" onclick="switchSmtpTo('mailgun')" style="display:flex; align-items:center; gap:6px; padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); transition: all 0.3s; cursor: pointer;" title="Mailgun으로 전환">
                                 <span style="font-size: 16px;">🔫</span>
                                 <span style="font-size: 12px; font-weight: 700; color: #6b7a8d;">Mailgun</span>
                             </div>
                         </div>
                         <div id="smtp-save-status" style="margin-top: 10px; font-size: 11px; color: #6b7a8d; text-align: center; min-height: 14px;"></div>
+                    </div>
+
+                    <!-- ── 실시간 알림 설정 ── -->
+                    <div style="width: 100%; margin-top: 16px; padding: 14px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07);">
+                        <div style="font-size: 11px; font-weight: 700; color: #6b7a8d; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px;">🔔 실시간 이벤트 알림</div>
+
+                        <!-- 수신 이메일 입력 -->
+                        <div style="margin-bottom: 10px;">
+                            <label style="font-size: 11px; color: #7f90a6; display: block; margin-bottom: 5px;">알림 수신 이메일</label>
+                            <input type="email" id="notify-email-input"
+                                placeholder="admin@example.com"
+                                style="width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 7px;
+                                       background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+                                       color: #fff; font-size: 12px; outline: none; font-family: inherit;"
+                                onfocus="this.style.borderColor='rgba(236,72,153,0.5)'"
+                                onblur="this.style.borderColor='rgba(255,255,255,0.1)'">
+                        </div>
+
+                        <!-- 알림 종류 토글 -->
+                        <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+                            <!-- 다운로드 알림 -->
+                            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                <span style="font-size: 12px; color: #a4b3c6; display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 14px;">📥</span> 신규 다운로드 알림
+                                </span>
+                                <div style="position: relative; width: 40px; height: 22px; flex-shrink: 0;">
+                                    <input type="checkbox" id="notify-downloads-toggle" style="opacity:0; width:0; height:0; position:absolute;"
+                                        onchange="updateNotifyToggleUI('downloads', this.checked)">
+                                    <span id="notify-dl-track" onclick="document.getElementById('notify-downloads-toggle').click()" style="position:absolute; top:0; left:0; right:0; bottom:0; border-radius:22px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); cursor:pointer; transition:0.3s;"></span>
+                                    <span id="notify-dl-thumb" onclick="document.getElementById('notify-downloads-toggle').click()" style="position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:0.3s; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,0.4);"></span>
+                                </div>
+                            </label>
+                            <!-- 구독 알림 -->
+                            <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                                <span style="font-size: 12px; color: #a4b3c6; display: flex; align-items: center; gap: 6px;">
+                                    <span style="font-size: 14px;">⭐</span> 신규 구독 알림
+                                </span>
+                                <div style="position: relative; width: 40px; height: 22px; flex-shrink: 0;">
+                                    <input type="checkbox" id="notify-subscriptions-toggle" style="opacity:0; width:0; height:0; position:absolute;"
+                                        onchange="updateNotifyToggleUI('subscriptions', this.checked)">
+                                    <span id="notify-sub-track" onclick="document.getElementById('notify-subscriptions-toggle').click()" style="position:absolute; top:0; left:0; right:0; bottom:0; border-radius:22px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); cursor:pointer; transition:0.3s;"></span>
+                                    <span id="notify-sub-thumb" onclick="document.getElementById('notify-subscriptions-toggle').click()" style="position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:0.3s; cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,0.4);"></span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <!-- 저장 버튼 -->
+                        <button id="notify-save-btn" onclick="saveNotificationSettings()"
+                            style="width: 100%; padding: 9px; border-radius: 8px; border: none; cursor: pointer;
+                                   background: linear-gradient(135deg, rgba(236,72,153,0.8), rgba(168,85,247,0.8));
+                                   color: #fff; font-size: 12px; font-weight: 700; transition: all 0.2s; font-family: inherit;"
+                            onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+                            💾 알림 설정 저장
+                        </button>
+                        <div id="notify-save-status" style="margin-top: 8px; font-size: 11px; color: #6b7a8d; text-align: center; min-height: 14px;"></div>
                     </div>
 
                     <div style="margin-top: 12px; width: 100%;">

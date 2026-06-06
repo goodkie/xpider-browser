@@ -431,7 +431,8 @@ async function startCampaignOrchestrator(queue, template, delayMs, directApiKey)
 }
 
 /**
- * [v4.0.0] Admin이 설정한 SMTP Provider를 Supabase에서 읽어 반환
+ * [v5.0.0] Admin이 설정한 SMTP Provider를 Supabase profiles 테이블에서 읽어 반환
+ * smtp-config@xpider.pro 행의 plan 컬럼 사용
  * 설정값: 'brevo' | 'mailgun' (기본값: 'brevo')
  */
 async function getSmtpProviderSetting() {
