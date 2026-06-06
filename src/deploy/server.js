@@ -16,6 +16,158 @@ try {
 } catch (e) {}
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ('ghp_' + 'pgElJA7O0dyhiEQnquueyaDSGLdg6A1o31d4');
 
+// ── AWS Amplify 배포 설정 ────────────────────────────────────
+const AMPLIFY_CONFIG_FILE = path.join(__dirname, 'amplify-config.json');
+function getAmplifyConfig() {
+  if (fs.existsSync(AMPLIFY_CONFIG_FILE)) {
+    try { return JSON.parse(fs.readFileSync(AMPLIFY_CONFIG_FILE, 'utf8')); } catch(e) {}
+  }
+  return { appId: 'd23b8wu27vwban', region: 'us-east-1', accessKeyId: '', secretAccessKey: '' };
+}
+function saveAmplifyConfig(cfg) {
+  fs.writeFileSync(AMPLIFY_CONFIG_FILE, JSON.stringify(cfg, null, 2));
+}
+
+async function deployToAmplify() {
+  const cfg = getAmplifyConfig();
+  if (!cfg.accessKeyId || !cfg.secretAccessKey) {
+    throw new Error('AWS 자격증명이 설정되지 않았습니다. Deploy Center에서 AWS 키를 먼저 입력하세요.');
+  }
+
+  broadcast('log', { text: '📦 landing/ 폴더를 ZIP으로 압축 중...', err: false });
+
+  // AdmZip으로 landing 폴더 압축
+  const AdmZip = require('adm-zip');
+  const zip = new AdmZip();
+
+  // admin 파일들을 src에서 최신본으로 동기화
+  const syncFiles = ['admin.html', 'admin.js', 'admin.css'];
+  syncFiles.forEach(f => {
+    const src = path.join(ROOT, 'src', f);
+    const dst = path.join(ROOT, 'landing', f);
+    if (fs.existsSync(src)) fs.copyFileSync(src, dst);
+  });
+
+  // landing 폴더 내 파일 추가 (재귀)
+  function addFolder(dirPath, zipPath) {
+    fs.readdirSync(dirPath).forEach(name => {
+      const full = path.join(dirPath, name);
+      if (fs.statSync(full).isDirectory()) {
+        addFolder(full, zipPath ? zipPath + '/' + name : name);
+      } else {
+        zip.addLocalFile(full, zipPath || '');
+      }
+    });
+  }
+  addFolder(path.join(ROOT, 'landing'), '');
+
+  const zipBuffer = zip.toBuffer();
+  broadcast('log', { text: `✅ ZIP 생성 완료 (${(zipBuffer.length / 1024 / 1024).toFixed(1)} MB)`, err: false });
+
+  // ── AWS Signature V4 순수 구현 (외부 패키지 없음, Node.js crypto만 사용) ──
+  const crypto = require('crypto');
+  const region = cfg.region || 'us-east-1';
+  const service = 'amplify';
+
+  function hmac(key, str) {
+    return crypto.createHmac('sha256', key).update(str, 'utf8').digest();
+  }
+  function sha256hex(buf) {
+    return crypto.createHash('sha256').update(buf).digest('hex');
+  }
+  function getSigningKey(secretKey, dateStamp, regionName, serviceName) {
+    const kDate    = hmac('AWS4' + secretKey, dateStamp);
+    const kRegion  = hmac(kDate, regionName);
+    const kService = hmac(kRegion, serviceName);
+    return hmac(kService, 'aws4_request');
+  }
+
+  async function amplifyRequest(method, apiPath, body = '') {
+    const now = new Date();
+    const amzDate   = now.toISOString().replace(/[:-]|\.\d{3}/g, '').slice(0, 15) + 'Z';
+    const dateStamp = amzDate.slice(0, 8);
+    const host = `amplify.${region}.amazonaws.com`;
+    const bodyBuf  = typeof body === 'string' ? Buffer.from(body) : body;
+    const bodyHash = sha256hex(bodyBuf);
+
+    const canonHeaders = `content-type:application/json\nhost:${host}\nx-amz-content-sha256:${bodyHash}\nx-amz-date:${amzDate}\n`;
+    const signedHdrs   = 'content-type;host;x-amz-content-sha256;x-amz-date';
+    const canonReq = [method, apiPath, '', canonHeaders, signedHdrs, bodyHash].join('\n');
+
+    const credScope  = `${dateStamp}/${region}/${service}/aws4_request`;
+    const strToSign  = ['AWS4-HMAC-SHA256', amzDate, credScope, sha256hex(Buffer.from(canonReq))].join('\n');
+    const signingKey = getSigningKey(cfg.secretAccessKey, dateStamp, region, service);
+    const signature  = crypto.createHmac('sha256', signingKey).update(strToSign).digest('hex');
+    const authHeader = `AWS4-HMAC-SHA256 Credential=${cfg.accessKeyId}/${credScope}, SignedHeaders=${signedHdrs}, Signature=${signature}`;
+
+    return new Promise((resolve, reject) => {
+      const opts = {
+        hostname: host, port: 443, path: apiPath, method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Host': host,
+          'X-Amz-Date': amzDate,
+          'X-Amz-Content-SHA256': bodyHash,
+          'Authorization': authHeader,
+          'Content-Length': bodyBuf.length
+        }
+      };
+      const req = https.request(opts, res => {
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            try { resolve(JSON.parse(data)); } catch { resolve(data); }
+          } else {
+            reject(new Error(`Amplify API 오류: HTTP ${res.statusCode} — ${data}`));
+          }
+        });
+      });
+      req.on('error', reject);
+      if (bodyBuf.length > 0) req.write(bodyBuf);
+      req.end();
+    });
+  }
+
+  broadcast('log', { text: `🚀 Amplify 앱 [${cfg.appId}] 에 배포 시작...`, err: false });
+
+  // 1. POST /apps/{appId}/deployments → jobId + zipUploadUrl 획득
+  const createResp = await amplifyRequest('POST', `/apps/${cfg.appId}/deployments`);
+  const { jobId, zipUploadUrl } = createResp;
+  broadcast('log', { text: `📡 Job ID: ${jobId} — 업로드 URL 수신`, err: false });
+
+  // 2. presigned S3 URL에 ZIP PUT (서명 불필요 — presigned URL이 인증 포함)
+  broadcast('log', { text: '📤 ZIP 파일을 Amplify S3에 업로드 중...', err: false });
+  await new Promise((resolve, reject) => {
+    const urlObj = new URL(zipUploadUrl);
+    const opts = {
+      hostname: urlObj.hostname, port: 443,
+      path: urlObj.pathname + urlObj.search,
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/zip', 'Content-Length': zipBuffer.length }
+    };
+    const req = https.request(opts, res => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) resolve();
+        else reject(new Error(`S3 업로드 실패: HTTP ${res.statusCode} — ${data}`));
+      });
+    });
+    req.on('error', reject);
+    req.write(zipBuffer);
+    req.end();
+  });
+  broadcast('log', { text: '✅ ZIP 업로드 완료!', err: false });
+
+  // 3. 배포 시작 (startDeployment)
+  await amplifyRequest('POST', `/apps/${cfg.appId}/deployments/${jobId}/stop`);
+
+  broadcast('log', { text: `🎉 Amplify 배포 시작됨! (Job: ${jobId})`, err: false });
+  broadcast('log', { text: `🌐 사이트: https://${cfg.appId}.amplifyapp.com`, err: false });
+  broadcast('log', { text: '⏳ 배포 완료까지 약 1~2분 소요됩니다.', err: false });
+}
+
 function githubGet(apiPath) {
   return new Promise((resolve, reject) => {
     const options = {
@@ -486,6 +638,53 @@ http.createServer(async (req, res) => {
       });
       return;
     }
+
+    // ── Amplify 설정 GET ──────────────────────────────────────
+    if (u.pathname === '/api/amplify-config' && req.method === 'GET') {
+      const cfg = getAmplifyConfig();
+      // 시크릿은 마스킹해서 반환
+      const safe = {
+        appId: cfg.appId,
+        region: cfg.region,
+        accessKeyId: cfg.accessKeyId ? cfg.accessKeyId.substring(0, 4) + '****' : '',
+        secretAccessKey: cfg.secretAccessKey ? '••••••••' : '',
+        hasCredentials: !!(cfg.accessKeyId && cfg.secretAccessKey)
+      };
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(safe));
+      return;
+    }
+
+    // ── Amplify 설정 저장 ─────────────────────────────────────
+    if (u.pathname === '/api/amplify-config' && req.method === 'POST') {
+      const body = await readBody(req);
+      const existing = getAmplifyConfig();
+      const updated = {
+        appId:           body.appId           || existing.appId,
+        region:          body.region          || existing.region,
+        accessKeyId:     body.accessKeyId     || existing.accessKeyId,
+        secretAccessKey: body.secretAccessKey || existing.secretAccessKey
+      };
+      saveAmplifyConfig(updated);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
+
+    // ── Amplify 배포 실행 ─────────────────────────────────────
+    if (u.pathname === '/api/deploy-amplify' && req.method === 'POST') {
+      broadcast('status', 'deploying');
+      deployToAmplify()
+        .then(() => { broadcast('status', 'idle'); })
+        .catch(err => {
+          broadcast('log', { text: `❌ Amplify 배포 실패: ${err.message}`, err: true });
+          broadcast('status', 'idle');
+        });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('{"ok":true}');
+      return;
+    }
+
     res.writeHead(404); res.end();
   } catch (error) {
     console.error('Server error:', error);

@@ -244,6 +244,21 @@ header {
 
     <!-- 기타 작업 섹션 (위로 올림) -->
     <div class="divider"></div>
+    <div class="ptitle" style="margin-bottom:8px;">🌍 AMPLIFY 웹 배포</div>
+    <div class="btns">
+      <button class="btn" id="amplify-deploy-btn" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;box-shadow:0 4px 18px rgba(245,158,11,0.4);" onclick="deployAmplify()">
+        <span class="bico">🎉</span>
+        <span class="btxt">Deploy Updates to Amplify</span>
+        <span class="bsub" id="amplify-status-badge">● 클릭하면 리자인 배포</span>
+      </button>
+      <button class="btn btn-sec" onclick="openAmplifyConfig()">
+        <span class="bico">⚙️</span>
+        <span class="btxt">AWS 자격증명 설정</span>
+        <span class="bsub" id="amplify-cred-badge">조회 중...</span>
+      </button>
+    </div>
+
+    <div class="divider"></div>
     <div class="ptitle" style="margin-bottom:8px;">🛠️ 기타 작업</div>
     <div class="btns">
       <button class="btn btn-sec" onclick="gitPull()">
@@ -324,6 +339,43 @@ header {
     <div class="modal-footer">
       <button class="btn btn-sec" style="width:auto;" onclick="closeTosModal()">취소</button>
       <button class="btn btn-prim" style="width:auto;" onclick="saveAndPushTos()">저장 및 푸시</button>
+    </div>
+  </div>
+</div>
+
+<!-- AWS Amplify 설정 모달 -->
+<div class="modal-overlay" id="amplifyModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <span>⚙️ AWS Amplify 자격증명 설정</span>
+      <button class="cbtn" onclick="closeAmplifyConfig()">X</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+      <p style="font-size:12px;color:var(--dim);line-height:1.6;">
+        AWS IAM 사용자의 액세스 키를 입력하세요.<br>
+        필요 권한: <code style="color:var(--cyan);font-size:11px;">AWSAmplifyFullAccess</code>
+      </p>
+      <div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">App ID</div>
+        <input class="ver-input" id="cfg-app-id" placeholder="d23b8wu27vwban" style="width:100%;">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">AWS Region</div>
+        <input class="ver-input" id="cfg-region" placeholder="us-east-1" style="width:100%;">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">Access Key ID</div>
+        <input class="ver-input" id="cfg-access-key" placeholder="AKIA..." style="width:100%;">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">Secret Access Key</div>
+        <input class="ver-input" id="cfg-secret-key" type="password" placeholder="••••••••" style="width:100%;">
+      </div>
+      <div id="amplify-config-status" style="font-size:11px;min-height:16px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sec" style="width:auto;" onclick="closeAmplifyConfig()">취소</button>
+      <button class="btn btn-prim" style="width:auto;" onclick="saveAmplifyConfig()">키 저장</button>
     </div>
   </div>
 </div>
@@ -608,7 +660,72 @@ function saveAndPushTos() {
   post('/api/edit-tos', { content, lang });
 }
 
+// ── Amplify 설정 ─────────────────────────────────────────────────
+let amplifyHasCreds = false;
+
+async function loadAmplifyStatus() {
+  try {
+    const cfg = await fetch('/api/amplify-config').then(r => r.json());
+    amplifyHasCreds = cfg.hasCredentials;
+    const badge = $('amplify-cred-badge');
+    const deployBtn = $('amplify-deploy-btn');
+    if (cfg.hasCredentials) {
+      if (badge) badge.textContent = `✅ ${cfg.accessKeyId} • ${cfg.region}`;
+      if (deployBtn) deployBtn.style.opacity = '1';
+    } else {
+      if (badge) badge.textContent = '⚠️ AWS 키 설정 필요';
+      if (deployBtn) deployBtn.style.opacity = '0.6';
+    }
+    // 폼 코드 채우기 (마스킹 제외)
+    $('cfg-app-id').value  = cfg.appId || 'd23b8wu27vwban';
+    $('cfg-region').value  = cfg.region || 'us-east-1';
+    $('cfg-access-key').value = '';
+    $('cfg-secret-key').value = '';
+  } catch(e) { console.error(e); }
+}
+
+function openAmplifyConfig() {
+  loadAmplifyStatus();
+  $('amplifyModal').style.display = 'flex';
+}
+function closeAmplifyConfig() {
+  $('amplifyModal').style.display = 'none';
+}
+
+async function saveAmplifyConfig() {
+  const body = {
+    appId:           $('cfg-app-id').value.trim(),
+    region:          $('cfg-region').value.trim(),
+    accessKeyId:     $('cfg-access-key').value.trim(),
+    secretAccessKey: $('cfg-secret-key').value.trim()
+  };
+  if (!body.accessKeyId || !body.secretAccessKey) {
+    $('amplify-config-status').textContent = '❌ Access Key와 Secret Key를 모두 입력하세요.';
+    $('amplify-config-status').style.color = 'var(--red)';
+    return;
+  }
+  await fetch('/api/amplify-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  $('amplify-config-status').textContent = '✅ 저장되었습니다!';
+  $('amplify-config-status').style.color = 'var(--green)';
+  await loadAmplifyStatus();
+  setTimeout(() => { closeAmplifyConfig(); }, 1200);
+}
+
+async function deployAmplify() {
+  if (isBusy) return;
+  if (!amplifyHasCreds) {
+    openAmplifyConfig();
+    alert('⚠️ AWS 자격증명을 먼저 입력하세요.');
+    return;
+  }
+  if (!confirm('현재 landing/ 폴더를 Amplify에 배포합니다. 계속할까요?')) return;
+  addLog('\n── Amplify Deploy ──', false);
+  post('/api/deploy-amplify', {});
+}
+
 loadInfo();
+loadAmplifyStatus();
+
 </script>
 </body>
 </html>
