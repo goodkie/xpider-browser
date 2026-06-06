@@ -101,22 +101,9 @@ function appendDebugLog(message, type = 'info') {
     screen.scrollTop = screen.scrollHeight;
 }
 
-// DOM Elements
-const onlineUsersContainer = document.getElementById('online-users-container');
-const onlineCountDisplay = document.getElementById('online-count');
-const userTableBody = document.getElementById('user-table-body');
-const userSearchInput = document.getElementById('user-search-input');
-const timelineContainer = document.getElementById('timeline-container');
-const logDateFilter = document.getElementById('log-date-filter');
-const clearFiltersBtn = document.getElementById('clear-filters-btn');
-const refreshAllBtn = document.getElementById('refresh-all-btn');
+// DOM Elements — 동적 getter 방식으로 null 에러 방지
+function getEl(id) { return document.getElementById(id); }
 
-// Modal Elements
-const tokenEditModal = document.getElementById('token-edit-modal');
-const modalUserEmail = document.getElementById('modal-user-email');
-const newTokenAmount = document.getElementById('new-token-amount');
-const saveTokenBtn = document.getElementById('save-token-btn');
-const closeModalBtn = document.getElementById('close-modal-btn');
 
 // ─── 🔑 강력한 암호화 로그인 보안 시스템 (SHA-256) ──────────────────
 async function sha256(message) {
@@ -188,47 +175,61 @@ function startAdminConsole() {
 }
 
 // Initial Load & Heartbeat Setup
-document.addEventListener('DOMContentLoaded', () => {
+// DOMContentLoaded가 이미 발생한 경우도 안전하게 처리
+function initAdminPage() {
     appendDebugLog('Command Center Telemetry Console Activated. Session gate checking...', 'info');
     checkAdminSession();
-    
+
     // 엔터키 로그인 이벤트 바인딩
-    document.getElementById('login-password').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleSecureLogin();
-    });
-    document.getElementById('login-username').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleSecureLogin();
-    });
-    
-    // Event Listeners
-    userSearchInput.addEventListener('input', renderUsersTable);
-    logDateFilter.addEventListener('change', loadLogsData);
-    
-    clearFiltersBtn.addEventListener('click', () => {
-        logDateFilter.value = '';
+    const pwInput = getEl('login-password');
+    const unInput = getEl('login-username');
+    if (pwInput) pwInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSecureLogin(); });
+    if (unInput) unInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSecureLogin(); });
+
+    // Event Listeners — 요소가 없을 경우 skip
+    const userSearchInput = getEl('user-search-input');
+    const logDateFilter   = getEl('log-date-filter');
+    const clearFiltersBtn = getEl('clear-filters-btn');
+    const refreshAllBtn   = getEl('refresh-all-btn');
+    const closeModalBtn   = getEl('close-modal-btn');
+    const saveTokenBtn    = getEl('save-token-btn');
+    const tokenEditModal  = getEl('token-edit-modal');
+
+    if (userSearchInput) userSearchInput.addEventListener('input', renderUsersTable);
+    if (logDateFilter)   logDateFilter.addEventListener('change', loadLogsData);
+
+    if (clearFiltersBtn) clearFiltersBtn.addEventListener('click', () => {
+        if (logDateFilter) logDateFilter.value = '';
         appendDebugLog('Log date filter cleared by user.', 'info');
         loadLogsData();
     });
-    
-    refreshAllBtn.addEventListener('click', () => {
+
+    if (refreshAllBtn) refreshAllBtn.addEventListener('click', () => {
         appendDebugLog('Manual database synchronization requested by user click.', 'info');
         loadAllData(true);
     });
 
-    // Modal Close
-    closeModalBtn.addEventListener('click', () => {
-        tokenEditModal.classList.add('hidden');
+    if (closeModalBtn) closeModalBtn.addEventListener('click', () => {
+        if (tokenEditModal) tokenEditModal.classList.add('hidden');
         selectedUserIdForTokens = null;
     });
 
-    saveTokenBtn.addEventListener('click', saveTokensRecharge);
-});
+    if (saveTokenBtn) saveTokenBtn.addEventListener('click', saveTokensRecharge);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAdminPage);
+} else {
+    // 이미 DOM이 준비된 경우 즉시 실행
+    initAdminPage();
+}
 
 // Load Profiles & Logs securely via IPC Bridge
 async function loadAllData(isManual = false) {
+    const refreshAllBtn = getEl('refresh-all-btn');
     try {
         if (isManual) {
-            refreshAllBtn.textContent = '⚡ Syncing...';
+            if (refreshAllBtn) refreshAllBtn.textContent = '⚡ Syncing...';
             appendDebugLog('Syncing full command center datasets...', 'api');
         }
         
@@ -254,20 +255,21 @@ async function loadAllData(isManual = false) {
         loadSmtpProviderSetting().catch(() => {});
         
         if (isManual) {
-            refreshAllBtn.textContent = '🔄 Sync Database';
+            if (refreshAllBtn) refreshAllBtn.textContent = '🔄 Sync Database';
         }
     } catch (e) {
         console.error('Failed to load command center data:', e.message);
         appendDebugLog(`Database sync failed: ${e.message}`, 'error');
         appendDebugLog(`Suggestion: Check if public.profiles & public.user_logs tables are created in Supabase SQL editor and RLS policies are enabled correctly.`, 'warning');
-        if (isManual) refreshAllBtn.textContent = '❌ Failed Sync';
+        if (isManual && refreshAllBtn) refreshAllBtn.textContent = '❌ Failed Sync';
     }
 }
 
 // Load Logs separately to support custom date filters
 async function loadLogsData() {
+    const logDateFilter = getEl('log-date-filter');
     try {
-        const filterDate = logDateFilter.value || null; // 'YYYY-MM-DD'
+        const filterDate = logDateFilter ? logDateFilter.value || null : null;
         appendDebugLog(`Querying activity logs (Filter Date: ${filterDate || 'All Time'})...`, 'api');
         
         const logs = await window.electronAPI.invoke('admin-get-user-logs', { filterDate });
@@ -283,6 +285,9 @@ async function loadLogsData() {
 
 // 🟢 renderLiveBeacons: Filter & Display users active in last 5 minutes
 function renderLiveBeacons() {
+    const onlineUsersContainer = getEl('online-users-container');
+    const onlineCountDisplay   = getEl('online-count');
+    if (!onlineUsersContainer) return;
     onlineUsersContainer.innerHTML = '';
     const now = Date.now();
     const FIVE_MINUTES_MS = 5 * 60 * 1000;
@@ -293,7 +298,7 @@ function renderLiveBeacons() {
         return (now - lastActiveTime) < FIVE_MINUTES_MS;
     });
 
-    onlineCountDisplay.textContent = `${onlineUsers.length} Active Now`;
+    if (onlineCountDisplay) onlineCountDisplay.textContent = `${onlineUsers.length} Active Now`;
 
     if (onlineUsers.length === 0) {
         onlineUsersContainer.innerHTML = `<div class="no-data-msg">No active sessions detected in the last 5 minutes.</div>`;
@@ -325,7 +330,8 @@ function renderLiveBeacons() {
         `;
         node.style.cursor = 'pointer';
         node.addEventListener('click', () => {
-            userSearchInput.value = email;
+            const si = getEl('user-search-input');
+            if (si) si.value = email;
             appendDebugLog(`Filtering user list by beacon email: ${email}`, 'info');
             renderUsersTable();
         });
@@ -335,8 +341,11 @@ function renderLiveBeacons() {
 
 // 👥 renderUsersTable: Render directory with live status toggle & token adjustment
 function renderUsersTable() {
+    const userTableBody    = getEl('user-table-body');
+    const userSearchInput  = getEl('user-search-input');
+    if (!userTableBody) return;
     userTableBody.innerHTML = '';
-    const query = userSearchInput.value.toLowerCase().trim();
+    const query = userSearchInput ? userSearchInput.value.toLowerCase().trim() : '';
     
     const filtered = usersCached.filter(u => {
         const email = (u.email || '').toLowerCase();
@@ -377,17 +386,15 @@ function renderUsersTable() {
             </td>
             <td>
                 <div style="display:flex; align-items:center; gap:12px;">
-                    <!-- Active Status Toggle -->
                     <label class="switch" title="Toggle account active status">
                         <input type="checkbox" ${isActive ? 'checked' : ''} onchange="toggleUserActiveState('${u.id}', this.checked)">
                         <span class="slider"></span>
                     </label>
-                    <!-- Force Logout button -->
                     ${u.active_device_id ? `<button class="btn-action kick" onclick="forceUserLogout('${u.id}', '${email}')">Kick</button>` : ''}
                 </div>
             </td>
             <td>
-                <button class="btn-detail" onclick="openUserDetail('${u.id}')">🔍 상세보기</button>
+                <button class="btn-detail" onclick="openUserDetail('${u.id}')">&#128269; 상세보기</button>
             </td>
         `;
         userTableBody.appendChild(tr);
@@ -396,6 +403,8 @@ function renderUsersTable() {
 
 // ⏳ renderTimelineLogs: Render logs with beautiful details
 function renderTimelineLogs() {
+    const timelineContainer = getEl('timeline-container');
+    if (!timelineContainer) return;
     timelineContainer.innerHTML = '';
     
     if (logsCached.length === 0) {
@@ -469,10 +478,12 @@ async function forceUserLogout(userId, email) {
 // Open Token Adjustment Modal
 function openTokenRechargeModal(userId, email, currentTokens) {
     selectedUserIdForTokens = userId;
-    modalUserEmail.textContent = `Adjusting tokens for: ${email}`;
-    newTokenAmount.value = currentTokens;
-    tokenEditModal.classList.remove('hidden');
-    newTokenAmount.focus();
+    const modalUserEmail = getEl('modal-user-email');
+    const newTokenAmount  = getEl('new-token-amount');
+    const tokenEditModal  = getEl('token-edit-modal');
+    if (modalUserEmail) modalUserEmail.textContent = `Adjusting tokens for: ${email}`;
+    if (newTokenAmount) { newTokenAmount.value = currentTokens; newTokenAmount.focus(); }
+    if (tokenEditModal) tokenEditModal.classList.remove('hidden');
     appendDebugLog(`Opened manual token adjustment dialog for user ${email}.`, 'info');
 }
 window.openTokenRechargeModal = openTokenRechargeModal; // Expose globally for inline onclick
@@ -480,7 +491,9 @@ window.openTokenRechargeModal = openTokenRechargeModal; // Expose globally for i
 // Save Token Recharge adjust
 async function saveTokensRecharge() {
     if (!selectedUserIdForTokens) return;
-    const tokens = parseInt(newTokenAmount.value);
+    const newTokenAmount = getEl('new-token-amount');
+    const tokenEditModal = getEl('token-edit-modal');
+    const tokens = parseInt(newTokenAmount ? newTokenAmount.value : '0');
     if (isNaN(tokens) || tokens < 0) {
         alert('Please enter a valid positive token amount.');
         appendDebugLog('Invalid token value entered in adjust dialog.', 'warning');
@@ -492,7 +505,7 @@ async function saveTokensRecharge() {
         const success = await window.electronAPI.invoke('admin-update-user-tokens', { userId: selectedUserIdForTokens, tokens });
         if (success) {
             appendDebugLog(`Successfully adjusted tokens to ${tokens} for user ${selectedUserIdForTokens}.`, 'success');
-            tokenEditModal.classList.add('hidden');
+            if (tokenEditModal) tokenEditModal.classList.add('hidden');
             selectedUserIdForTokens = null;
             loadAllData();
         } else {
