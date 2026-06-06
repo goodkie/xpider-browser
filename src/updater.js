@@ -12,7 +12,7 @@ const fs     = require('fs');
 const path   = require('path');
 const { app } = require('electron');
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || ('ghp_' + 'pgElJA7O0dyhiEQnquueyaDSGLdg6A1o31d4');
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const REPO_OWNER   = 'goodkie';
 const REPO_NAME    = 'xpider-browser';
 
@@ -36,8 +36,8 @@ function githubGet(apiPath) {
       };
       
       const req = https.get(options, res => {
-        if (res.statusCode === 401 && useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
-          console.warn(`[Updater] 401 Unauthorized for ${apiPath}. Retrying without authentication...`);
+        if ((res.statusCode === 401 || res.statusCode === 403) && useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
+          console.warn(`[Updater] ${res.statusCode} response for ${apiPath}. Retrying without authentication...`);
           makeRequest(false);
           return;
         }
@@ -68,8 +68,8 @@ function downloadFile(url, destPath) {
         headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
       }
       mod.get(u, { headers }, res => {
-        if (res.statusCode === 401 && useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
-          console.warn('[Updater] downloadFile 401 Unauthorized. Retrying without authentication...');
+        if ((res.statusCode === 401 || res.statusCode === 403) && useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
+          console.warn(`[Updater] downloadFile ${res.statusCode}. Retrying without authentication...`);
           follow(u, false);
           return;
         }
@@ -492,8 +492,8 @@ function downloadFileWithProgress(url, destPath, onProgress) {
         headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
       }
       mod.get(u, { headers }, res => {
-        if (res.statusCode === 401 && useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
-          console.warn('[Updater] downloadFileWithProgress 401 Unauthorized. Retrying without authentication...');
+        if ((res.statusCode === 401 || res.statusCode === 403) && useAuth && typeof GITHUB_TOKEN !== 'undefined' && GITHUB_TOKEN) {
+          console.warn(`[Updater] downloadFileWithProgress ${res.statusCode}. Retrying without authentication...`);
           follow(u, false);
           return;
         }
