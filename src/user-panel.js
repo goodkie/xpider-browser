@@ -1,5 +1,6 @@
 // user-panel.js - Logic & Core Integrations for XPIDER Premium Account Center
 let currentProfile = null;
+let _purchasePollInterval = null;
 
 // ─── Plan Token Map ─────────────────────────────────────
 const PLAN_TOKENS = {
@@ -501,6 +502,10 @@ function toggleModalBilling() {
 }
 
 function closePurchaseModal() {
+  if (_purchasePollInterval) {
+    clearInterval(_purchasePollInterval);
+    _purchasePollInterval = null;
+  }
   const modal = document.getElementById('purchase-modal');
   if (modal) modal.classList.remove('active');
   // 결제 확인 행 초기화
@@ -542,6 +547,50 @@ async function startStripeCheckout() {
         btn.disabled = false;
         btn.innerHTML = '<i class="fa-brands fa-stripe-s"></i> <span>Pay with Stripe</span> <i class="fa-solid fa-arrow-right"></i>';
       }
+
+      // ─── 결제 완료 실시간 자동 감지 폴링 개시 ───
+      if (_purchasePollInterval) clearInterval(_purchasePollInterval);
+      _purchasePollInterval = setInterval(async () => {
+        try {
+          const pollResult = await api.invoke('user-verify-purchase', { planId: _currentCheckoutPlan });
+          if (pollResult?.success) {
+            clearInterval(_purchasePollInterval);
+            _purchasePollInterval = null;
+
+            const planLabels = { starter: 'Starter Plan', pro: 'Business Pro', enterprise: 'Enterprise' };
+            const planLabel = planLabels[pollResult.plan] || pollResult.plan;
+            const tokensAdded = pollResult.tokensAdded || 0;
+            const newTotal = pollResult.tokensRemaining || 0;
+
+            showToast(`✅ ${planLabel} activated automatically! +${tokensAdded.toLocaleString()} tokens added`);
+
+            // UI 즉시 반영
+            const tokenDisplay = document.getElementById('stat-tokens');
+            if (tokenDisplay) tokenDisplay.textContent = newTotal.toLocaleString() + ' Tokens';
+
+            const planBadge = document.getElementById('plan-name');
+            const planLabelsMap = { free: 'Free Plan', starter: 'Starter Plan', pro: 'Business Pro', enterprise: 'Enterprise', admin: 'Admin Suite' };
+            if (planBadge) planBadge.textContent = planLabelsMap[pollResult.plan] || pollResult.plan;
+
+            if (currentProfile) {
+              currentProfile.plan = pollResult.plan;
+              currentProfile.tokens_remaining = newTotal;
+            }
+
+            // 진행률 바 갱신
+            const maxTokens = getPlanMaxTokens(pollResult.plan);
+            const pct = Math.min(100, Math.round((newTotal / maxTokens) * 100));
+            const fill = document.getElementById('token-progress');
+            const pctLabel = document.getElementById('token-pct');
+            if (fill) fill.style.width = pct + '%';
+            if (pctLabel) pctLabel.textContent = `${pct}% Left (${newTotal.toLocaleString()} / ${maxTokens.toLocaleString()})`;
+
+            closePurchaseModal();
+          }
+        } catch (pollErr) {
+          console.error('[Purchase Poll] Auto activation check failed:', pollErr);
+        }
+      }, 4000); // 4초 간격 체크
     } else if (result?.error) {
       showToast('❌ ' + result.error);
       if (btn) {
