@@ -189,7 +189,7 @@ async function getLatestSubscription(email) {
         customer: customer.id,
         status: 'all',  // active + trialing 모두 포함
         limit: 10,
-        expand: ['data.items.data.price.product']
+        expand: ['data.items.data.price']
       });
 
       // active 또는 trialing 구독만 필터
@@ -213,7 +213,7 @@ async function getLatestSubscription(email) {
 
         // metadata에서도 플랜 ID 확인 (backup)
         const metaPlan = sub.metadata?.xpider_plan
-          || sub.items.data[0]?.price?.product?.metadata?.xpider_plan;
+          || sub.items.data[0]?.price?.metadata?.xpider_plan;
         const finalPlan = detectedPlan || metaPlan;
 
         if (finalPlan) {
