@@ -12,6 +12,39 @@ const sidePanelTitle   = document.getElementById('side-panel-title');
 const closeSidePanelBtn = document.getElementById('close-side-panel-btn');
 const extensionWebview = document.getElementById('extension-webview');
 
+// ─── TEST MODE 수신 핸들러 ──────────────────────────────────────
+window.electronAPI.on('app-test-mode', (isTest) => {
+    if (!isTest) return;
+    // 타이틀바에 TEST MODE 배지 삽입
+    const titlebarUpdateWidget = document.getElementById('titlebar-update-widget');
+    if (titlebarUpdateWidget) {
+        const badge = document.createElement('div');
+        badge.id = 'test-mode-badge';
+        badge.innerHTML = '⚡ TEST MODE';
+        badge.style.cssText = `
+            background: linear-gradient(135deg, #ffcc00, #ff8c00);
+            color: #111;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            padding: 2px 8px;
+            border-radius: 6px;
+            margin-right: 6px;
+            display: inline-block;
+            cursor: default;
+            box-shadow: 0 0 8px rgba(255,204,0,0.5);
+        `;
+        titlebarUpdateWidget.parentElement.insertBefore(badge, titlebarUpdateWidget);
+    }
+    // 토큰 표시를 "∞ Unlimited"로 설정
+    const tokenDisplay = document.getElementById('token-count-display');
+    if (tokenDisplay) {
+        tokenDisplay.textContent = '∞ Unlimited Tokens';
+        tokenDisplay.style.color = '#ffcc00';
+    }
+    console.log('[XPIDER] ⚡ TEST MODE 활성화 — 로그인 없이 토큰 무제한 동작');
+});
+
 // 10초마다 자동으로 토큰 잔액 갱신
 setInterval(updateTokenDisplay, 10000);
 

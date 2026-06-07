@@ -6,6 +6,7 @@
   "scripts": {
     "clean-locks": "powershell -NoProfile -Command \"Get-ChildItem -Path 'data','$env:APPDATA\\\\xpider-browser' -Filter LOCK -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue; Write-Host '[XPIDER] LOCK files cleaned'\"",
     "start": "npm run clean-locks && electron-forge start",
+    "test-mode": "npm run clean-locks && electron-forge start -- --test-mode",
     "landing:dev": "npx -y http-server ./landing -p 8080",
     "package": "electron-forge package",
     "make": "electron-forge make",

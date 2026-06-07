@@ -2641,19 +2641,34 @@
       if (winLink) winLink.href = `https://github.com/${repo}/releases/download/${fallbackVer}/XPIDER-Browser-Windows-${fallbackVer}-Setup.exe`;
       if (macLink) macLink.href = `https://github.com/${repo}/releases/download/${fallbackVer}/XPIDER-Browser-Mac-Arm-${fallbackVer}.dmg`;
       
-      // 릴리즈 목록을 가져와서 -win7이 없는 최신 일반 릴리즈 필터링
-      fetch(`https://api.github.com/repos/${repo}/releases`)
+      // /releases/latest 우선 사용 (rate limit 절약), 실패시 목록 폴백
+      fetch(`https://api.github.com/repos/${repo}/releases/latest`)
         .then(res => {
-          if (!res.ok) throw new Error('Network response was not ok (possibly rate limited)');
+          if (!res.ok) throw new Error(`GitHub API ${res.status}`);
           return res.json();
         })
-        .then(releases => {
-          if (!Array.isArray(releases) || releases.length === 0) throw new Error('No releases found');
-          
-          // -win7 태그가 아닌 첫 번째 최신 일반 릴리즈 탐색
-          const latestNormal = releases.find(r => r.tag_name && !r.tag_name.includes('-win7'));
-          if (!latestNormal) throw new Error('No normal release found');
-          
+        .then(release => {
+          // latest가 -win7 전용이면 목록 폴백
+          if (!release || !release.tag_name || release.tag_name.includes('-win7')) {
+            throw new Error('Latest is win7, fallback to list');
+          }
+          return release;
+        })
+        .catch(() => {
+          // /releases/latest 실패시 목록 조회로 폴백
+          return fetch(`https://api.github.com/repos/${repo}/releases?per_page=5`)
+            .then(res => {
+              if (!res.ok) throw new Error(`GitHub API list ${res.status}`);
+              return res.json();
+            })
+            .then(releases => {
+              if (!Array.isArray(releases) || releases.length === 0) throw new Error('No releases found');
+              const latestNormal = releases.find(r => r.tag_name && !r.tag_name.includes('-win7'));
+              if (!latestNormal) throw new Error('No normal release found');
+              return latestNormal;
+            });
+        })
+        .then(latestNormal => {
           const version = latestNormal.tag_name;
           const cleanVer = version.startsWith('v') ? version : 'v' + version;
           
@@ -2661,7 +2676,6 @@
           let normalMacUrl = `https://github.com/${repo}/releases/download/${version}/XPIDER-Browser-Mac-Arm-${cleanVer}.dmg`;
           
           if (latestNormal.assets && latestNormal.assets.length > 0) {
-            // 에셋 목록에서 실제 파일명 검색해서 매핑
             const winAsset = latestNormal.assets.find(a => a.name && a.name.endsWith('.exe') && !a.name.includes('-win7'));
             const macAsset = latestNormal.assets.find(a => a.name && a.name.endsWith('.dmg'));
             if (winAsset) normalWinUrl = winAsset.browser_download_url;

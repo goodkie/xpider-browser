@@ -154,6 +154,8 @@ let _authSuccessFired = false;
 let _logoutExitInProgress = false;
 // --no-auto-login 플래그 여부 (로그아웃 후 재시작 시 자동 로그인 원천 차단)
 const _noAutoLogin = process.argv.includes('--no-auto-login');
+// --test-mode 플래그 여부 (로그인 불필요, 토큰 무제한 개발/테스트 전용 모드)
+const _testMode = process.argv.includes('--test-mode') || process.env.XPIDER_TEST_MODE === 'true';
 
 // ─── [v4.17.0] 전역 실시간 로그 (devlog 라우팅) ──────────────
 function xLog(level, source, ...args) {
@@ -865,6 +867,17 @@ ipcMain.handle('admin-github-restore', async () => {
 
 // ─── 일반 사용자 IPC ──────────────────────────────────────────
 ipcMain.handle('user-get-profile', async () => {
+  // TEST MODE: 가상 관리자 프로파일 반환
+  if (_testMode) {
+    return {
+      id: 'test-user-dev',
+      email: 'dev@test.local',
+      username: 'DEV_TESTER',
+      plan: 'enterprise',
+      tokens_remaining: 9999999,
+      created_at: new Date().toISOString(),
+    };
+  }
   const userId = authService.getCurrentUserId();
   if (!userId) return null;
   return authService.getUserProfile(userId);
@@ -897,12 +910,18 @@ ipcMain.handle('user-get-logs', async (_, { extFilter, dateFilter } = {}) => {
 
 // ─── 신규 토큰 및 활동 로그 IPC ────────────────────────────────
 ipcMain.handle('xpider-token-deduct', async (_, { count, extName, action, details }) => {
+  // TEST MODE: 토큰 무제한 — 항상 성공, 잔량 9999999
+  if (_testMode) {
+    return { success: true, tokensRemaining: 9999999 };
+  }
   const userId = authService.getCurrentUserId();
   if (!userId) return { success: false, error: '로그인이 필요합니다.' };
   return authService.deductToken(userId, count, extName, action, details);
 });
 
 ipcMain.handle('xpider-token-get-remaining', async () => {
+  // TEST MODE: 항상 무제한 잔량 반환
+  if (_testMode) return 9999999;
   const userId = authService.getCurrentUserId();
   if (!userId) return 0;
   return authService.getTokensRemaining(userId);
@@ -4382,11 +4401,30 @@ app.whenReady().then(async () => {
   loadedExtensionsInfo = await loadLocalExtensions();
   devlog.addLog('INFO', 'Main', `익스텐션 ${loadedExtensionsInfo.length}개 로드 완료`);
 
-  // 3. 로그인 창 표시 후 스플래시 닫기
-  createLoginWindow();
-  await new Promise(resolve => setTimeout(resolve, 400));
-  if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.close();
+  // 3a. TEST MODE: 로그인 없이 바로 메인 창 열기
+  if (_testMode) {
+    log.info('[TestMode] ⚡ --test-mode 플래그 감지 — 로그인 없이 메인 브라우저 직접 시작');
+    devlog.addLog('INFO', 'Main', '[TEST MODE] 로그인 건너뜀 — 토큰 무제한 모드 활성화');
+    _authSuccessFired = true; // 중복 실행 방지
+    createWindow();
+    await new Promise(resolve => setTimeout(resolve, 400));
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close();
+    }
+    // 타이틀바에 TEST MODE 표시
+    setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('app-test-mode', true);
+        mainWindow.setTitle('XPIDER Browser [TEST MODE — Unlimited Tokens]');
+      }
+    }, 2500);
+  } else {
+    // 3b. 일반 모드: 로그인 창 표시 후 스플래시 닫기
+    createLoginWindow();
+    await new Promise(resolve => setTimeout(resolve, 400));
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.close();
+    }
   }
 
   // [v4.17.0] --devlog 인자로 시작 시 DevConsole 자동 오픈
@@ -4396,7 +4434,10 @@ app.whenReady().then(async () => {
   }
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createLoginWindow();
+    if (BrowserWindow.getAllWindows().length === 0) {
+      if (_testMode) createWindow();
+      else createLoginWindow();
+    }
   });
 
 });

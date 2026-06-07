@@ -90,24 +90,60 @@ function downloadFile(url, destPath) {
 async function checkAppUpdate() {
   try {
     const current = app.getVersion();
-    const res = await githubGet(`/repos/${REPO_OWNER}/${REPO_NAME}/releases`);
-    if (res.status !== 200 || !Array.isArray(res.body)) {
-      return { hasUpdate: false, latestVersion: current, currentVersion: current,
-               error: `GitHub API ${res.status}` };
+    
+    // /releases/latest 엔드포인트 사용 (API 호출 1회, rate limit 부담 최소화)
+    // -win7 전용 릴리즈가 latest인 경우를 대비해 최근 releases 목록도 폴백으로 확인
+    let latestRelease = null;
+    
+    const latestRes = await githubGet(`/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`);
+    
+    if (latestRes.status === 200 && latestRes.body && latestRes.body.tag_name) {
+      // latest가 -win7 전용이 아닌 경우
+      if (!latestRes.body.tag_name.toLowerCase().includes('-win7')) {
+        latestRelease = latestRes.body;
+      }
+    } else if (latestRes.status === 403) {
+      // Rate limit 초과: X-RateLimit-Remaining 헤더로 확인
+      return {
+        hasUpdate: false,
+        latestVersion: current,
+        currentVersion: current,
+        error: 'GitHub API rate limit exceeded. Please try again later.'
+      };
+    } else if (latestRes.status === 404) {
+      return {
+        hasUpdate: false,
+        latestVersion: current,
+        currentVersion: current,
+        error: 'No releases found on GitHub.'
+      };
+    } else if (latestRes.status !== 200) {
+      return {
+        hasUpdate: false,
+        latestVersion: current,
+        currentVersion: current,
+        error: `GitHub API ${latestRes.status}`
+      };
+    }
+    
+    // latest가 -win7이거나 없는 경우 목록으로 폴백
+    if (!latestRelease) {
+      const listRes = await githubGet(`/repos/${REPO_OWNER}/${REPO_NAME}/releases?per_page=5`);
+      if (listRes.status !== 200 || !Array.isArray(listRes.body)) {
+        return { hasUpdate: false, latestVersion: current, currentVersion: current,
+                 error: `GitHub API ${listRes.status}` };
+      }
+      const validReleases = listRes.body.filter(r =>
+        !r.draft &&
+        !r.prerelease &&
+        !(r.tag_name && r.tag_name.toLowerCase().includes('-win7'))
+      );
+      if (validReleases.length === 0) {
+        return { hasUpdate: false, latestVersion: current, currentVersion: current, error: 'No valid releases found' };
+      }
+      latestRelease = validReleases[0];
     }
 
-    // -win7 또는 win7-전용 버전을 배제하여 필터링
-    const validReleases = res.body.filter(r => 
-      !r.draft && 
-      !r.prerelease && 
-      !(r.tag_name && r.tag_name.toLowerCase().includes('-win7'))
-    );
-
-    if (validReleases.length === 0) {
-      return { hasUpdate: false, latestVersion: current, currentVersion: current, error: "No valid releases found" };
-    }
-
-    const latestRelease = validReleases[0];
     const latest = latestRelease.tag_name?.replace(/^v/, '') || current;
     const hasUpdate = compareVersions(latest, current) > 0;
 
