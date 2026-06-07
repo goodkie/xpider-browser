@@ -970,32 +970,30 @@ ipcMain.handle('user-verify-purchase', async (_, { planId }) => {
     log.info(`[Purchase] Verifying purchase for user: ${profile.email}, expected plan: ${planId}`);
 
     // Stripe에서 이 이메일의 활성 구독 조회
+    let confirmedPlan = planId; // 기본값: 요청된 planId 사용
+    let confirmedCustomerId = null;
+
     const subResult = await stripeService.getLatestSubscription(profile.email);
 
     if (subResult.error) {
-      log.warn(`[Purchase] Stripe subscription lookup failed: ${subResult.error}`);
-      // Stripe 조회 실패 시, 신뢰 기반으로 요청된 planId로 직접 업그레이드 (fallback)
-      if (planId) {
-        log.info(`[Purchase] Fallback: Applying plan=${planId} without Stripe verification`);
-        const upgradeResult = await authService.upgradePlan(userId, planId, null);
-        return upgradeResult;
-      }
-      return { success: false, error: subResult.error };
+      // Stripe 조회 실패 → 신뢰 기반으로 요청된 planId 사용 (fallback)
+      log.warn(`[Purchase] Stripe lookup failed (${subResult.error}). Falling back to requested planId=${planId}`);
+    } else {
+      // Stripe 조회 성공 → planId 역매핑 결과 우선 사용, 없으면 요청된 planId 사용
+      confirmedPlan = subResult.planId || planId;
+      confirmedCustomerId = subResult.customerId || null;
+      log.info(`[Purchase] Stripe confirmed plan: ${confirmedPlan}, customerId: ${confirmedCustomerId}`);
     }
 
-    // Stripe에서 확인된 플랜 ID (또는 요청된 planId 우선)
-    const confirmedPlan = subResult.planId || planId;
     if (!confirmedPlan) {
       return { success: false, error: '플랜 정보를 확인할 수 없습니다.' };
     }
 
-    log.info(`[Purchase] Stripe confirmed plan: ${confirmedPlan}, customerId: ${subResult.customerId}`);
+    // DB 업데이트 — 기존 잔여 토큰 + 새 플랜 토큰 합산
+    const upgradeResult = await authService.upgradePlan(userId, confirmedPlan, confirmedCustomerId);
 
-    // DB 업데이트 — 기존 잔여 토큰 + 새 플랜 토큰
-    const upgradeResult = await authService.upgradePlan(userId, confirmedPlan, subResult.customerId);
-    
     if (upgradeResult.success) {
-      log.info(`[Purchase] DB updated: plan=${confirmedPlan}, newTokens=${upgradeResult.tokensRemaining}`);
+      log.info(`[Purchase] DB updated successfully: plan=${confirmedPlan}, tokensRemaining=${upgradeResult.tokensRemaining}`);
     } else {
       log.error(`[Purchase] DB update failed: ${upgradeResult.error}`);
     }

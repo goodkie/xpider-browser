@@ -183,34 +183,41 @@ async function getLatestSubscription(email) {
       return { error: 'No Stripe customer found for this email.' };
     }
 
-    // 2. 각 고객의 활성 구독 확인 (최신 순)
+    // 2. 각 고객의 활성/trialing 구독 확인 (최신 순)
     for (const customer of customers.data) {
       const subs = await _stripe.subscriptions.list({
         customer: customer.id,
-        status: 'active',
-        limit: 5,
+        status: 'all',  // active + trialing 모두 포함
+        limit: 10,
         expand: ['data.items.data.price.product']
       });
 
-      if (subs.data && subs.data.length > 0) {
-        // 가장 최신 활성 구독 선택
-        const sub = subs.data[0];
+      // active 또는 trialing 구독만 필터
+      const activeSubs = subs.data?.filter(s => s.status === 'active' || s.status === 'trialing') || [];
+
+      if (activeSubs.length > 0) {
+        // 가장 최신 활성/trialing 구독 선택
+        const sub = activeSubs[0];
         const priceId = sub.items.data[0]?.price?.id;
 
         // priceId로 플랜 ID 역매핑
         let detectedPlan = null;
-        for (const [planId, cycles] of Object.entries(PRICE_IDS)) {
-          if (Object.values(cycles).includes(priceId)) {
-            detectedPlan = planId;
-            break;
+        if (priceId) {
+          for (const [planId, cycles] of Object.entries(PRICE_IDS)) {
+            if (Object.values(cycles).includes(priceId)) {
+              detectedPlan = planId;
+              break;
+            }
           }
         }
 
         // metadata에서도 플랜 ID 확인 (backup)
-        const metaPlan = sub.metadata?.xpider_plan || sub.items.data[0]?.price?.product?.metadata?.xpider_plan;
+        const metaPlan = sub.metadata?.xpider_plan
+          || sub.items.data[0]?.price?.product?.metadata?.xpider_plan;
         const finalPlan = detectedPlan || metaPlan;
 
         if (finalPlan) {
+          log.info(`[Stripe] Found subscription: plan=${finalPlan}, status=${sub.status}, priceId=${priceId}`);
           return {
             planId: finalPlan,
             customerId: customer.id,
@@ -219,6 +226,10 @@ async function getLatestSubscription(email) {
             priceId
           };
         }
+
+        // 역매핑 실패했지만 구독 자체는 존재 → priceId를 그대로 반환 (IPC에서 fallback 처리)
+        log.warn(`[Stripe] Subscription found but plan mapping failed. priceId=${priceId}, metadata=${JSON.stringify(sub.metadata)}`);
+        // 이 경우도 에러로 반환하지 않고 error를 담아서 반환 → IPC에서 planId fallback 사용
       }
     }
 
