@@ -160,11 +160,81 @@ function verifyWebhookSignature(payload, signature, secret) {
   }
 }
 
+// ─── 사용자 최신 구독 정보 조회 ──────────────────────────────────────────
+/**
+ * 이메일로 Stripe 고객을 검색하고 활성 구독을 반환합니다.
+ * 결제 완료 확인 시 사용됩니다.
+ * 
+ * @param {string} email - 사용자 이메일
+ * @returns {{ planId, customerId, status } | { error }}
+ */
+async function getLatestSubscription(email) {
+  if (!_stripe) {
+    return { error: 'Stripe is not initialized.' };
+  }
+  if (!email) {
+    return { error: 'Email is required.' };
+  }
+
+  try {
+    // 1. 이메일로 고객 검색
+    const customers = await _stripe.customers.list({ email: email.toLowerCase(), limit: 5 });
+    if (!customers.data || customers.data.length === 0) {
+      return { error: 'No Stripe customer found for this email.' };
+    }
+
+    // 2. 각 고객의 활성 구독 확인 (최신 순)
+    for (const customer of customers.data) {
+      const subs = await _stripe.subscriptions.list({
+        customer: customer.id,
+        status: 'active',
+        limit: 5,
+        expand: ['data.items.data.price.product']
+      });
+
+      if (subs.data && subs.data.length > 0) {
+        // 가장 최신 활성 구독 선택
+        const sub = subs.data[0];
+        const priceId = sub.items.data[0]?.price?.id;
+
+        // priceId로 플랜 ID 역매핑
+        let detectedPlan = null;
+        for (const [planId, cycles] of Object.entries(PRICE_IDS)) {
+          if (Object.values(cycles).includes(priceId)) {
+            detectedPlan = planId;
+            break;
+          }
+        }
+
+        // metadata에서도 플랜 ID 확인 (backup)
+        const metaPlan = sub.metadata?.xpider_plan || sub.items.data[0]?.price?.product?.metadata?.xpider_plan;
+        const finalPlan = detectedPlan || metaPlan;
+
+        if (finalPlan) {
+          return {
+            planId: finalPlan,
+            customerId: customer.id,
+            subscriptionId: sub.id,
+            status: sub.status,
+            priceId
+          };
+        }
+      }
+    }
+
+    return { error: 'No active subscription found for this email.' };
+  } catch (e) {
+    log.error('[Stripe] getLatestSubscription error:', e.message);
+    return { error: e.message };
+  }
+}
+
 module.exports = {
   initStripe,
   createCheckoutSession,
   createPortalSession,
   verifyWebhookSignature,
+  getLatestSubscription,
   PLAN_TOKENS,
   PRICE_IDS
 };

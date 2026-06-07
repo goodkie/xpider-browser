@@ -37,6 +37,18 @@ const api = window.electronAPI || {
         { created_at: new Date(Date.now() - 7200000).toISOString(), extension_name: 'Email Extractor', action: 'Lead Scrape', tokens_consumed: 15, details: 'Extracted 3 B2B prospect emails' }
       ];
     }
+    if (channel === 'user-verify-purchase') {
+      // 웹 브라우저 시뮬레이션 — 플랜 강제 적용
+      const { planId } = args || {};
+      if (planId) {
+        localStorage.setItem('xpider-sim-plan', planId);
+        const addMap = { starter: 6000, pro: 12000, enterprise: 30000 };
+        const cur = parseInt(localStorage.getItem('xpider-sim-tokens') || '600');
+        localStorage.setItem('xpider-sim-tokens', String(cur + (addMap[planId] || 0)));
+        return { success: true, plan: planId, tokensRemaining: cur + (addMap[planId] || 0) };
+      }
+      return { success: false, error: 'planId missing' };
+    }
     return {};
   },
   send: (channel, args) => {
@@ -491,6 +503,15 @@ function toggleModalBilling() {
 function closePurchaseModal() {
   const modal = document.getElementById('purchase-modal');
   if (modal) modal.classList.remove('active');
+  // 결제 확인 행 초기화
+  const verifyRow = document.getElementById('verify-purchase-row');
+  if (verifyRow) verifyRow.classList.add('hidden');
+  // Stripe 버튼 복원
+  const btn = document.getElementById('btn-stripe-checkout');
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-brands fa-stripe-s"></i> <span>Pay with Stripe</span> <i class="fa-solid fa-arrow-right"></i>';
+  }
 }
 
 // ─── Stripe Checkout ─────────────────────────────────────────
@@ -513,19 +534,89 @@ async function startStripeCheckout() {
     if (result?.url) {
       // Electron: external browser opens Stripe
       api.send('open-external-url', result.url);
-      closePurchaseModal();
       showToast('✅ Stripe checkout opened in your browser');
+      // 결제 완료 확인 버튼 표시
+      const verifyRow = document.getElementById('verify-purchase-row');
+      if (verifyRow) verifyRow.classList.remove('hidden');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-brands fa-stripe-s"></i> <span>Pay with Stripe</span> <i class="fa-solid fa-arrow-right"></i>';
+      }
     } else if (result?.error) {
       showToast('❌ ' + result.error);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-brands fa-stripe-s"></i> <span>Pay with Stripe</span> <i class="fa-solid fa-arrow-right"></i>';
+      }
     } else {
       showToast('❌ Failed to create checkout session');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-brands fa-stripe-s"></i> <span>Pay with Stripe</span> <i class="fa-solid fa-arrow-right"></i>';
+      }
     }
   } catch (e) {
     showToast('❌ Checkout error: ' + e.message);
-  } finally {
     if (btn) {
       btn.disabled = false;
       btn.innerHTML = '<i class="fa-brands fa-stripe-s"></i> <span>Pay with Stripe</span> <i class="fa-solid fa-arrow-right"></i>';
+    }
+  }
+}
+
+// ─── 결제 완료 확인 및 플랜 DB 반영 ─────────────────────────────
+async function verifyPurchase() {
+  const verifyBtn = document.getElementById('btn-verify-purchase');
+  if (verifyBtn) {
+    verifyBtn.disabled = true;
+    verifyBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Verifying with Stripe...</span>';
+  }
+
+  try {
+    const result = await api.invoke('user-verify-purchase', { planId: _currentCheckoutPlan });
+
+    if (result?.success) {
+      const planLabels = { starter: 'Starter Plan', pro: 'Business Pro', enterprise: 'Enterprise' };
+      const planLabel = planLabels[result.plan] || result.plan;
+      const tokensAdded = result.tokensAdded || 0;
+      const newTotal = result.tokensRemaining || 0;
+
+      showToast(`✅ ${planLabel} activated! +${tokensAdded.toLocaleString()} tokens added`);
+
+      // UI 즉시 반영
+      const tokenDisplay = document.getElementById('stat-tokens');
+      if (tokenDisplay) tokenDisplay.textContent = newTotal.toLocaleString() + ' Tokens';
+
+      const planBadge = document.getElementById('plan-name');
+      const planLabelsMap = { free: 'Free Plan', starter: 'Starter Plan', pro: 'Business Pro', enterprise: 'Enterprise', admin: 'Admin Suite' };
+      if (planBadge) planBadge.textContent = planLabelsMap[result.plan] || result.plan;
+
+      if (currentProfile) {
+        currentProfile.plan = result.plan;
+        currentProfile.tokens_remaining = newTotal;
+      }
+
+      // 진행률 바 갱신
+      const maxTokens = getPlanMaxTokens(result.plan);
+      const pct = Math.min(100, Math.round((newTotal / maxTokens) * 100));
+      const fill = document.getElementById('token-progress');
+      const pctLabel = document.getElementById('token-pct');
+      if (fill) fill.style.width = pct + '%';
+      if (pctLabel) pctLabel.textContent = `${pct}% Left (${newTotal.toLocaleString()} / ${maxTokens.toLocaleString()})`;
+
+      closePurchaseModal();
+    } else {
+      showToast('❌ ' + (result?.error || 'Verification failed. Please try again.'));
+      if (verifyBtn) {
+        verifyBtn.disabled = false;
+        verifyBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>I\'ve Completed Payment — Activate Plan</span>';
+      }
+    }
+  } catch (e) {
+    showToast('❌ Verification error: ' + e.message);
+    if (verifyBtn) {
+      verifyBtn.disabled = false;
+      verifyBtn.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span>I\'ve Completed Payment — Activate Plan</span>';
     }
   }
 }

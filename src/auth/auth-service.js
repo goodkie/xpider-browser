@@ -606,11 +606,68 @@ async function adminGetUserLogs(filterUserId, filterDate) {
   }
 }
 
+// ─── 플랜 업그레이드 (구매 완료 후 DB 반영) ────────────────────────
+// 새 플랜의 토큰량을 기존 잔여 토큰에 더해서 업데이트
+const PLAN_TOKENS_MAP = {
+  free:       600,
+  starter:    6000,
+  pro:        12000,
+  enterprise: 30000
+};
+
+async function upgradePlan(userId, newPlanId, stripeCustomerId) {
+  try {
+    // 1. 현재 프로필 조회
+    const { data: profile, error: pErr } = await supabaseAdmin
+      .from('profiles')
+      .select('tokens_remaining, plan')
+      .eq('id', userId)
+      .single();
+
+    if (pErr || !profile) {
+      return { success: false, error: '사용자 프로필을 찾을 수 없습니다.' };
+    }
+
+    const addTokens = PLAN_TOKENS_MAP[newPlanId] || 0;
+    const newTokens = (profile.tokens_remaining || 0) + addTokens;
+
+    // 2. 플랜 + 토큰 업데이트 (기존 잔여 토큰 + 새 플랜 토큰)
+    const updatePayload = {
+      plan: newPlanId,
+      tokens_remaining: newTokens
+    };
+    if (stripeCustomerId) {
+      updatePayload.stripe_customer_id = stripeCustomerId;
+    }
+
+    const { error: uErr } = await supabaseAdmin
+      .from('profiles')
+      .update(updatePayload)
+      .eq('id', userId);
+
+    if (uErr) {
+      return { success: false, error: 'DB 업데이트 실패: ' + uErr.message };
+    }
+
+    // 3. 로컬 캐시도 즉시 반영
+    const cache = _localTokenCache.get(userId);
+    if (cache) {
+      cache.remaining = newTokens;
+    }
+
+    console.log(`[AuthService] Plan upgraded: ${profile.plan} → ${newPlanId}, tokens: ${profile.tokens_remaining} + ${addTokens} = ${newTokens}`);
+    return { success: true, plan: newPlanId, tokensRemaining: newTokens, tokensAdded: addTokens };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
 module.exports = {
   login, signup, logout, getSession, saveSession, clearSession,
   getUserProfile, getAllProfiles, setUserActive, forceLogout,
   getCurrentUserId, getDeviceId, deductToken, getTokensRemaining,
   updateUserActive, adminUpdateUserTokens, adminGetUserLogs,
+  upgradePlan,
   // 로컬 캐시 API
   initLocalCache: _initLocalCache,
   flushTokenSync,

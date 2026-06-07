@@ -407,6 +407,69 @@ header {
   font-weight: 500;
 }
 
+/* ─── Upgrade Plan Button (Token Monitor Card) ─── */
+.btn-upgrade-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 9px 18px;
+  border-radius: 50px;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  color: var(--color-cyan);
+  font-size: 12.5px;
+  font-weight: 800;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  position: relative;
+  overflow: hidden;
+  align-self: flex-start;
+}
+
+.btn-upgrade-token::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(59, 130, 246, 0.25) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.btn-upgrade-token:hover::before {
+  opacity: 1;
+}
+
+.btn-upgrade-token:hover {
+  transform: translateY(-2px) scale(1.03);
+  border-color: rgba(6, 182, 212, 0.65);
+  box-shadow: 0 6px 24px rgba(6, 182, 212, 0.3), 0 0 0 1px rgba(6, 182, 212, 0.15);
+  color: #fff;
+  text-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+}
+
+.btn-upgrade-token i:first-child {
+  font-size: 11px;
+  animation: bolt-pulse 1.8s ease-in-out infinite;
+}
+
+.btn-upgrade-token i:last-child {
+  font-size: 10px;
+  opacity: 0.7;
+  transition: transform 0.3s ease;
+}
+
+.btn-upgrade-token:hover i:last-child {
+  transform: translate(2px, -2px);
+  opacity: 1;
+}
+
+@keyframes bolt-pulse {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 3px rgba(6, 182, 212, 0.8)); }
+  50%  { opacity: 0.7; filter: drop-shadow(0 0 6px rgba(6, 182, 212, 0.4)); }
+}
+
 /* ─── 서비스 이용 내역 (Service History) ─── */
 .history-section {
   padding: 60px 0;
@@ -1409,6 +1472,73 @@ footer {
 
 .stripe-trust-item .fa-stripe {
   color: #635bff;
+}
+
+/* ─── 결제 완료 확인 행 ─── */
+.verify-purchase-row {
+  margin: 0 32px 20px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fadeSlideDown 0.4s ease forwards;
+}
+
+@keyframes fadeSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.verify-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--color-green);
+  font-weight: 600;
+}
+
+.verify-notice i {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.btn-verify-purchase {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 11px 20px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(6, 182, 212, 0.15) 100%);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: var(--color-green);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 0.3px;
+}
+
+.btn-verify-purchase:hover {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.35) 0%, rgba(6, 182, 212, 0.25) 100%);
+  border-color: rgba(16, 185, 129, 0.7);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.25);
+  color: #fff;
+}
+
+.btn-verify-purchase:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.hidden {
+  display: none !important;
 }
 
 .modal-left {

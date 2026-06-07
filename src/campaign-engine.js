@@ -2352,92 +2352,11 @@ try {
   }
 } catch(e) {}
 
-// 제출 완료 후 충분한 시간을 대기 (최소 5.5초 버퍼)
-await new Promise(r => setTimeout(r, 5500));
-
-// 🔍 [Precision Submission Verifier] 실시간 초정밀 성공 관측 루프 (최대 20초)
-let finalSuccess = ok;
-let failureReason = ok ? 'SUBMITTED' : 'NO_SUBMIT_BTN';
-
-if (ok) {
-  const initialUrl = window.location.href;
-  const initialTitle = document.title;
-  
-  // 감지 주기 설정 (매 500ms마다 실행, 총 40회 = 20초)
-  for (let step = 0; step < 40; step++) {
-    await new Promise(r => setTimeout(r, 500));
-
-    const currentUrl = window.location.href;
-    const currentTitle = document.title;
-    const bodyText = (document.body ? document.body.innerText : '').toLowerCase();
-    const htmlText = (document.documentElement ? document.documentElement.innerHTML : '').toLowerCase();
-
-    // 1. [Error Sniffing] 클라이언트 유효성 검사 오류 및 전송 실패 경고 메시지 감지
-    // [개선] 본문 전체에 단순히 'required'가 있는 것으로 실패 처리하지 않고, 실제 에러 클래스를 지닌 요소 내부 텍스트 및 대표적인 유효성 실패 문자열이 화면에 동적으로 잡힐 때만 에러 처리
-    let hasClientError = false;
-    try {
-      const errElements = document.querySelectorAll('.error, .invalid, .wpcf7-not-valid, .validation-error, .gfield_error, [class*="error"i]:not(form):not(body):not(html)');
-      for (const errEl of errElements) {
-        const txt = (errEl.textContent || '').trim().toLowerCase();
-        if (/required|invalid|failed|입력|올바르지|오류/i.test(txt)) {
-          hasClientError = true;
-          break;
-        }
-      }
-      
-      // 본문 영역 내의 명백한 에러 문구 매칭 (required는 제외하여 오인식 방지)
-      if (!hasClientError) {
-        hasClientError = /invalid|failed|gfield_error|wpcf7-not-valid|오류가 발생했습니다|올바르지 않습니다/i.test(bodyText) ||
-                         htmlText.includes('wpcf7-validation-errors') ||
-                         htmlText.includes('gform_validation_container');
-      }
-    } catch(e) {}
-                            
-    if (hasClientError) {
-      finalSuccess = false;
-      failureReason = 'CLIENT_VALIDATION_FAILED';
-      break; // 실패 지표 확정이므로 감시 루프 조기 탈출
-    }
-
-    // 2. [Success Sniffing - Network] Monkey Patching 결과 감지
-    if (window.__xpider_ajax_success) {
-      finalSuccess = true;
-      failureReason = 'SUBMITTED_SUCCESSFULLY';
-      break;
-    }
-
-    // 3. [Success Sniffing - URL/Title] 성공 페이지 리다이렉트 감지
-    const isUrlChanged = currentUrl !== initialUrl;
-    const isTitleChanged = currentTitle !== initialTitle;
-    
-    const isSuccessUrl = isUrlChanged && /thank|success|confirm|complete|sent/i.test(currentUrl);
-    const isSuccessTitle = isTitleChanged && /thank|success|complete|감사|성공|완료/i.test(currentTitle);
-    
-    if (isSuccessUrl || isSuccessTitle) {
-      finalSuccess = true;
-      failureReason = 'SUBMITTED_SUCCESSFULLY';
-      break;
-    }
-
-    // 4. [Success Sniffing - DOM Content] 성공 메시지 핑거프린트 감지
-    const hasSuccessText = /thank you|thank-you|메시지를 보냈습니다|문의가 접수되었습니다|성공적으로 전송|접수 완료|successfully|your message (has been|was) sent|form has been submitted|your form|form submitted|form submission|we('ll| will) be in touch|we have received|message received|we received your|we got your|inquiry received|contact received|submitted successfully|will be in touch|will contact you|will get back|submitted|등록되었습니다|성공|완료|전송되었습니다|wpcf7-mail-sent-ok|gform_confirmation_message|g-recaptcha-success/i.test(bodyText) ||
-                           htmlText.includes('wpcf7-mail-sent-ok') ||
-                           htmlText.includes('wpforms-confirmation-container-id') ||
-                           htmlText.includes('wix-form-success') ||
-                           htmlText.includes('form-success') ||
-                           htmlText.includes('success-message') ||
-                           htmlText.includes('confirmation-message') ||
-                           !!document.querySelector('.form-success, .success-message, .confirmation-message, [class*="success" i], [id*="success" i], .message-sent, [class*="form-sent" i], [class*="sent-confirmation" i]');
-                           
-    if (hasSuccessText) {
-      finalSuccess = true;
-      failureReason = 'SUBMITTED_SUCCESSFULLY';
-      break;
-    }
-  }
-}
-
-window.__xpider_result = { success: finalSuccess, reason: failureReason, filled: n };
+// [수정] 폼 채우기와 최초 클릭 시도 완료 후 filling 상태 해제하여 pollScript가 실시간 DOM 체크를 할 수 있도록 함
+window.__xpider_bestForm = bestForm;
+window.__xpider_humanClick = humanClick;
+window.__xpider_filling = false;
+window.__xpider_result = { success: null, reason: 'CLICKED', filled: n };
 })();`;
 }
 
@@ -3241,37 +3160,50 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
                     continue;
                 }
 
-                // Poll for result in ALL frames (Wix may be in iframe, up to 20s)
-                sendLog(`🔄 [Step 4/4] Monitoring form submission & reCAPTCHA state...`, 'debug');
+                // [수정] 사용자의 요구사항에 맞춘 15초 대기 및 재등록/성공 카운트 로직
+                sendLog(`⏳ [Step 4/4] Monitoring form submission & reCAPTCHA state...`, 'debug');
                 sendLog(`🛡️ CAPTCHA bypass engine monitoring...`, 'debug');
                 let result = null;
                 let tabClosedDuringPoll = false;
-                for (let i = 0; i < 40; i++) {
-                    await new Promise(r => setTimeout(r, 500));
-                    // [v4.12.55] 탭 파괴 감지 → TAB_CLOSED로 정확히 처리 (갑자기 닫히는 버그 수정)
-                    if (!tabWC || tabWC.isDestroyed()) {
+                
+                // 1차 15초 대기 (500ms 간격으로 30회 폴링)
+                sendLog(`⏳ [1차 대기] 등록 완료 후 15초 동안 결과를 대기합니다...`, 'info');
+                const firstWaitStart = Date.now();
+                const firstWaitDuration = 15000;
+                
+                while (Date.now() - firstWaitStart < firstWaitDuration) {
+                    if (state.cancelled || !tabWC || tabWC.isDestroyed()) {
                         tabClosedDuringPoll = true;
                         break;
                     }
+                    
                     result = await pollAllFrames(tabWC);
-                    if (result) break;
+                    if (result) {
+                        if (result.success === true) {
+                            sendLog(`✅ 성공 메시지 감지! (1차 대기 중)`, 'success');
+                            break;
+                        } else if (result.success === false && result.reason === 'CLIENT_VALIDATION_FAILED') {
+                            sendLog(`❌ 실패 메시지 감지! (1차 대기 중)`, 'error');
+                            break;
+                        }
+                    }
+                    await new Promise(r => setTimeout(r, 500));
                 }
-
-                // [v4.12.55] 폼 처리 중 탭이 갑자기 닫힌 경우 → 3분 대기 없이 다음으로
+                
                 if (tabClosedDuringPoll) {
-                    sendLog(`⚠️ [Step 4/4] 폼 처리 중 탭이 예기치 않게 닫혔습니다. 다음 경로로 이동합니다.`, 'warning');
+                    sendLog(`⚠️ 폼 처리 중 탭이 예기치 않게 닫혔습니다. 다음 경로로 이동합니다.`, 'warning');
                     tabWC = null;
                     continue;
                 }
-
-                if (result && result.success) {
-                    // 폼 발송 1회 성공 시 ➡️ 30 토큰 소진
+                
+                // 1차 대기 결과 분석
+                if (result && result.success === true) {
+                    // 성공 처리: 토큰 차감하고 success: true 반환
                     const userId = authService.getCurrentUserId();
                     if (userId) {
                         const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl}`);
                         if (!deductResult.success) {
                             sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
-                            // 렌더러로 토큰 부족 모달 브로드캐스트
                             const mw = _getMainWindow ? _getMainWindow() : null;
                             if (mw && !mw.isDestroyed()) {
                                 mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
@@ -3284,11 +3216,8 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
                         done({ success: false, reason: 'LOGIN_REQUIRED' });
                         return;
                     }
-
-                    sendLog(`✅ [Step 4/4] Success! Form submitted (${result.filled} fields matched & filled).`, 'success');
-                    sendLog(`🎯 Contact action definitively completed on ${contactUrl}.`, 'debug');
                     
-                    // [v4.12.43] 성공 시 즉시 탭 닫기 진행 (500ms 후 즉각 폐쇄)
+                    sendLog(`✅ [성공] 폼 제출 성공 처리 완료.`, 'success');
                     const tempTab = tabWC;
                     setTimeout(() => {
                         if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab);
@@ -3296,145 +3225,116 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
                     clearInterval(lightboxTimer);
                     done({ success: true });
                     return;
-                } else {
-                    const reason = result ? result.reason : 'NO_RESULT';
-                    sendLog(`⚠️ [Step 4/4] Path ${path} unsuccessful (Reason: ${reason}).`, 'warning');
+                } 
+                else if (result && result.success === false && result.reason === 'CLIENT_VALIDATION_FAILED') {
+                    // 실패 메시지를 받으면 -> 탭을 닫고 다음 프로세스 진행 (성공 카운트 증가 안 함)
+                    sendLog(`❌ [실패] 실패 메시지가 확인되어 다음 타겟으로 이동합니다.`, 'warning');
+                    const tempTab = tabWC;
+                    if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
+                    clearInterval(lightboxTimer);
+                    done({ success: false, reason: 'CLIENT_VALIDATION_FAILED' });
+                    return;
+                }
+                else {
+                    // 성공 메시지를 인식하지 못함 (15초 대기 동안 성공/실패 여부를 알 수 없음)
+                    sendLog(`⚠️ 성공 메시지를 인식하지 못했습니다. 등록 버튼 재클릭 시뮬레이션을 실행합니다.`, 'warning');
                     
-                    // [v4.12.44] 폼이 아예 존재하지 않거나('NO_FORM') 없는 페이지(404, 500, Failed 등)인 경우 3분 대기 없이 바로 탭 닫기!
-                    let isNotFoundOrNoForm = (reason === 'NO_FORM');
-                    
-                    if (!isNotFoundOrNoForm) {
-                        try {
-                            const tabTitle = tabWC ? (tabWC.getTitle() || '').toLowerCase() : '';
-                            const tabUrl = tabWC ? (tabWC.getURL() || '').toLowerCase() : '';
-                            
-                            // 404, Not Found, 500, error, 없는 페이지 핑거프린트 감지
-                            if (tabTitle.includes('404') || tabTitle.includes('not found') || tabTitle.includes('error') || 
-                                tabTitle.includes('failed') || tabTitle.includes('디렉터리') || tabTitle.includes('site cant be reached') ||
-                                tabUrl.includes('error') || tabUrl.includes('404')) {
-                                isNotFoundOrNoForm = true;
-                            }
-                        } catch(e) {}
+                    // 마우스 시뮬레이션으로 등록 버튼 다시 누르기
+                    try {
+                        if (tabWC && !tabWC.isDestroyed()) {
+                            await tabWC.executeJavaScript(`(async function(){
+                                try {
+                                    if (typeof window.__xpider_bestForm === 'function' && typeof window.__xpider_humanClick === 'function') {
+                                        const f = await window.__xpider_bestForm();
+                                        if (f) {
+                                            const submitBtn = f.querySelector('input[type="submit"], button[type="submit"], [class*="submit"i], [id*="submit"i], [class*="send"i], [id*="send"i]');
+                                            if (submitBtn && !submitBtn.disabled) {
+                                                console.log("🖱️ [XPIDER] 등록 버튼 재클릭 시도...");
+                                                await window.__xpider_humanClick(submitBtn);
+                                            }
+                                        }
+                                    }
+                                } catch(e) {
+                                    console.error("재클릭 오류:", e);
+                                }
+                            })()`);
+                        }
+                    } catch(e) {
+                        sendLog(`⚠️ 등록 버튼 재클릭 중 오류 발생: ${e.message}`, 'warning');
                     }
                     
-                    if (isNotFoundOrNoForm) {
-                        sendLog(`🛑 없는 페이지거나 폼이 존재하지 않는 탭입니다. 대기 없이 탭을 즉시 닫고 다음 타겟으로 이동합니다.`, 'info');
-                        const tempTab = tabWC;
-                        if (tempTab && !tempTab.isDestroyed()) {
-                            await closeXpiderTab(tempTab);
+                    // 다시 2차 15초 기다림 (500ms 간격으로 30회 폴링)
+                    sendLog(`⏳ [2차 대기] 다시 15초 동안 결과를 대기합니다...`, 'info');
+                    const secondWaitStart = Date.now();
+                    const secondWaitDuration = 15000;
+                    let secondResult = null;
+                    
+                    while (Date.now() - secondWaitStart < secondWaitDuration) {
+                        if (state.cancelled || !tabWC || tabWC.isDestroyed()) {
+                            tabClosedDuringPoll = true;
+                            break;
                         }
-                    } else {
-                        // [v4.15.0] 성공 미확인 시 33초 대기 후 에러 메시지가 없으면 성공으로 간주
-                        clearTimeout(globalTimer);
                         
-                        sendLog(`⏳ 등록/성공 미확인: 33초간 에러 여부를 감시하며 대기합니다. (에러가 없으면 성공 간주)`, 'info');
-                        const holdDuration = 33000; // 33초
-                        const holdStart = Date.now();
-                        let hasErrorDuringHold = false;
-                        let errorReason = '';
-                        
-                        while (Date.now() - holdStart < holdDuration && !state.cancelled) {
-                            // 탭이 파괴되었는지 먼저 체크
-                            if (!tabWC || tabWC.isDestroyed()) {
-                                sendLog(`⚠️ 탭이 닫혀 대기 상태가 종료되었습니다.`, 'warning');
+                        secondResult = await pollAllFrames(tabWC);
+                        if (secondResult) {
+                            if (secondResult.success === true) {
+                                sendLog(`✅ 성공 메시지 감지! (2차 대기 중)`, 'success');
+                                break;
+                            } else if (secondResult.success === false && secondResult.reason === 'CLIENT_VALIDATION_FAILED') {
+                                sendLog(`❌ 실패 메시지 감지! (2차 대기 중)`, 'error');
                                 break;
                             }
-                            
-                            // 성공/실패 메시지 실시간 재확인
-                            try {
-                                const recheckResult = await pollAllFrames(tabWC);
-                                if (recheckResult) {
-                                    if (recheckResult.success) {
-                                        sendLog(`✅ [Hold] 성공 메시지 감지! 탭을 닫고 다음 URL로 이동합니다.`, 'success');
-                                        
-                                        // 토큰 차감 진행
-                                        const userId = authService.getCurrentUserId();
-                                        if (userId) {
-                                            const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl}`);
-                                            if (!deductResult.success) {
-                                                sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
-                                                const mw = _getMainWindow ? _getMainWindow() : null;
-                                                if (mw && !mw.isDestroyed()) {
-                                                    mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
-                                                }
-                                                clearInterval(lightboxTimer);
-                                                done({ success: false, reason: 'TOKEN_DEPLETED' });
-                                                return;
-                                            }
-                                        } else {
-                                            sendLog(`❌ 로그인이 필요합니다.`, 'error');
-                                            clearInterval(lightboxTimer);
-                                            done({ success: false, reason: 'LOGIN_REQUIRED' });
-                                            return;
-                                        }
-
-                                        const tempTab = tabWC;
-                                        setTimeout(() => { if (tempTab && !tempTab.isDestroyed()) closeXpiderTab(tempTab); }, 500);
-                                        clearInterval(lightboxTimer);
-                                        done({ success: true });
-                                        return;
-                                    } else if (recheckResult.success === false && recheckResult.reason === 'CLIENT_VALIDATION_FAILED') {
-                                        hasErrorDuringHold = true;
-                                        errorReason = recheckResult.reason;
-                                        sendLog(`❌ [Hold] 실패 메시지(오류) 감지! 실패로 처리하고 대기를 종료합니다.`, 'error');
-                                        break;
-                                    }
-                                }
-                            } catch(e) {}
-                            
-                            const remainingSec = Math.ceil((holdDuration - (Date.now() - holdStart)) / 1000);
-                            sendLog(`⏳ [Hold] 성공 및 오류 감시 중... 남은 시간: ${remainingSec}초`, 'debug');
-                            await new Promise(r => setTimeout(r, 3000));
                         }
+                        await new Promise(r => setTimeout(r, 500));
+                    }
+                    
+                    if (tabClosedDuringPoll) {
+                        sendLog(`⚠️ 폼 처리 중 탭이 예기치 않게 닫혔습니다. 다음 경로로 이동합니다.`, 'warning');
+                        tabWC = null;
+                        continue;
+                    }
+                    
+                    if (secondResult && secondResult.success === false && secondResult.reason === 'CLIENT_VALIDATION_FAILED') {
+                        sendLog(`❌ [실패] 2차 대기 중 실패 메시지가 확인되어 실패 처리 후 다음 타겟으로 이동합니다.`, 'warning');
+                        const tempTab = tabWC;
+                        if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
+                        clearInterval(lightboxTimer);
+                        done({ success: false, reason: 'CLIENT_VALIDATION_FAILED' });
+                        return;
+                    } else {
+                        // 2차 대기 후 무조건 success 카운트 더해줌
+                        sendLog(`✅ [Hold End] 2차 대기 완료. 무조건 성공으로 간주하고 다음 타겟으로 이동합니다.`, 'success');
                         
-                        if (state.cancelled) {
-                            sendLog(`🛑 대기 중 사용자가 캠페인을 취소했습니다.`, 'stop');
-                            const tempTab = tabWC;
-                            if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
-                            clearInterval(lightboxTimer);
-                            done({ success: false, reason: 'CANCELLED' });
-                            return;
-                        } else if (hasErrorDuringHold) {
-                            sendLog(`❌ [Hold End] 실패 메시지(오류)가 감지되어 실패로 처리합니다.`, 'warning');
-                            const tempTab = tabWC;
-                            if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
-                            clearInterval(lightboxTimer);
-                            done({ success: false, reason: errorReason || 'CLIENT_VALIDATION_FAILED' });
-                            return;
-                        } else {
-                            sendLog(`✅ [Hold End] 33초 경과. 실패 메시지가 발견되지 않아 성공으로 간주하고 다음 타겟으로 이동합니다.`, 'success');
-                            
-                            // 토큰 차감 진행
-                            const userId = authService.getCurrentUserId();
-                            if (userId) {
-                                const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl} (Assumed success)`);
-                                if (!deductResult.success) {
-                                    sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
-                                    const mw = _getMainWindow ? _getMainWindow() : null;
-                                    if (mw && !mw.isDestroyed()) {
-                                        mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
-                                    }
-                                    const tempTab = tabWC;
-                                    if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
-                                    clearInterval(lightboxTimer);
-                                    done({ success: false, reason: 'TOKEN_DEPLETED' });
-                                    return;
+                        // 토큰 차감 진행
+                        const userId = authService.getCurrentUserId();
+                        if (userId) {
+                            const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl} (Assumed success after retry)`);
+                            if (!deductResult.success) {
+                                sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
+                                const mw = _getMainWindow ? _getMainWindow() : null;
+                                if (mw && !mw.isDestroyed()) {
+                                    mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
                                 }
-                            } else {
-                                sendLog(`❌ 로그인이 필요합니다.`, 'error');
                                 const tempTab = tabWC;
                                 if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
                                 clearInterval(lightboxTimer);
-                                done({ success: false, reason: 'LOGIN_REQUIRED' });
+                                done({ success: false, reason: 'TOKEN_DEPLETED' });
                                 return;
                             }
-
+                        } else {
+                            sendLog(`❌ 로그인이 필요합니다.`, 'error');
                             const tempTab = tabWC;
                             if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
                             clearInterval(lightboxTimer);
-                            done({ success: true, reason: 'ASSUMED_SUCCESS_NO_ERROR' });
+                            done({ success: false, reason: 'LOGIN_REQUIRED' });
                             return;
                         }
+                        
+                        const tempTab = tabWC;
+                        if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
+                        clearInterval(lightboxTimer);
+                        done({ success: true, reason: 'ASSUMED_SUCCESS_AFTER_RETRY' });
+                        return;
                     }
                 }
             }

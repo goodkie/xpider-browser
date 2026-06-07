@@ -71,6 +71,11 @@
             </div>
             <div class="stat-progress-desc" id="token-pct">0% Left</div>
           </div>
+          <a href="#pricing" class="btn-upgrade-token" id="btn-upgrade-token">
+            <i class="fa-solid fa-bolt"></i>
+            <span>Upgrade Plan</span>
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          </a>
         </div>
 
         <!-- 2. Created At -->
@@ -233,7 +238,7 @@
   <section class="pricing-section" id="pricing">
     <div class="container">
       <div class="section-header">
-        <p class="section-tag">B2B PRICING PLANS</p>
+        <p class="section-tag">PRICING PLANS</p>
         <h2 class="section-title">Innovative Data Mining Plans</h2>
         <p class="section-desc">Scale your AI power and automate your lead generation funnel with enterprise-ready subscription plans.</p>
       </div>
@@ -683,6 +688,17 @@
           <i class="fa-solid fa-arrow-right"></i>
         </button>
       </div>
+      <!-- 결제 완료 후 확인 단계 (결제 버튼 클릭 후 표시) -->
+      <div class="verify-purchase-row hidden" id="verify-purchase-row">
+        <div class="verify-notice">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>Completed payment in your browser? Click below to activate your plan.</span>
+        </div>
+        <button class="btn-verify-purchase" id="btn-verify-purchase" onclick="verifyPurchase()">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>I've Completed Payment — Activate Plan</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -708,7 +724,7 @@
           <h4>Product</h4>
           <ul class="footer-links">
             <li><a href="index.html" class="footer-link">Landing Home</a></li>
-            <li><a href="#pricing" class="footer-link">B2B Pricing Plans</a></li>
+            <li><a href="#pricing" class="footer-link">Pricing Plans</a></li>
           </ul>
         </div>
         <div class="footer-col">

@@ -957,6 +957,57 @@ ipcMain.handle('stripe-open-portal', async (_, { customerId }) => {
   }
 });
 
+// ─── [Stripe] 구매 완료 확인 및 DB 반영 IPC ──────────────────────────────────
+// 결제 완료 후 "결제를 완료했어요" 버튼 클릭 시 Stripe API로 구독 조회 후 DB 갱신
+ipcMain.handle('user-verify-purchase', async (_, { planId }) => {
+  try {
+    const userId = authService.getCurrentUserId();
+    if (!userId) return { success: false, error: '로그인이 필요합니다.' };
+
+    const profile = await authService.getUserProfile(userId);
+    if (!profile) return { success: false, error: '프로필을 찾을 수 없습니다.' };
+
+    log.info(`[Purchase] Verifying purchase for user: ${profile.email}, expected plan: ${planId}`);
+
+    // Stripe에서 이 이메일의 활성 구독 조회
+    const subResult = await stripeService.getLatestSubscription(profile.email);
+
+    if (subResult.error) {
+      log.warn(`[Purchase] Stripe subscription lookup failed: ${subResult.error}`);
+      // Stripe 조회 실패 시, 신뢰 기반으로 요청된 planId로 직접 업그레이드 (fallback)
+      if (planId) {
+        log.info(`[Purchase] Fallback: Applying plan=${planId} without Stripe verification`);
+        const upgradeResult = await authService.upgradePlan(userId, planId, null);
+        return upgradeResult;
+      }
+      return { success: false, error: subResult.error };
+    }
+
+    // Stripe에서 확인된 플랜 ID (또는 요청된 planId 우선)
+    const confirmedPlan = subResult.planId || planId;
+    if (!confirmedPlan) {
+      return { success: false, error: '플랜 정보를 확인할 수 없습니다.' };
+    }
+
+    log.info(`[Purchase] Stripe confirmed plan: ${confirmedPlan}, customerId: ${subResult.customerId}`);
+
+    // DB 업데이트 — 기존 잔여 토큰 + 새 플랜 토큰
+    const upgradeResult = await authService.upgradePlan(userId, confirmedPlan, subResult.customerId);
+    
+    if (upgradeResult.success) {
+      log.info(`[Purchase] DB updated: plan=${confirmedPlan}, newTokens=${upgradeResult.tokensRemaining}`);
+    } else {
+      log.error(`[Purchase] DB update failed: ${upgradeResult.error}`);
+    }
+
+    return upgradeResult;
+  } catch (e) {
+    log.error('[Purchase] verify-purchase IPC error:', e.message);
+    return { success: false, error: e.message };
+  }
+});
+
+
 // ─── [Shell] 외부 브라우저로 URL 열기 ─────────────────────────────────────────
 ipcMain.on('open-external-url', (_, url) => {
   if (url && (url.startsWith('https://') || url.startsWith('http://'))) {
