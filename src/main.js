@@ -3498,6 +3498,9 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
     
     // ── 토큰 자동 감산 브릿지 ──
     if (message.action === 'xpider-deduct-token') {
+        if (_testMode) {
+            return { success: true, tokensRemaining: 9999999 };
+        }
         const userId = authService.getCurrentUserId();
         if (!userId) {
             return { success: false, error: '로그인이 필요합니다.' };
@@ -3540,18 +3543,20 @@ ipcMain.handle('xpider-ext-runtime-send-message', async (event, { message }) => 
             }
             
             // 토큰 잔여량 체크 및 차감
-            const userId = authService.getCurrentUserId();
-            if (userId) {
-                const deductResult = await authService.deductToken(userId, tokenCount, extName, 'Extract Business Lead', `Scraped: ${biz.name || 'Unknown'}`);
-                if (!deductResult.success) {
-                    // 토큰이 부족함! 중단 알림 송신하고 추가 수집 중단
-                    if (mainWindow && !mainWindow.isDestroyed()) {
-                        mainWindow.webContents.send('xpider-token-depleted', { error: deductResult.error });
+            if (!_testMode) {
+                const userId = authService.getCurrentUserId();
+                if (userId) {
+                    const deductResult = await authService.deductToken(userId, tokenCount, extName, 'Extract Business Lead', `Scraped: ${biz.name || 'Unknown'}`);
+                    if (!deductResult.success) {
+                        // 토큰이 부족함! 중단 알림 송신하고 추가 수집 중단
+                        if (mainWindow && !mainWindow.isDestroyed()) {
+                            mainWindow.webContents.send('xpider-token-depleted', { error: deductResult.error });
+                        }
+                        return { success: false, error: deductResult.error };
                     }
-                    return { success: false, error: deductResult.error };
+                } else {
+                    return { success: false, error: '로그인이 필요합니다.' };
                 }
-            } else {
-                return { success: false, error: '로그인이 필요합니다.' };
             }
 
             const lead = {

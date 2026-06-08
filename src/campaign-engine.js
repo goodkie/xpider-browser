@@ -11,6 +11,8 @@ const { app, BrowserWindow } = require('electron');
 const authService = require('./auth/auth-service');
 const devlog = require('./xpider-devlog');  // [v4.17.0] 디버깅 로그 허브
 
+const _testMode = process.argv.includes('--test-mode') || process.env.XPIDER_TEST_MODE === 'true';
+
 let _getAllWebContents = null;
 let _log = null;
 let _getMainWindow = null;  // Function that returns the current mainWindow
@@ -3199,22 +3201,26 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
                 // 1차 대기 결과 분석
                 if (result && result.success === true) {
                     // 성공 처리: 토큰 차감하고 success: true 반환
-                    const userId = authService.getCurrentUserId();
-                    if (userId) {
-                        const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl}`);
-                        if (!deductResult.success) {
-                            sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
-                            const mw = _getMainWindow ? _getMainWindow() : null;
-                            if (mw && !mw.isDestroyed()) {
-                                mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
+                    if (_testMode) {
+                        sendLog(`⚡ [TEST MODE] 토큰 차감 우회 — 폼 제출 성공 처리`, 'success');
+                    } else {
+                        const userId = authService.getCurrentUserId();
+                        if (userId) {
+                            const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl}`);
+                            if (!deductResult.success) {
+                                sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
+                                const mw = _getMainWindow ? _getMainWindow() : null;
+                                if (mw && !mw.isDestroyed()) {
+                                    mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
+                                }
+                                done({ success: false, reason: 'TOKEN_DEPLETED' });
+                                return;
                             }
-                            done({ success: false, reason: 'TOKEN_DEPLETED' });
+                        } else {
+                            sendLog(`❌ 로그인이 필요합니다.`, 'error');
+                            done({ success: false, reason: 'LOGIN_REQUIRED' });
                             return;
                         }
-                    } else {
-                        sendLog(`❌ 로그인이 필요합니다.`, 'error');
-                        done({ success: false, reason: 'LOGIN_REQUIRED' });
-                        return;
                     }
                     
                     sendLog(`✅ [성공] 폼 제출 성공 처리 완료.`, 'success');
@@ -3306,28 +3312,32 @@ async function processTarget(targetUrl, template, fillMode = 'instant') {
                         sendLog(`✅ [Hold End] 2차 대기 완료. 무조건 성공으로 간주하고 다음 타겟으로 이동합니다.`, 'success');
                         
                         // 토큰 차감 진행
-                        const userId = authService.getCurrentUserId();
-                        if (userId) {
-                            const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl} (Assumed success after retry)`);
-                            if (!deductResult.success) {
-                                sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
-                                const mw = _getMainWindow ? _getMainWindow() : null;
-                                if (mw && !mw.isDestroyed()) {
-                                    mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
+                        if (_testMode) {
+                            sendLog(`⚡ [TEST MODE] 토큰 차감 우회 — 폼 제출 성공 처리 (Hold End)`, 'success');
+                        } else {
+                            const userId = authService.getCurrentUserId();
+                            if (userId) {
+                                const deductResult = await authService.deductToken(userId, 30, 'XPIDER AutoForm Sender Pro', 'Send Contact Form', `Submitted form on: ${contactUrl} (Assumed success after retry)`);
+                                if (!deductResult.success) {
+                                    sendLog(`❌ 토큰이 부족하여 발송이 중단되었습니다.`, 'error');
+                                    const mw = _getMainWindow ? _getMainWindow() : null;
+                                    if (mw && !mw.isDestroyed()) {
+                                        mw.webContents.send('xpider-token-depleted', { error: deductResult.error });
+                                    }
+                                    const tempTab = tabWC;
+                                    if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
+                                    clearInterval(lightboxTimer);
+                                    done({ success: false, reason: 'TOKEN_DEPLETED' });
+                                    return;
                                 }
+                            } else {
+                                sendLog(`❌ 로그인이 필요합니다.`, 'error');
                                 const tempTab = tabWC;
                                 if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
                                 clearInterval(lightboxTimer);
-                                done({ success: false, reason: 'TOKEN_DEPLETED' });
+                                done({ success: false, reason: 'LOGIN_REQUIRED' });
                                 return;
                             }
-                        } else {
-                            sendLog(`❌ 로그인이 필요합니다.`, 'error');
-                            const tempTab = tabWC;
-                            if (tempTab && !tempTab.isDestroyed()) await closeXpiderTab(tempTab);
-                            clearInterval(lightboxTimer);
-                            done({ success: false, reason: 'LOGIN_REQUIRED' });
-                            return;
                         }
                         
                         const tempTab = tabWC;
