@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>XPIDER Deploy Center</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #0d0d18;
+  --surface: rgba(255,255,255,0.04);
+  --surface2: rgba(255,255,255,0.07);
+  --border: rgba(255,255,255,0.08);
+  --accent: #7c3aed;
+  --accent-lite: #9d60ff;
+  --accent-glow: rgba(124,58,237,0.4);
+  --cyan: #06b6d4;
+  --green: #10b981;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+  --text: #e2e8f0;
+  --dim: #64748b;
+  --muted: #334155;
+  --r-lg: 18px; --r-md: 12px; --r-sm: 8px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+html,body { height:100vh; overflow:hidden; font-family:'Inter',system-ui,sans-serif; color:var(--text); background:var(--bg); }
+body {
+  display:grid; grid-template-rows:52px 1fr 200px;
+  background-image:
+    radial-gradient(ellipse at 15% 0%, rgba(124,58,237,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 100%, rgba(6,182,212,0.07) 0%, transparent 50%);
+}
+
+/* ── 헤더 ── */
+header {
+  display:flex; align-items:center; gap:14px; padding:0 22px;
+  border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.logo {
+  width:30px;height:30px;border-radius:9px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--cyan));
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:13px;color:#fff;
+  box-shadow:0 0 16px var(--accent-glow);
+}
+.brand { font-size:12px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;
+  background:linear-gradient(90deg,var(--accent-lite),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent; }
+.hflex { margin-left:auto;display:flex;align-items:center;gap:10px; }
+.sdot { width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);transition:.3s; }
+.sdot.busy { background:var(--yellow);box-shadow:0 0 8px var(--yellow);animation:pulse 1s infinite; }
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.stext { font-size:11px;color:var(--dim); }
+.hbtn {
+  background:var(--surface);border:1px solid var(--border);color:var(--dim);
+  padding:5px 14px;border-radius:20px;font-size:11px;font-weight:600;cursor:pointer;
+  transition:.2s;font-family:inherit;
+}
+.hbtn:hover { background:var(--surface2);color:var(--text); }
+
+/* ── 콘텐츠 ── */
+.content { display:grid;grid-template-columns:340px 1fr;overflow:hidden; }
+.panel { padding:20px;overflow-y:auto;border-right:1px solid var(--border); }
+.panel:last-child{border-right:none;}
+::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.2);border-radius:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+
+.ptitle {
+  font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--dim);margin-bottom:14px;display:flex;align-items:center;gap:7px;
+}
+
+/* ── 앱 버전 카드 ── */
+.ver-card {
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:18px;margin-bottom:14px;
+}
+.vlabel{font-size:10px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+.vnum {
+  font-size:38px;font-weight:900;letter-spacing:-2px;
+  background:linear-gradient(90deg,#fff,var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:10px;
+}
+.vmeta{display:flex;gap:8px;flex-wrap:wrap;}
+.chip {
+  display:flex;align-items:center;gap:5px;font-size:11px;color:var(--dim);
+  background:rgba(255,255,255,0.04);border:1px solid var(--border);
+  padding:3px 10px;border-radius:20px;
+}
+.chip-green { color:var(--green);border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.06); }
+.chip-red   { color:var(--red);border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.06); }
+.chip-accent{ color:var(--accent-lite);border-color:rgba(124,58,237,.3);background:rgba(124,58,237,.08); }
+
+/* ── 버튼 ── */
+.btns { display:flex;flex-direction:column;gap:8px;margin-bottom:14px; }
+.btn {
+  padding:11px 16px;border:none;border-radius:var(--r-md);
+  font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
+  transition:all .2s;display:flex;align-items:center;gap:10px;text-align:left;
+  width:100%;
+}
+.bico{font-size:16px;} .btxt{flex:1;} .bsub{font-size:10px;opacity:.6;font-weight:400;}
+.btn-prim {
+  background:linear-gradient(135deg,var(--accent),var(--accent-lite));
+  color:#fff;box-shadow:0 4px 18px var(--accent-glow);
+}
+.btn-prim:hover{transform:translateY(-2px);box-shadow:0 8px 28px var(--accent-glow);}
+.btn-sec  { background:var(--surface);color:var(--text);border:1px solid var(--border); }
+.btn-sec:hover{background:var(--surface2);}
+.btn-cyan { background:rgba(6,182,212,.1);color:var(--cyan);border:1px solid rgba(6,182,212,.25); }
+.btn-cyan:hover{background:rgba(6,182,212,.18);}
+.btn-red  { background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.25); }
+.btn-red:hover{background:rgba(239,68,68,.18);}
+.btn:disabled{opacity:.35;cursor:not-allowed;transform:none!important;box-shadow:none!important;}
+
+.divider{height:1px;background:var(--border);margin:12px 0;}
+
+/* 커스텀 버전 입력 */
+.custom-ver {
+  display:flex;gap:8px;align-items:center;
+}
+.ver-input {
+  flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);
+  border-radius:var(--r-sm);color:var(--text);font-family:'JetBrains Mono',monospace;
+  font-size:13px;padding:10px 12px;outline:none;transition:border-color .2s;
+}
+.ver-input:focus{border-color:var(--accent);}
+.ver-input::placeholder{color:var(--dim);}
+
+/* ── 익스텐션 ── */
+.ext-card {
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-lg);padding:16px;margin-bottom:10px;transition:.2s;
+}
+.ext-card:hover{border-color:rgba(124,58,237,.35);}
+.ext-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.ext-name{font-size:14px;font-weight:700;}
+.ext-ver{
+  font-size:11px;font-weight:700;padding:2px 9px;border-radius:12px;
+  background:rgba(124,58,237,.15);color:var(--accent-lite);
+  border:1px solid rgba(124,58,237,.3);
+}
+.ext-row{display:flex;gap:8px;align-items:center;}
+.ext-inp {
+  flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);
+  border-radius:var(--r-sm);color:var(--text);font-family:'JetBrains Mono',monospace;
+  font-size:12px;padding:7px 10px;outline:none;transition:.2s;
+}
+.ext-inp:focus{border-color:var(--accent);}
+.ext-actions{display:flex;gap:6px;}
+.ext-actions .btn{padding:7px 12px;font-size:11px;}
+
+/* ── 콘솔 ── */
+.console-wrap{border-top:1px solid var(--border);display:flex;flex-direction:column;background:rgba(0,0,0,.5);}
+.console-bar{
+  height:34px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.console-title{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:8px;}
+.console-acts{display:flex;gap:6px;}
+.cbtn{background:none;border:1px solid var(--border);color:var(--dim);padding:2px 10px;border-radius:5px;font-size:10px;cursor:pointer;font-family:inherit;transition:.2s;}
+.cbtn:hover{background:var(--surface2);color:var(--text);}
+.console-log{
+  flex:1;overflow-y:auto;padding:10px 16px;
+  font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.7;
+}
+.log-line{white-space:pre-wrap;word-break:break-all;}
+.log-ok {color:#4ade80;}
+.log-err{color:#f87171;}
+.log-cmd{color:var(--cyan);}
+.log-info{color:var(--accent-lite);}
+
+/* ── 모달 ── */
+.modal-overlay {
+  position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);
+  display:none;align-items:center;justify-content:center;z-index:999;
+}
+.modal {
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);
+  width:600px;max-width:90%;display:flex;flex-direction:column;
+  box-shadow:0 10px 40px rgba(0,0,0,0.8);
+}
+.modal-header {
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  font-weight:700;font-size:14px;display:flex;justify-content:space-between;
+}
+.modal-body {
+  padding:20px;flex:1;
+}
+.modal-footer {
+  padding:16px 20px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:10px;
+}
+.tos-textarea {
+  width:100%;height:300px;background:var(--surface);border:1px solid var(--border);
+  color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13px;
+  padding:12px;border-radius:var(--r-md);resize:vertical;outline:none;
+}
+.tos-textarea:focus { border-color:var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<header>
+  <div class="logo">X</div>
+  <span class="brand">Deploy Center</span>
+  <div class="hflex">
+    <div class="sdot" id="sdot"></div>
+    <span class="stext" id="stext">준비됨</span>
+    <button class="hbtn" onclick="openActions()">🔗 GitHub Actions</button>
+    <button class="hbtn" onclick="loadInfo()">↻ 새로고침</button>
+  </div>
+</header>
+
+<!-- 콘텐츠 -->
+<div class="content">
+  <!-- 왼쪽: 앱 배포 -->
+  <div class="panel">
+    <div class="ptitle">🚀 APP RELEASE</div>
+
+    <div class="ver-card">
+      <div class="vlabel">Current Version</div>
+      <div class="vnum" id="appVer">v0.0.0</div>
+      <div class="vmeta">
+        <div class="chip" id="branchChip">📌 main</div>
+        <div class="chip chip-green" id="statusChip">✓ Clean</div>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button class="btn btn-prim" onclick="deployApp('patch')">
+        <span class="bico">🐛</span><span class="btxt">Patch Release</span><span class="bsub">0.0.X</span>
+      </button>
+      <button class="btn btn-sec" onclick="deployApp('minor')">
+        <span class="bico">✨</span><span class="btxt">Minor Release</span><span class="bsub">0.X.0</span>
+      </button>
+      <button class="btn btn-sec" onclick="deployApp('major')">
+        <span class="bico">🚀</span><span class="btxt">Major Release</span><span class="bsub">X.0.0</span>
+      </button>
+    </div>
+
+    <!-- 기타 작업 섹션 (위로 올림) -->
+    <div class="divider"></div>
+    <div class="ptitle" style="margin-bottom:8px;">🌍 AMPLIFY 웹 배포</div>
+    <div class="btns">
+      <button class="btn" id="amplify-deploy-btn" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;box-shadow:0 4px 18px rgba(245,158,11,0.4);" onclick="deployAmplify()">
+        <span class="bico">🎉</span>
+        <span class="btxt">Deploy Updates to Amplify</span>
+        <span class="bsub" id="amplify-status-badge">● 클릭하면 리자인 배포</span>
+      </button>
+      <button class="btn btn-sec" onclick="openAmplifyConfig()">
+        <span class="bico">⚙️</span>
+        <span class="btxt">AWS 자격증명 설정</span>
+        <span class="bsub" id="amplify-cred-badge">조회 중...</span>
+      </button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="ptitle" style="margin-bottom:8px;">🛠️ 기타 작업</div>
+    <div class="btns">
+      <button class="btn btn-sec" onclick="gitPull()">
+        <span class="bico">⬇</span><span class="btxt">Git Pull (최신 코드 받기)</span>
+      </button>
+      <button class="btn btn-cyan" onclick="openTosModal()">
+        <span class="bico">📝</span><span class="btxt">TOS.md (약관) 편집 및 푸시</span>
+      </button>
+      <button class="btn btn-red" onclick="gitRollback()">
+        <span class="bico">↩</span><span class="btxt">Rollback (최근 커밋 취소)</span>
+      </button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="ptitle" style="margin-bottom:8px;">직접 버전 지정</div>
+    <div class="custom-ver">
+      <input class="ver-input" id="customVer" placeholder="예: 2.3.0">
+      <button class="btn btn-cyan" style="width:auto;padding:10px 16px;" onclick="deployCustom()">배포</button>
+    </div>
+
+    <div class="divider"></div>
+    <div class="ptitle" style="margin-bottom:8px;">📥 빌드 파일 다운로드</div>
+    <div id="releaseList" style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto;padding-right:4px;">
+      <div style="color:var(--dim);font-size:11px;text-align:center;padding:10px;">빌드 목록 조회 중...</div>
+    </div>
+  </div>
+
+  <!-- 오른쪽: 익스텐션 관리 -->
+  <div class="panel">
+    <div class="ptitle" style="justify-content:space-between;">
+      <span>🧩 EXTENSIONS (GitHub 원격 상태)</span>
+      <button class="cbtn" onclick="openAddExtModal()" style="border-color:var(--accent);color:var(--accent-lite);">➕ 추가</button>
+    </div>
+    <div id="extList">
+      <div style="color:var(--dim);text-align:center;padding:40px;">로딩 중...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 콘솔 -->
+<div class="console-wrap">
+  <div class="console-bar">
+    <div class="console-title">⬛ CONSOLE <span id="logCount" style="color:var(--accent-lite);">0 lines</span></div>
+    <div class="console-acts">
+      <button class="cbtn" onclick="clearLog()">Clear</button>
+      <button class="cbtn" onclick="copyLog()">Copy</button>
+    </div>
+  </div>
+  <div class="console-log" id="consoleLog">
+    <div class="log-line log-info">▶ XPIDER Deploy Center ready.</div>
+  </div>
+</div>
+
+<!-- TOS 모달 -->
+<div class="modal-overlay" id="tosModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>📝 TOS.md (이용 약관) 편집</span>
+      <select class="ver-input" id="tosLang" style="width:120px;padding:2px 8px;font-size:11px;" onchange="loadTosContent()">
+        <option value="ko">한국어 (KO)</option>
+        <option value="en">English (EN)</option>
+        <option value="ja">日本語 (JA)</option>
+        <option value="zh">中文 (ZH)</option>
+        <option value="es">Español (ES)</option>
+        <option value="fr">Français (FR)</option>
+        <option value="de">Deutsch (DE)</option>
+        <option value="ru">Русский (RU)</option>
+        <option value="pt">Português (PT)</option>
+        <option value="ar">العربية (AR)</option>
+        <option value="hi">हिन्दी (HI)</option>
+        <option value="it">Italiano (IT)</option>
+      </select>
+      <button class="cbtn" onclick="closeTosModal()">X</button>
+    </div>
+    <div class="modal-body">
+      <textarea class="tos-textarea" id="tosContent" placeholder="약관 내용을 입력하세요..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sec" style="width:auto;" onclick="closeTosModal()">취소</button>
+      <button class="btn btn-prim" style="width:auto;" onclick="saveAndPushTos()">저장 및 푸시</button>
+    </div>
+  </div>
+</div>
+
+<!-- AWS Amplify 설정 모달 -->
+<div class="modal-overlay" id="amplifyModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <span>⚙️ AWS Amplify 자격증명 설정</span>
+      <button class="cbtn" onclick="closeAmplifyConfig()">X</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+      <p style="font-size:12px;color:var(--dim);line-height:1.6;">
+        AWS IAM 사용자의 액세스 키를 입력하세요.<br>
+        필요 권한: <code style="color:var(--cyan);font-size:11px;">AWSAmplifyFullAccess</code>
+      </p>
+      <div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">App ID</div>
+        <input class="ver-input" id="cfg-app-id" placeholder="d23b8wu27vwban" style="width:100%;">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">AWS Region</div>
+        <input class="ver-input" id="cfg-region" placeholder="us-east-1" style="width:100%;">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">Access Key ID</div>
+        <input class="ver-input" id="cfg-access-key" placeholder="AKIA..." style="width:100%;">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--dim);margin-bottom:4px;">Secret Access Key</div>
+        <input class="ver-input" id="cfg-secret-key" type="password" placeholder="••••••••" style="width:100%;">
+      </div>
+      <div id="amplify-config-status" style="font-size:11px;min-height:16px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-sec" style="width:auto;" onclick="closeAmplifyConfig()">취소</button>
+      <button class="btn btn-prim" style="width:auto;" onclick="saveAmplifyConfig()">키 저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $  = id => document.getElementById(id);
+const logEl = $('consoleLog');
+let logs = [];
+let isBusy = false;
+
+// ── 로그 ────────────────────────────────────────────
+function addLog(text, err=false) {
+  const d = document.createElement('div');
+  d.className = 'log-line ' + (
+    err ? 'log-err' :
+    text.startsWith('>') ? 'log-cmd' :
+    text.includes('✅') || text.includes('Exit: 0') ? 'log-ok' :
+    text.startsWith('📦') || text.startsWith('📋') ? 'log-info' : ''
+  );
+  d.textContent = text;
+  logEl.appendChild(d);
+  logEl.scrollTop = logEl.scrollHeight;
+  logs.push(text);
+  $('logCount').textContent = logs.length + ' lines';
+}
+function clearLog()  { logEl.innerHTML=''; logs=[]; $('logCount').textContent='0 lines'; }
+function copyLog()   { navigator.clipboard.writeText(logs.join('\n')); }
+
+// ── 상태 ────────────────────────────────────────────
+function setStatus(busy, label='') {
+  isBusy = busy;
+  $('sdot').className = 'sdot' + (busy ? ' busy' : '');
+  $('stext').textContent = busy ? (label || '배포 중...') : '준비됨';
+  document.querySelectorAll('.btn').forEach(b => b.disabled = busy);
+}
+
+// ── SSE 연결 ────────────────────────────────────────
+const es = new EventSource('/events');
+es.onmessage = e => {
+  const { type, payload } = JSON.parse(e.data);
+  if (type === 'log')     addLog(payload.text, payload.err);
+  if (type === 'status')  {
+    setStatus(payload === 'deploying');
+    if (payload !== 'deploying') loadReleases();
+  }
+  if (type === 'refresh') {
+    renderInfo(payload);
+    loadReleases();
+  }
+};
+
+// ── 정보 로드 ────────────────────────────────────────
+async function loadInfo() {
+  const info = await fetch('/api/info').then(r=>r.json());
+  renderInfo(info);
+  loadReleases();
+}
+
+async function loadReleases() {
+  const container = $('releaseList');
+  if (!container) return;
+  try {
+    const res = await fetch('/api/releases').then(r => r.json());
+    if (!res || res.length === 0) {
+      container.innerHTML = `<div style="color:var(--dim);font-size:11px;text-align:center;padding:10px;">사용 가능한 빌드 파일이 없습니다.</div>`;
+      return;
+    }
+    
+    container.innerHTML = res.map(file => {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      const isZip = file.name.endsWith('.zip');
+      const dateStr = new Date(file.mtime).toLocaleString('ko-KR', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+      });
+      const icon = isZip ? '📦' : '💿';
+      const label = isZip ? 'ZIP 패키지' : '인스톨러';
+      
+      return `
+        <a href="/releases/${encodeURIComponent(file.name)}" class="btn btn-sec" style="text-align:left;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;text-decoration:none;margin-bottom:4px;width:100%;box-sizing:border-box;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:16px;">${icon}</span>
+            <div style="display:flex;flex-direction:column;text-align:left;">
+              <span style="font-weight:600;font-size:12px;color:var(--text);word-break:break-all;">${file.name}</span>
+              <span style="font-size:10px;color:var(--dim);">${label} • ${sizeMB} MB • ${dateStr}</span>
+            </div>
+          </div>
+          <span style="font-size:12px;color:var(--accent);">⬇</span>
+        </a>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = `<div style="color:var(--red);font-size:11px;text-align:center;padding:10px;">목록을 불러오지 못했습니다.</div>`;
+  }
+}
+
+let globalExtensions = [];
+
+function renderInfo(info) {
+  globalExtensions = info.extensions;
+  $('appVer').textContent = `v${info.appVersion}`;
+  $('branchChip').textContent = `📌 ${info.branch}`;
+  $('statusChip').className = 'chip ' + (info.dirty > 0 ? 'chip-red' : 'chip-green');
+  $('statusChip').textContent = info.dirty > 0 ? `⚠ ${info.dirty} changes` : '✓ Clean';
+
+  const el = $('extList');
+  if (!info.extensions.length) {
+    el.innerHTML = '<div style="color:var(--dim);text-align:center;padding:40px;">extensions/ 폴더가 비어 있습니다.</div>';
+    return;
+  }
+  el.innerHTML = '';
+  info.extensions.forEach(ext => {
+    const statusColor = ext.status === 'Clean' ? 'var(--green)' : 'var(--yellow)';
+    const statusBg = ext.status === 'Clean' ? 'rgba(16,185,129,.1)' : 'rgba(245,158,11,.1)';
+
+    const card = document.createElement('div');
+    card.className = 'ext-card';
+    card.innerHTML = `
+      <div class="ext-head">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="ext-name">${ext.name}</span>
+          <span style="font-size:10px;padding:2px 6px;border-radius:4px;color:${statusColor};background:${statusBg};border:1px solid ${statusColor};opacity:0.8;">${ext.status || 'Unknown'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <span class="ext-ver" style="margin-right:5px;">v${ext.version}</span>
+          <button class="cbtn" title="GitHub 폴더 열기" onclick="openGitHubFolder('${ext.name}')">🌐</button>
+          <button class="cbtn" title="편집" onclick="editExt('${ext.name}')">✏️</button>
+          <button class="cbtn" title="삭제" style="color:var(--red);border-color:var(--red);" onclick="deleteExt('${ext.name}')">🗑️</button>
+        </div>
+      </div>
+      <div class="ext-row">
+        <input class="ext-inp" id="inp-${ext.name}" value="${bumpPatch(ext.version)}" placeholder="새 버전">
+        <div class="ext-actions">
+          <button class="btn btn-cyan" onclick="syncExt('${ext.name}')">🔄 Sync & Push</button>
+          <button class="btn btn-prim" onclick="deployExt('${ext.name}')">🚀 Deploy</button>
+        </div>
+      </div>`;
+    el.appendChild(card);
+  });
+}
+
+function openGitHubFolder(name) {
+  const url = `https://github.com/goodkie/xpider-browser/tree/main/extensions/${name}`;
+  window.open(url, '_blank');
+}
+
+function bumpPatch(ver) {
+  const [M,m,p] = ver.split('.').map(Number);
+  return `${M}.${m}.${p+1}`;
+}
+
+// ── API 호출 ────────────────────────────────────────
+async function post(path, body) {
+  try {
+    const res = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    if (!res.ok) {
+      const data = await res.json().catch(()=>({}));
+      if (data.error) alert(data.error);
+      else alert('서버 처리 중 오류가 발생했습니다.');
+      setStatus(false); // 로딩 해제
+    }
+    return res;
+  } catch(e) {
+    alert('네트워크 오류가 발생했습니다.');
+    setStatus(false);
+  }
+}
+
+function deployApp(type) {
+  if (isBusy) return;
+  if (!confirm(`${type.toUpperCase()} 배포를 시작합니까?`)) return;
+  addLog(`\n── App Deploy (${type}) ──`, false);
+  post('/api/deploy-app', { type });
+}
+
+function deployCustom() {
+  const ver = $('customVer').value.trim();
+  if (!ver.match(/^\d+\.\d+\.\d+$/)) { alert('올바른 버전 형식을 입력하세요. 예: 2.3.0'); return; }
+  if (!confirm(`v${ver} 으로 배포합니까?`)) return;
+  addLog(`\n── App Deploy (custom: ${ver}) ──`, false);
+  post('/api/deploy-app', { type: ver });
+}
+
+function deployExt(name) {
+  if (isBusy) return;
+  const ver = document.getElementById(`inp-${name}`).value.trim();
+  if (!ver.match(/^\d+\.\d+\.\d+$/)) { alert('올바른 버전을 입력하세요.'); return; }
+  if (!confirm(`${name} → v${ver} 배포합니까?`)) return;
+  addLog(`\n── Extension Deploy: ${name} v${ver} ──`, false);
+  post('/api/deploy-ext', { name, version: ver });
+}
+
+function syncExt(name) {
+  if (isBusy) return;
+  if (!confirm(`'${name}' 코드를 로컬에서 복사하고 GitHub에 동기화(Commit & Push) 하시겠습니까?`)) return;
+  addLog(`\n── Extension Sync & Push: ${name} ──`, false);
+  post('/api/sync-ext', { name });
+}
+
+function gitPull() {
+  if (isBusy) return;
+  addLog('\n── Git Pull ──', false);
+  post('/api/deploy-app', { type: '__pull__' });  // 서버에서 처리
+}
+
+function gitRollback() {
+  if (isBusy) return;
+  if (!confirm('⚠ 마지막 커밋을 취소합니다. 계속할까요?')) return;
+  addLog('\n── Git Rollback ──', false);
+  post('/api/deploy-app', { type: '__rollback__' });
+}
+
+function editExt(oldName) {
+  if (isBusy) return;
+  const ext = globalExtensions.find(e => e.name === oldName);
+  const newName = prompt(`익스텐션의 새로운 이름을 입력하세요.`, oldName);
+  if (!newName) return;
+  const newSource = prompt(`새 원본 소스 경로를 입력하세요.\n(없으면 빈칸)`, ext ? ext.sourcePath : '');
+  
+  if (!confirm(`'${oldName}' 정보를 수정하시겠습니까?`)) return;
+  
+  addLog(`\n── Edit Extension: ${oldName} -> ${newName} ──`, false);
+  post('/api/edit-ext', { oldName, newName, sourcePath: newSource || '' });
+}
+
+function deleteExt(name) {
+  if (isBusy) return;
+  if (!confirm(`정말로 '${name}' 익스텐션을 삭제하시겠습니까?\n이 작업은 로컬과 GitHub 모두에서 삭제되며 되돌릴 수 없습니다!`)) return;
+  
+  addLog(`\n── Delete Extension: ${name} ──`, false);
+  post('/api/delete-ext', { name });
+}
+
+function openAddExtModal() {
+  if (isBusy) return;
+  const name = prompt("새로운 익스텐션의 이름(영문 폴더명)을 입력하세요.\n예: my-new-extension");
+  if (!name) return;
+  const sourcePath = prompt(`'${name}'의 원본 소스 코드가 있는 전체 경로를 입력하세요.\n(빈칸으로 두면 빈 익스텐션이 생성됩니다)\n예: e:/vivpr/ai/my-ext`);
+  
+  if (!confirm(`'${name}' 익스텐션을 새로 등록하시겠습니까?`)) return;
+  
+  addLog(`\n── Add New Extension: ${name} ──`, false);
+  post('/api/add-ext', { name, sourcePath: sourcePath || '' });
+}
+
+function openActions() {
+  const url = 'https://github.com/goodkie/xpider-browser/actions';
+  const features = 'width=1200,height=800,menubar=no,toolbar=no,location=yes,status=no,resizable=yes,scrollbars=yes';
+  window.open(url, 'XPIDER_ACTIONS', features);
+}
+
+// ── TOS 편집 ──────────────────────────────────────────────
+async function openTosModal() {
+  if (isBusy) return;
+  $('tosLang').value = 'ko'; // Default to Korean
+  await loadTosContent();
+  $('tosModal').style.display = 'flex';
+}
+
+async function loadTosContent() {
+  const lang = $('tosLang').value;
+  const res = await fetch(`/api/get-tos?lang=${lang}`).then(r=>r.json()).catch(()=>null);
+  if (res && res.content !== undefined) {
+    $('tosContent').value = res.content;
+  } else {
+    alert('TOS 파일을 불러오지 못했습니다.');
+  }
+}
+
+function closeTosModal() {
+  $('tosModal').style.display = 'none';
+}
+
+function saveAndPushTos() {
+  if (isBusy) return;
+  const content = $('tosContent').value;
+  const lang = $('tosLang').value;
+  if (!confirm(`[${lang}] 수정된 약관을 저장하고 GitHub에 푸시하시겠습니까?`)) return;
+  
+  closeTosModal();
+  addLog(`\n── Edit & Push TOS_${lang}.md ──`, false);
+  post('/api/edit-tos', { content, lang });
+}
+
+// ── Amplify 설정 ─────────────────────────────────────────────────
+let amplifyHasCreds = false;
+
+async function loadAmplifyStatus() {
+  try {
+    const cfg = await fetch('/api/amplify-config').then(r => r.json());
+    amplifyHasCreds = cfg.hasCredentials;
+    const badge = $('amplify-cred-badge');
+    const deployBtn = $('amplify-deploy-btn');
+    if (cfg.hasCredentials) {
+      if (badge) badge.textContent = `✅ ${cfg.accessKeyId} • ${cfg.region}`;
+      if (deployBtn) deployBtn.style.opacity = '1';
+    } else {
+      if (badge) badge.textContent = '⚠️ AWS 키 설정 필요';
+      if (deployBtn) deployBtn.style.opacity = '0.6';
+    }
+    // 폼 코드 채우기 (마스킹 제외)
+    $('cfg-app-id').value  = cfg.appId || 'd23b8wu27vwban';
+    $('cfg-region').value  = cfg.region || 'us-east-1';
+    $('cfg-access-key').value = '';
+    $('cfg-secret-key').value = '';
+  } catch(e) { console.error(e); }
+}
+
+function openAmplifyConfig() {
+  loadAmplifyStatus();
+  $('amplifyModal').style.display = 'flex';
+}
+function closeAmplifyConfig() {
+  $('amplifyModal').style.display = 'none';
+}
+
+async function saveAmplifyConfig() {
+  const body = {
+    appId:           $('cfg-app-id').value.trim(),
+    region:          $('cfg-region').value.trim(),
+    accessKeyId:     $('cfg-access-key').value.trim(),
+    secretAccessKey: $('cfg-secret-key').value.trim()
+  };
+  if (!body.accessKeyId || !body.secretAccessKey) {
+    $('amplify-config-status').textContent = '❌ Access Key와 Secret Key를 모두 입력하세요.';
+    $('amplify-config-status').style.color = 'var(--red)';
+    return;
+  }
+  await fetch('/api/amplify-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+  $('amplify-config-status').textContent = '✅ 저장되었습니다!';
+  $('amplify-config-status').style.color = 'var(--green)';
+  await loadAmplifyStatus();
+  setTimeout(() => { closeAmplifyConfig(); }, 1200);
+}
+
+async function deployAmplify() {
+  if (isBusy) return;
+  if (!amplifyHasCreds) {
+    openAmplifyConfig();
+    alert('⚠️ AWS 자격증명을 먼저 입력하세요.');
+    return;
+  }
+  if (!confirm('현재 landing/ 폴더를 Amplify에 배포합니다. 계속할까요?')) return;
+  addLog('\n── Amplify Deploy ──', false);
+  post('/api/deploy-amplify', {});
+}
+
+loadInfo();
+loadAmplifyStatus();
+
+</script>
+</body>
+</html>

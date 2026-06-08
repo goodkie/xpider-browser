@@ -1,0 +1,3184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XPIDER Browser | Innovative Evolution of Marketing Automation</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Simplify tasks, maximize results. Meet XPIDER, the all-in-one marketing browser featuring Google Maps scraper, auto form sender, mass mailer, and local relay VPN.">
+  <meta name="keywords" content="XPIDER, Marketing Automation, Google Maps Scraper, Auto Form Sender, Mass Mailer, Marketing Browser, Extensions, VPN">
+  <meta property="og:title" content="XPIDER Browser | Innovative Evolution of Marketing Automation">
+  <meta property="og:description" content="From business data collection to form sending and automated email campaigns. A premium all-in-one browser that simplifies marketers tasks.">
+  <meta property="og:type" content="website">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ─── 디자인 시스템 & 변수 ─── */
+    :root {
+      --bg-dark: #03001e;
+      --bg-mid: #0b0728;
+      --bg-light: #0f0c24;
+      --color-primary: #2563eb;
+      --color-primary-glow: rgba(37, 99, 235, 0.45);
+      --color-cyan: #06b6d4;
+      --color-cyan-glow: rgba(6, 182, 212, 0.4);
+      --color-purple: #7c3aed;
+      --color-purple-glow: rgba(124, 58, 237, 0.4);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --glass-surface: rgba(255, 255, 255, 0.03);
+      --glass-border: rgba(255, 255, 255, 0.06);
+      --glass-border-hover: rgba(255, 255, 255, 0.15);
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 10px;
+      --transition-base: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* ─── XPIDER 정밀 Preloader 스타일 (splash.html 완벽 동기화) ─── */
+    #xpider-preloader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      background: #03001e;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.8s;
+      overflow: hidden;
+    }
+
+    #xpider-preloader.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .preloader-wrap {
+      position: relative;
+      width: 260px;
+      height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .preloader-ring {
+      position: absolute;
+      border-radius: 50%;
+      border-style: solid;
+      border-color: transparent;
+    }
+
+    .pr1 {
+      width: 250px; height: 250px;
+      border-width: 2.5px;
+      border-top-color: rgba(0,229,255,0.95);
+      border-right-color: rgba(0,229,255,0.15);
+      animation: preloader-cw 1.1s linear infinite;
+      filter: drop-shadow(0 0 7px rgba(0,229,255,0.7));
+    }
+
+    .pr2 {
+      width: 218px; height: 218px;
+      border-width: 2px;
+      border-bottom-color: rgba(123,97,255,0.9);
+      border-left-color: rgba(123,97,255,0.12);
+      animation: preloader-ccw 1.7s linear infinite;
+      filter: drop-shadow(0 0 5px rgba(123,97,255,0.6));
+    }
+
+    .pr3 {
+      width: 186px; height: 186px;
+      border-width: 1.5px;
+      border-top-color: rgba(0,229,255,0.4);
+      border-style: dashed;
+      animation: preloader-cw 3s linear infinite;
+    }
+
+    .pr4 {
+      width: 154px; height: 154px;
+      border-width: 1px;
+      border-bottom-color: rgba(123,97,255,0.3);
+      border-style: dashed;
+      animation: preloader-ccw 4s linear infinite;
+    }
+
+    .preloader-center {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .preloader-logo {
+      width: 78px;
+      height: 78px;
+      border-radius: 20px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 14px rgba(0,229,255,0.55));
+      animation: preloader-pulse 2.4s ease-in-out infinite;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px;
+    }
+
+    .preloader-name {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 5px;
+      color: #fff;
+      text-transform: uppercase;
+      text-shadow: 0 0 12px rgba(0,229,255,0.75);
+    }
+
+    .preloader-sub {
+      font-size: 8.5px;
+      letter-spacing: 2.5px;
+      color: rgba(255,255,255,0.38);
+      text-transform: uppercase;
+      animation: preloader-fade 2.4s ease-in-out infinite;
+    }
+
+    @keyframes preloader-cw   { to { transform: rotate(360deg);  } }
+    @keyframes preloader-ccw  { to { transform: rotate(-360deg); } }
+    @keyframes preloader-pulse {
+      0%,100% { transform:scale(1);    filter:drop-shadow(0 0 14px rgba(0,229,255,0.55)); }
+      50%      { transform:scale(1.05);filter:drop-shadow(0 0 22px rgba(0,229,255,0.85)); }
+    }
+    @keyframes preloader-fade {
+      0%,100% { opacity:0.38; }
+      50%      { opacity:0.75; }
+    }
+
+    /* ─── 초기화 ─── */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'Inter', 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ─── 배경 조명 효과 ─── */
+    .bg-glow-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    .orb-1 {
+      top: -10%;
+      left: 15%;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, var(--color-primary-glow) 0%, transparent 70%);
+    }
+
+    .orb-2 {
+      top: 40%;
+      right: -10%;
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, var(--color-purple-glow) 0%, transparent 70%);
+    }
+
+    .orb-3 {
+      bottom: 10%;
+      left: -5%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, var(--color-cyan-glow) 0%, transparent 70%);
+    }
+
+    /* ─── 레이아웃 컨테이너 ─── */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── 헤더 & 내비게이션 ─── */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--glass-border);
+      z-index: 100;
+      background: rgba(3, 0, 30, 0.7);
+      transition: var(--transition-base);
+    }
+
+    header.scrolled {
+      padding: 6px 0;
+      background: rgba(3, 0, 30, 0.85);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .nav-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 72px;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--color-primary), var(--color-cyan));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 20px;
+      color: #fff;
+      box-shadow: 0 0 20px var(--color-primary-glow);
+    }
+
+    .logo-text {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      background: linear-gradient(90deg, #fff, var(--color-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-menu {
+      display: flex;
+      list-style: none;
+      gap: 32px;
+    }
+
+    .nav-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: var(--transition-base);
+      position: relative;
+      padding: 8px 0;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      color: var(--text-main);
+    }
+
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--color-primary), var(--color-cyan));
+      transition: var(--transition-base);
+    }
+
+    .nav-link:hover::after {
+      width: 100%;
+    }
+
+    .btn-header {
+      padding: 10px 24px;
+      border-radius: 50px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 15px var(--color-primary-glow);
+      transition: var(--transition-base);
+    }
+
+    .btn-header:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px var(--color-primary-glow);
+    }
+
+    /* ─── 히어로 섹션 ─── */
+    .hero-section {
+      padding-top: 180px;
+      padding-bottom: 100px;
+      text-align: center;
+      position: relative;
+    }
+
+    .badge-promo {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      border-radius: 50px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--glass-border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-cyan);
+      margin-bottom: 28px;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .badge-promo > span:first-child {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-cyan);
+      box-shadow: 0 0 8px var(--color-cyan);
+      display: inline-block;
+    }
+
+    .hero-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 64px;
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -2px;
+      margin-bottom: 24px;
+    }
+
+    .hero-title span {
+      background: linear-gradient(135deg, #fff 30%, var(--color-cyan) 70%, var(--color-purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: 18px;
+      color: var(--text-muted);
+      max-width: 760px;
+      margin: 0 auto 40px auto;
+      line-height: 1.6;
+    }
+
+    .hero-ctas {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 64px;
+    }
+
+    .btn-primary {
+      padding: 16px 36px;
+      border-radius: 50px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      box-shadow: 0 8px 30px var(--color-primary-glow);
+      transition: var(--transition-base);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 40px var(--color-primary-glow);
+    }
+
+    .btn-secondary {
+      padding: 16px 36px;
+      border-radius: 50px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-main);
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--glass-border);
+      transition: var(--transition-base);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: var(--glass-border-hover);
+      transform: translateY(-2px);
+    }
+
+    /* ─── 프리미엄 브라우저 목업 ─── */
+    .mockup-wrapper {
+      max-width: 1000px;
+      margin: 0 auto;
+      position: relative;
+      border-radius: var(--radius-lg);
+      background: linear-gradient(185deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 80%);
+      padding: 12px;
+      box-shadow: 0 30px 100px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255,255,255,0.1);
+      border: 1px solid var(--glass-border);
+    }
+
+    .mockup-glow {
+      position: absolute;
+      top: -20px;
+      left: 10%;
+      right: 10%;
+      height: 40px;
+      background: var(--color-cyan);
+      filter: blur(60px);
+      opacity: 0.3;
+      z-index: -1;
+    }
+
+    .browser-frame {
+      background: var(--bg-light);
+      border-radius: calc(var(--radius-lg) - 12px);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      aspect-ratio: 16 / 10;
+    }
+
+    .browser-header {
+      background: rgba(255, 255, 255, 0.02);
+      padding: 12px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .browser-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .browser-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot-r { background-color: #ef4444; }
+    .dot-y { background-color: #f59e0b; }
+    .dot-g { background-color: #10b981; }
+
+    .browser-address-bar {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 8px;
+      padding: 6px 16px;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .browser-content {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      background: #09061c;
+      overflow: hidden;
+    }
+
+    .mockup-sidebar {
+      background: rgba(255, 255, 255, 0.01);
+      border-right: 1px solid rgba(255, 255, 255, 0.03);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: left;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--color-cyan);
+    }
+
+    .sidebar-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sidebar-item {
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .sidebar-item.active {
+      background: rgba(37, 99, 235, 0.15);
+      border: 1px solid rgba(37, 99, 235, 0.25);
+      color: #fff;
+    }
+
+    .mockup-main {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      text-align: left;
+      overflow-y: auto;
+    }
+
+    .mockup-dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      padding-bottom: 12px;
+    }
+
+    .mockup-title {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .mockup-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+    }
+
+    .mockup-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .mockup-card-title {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .mockup-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .mockup-chart {
+      height: 120px;
+      background: linear-gradient(180deg, rgba(6,182,212,0.1) 0%, transparent 100%);
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      border: 1px dashed rgba(255, 255, 255, 0.05);
+    }
+
+    .chart-line {
+      position: absolute;
+      bottom: 20px;
+      left: 0;
+      width: 100%;
+      height: 4px;
+      background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-cyan) 60%, var(--color-purple) 100%);
+      box-shadow: 0 0 10px var(--color-cyan);
+    }
+
+    .mockup-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .mockup-list-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.01);
+      border-radius: 6px;
+      border-left: 3px solid var(--color-cyan);
+    }
+
+    /* ─── 브랜드 로고 배너 ─── */
+    .brand-banner {
+      padding: 50px 0;
+      border-top: 1px solid var(--glass-border);
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(255, 255, 255, 0.01);
+      margin-top: 60px;
+      overflow: hidden;
+    }
+
+    .brand-flex {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 32px;
+      opacity: 0.55;
+    }
+
+    .brand-logo {
+      font-family: 'Outfit', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ─── 상세 특장점 (Alternating Features) ─── */
+    .features-container {
+      padding: 120px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 120px;
+    }
+
+    .feature-row {
+      display: flex;
+      align-items: center;
+      gap: 64px;
+    }
+
+    .feature-row:nth-child(even) {
+      flex-direction: row-reverse;
+    }
+
+    .feature-info {
+      flex: 1;
+      text-align: left;
+    }
+
+    .feature-visual {
+      flex: 1;
+      position: relative;
+    }
+
+    .feature-tag {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-cyan);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+
+    .feature-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 20px;
+      letter-spacing: -1px;
+    }
+
+    .feature-desc {
+      color: var(--text-muted);
+      font-size: 16px;
+      margin-bottom: 28px;
+      line-height: 1.7;
+    }
+
+    .feature-bullets {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .feature-bullet {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--text-main);
+    }
+
+    .bullet-check {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(6, 182, 212, 0.15);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--color-cyan);
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .feature-card-glow {
+      background: var(--glass-surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      aspect-ratio: 1.4 / 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+
+    /* ─── Stats/지표 리본 배너 ─── */
+    .stats-ribbon {
+      background: linear-gradient(90deg, var(--color-primary), #0284c7, var(--color-cyan));
+      padding: 60px 0;
+      position: relative;
+      box-shadow: 0 0 50px var(--color-primary-glow);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 32px;
+      text-align: center;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stat-number {
+      font-family: 'Outfit', sans-serif;
+      font-size: 48px;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -1.5px;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    /* ─── Extensions 탐색 (Innovative Products) ─── */
+    .products-section {
+      padding: 120px 0;
+      text-align: center;
+    }
+
+    .section-title-area {
+      max-width: 600px;
+      margin: 0 auto 64px auto;
+    }
+
+    .section-tag {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-cyan);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .product-card {
+      background: var(--glass-surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-md);
+      padding: 32px;
+      text-align: left;
+      transition: var(--transition-base);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 280px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .product-card:hover {
+      transform: translateY(-8px);
+      border-color: rgba(6, 182, 212, 0.45);
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(6, 182, 212, 0.15);
+    }
+
+    .product-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, var(--color-cyan), transparent);
+      opacity: 0;
+      transition: var(--transition-base);
+    }
+
+    .product-card:hover::before {
+      opacity: 1;
+    }
+
+    .product-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.04);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      border: 1px solid var(--glass-border);
+      color: var(--color-cyan);
+      font-size: 20px;
+      transition: var(--transition-base);
+    }
+
+    .product-card:hover .product-icon {
+      background: var(--color-cyan);
+      color: #fff;
+      box-shadow: 0 0 15px var(--color-cyan-glow);
+    }
+
+    .product-name {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .product-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+
+    .product-link {
+      color: var(--color-cyan);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition-base);
+    }
+
+    .product-link:hover {
+      gap: 10px;
+    }
+
+    /* ─── FAQ 아코디언 섹션 ─── */
+    .faq-section {
+      padding: 100px 0;
+    }
+
+    .faq-wrapper {
+      max-width: 800px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      text-align: left;
+    }
+
+    .faq-item {
+      background: var(--glass-surface);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      transition: var(--transition-base);
+    }
+
+    .faq-item:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .faq-question {
+      padding: 24px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease-out;
+      padding: 0 24px;
+      color: var(--text-muted);
+      font-size: 14.5px;
+      line-height: 1.7;
+    }
+
+    .faq-item.active .faq-answer {
+      padding-bottom: 24px;
+      max-height: 300px; /* 대략적인 최대 크기 */
+    }
+
+    .faq-icon-arrow {
+      font-size: 18px;
+      transition: var(--transition-base);
+      color: var(--text-muted);
+    }
+
+    .faq-item.active .faq-icon-arrow {
+      transform: rotate(180deg);
+      color: var(--color-cyan);
+    }
+
+    /* ─── 최하단 CTA 카드 ─── */
+    .cta-section {
+      padding: 100px 0;
+    }
+
+    .download-btn-group {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 28px;
+    }
+
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px 32px;
+      border-radius: 50px;
+      font-size: 14.5px;
+      font-weight: 700;
+      text-decoration: none;
+      color: #fff;
+      transition: var(--transition-base);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+    }
+
+    .btn-download:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.45);
+    }
+
+    .btn-windows {
+      background: linear-gradient(135deg, #0078d4, #00bcf2);
+      box-shadow: 0 10px 25px rgba(0, 120, 212, 0.3);
+    }
+
+    .btn-windows:hover {
+      box-shadow: 0 15px 35px rgba(0, 120, 212, 0.45);
+      border-color: rgba(0, 188, 242, 0.4);
+    }
+
+    .btn-macos {
+      background: linear-gradient(135deg, #2b2b2b, #111111);
+      box-shadow: 0 10px 25px rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-macos:hover {
+      box-shadow: 0 15px 35px rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    /* ─── 실시간 카운터 및 스크롤 피드 애니메이션 스타일 ─── */
+    #live-scraped-counter {
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), text-shadow 0.2s, color 0.2s;
+    }
+    #live-scraped-counter.tick {
+      transform: scale(1.06);
+      color: #00f5ff;
+      text-shadow: 0 0 20px rgba(6, 182, 212, 0.95), 0 0 32px rgba(6, 182, 212, 0.65);
+    }
+
+    /* 실시간 스크롤 리스트 뷰포트 */
+    .mockup-list-container {
+      height: 200px;
+      overflow: hidden;
+      position: relative;
+      margin-top: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      /* 상하단 페이드 마스크 효과 */
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
+      mask-image: linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
+    }
+
+    .mockup-list-item {
+      transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      transform: translateY(0);
+      opacity: 1;
+      overflow: hidden;
+    }
+
+    .mockup-list-item.slide-in {
+      animation: feed-slide-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .mockup-list-item.slide-out {
+      animation: feed-slide-out 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes feed-slide-in {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-top: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+        max-height: 80px;
+      }
+    }
+
+    @keyframes feed-slide-out {
+      to {
+        transform: translateY(-20px);
+        opacity: 0;
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        margin-top: 0;
+      }
+    }
+
+    /* ─── 문의폼 우회 시뮬레이터 애니메이션 스타일 ─── */
+    .success-checkmark-circle {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      display: block;
+      stroke-width: 3;
+      stroke: #00f5ff;
+      stroke-miterlimit: 10;
+      box-shadow: inset 0px 0px 0px #00f5ff, 0 0 20px rgba(6, 182, 212, 0.4);
+      animation: fill-checkmark .4s ease-in-out .4s forwards, scale-checkmark .3s ease-in-out .9s forwards;
+    }
+    
+    .success-checkmark-svg {
+      width: 76px;
+      height: 76px;
+      border-radius: 50%;
+      display: block;
+      stroke-width: 3;
+      stroke: #00f5ff;
+      stroke-miterlimit: 10;
+    }
+
+    .success-checkmark-circle-path {
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      stroke-width: 3;
+      stroke-miterlimit: 10;
+      stroke: #00f5ff;
+      fill: none;
+      animation: stroke-checkmark .6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+    }
+
+    .success-checkmark-check {
+      transform-origin: 50% 50%;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      stroke: #0d0b18;
+      animation: stroke-checkmark .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards;
+    }
+
+    @keyframes stroke-checkmark {
+      100% {
+        stroke-dashoffset: 0;
+      }
+    }
+
+    @keyframes fill-checkmark {
+      100% {
+        box-shadow: inset 0px 0px 0px 40px #00f5ff, 0 0 30px rgba(6, 182, 212, 0.8);
+      }
+    }
+
+    @keyframes scale-checkmark {
+      0%, 100% {
+        transform: none;
+      }
+      50% {
+        transform: scale3d(1.1, 1.1, 1);
+      }
+    }
+
+    .sim-log-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(10px);
+      animation: log-fade-in 0.35s ease forwards;
+    }
+
+    @keyframes log-fade-in {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .cta-card {
+      border-radius: var(--radius-lg);
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.15) 0%, rgba(6, 182, 212, 0.05) 100%);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      padding: 80px 40px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+    }
+
+    .cta-card::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .cta-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 48px;
+      font-weight: 800;
+      margin-bottom: 20px;
+      letter-spacing: -1.5px;
+    }
+
+    .cta-desc {
+      color: var(--text-muted);
+      font-size: 17px;
+      max-width: 600px;
+      margin: 0 auto 36px auto;
+      line-height: 1.6;
+    }
+
+    /* ─── 푸터 ─── */
+    footer {
+      background: #020015;
+      padding: 80px 0 40px 0;
+      border-top: 1px solid var(--glass-border);
+      color: var(--text-muted);
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr repeat(3, 1fr);
+      gap: 48px;
+      margin-bottom: 60px;
+      text-align: left;
+    }
+
+    .footer-brand {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .footer-brand-desc {
+      font-size: 13.5px;
+      line-height: 1.6;
+      max-width: 320px;
+    }
+
+    .footer-col h4 {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .footer-links {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .footer-link {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13.5px;
+      transition: var(--transition-base);
+    }
+
+    .footer-link:hover {
+      color: #fff;
+      padding-left: 4px;
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      padding-top: 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .footer-copy {
+      color: var(--text-dim);
+    }
+
+    .footer-bottom-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    .footer-bottom-link {
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: var(--transition-base);
+    }
+
+    .footer-bottom-link:hover {
+      color: #fff;
+    }
+
+    /* ─── 반응형 웹 디자인 ──    /* ─── GMaps Finder 팝업 모달 (좌우 분할 프리미엄 레이아웃) ─── */
+    .gmaps-modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(3, 0, 30, 0.85);
+      backdrop-filter: blur(12px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.4s;
+    }
+
+    .gmaps-modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .gmaps-modal-content {
+      background: linear-gradient(135deg, rgba(15, 12, 36, 0.95) 0%, rgba(11, 7, 40, 0.98) 100%);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: var(--radius-lg);
+      width: 92%;
+      max-width: 1000px;
+      height: 80vh;
+      max-height: 650px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(6, 182, 212, 0.2);
+      transform: translateY(40px) scale(0.95);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: row;
+    }
+
+    .gmaps-modal-overlay.active .gmaps-modal-content {
+      transform: translateY(0) scale(1);
+    }
+
+    /* 좌측 이미지 패널 */
+    .gmaps-modal-left {
+      flex: 1.1;
+      height: 100%;
+      position: relative;
+      overflow: hidden;
+      background: #050212;
+      border-right: 1px solid rgba(6, 182, 212, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 초프리미엄 앰비언트 블러 배경 효과 */
+    .gmaps-modal-left::before {
+      content: '';
+      position: absolute;
+      top: -10%;
+      left: -10%;
+      width: 120%;
+      height: 120%;
+      background-size: cover;
+      background-position: center;
+      filter: blur(24px) brightness(0.35);
+      z-index: 1;
+    }
+    #gmapsModalLeft::before {
+      background-image: url('./GMaps.png');
+    }
+    #autoformModalLeft::before {
+      background-image: url('./AutoForm.JPG');
+    }
+    #sendforceModalLeft::before {
+      background-image: url('./SendForce.JPG');
+    }
+    #vpnModalLeft::before {
+      background-image: url('./VPN.JPG');
+    }
+    #emailModalLeft::before {
+      background-image: url('./EMAIL.png');
+    }
+    #bingmapsModalLeft::before {
+      background-image: url('./BingMaps.png');
+    }
+
+    .gmaps-modal-img {
+      position: relative;
+      z-index: 2;
+      max-width: 100%;
+      max-height: 100%;
+      width: auto;
+      height: auto;
+      object-fit: contain; /* 이미지가 잘리지 않고 전체가 완벽하게 보이도록 설정 */
+      display: block;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(6, 182, 212, 0.1);
+      transition: transform 0.6s ease;
+    }
+
+    .gmaps-modal-img:hover {
+      transform: scale(1.03);
+    }
+
+    /* 우측 정보 패널 */
+    .gmaps-modal-right {
+      flex: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .gmaps-modal-header {
+      padding: 24px 32px 16px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .gmaps-modal-title-area {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .gmaps-modal-tag {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--color-cyan);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .gmaps-modal-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      color: #fff;
+      margin: 0;
+    }
+
+    .gmaps-modal-close {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      cursor: pointer;
+      transition: var(--transition-base);
+    }
+
+    .gmaps-modal-close:hover {
+      background: rgba(225, 29, 72, 0.1);
+      border-color: rgba(225, 29, 72, 0.4);
+      color: #f43f5e;
+      transform: rotate(90deg);
+    }
+
+    .gmaps-modal-body {
+      padding: 24px 32px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .gmaps-modal-desc-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .gmaps-modal-desc-title {
+      font-size: 16.5px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gmaps-modal-desc-title::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 16px;
+      background: var(--color-cyan);
+      border-radius: 2px;
+    }
+
+    .gmaps-modal-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.65;
+      margin: 0;
+    }
+
+    .gmaps-modal-features {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .gmaps-modal-feature-item {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      transition: var(--transition-base);
+    }
+
+    .gmaps-modal-feature-item:hover {
+      background: rgba(6, 182, 212, 0.02);
+      border-color: rgba(6, 182, 212, 0.15);
+    }
+
+    .gmaps-modal-feature-icon {
+      font-size: 16px;
+      color: var(--color-cyan);
+    }
+
+    .gmaps-modal-feature-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .gmaps-modal-feature-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .gmaps-modal-feature-desc {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      line-height: 1.45;
+    }
+
+    .gmaps-modal-footer {
+      padding: 16px 32px 24px 32px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-modal-close {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition-base);
+    }
+
+    .btn-modal-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .btn-modal-download {
+      background: linear-gradient(135deg, var(--color-cyan) 0%, #0891b2 100%);
+      border: none;
+      color: #fff;
+      padding: 10px 24px;
+      border-radius: var(--radius-sm);
+      font-size: 13.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition-base);
+      box-shadow: 0 4px 15px rgba(6, 182, 212, 0.3);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-modal-download:hover {
+      background: linear-gradient(135deg, #22d3ee 0%, var(--color-cyan) 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+    }
+
+    /* ─── 모달 우측 패널 스크롤바 ─── */
+    .gmaps-modal-body::-webkit-scrollbar {
+      width: 6px;
+    }
+    .gmaps-modal-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .gmaps-modal-body::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+    .gmaps-modal-body::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* 반응형 및 모바일 최적화 */
+    @media (max-width: 850px) {
+      .gmaps-modal-content {
+        flex-direction: column;
+        height: auto;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+      .gmaps-modal-left {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid rgba(6, 182, 212, 0.15);
+      }
+      .gmaps-modal-right {
+        width: 100%;
+        height: auto;
+        overflow: visible;
+      }
+      .gmaps-modal-body {
+        overflow-y: visible;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .gmaps-modal-header, .gmaps-modal-body, .gmaps-modal-footer {
+        padding: 20px;
+      }
+      .gmaps-modal-title {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- XPIDER 브라우저 정밀 동기화 Preloader -->
+  <div id="xpider-preloader">
+    <div class="preloader-wrap">
+      <div class="preloader-ring pr1"></div>
+      <div class="preloader-ring pr2"></div>
+      <div class="preloader-ring pr3"></div>
+      <div class="preloader-ring pr4"></div>
+      <div class="preloader-center">
+        <img class="preloader-logo" src="./logo.png" alt="X">
+        <span class="preloader-name">XPIDER</span>
+        <span class="preloader-sub">v7.0.30 Official Version</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 배경 광원 효과 오브 -->
+  <div class="bg-glow-orb orb-1"></div>
+  <div class="bg-glow-orb orb-2"></div>
+  <div class="bg-glow-orb orb-3"></div>
+
+  <!-- 헤더 내비게이션 -->
+  <header id="mainHeader">
+    <div class="container nav-container">
+      <a href="#" class="logo-area">
+        <img class="logo-icon" src="./logo.png" alt="XPIDER" style="object-fit: contain; padding: 4px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);">
+        <span class="logo-text">XPIDER</span>
+      </a>
+      
+      <ul class="nav-menu">
+        <li><a href="#features" class="nav-link">Features</a></li>
+        <li><a href="#extensions" class="nav-link">Extensions</a></li>
+        <li><a href="#stats" class="nav-link">Stats</a></li>
+        <li><a href="#faq" class="nav-link">FAQ</a></li>
+      </ul>
+
+      <a href="#download" class="btn-header">Download <span class="release-ver-txt">v7.0.30</span></a>
+    </div>
+  </header>
+
+  <!-- 히어로 섹션 -->
+  <section class="hero-section">
+    <div class="container">
+      <div class="badge-promo">
+        <span></span> <span class="release-ver-txt">v7.0.30</span> Official Release Complete (Windows 8.1+ Supported)
+        <span class="os-icons-wrapper" style="display: inline-flex; align-items: center; gap: 8px; margin-left: 10px; border-left: 1px solid rgba(255,255,255,0.2); padding-left: 10px; vertical-align: middle;">
+          <!-- Windows Icon -->
+          <svg class="os-icon" viewBox="0 0 88 88" width="14" height="14" fill="var(--color-cyan)" style="transition: var(--transition-base); opacity: 0.95; filter: drop-shadow(0 0 4px var(--color-cyan-glow));">
+            <path d="M0 12.402l35.687-4.86.016 34.423-35.703.072zm35.687 33.72l.016 34.251-35.703-4.887V46.223zm4.269-39.117L88 1.25v40.758l-48.044.208zm48.044 43.684V86.75L39.956 80.203l-.016-33.911z"/>
+          </svg>
+          <!-- macOS (Apple) Icon -->
+          <svg class="os-icon" viewBox="0 0 170 170" width="14" height="14" fill="#ffffff" style="transition: var(--transition-base); opacity: 0.95; filter: drop-shadow(0 0 4px rgba(255,255,255,0.25));">
+            <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.37.13-9.13-1.9-14.28-6.08-3.35-2.62-7.22-7.31-11.62-14.07-8.49-13.14-14.35-28.21-17.58-45.2-3.23-16.99-2.27-31.57 2.9-43.74 5.17-12.18 12.6-18.42 22.28-18.73 4.25-.03 9.47 1.45 15.65 4.45 6.18 3 10.3 4.49 12.35 4.49 1.8 0 5.86-1.46 12.21-4.38 6.35-2.92 11.29-4.28 14.8-4.08 10.28.58 18.17 4.3 23.68 11.16-11.83 7.23-17.5 16.96-16.99 29.21.51 9.87 4.13 17.75 10.87 23.64 6.74 5.89 14.54 9.17 23.4 9.84-2.88 8.35-6.52 16.64-10.92 24.87zM119.5 30.65c0-6.75-2.45-12.92-7.35-18.52-5.32-6.08-11.88-9.48-19.68-10.2-1-.08-2.02-.13-3.07-.13-6.85 0-13.43 2.97-19.74 8.9-6.31 5.93-9.84 12.91-10.59 20.93-.15 1.5-.2 2.87-.13 4.1 0 1 .1 1.95.3 2.85 7.15.58 13.62-2.38 19.4-8.85 5.79-6.48 9.07-13.67 9.87-21.58.53-.1.97-.15 1.3-.15 4.58 0 8.7 1.7 12.35 5.1 3.65 3.4 5.73 7.7 6.25 12.9.15.6.23 1.25.25 1.95.23 0 .46.03.68.03 5.42 0 10.1-2.22 14.07-6.67 3.97-4.45 5.95-9.67 5.95-15.65z"/>
+          </svg>
+        </span>
+      </div>
+      
+      <h1 class="hero-title">
+        Large-Scale Business Leads<br><span>+ Instant Campaign Delivery</span>
+      </h1>
+      
+      <p class="hero-subtitle">
+        From automated Google Maps business scrapers and smart contact form bypassers to local relay high-anonymity VPNs. Meet XPIDER, the world's only 6-in-1 browser customized for bulk marketing, highly acclaimed by global sales experts.
+      </p>
+
+      <div class="hero-ctas">
+        <a href="#download" class="btn-primary">Get Started Free <span>→</span></a>
+        <a href="#extensions" class="btn-secondary">Explore Extensions</a>
+      </div>
+
+      <!-- 브라우저 목업 -->
+      <div class="mockup-wrapper">
+        <div class="mockup-glow"></div>
+        <div class="browser-frame">
+          <div class="browser-header">
+            <div class="browser-dots">
+              <span class="browser-dot dot-r"></span>
+              <span class="browser-dot dot-y"></span>
+              <span class="browser-dot dot-g"></span>
+            </div>
+            <div class="browser-address-bar">
+              🔒 https://xpider.app/dashboard
+            </div>
+          </div>
+          <div class="browser-content" style="display: block; background: #000; position: relative;">
+            <video id="heroVideo" autoplay loop muted playsinline preload="auto" style="width: 100%; height: 100%; object-fit: cover; display: block; border: 0;">
+              <source src="./Sequence6.webm" type="video/webm">
+              Your browser does not support the video tag.
+            </video>
+            <script>
+              (function() {
+                var v = document.getElementById('heroVideo');
+                if (v) {
+                  v.play().catch(function(e) { console.log('즉시 구동 시도:', e); });
+                }
+              })();
+            </script>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 브랜드 로고 배너 -->
+  <section class="brand-banner">
+    <div class="container">
+      <div class="brand-flex">
+        <div class="brand-logo">🚀 GMaps Finder</div>
+        <div class="brand-logo">🛡️ Secure Relay VPN</div>
+        <div class="brand-logo">📨 SendForce</div>
+        <div class="brand-logo">⚡ AutoForm Pro</div>
+        <div class="brand-logo">🧬 React Fiber Sync</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 주요 기능 (Alternating Features) -->
+  <section class="container" id="features">
+    <div class="features-container">
+      
+      <!-- Feature 1 -->
+      <div class="feature-row">
+        <div class="feature-info">
+          <div class="feature-tag">Software Excellence</div>
+          <h2 class="feature-title">High-Speed B2B Lead Extraction<br>Automated Scraping Engine</h2>
+          <p class="feature-desc">
+            Extract localized business contact details from Google Maps and portals in seconds. Input your target industry and coordinates to gather business names, phone numbers, active emails, and website URLs, compiling high-quality lead databases in real-time.
+          </p>
+          <ul class="feature-bullets">
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> Coordinates-based Radius High-Speed Scraping
+            </li>
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> Auto Social Profiles & Sub-page Contact Discovery
+            </li>
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> Real-time AI Domain Email Parsing & Filtering
+            </li>
+          </ul>
+        </div>
+        <div class="feature-visual">
+          <div class="feature-card-glow" style="background: linear-gradient(135deg, rgba(6, 182, 212, 0.08) 0%, transparent 100%);">
+            <div style="font-size: 11px; color: var(--color-cyan); font-weight:700;">📍 Real-time Scraping Feed</div>
+            
+            <!-- 실시간 Total Scraped 카운터 영역 (48px 거대 네온 스케일) -->
+            <div style="margin-top: 15px; margin-bottom: 5px;">
+              <div style="font-size: 10.5px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; font-weight: 700;">Total Scraped</div>
+              <div id="live-scraped-counter" style="font-size: 48px; font-weight: 900; font-family: 'Outfit', sans-serif; color: #fff; text-shadow: 0 0 12px rgba(6, 182, 212, 0.6); margin-top: 4px; line-height: 1.1;">693</div>
+            </div>
+            
+            <!-- 실시간 스크롤 리스트 피드 뷰포트 -->
+            <div class="mockup-list-container" id="live-feed-viewport">
+              <div class="mockup-list-item" style="border-left-color: var(--color-purple);">
+                <span>NeoTech Co. - IT Solution Development</span>
+                <span>02-1234-**** | info@neo***.com</span>
+              </div>
+              <div class="mockup-list-item" style="border-left-color: var(--color-primary);">
+                <span>Sunshine Cafe - Franchise Brand</span>
+                <span>010-9876-**** | contact@sun***.com</span>
+              </div>
+              <div class="mockup-list-item" style="border-left-color: var(--color-cyan);">
+                <span>Global Logistics - Freight & Transport</span>
+                <span>031-456-**** | support@glo***.com</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="feature-row">
+        <div class="feature-info">
+          <div class="feature-tag">Next-Gen Ultimate Solutions</div>
+          <h2 class="feature-title">Anti-Bot Outreach Automation<br>Human-Like Contact Form Bypasser</h2>
+          <p class="feature-desc">
+            Combines virtual mouse coordinate curves, React Fiber State synchronization, and 'insertText' typing simulation to securely bypass modern web firewalls and anti-bot systems. Guarantees 100% submission success even on modern JS frameworks like Wix or Webflow.
+          </p>
+          <ul class="feature-bullets">
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> Natural Human Keypress Delays & Mouse Trajectory Simulation
+            </li>
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> Dynamic IFrame Elements & Nested TPA Field Auto-Mapping
+            </li>
+            <li class="feature-bullet">
+              <span class="bullet-check">✓</span> Smart CAPTCHA Interceptor & Real-time Bypass Solver
+            </li>
+          </ul>
+        </div>
+        <div class="feature-visual">
+          <div class="feature-card-glow" style="background: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, transparent 100%); display: flex; flex-direction: column; height: 350px; justify-content: flex-start; align-items: stretch; padding: 20px;">
+            <div style="font-size: 11px; color: var(--color-purple); font-weight:700; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+              <span>🤖 Bypass AI Simulation Engine</span>
+              <span id="bypass-sim-status" style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Idle</span>
+            </div>
+            
+            <div id="bypass-simulation-box" style="position: relative; flex: 1; overflow: hidden; border-radius: 8px; background: rgba(13, 11, 24, 0.65); border: 1px solid rgba(124, 58, 237, 0.2); padding: 15px; font-family: 'Outfit', sans-serif;">
+              <!-- 1. 콘솔 로그 화면 -->
+              <div id="sim-terminal" style="display: flex; flex-direction: column; gap: 8px; height: 100%; justify-content: flex-start; font-size: 12px; line-height: 1.5; color: var(--text-muted);"></div>
+
+              <!-- 2. 일반 입력 폼 화면 -->
+              <div id="sim-form-wrapper" style="display: none; flex-direction: column; gap: 10px; height: 100%; justify-content: center; opacity: 0; transition: opacity 0.4s ease;">
+                <div style="font-size: 13px; font-weight: 700; color: #fff; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 4px; margin-bottom: 2px;">📩 Contact Suggestion Form</div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <label style="font-size: 9px; color: var(--color-purple); font-weight: 700;">Full Name</label>
+                  <input type="text" id="sim-input-name" readonly style="background: rgba(255,255,255,0.03); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 4px; padding: 5px 8px; color: #fff; font-size: 11px; outline: none;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <label style="font-size: 9px; color: var(--color-purple); font-weight: 700;">Email</label>
+                  <input type="text" id="sim-input-email" readonly style="background: rgba(255,255,255,0.03); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 4px; padding: 5px 8px; color: #fff; font-size: 11px; outline: none;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <label style="font-size: 9px; color: var(--color-purple); font-weight: 700;">Message</label>
+                  <input type="text" id="sim-input-msg" readonly style="background: rgba(255,255,255,0.03); border: 1px solid rgba(124, 58, 237, 0.3); border-radius: 4px; padding: 5px 8px; color: #fff; font-size: 11px; outline: none;">
+                </div>
+              </div>
+
+              <!-- 3. Submission Success 화면 -->
+              <div id="sim-success-wrapper" style="display: none; flex-direction: column; justify-content: center; align-items: center; height: 100%; text-align: center; opacity: 0; transition: opacity 0.4s ease;">
+                <div class="success-checkmark-circle">
+                  <svg class="success-checkmark-svg" viewBox="0 0 52 52">
+                    <circle class="success-checkmark-circle-path" cx="26" cy="26" r="25" fill="none"/>
+                    <path class="success-checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+                  </svg>
+                </div>
+                <div style="font-size: 24px; font-weight: 900; color: #00f5ff; text-shadow: 0 0 12px rgba(6, 182, 212, 0.7); margin-top: 12px; letter-spacing: 1px;">Submission Success</div>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Modern Bot Detection Securely Bypassed</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Stats 및 지표 리본 배너 -->
+  <section class="stats-ribbon" id="stats">
+    <div class="container">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-number">1,500,000+</span>
+          <span class="stat-label">Daily Scraped Leads</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">800,000+</span>
+          <span class="stat-label">Daily Form Submissions</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">3,000+</span>
+          <span class="stat-label">Secure Proxy Gateways</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">12+ Countries</span>
+          <span class="stat-label">Supported Global Countries</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Extensions 카드 그리드 (Innovative Products) -->
+  <section class="container products-section" id="extensions">
+    <div class="section-title-area">
+      <div class="section-tag">Explore Our Innovative Extensions</div>
+      <h2 class="section-title">6 Powerful Extensions to Accelerate Your Business</h2>
+    </div>
+
+    <div class="products-grid">
+      
+      <!-- Card 1 -->
+      <div class="product-card" id="gmaps-finder-card" style="cursor: pointer;">
+        <div>
+          <div class="product-icon">📍</div>
+          <h3 class="product-name">GMaps Finder</h3>
+          <p class="product-desc">Extract precise business owner profiles, websites, social links, and phone numbers from Google Maps in seconds.</p>
+        </div>
+        <a href="#" class="product-link" id="gmaps-finder-link">Learn More →</a>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="product-card" id="autoform-sender-card" style="cursor: pointer;">
+        <div>
+          <div class="product-icon">⚡</div>
+          <h3 class="product-name">AutoForm Sender</h3>
+          <p class="product-desc">Simulates human keypresses and cursor curves to auto-fill and submit contact forms, bypassing modern firewalls.</p>
+        </div>
+        <a href="#" class="product-link" id="autoform-sender-link">Learn More →</a>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="product-card" id="sendforce-mailer-card" style="cursor: pointer;">
+        <div>
+          <div class="product-icon">📨</div>
+          <h3 class="product-name">SendForce Mailer</h3>
+          <p class="product-desc">Instantly sends high-density customized automated emails to the extracted prospect email list.</p>
+        </div>
+        <a href="#" class="product-link" id="sendforce-mailer-link">Learn More →</a>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="product-card" id="vpn-card" style="cursor: pointer;">
+        <div>
+          <div class="product-icon">🛡️</div>
+          <h3 class="product-name">XPIDER Secure VPN</h3>
+          <p class="product-desc">Anonymizes multi-threaded requests via a secure 127.0.0.1 local tunnel, solving Electron ERR_TUNNEL failures.</p>
+        </div>
+        <a href="#" class="product-link" id="vpn-link">Learn More →</a>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="product-card" id="email-extractor-card" style="cursor: pointer;">
+        <div>
+          <div class="product-icon">🔎</div>
+          <h3 class="product-name">Email Extractor</h3>
+          <p class="product-desc">Intercepts email addresses in real-time from active tabs in the browser to extract a lossless customer list.</p>
+        </div>
+        <a href="#" class="product-link" id="email-extractor-link">Learn More →</a>
+      </div>
+
+      <!-- Card 6 -->
+      <div class="product-card" id="bingmaps-card" style="cursor: pointer;">
+        <div>
+          <div class="product-icon">📍</div>
+          <h3 class="product-name">Bing Maps Business Finder</h3>
+          <p class="product-desc">Targets Microsoft Bing Maps to discover niche localized leads, leveraging dual-engine cross-validation.</p>
+        </div>
+        <a href="#" class="product-link" id="bingmaps-link">Learn More →</a>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- FAQ 아코디언 섹션 -->
+  <section class="container faq-section" id="faq">
+    <div class="section-title-area">
+      <div class="section-tag">Frequently Asked Questions</div>
+      <h2 class="section-title">Frequently Asked Questions</h2>
+    </div>
+
+    <div class="faq-wrapper">
+      
+      <!-- FAQ 1 -->
+      <div class="faq-item">
+        <div class="faq-question">
+          <span>Q1. What makes XPIDER Browser stand out as a marketing solution?</span>
+          <span class="faq-icon-arrow">▼</span>
+        </div>
+        <div class="faq-answer">
+          XPIDER is not just a collection of extensions, but the world only independent browser solution that integrates marketing-specific processes directly into the Chromium engine. Especially when submitting forms on modern frameworks like Wix or React, it perfectly synchronizes actual mouse drags and humanoid keyboard typing motions (insertText) rather than mechanical inputs, resulting in an overwhelming success rate that evades site bot detection solutions.
+        </div>
+      </div>
+
+      <!-- FAQ 2 -->
+      <div class="faq-item">
+        <div class="faq-question">
+          <span>Q2. How are CAPTCHAs and security challenge blocks handled?</span>
+          <span class="faq-icon-arrow">▼</span>
+        </div>
+        <div class="faq-answer">
+          XPIDER features a dedicated CAPTCHA Interceptor Reactor. When Google reCAPTCHA or Cloudflare Challenge walls are detected, the automated thread pauses and alerts you for quick manual intervention or delegates to proxy solvers. Once bypassed, all remaining target tabs resume in parallel instantly without data loss.
+        </div>
+      </div>
+
+      <!-- FAQ 3 -->
+      <div class="faq-item">
+        <div class="faq-question">
+          <span>Q3. How is it different from other email marketing automation platforms?</span>
+          <span class="faq-icon-arrow">▼</span>
+        </div>
+        <div class="faq-answer">
+          타사의 메일 자동화 플랫폼은 고정된 Email 서버를 사용하여 쉽게 스팸으로 분류되거나, 타겟 리스트를 수동으로 업로드해야 하는 번거로움이 있습니다. 반면 XPIDER의 SendForce Mailer는 <b>추출기(GMaps Finder, Email Extractor)와 직접 연동</b>되어 실시간으로 수집된 리스트에 즉각 발송을 시작합니다. 또한 <b>Intelligent SMTP Rotation 시스템</b>과 개인화 매개변수 삽입 기능을 통해 스팸 필터링을 극강으로 억제하며 오픈율을 극대화합니다.
+        </div>
+      </div>
+
+      <!-- FAQ 4 -->
+      <div class="faq-item">
+        <div class="faq-question">
+          <span>Q4. Are there any security risks or data leakage concerns?</span>
+          <span class="faq-icon-arrow">▼</span>
+        </div>
+        <div class="faq-answer">
+          XPIDER adheres to a strict secure sandbox architecture and a local-first database model. All extracted lead catalogs and outreach templates are encrypted and stored solely on your disk. No data is ever transmitted to external servers, guaranteeing total data ownership and secrecy.
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 최하단 CTA 카드 -->
+  <section class="container cta-section" id="download">
+    <div class="cta-card">
+      <h2 class="cta-title">A New Era of B2B Lead Acquisition,<br>Maximize Your Pipeline with XPIDER!</h2>
+      <p class="cta-desc">
+        Download XPIDER <span class="release-ver-txt">v7.0.30</span> for free. Scale your business growth and leverage the next-generation marketing browser integrating AI lead scraping and outreach. Works natively on Windows 10 / 11 and macOS.
+      </p>
+      <div class="download-btn-group">
+        <!-- Windows Download Button -->
+        <a href="https://github.com/goodkie/xpider-browser/releases/download/v7.0.30/XPIDER-Browser-Windows-v7.0.30-Setup.exe" id="windows-download-link" class="btn-download btn-windows">
+          <svg class="btn-icon" viewBox="0 0 88 88" width="18" height="18" fill="currentColor" style="margin-right: 8px; vertical-align: middle;">
+            <path d="M0 12.402l35.687-4.86.016 34.423-35.703.072zm35.687 33.72l.016 34.251-35.703-4.887V46.223zm4.269-39.117L88 1.25v40.758l-48.044.208zm48.044 43.684V86.75L39.956 80.203l-.016-33.911z"/>
+          </svg>
+          Download for Windows (<span class="release-ver-txt">v7.0.30</span>)
+        </a>
+        <!-- macOS Download Button -->
+        <a href="https://github.com/goodkie/xpider-browser/releases/download/v7.0.30/XPIDER-Browser-Mac-Arm-v7.0.30.dmg" id="macos-download-link" class="btn-download btn-macos">
+          <svg class="btn-icon" viewBox="0 0 170 170" width="18" height="18" fill="currentColor" style="margin-right: 8px; vertical-align: middle;">
+            <path d="M150.37 130.25c-2.45 5.66-5.35 10.87-8.71 15.66-4.58 6.53-8.33 11.05-11.22 13.56-4.48 4.12-9.28 6.23-14.42 6.35-3.69 0-8.14-1.05-13.32-3.18-5.19-2.12-9.97-3.17-14.34-3.17-4.58 0-9.49 1.05-14.75 3.17-5.26 2.13-9.5 3.24-12.74 3.35-4.37.13-9.13-1.9-14.28-6.08-3.35-2.62-7.22-7.31-11.62-14.07-8.49-13.14-14.35-28.21-17.58-45.2-3.23-16.99-2.27-31.57 2.9-43.74 5.17-12.18 12.6-18.42 22.28-18.73 4.25-.03 9.47 1.45 15.65 4.45 6.18 3 10.3 4.49 12.35 4.49 1.8 0 5.86-1.46 12.21-4.38 6.35-2.92 11.29-4.28 14.8-4.08 10.28.58 18.17 4.3 23.68 11.16-11.83 7.23-17.5 16.96-16.99 29.21.51 9.87 4.13 17.75 10.87 23.64 6.74 5.89 14.54 9.17 23.4 9.84-2.88 8.35-6.52 16.64-10.92 24.87zM119.5 30.65c0-6.75-2.45-12.92-7.35-18.52-5.32-6.08-11.88-9.48-19.68-10.2-1-.08-2.02-.13-3.07-.13-6.85 0-13.43 2.97-19.74 8.9-6.31 5.93-9.84 12.91-10.59 20.93-.15 1.5-.2 2.87-.13 4.1 0 1 .1 1.95.3 2.85 7.15.58 13.62-2.38 19.4-8.85 5.79-6.48 9.07-13.67 9.87-21.58.53-.1.97-.15 1.3-.15 4.58 0 8.7 1.7 12.35 5.1 3.65 3.4 5.73 7.7 6.25 12.9.15.6.23 1.25.25 1.95.23 0 .46.03.68.03 5.42 0 10.1-2.22 14.07-6.67 3.97-4.45 5.95-9.67 5.95-15.65z"/>
+          </svg>
+          Download for macOS (<span class="release-ver-txt">v7.0.30</span>)
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 푸터 -->
+  <footer>
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <a href="#" class="logo-area">
+          <img class="logo-icon" src="./logo.png" alt="XPIDER" style="object-fit: contain; padding: 4px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);">
+          <span class="logo-text">XPIDER</span>
+        </a>
+        <p class="footer-brand-desc">
+          The ultimate workflow engine for bulk B2B scraping and automated cold outreach. Step into the apex of marketing automation.
+        </p>
+      </div>
+
+      <div class="footer-col">
+        <h4>Product</h4>
+        <ul class="footer-links">
+          <li><a href="#features" class="footer-link">Core Features</a></li>
+          <li><a href="#extensions" class="footer-link">Top 6 Extensions</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Support</h4>
+        <ul class="footer-links">
+          <li><a href="#faq" class="footer-link">FAQ</a></li>
+          <li><a href="#" class="footer-link">Documentation</a></li>
+          <li><a href="#" class="footer-link">Direct Support</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h4>Company</h4>
+        <ul class="footer-links">
+          <li><a href="#" class="footer-link">Company</a></li>
+          <li><a href="#" class="footer-link">Partnerships</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="container footer-bottom">
+      <span class="footer-copy">© 2026 XPIDER Technologies, Inc. All rights reserved.</span>
+      <div class="footer-bottom-links">
+        <a href="TOS.md" class="footer-bottom-link" target="_blank">Terms of Service</a>
+        <a href="#" class="footer-bottom-link">Privacy Policy</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ─── 헤더 스크롤링 효과 ───
+    window.addEventListener('scroll', function() {
+      const header = document.getElementById('mainHeader');
+      if (window.scrollY > 50) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+    });
+
+    // ─── FAQ 아코디언 상호작용 ───
+    const faqQuestions = document.querySelectorAll('.faq-question');
+    faqQuestions.forEach(q => {
+      q.addEventListener('click', () => {
+        const item = q.parentElement;
+        const isActive = item.classList.contains('active');
+        
+        // 기존 열린 것 닫기
+        document.querySelectorAll('.faq-item').forEach(el => el.classList.remove('active'));
+        
+        if (!isActive) {
+          item.classList.add('active');
+        }
+      });
+    });
+
+    // ─── Preloader 및 히어로 비디오 라이브 최종 구동 (DOMContentLoaded 고속 우회 설계) ───
+    document.addEventListener('DOMContentLoaded', () => {
+      const preloader = document.getElementById('xpider-preloader');
+      if (preloader) {
+        preloader.classList.add('fade-out');
+        setTimeout(() => {
+          preloader.style.display = 'none';
+        }, 800);
+      }
+      
+      const video = document.getElementById('heroVideo');
+      if (video) {
+        // 즉각 재생 개시
+        video.play().catch(err => {
+          console.log("자동재생 실패, 소거 후 재시도...", err);
+          video.muted = true;
+          video.play();
+        });
+      }
+
+      // ─── Real-time 693+ random increment and infinite scroll feed sync script ───
+      (function() {
+        let count = 693;
+        const counterEl = document.getElementById('live-scraped-counter');
+        const viewportEl = document.getElementById('live-feed-viewport');
+        if (!counterEl || !viewportEl) return;
+
+        // High-quality infinite virtual enterprise data pool
+        const companyPool = [
+          { name: "Hera Beauty Clinic - Beauty/Aesthetics", info: "02-554-**** | beauty@hera***.com", color: "var(--color-purple)" },
+          { name: "Mirae Real Estate Consulting - Realtors", info: "010-3321-**** | help@mirae***.com", color: "var(--color-primary)" },
+          { name: "Hanssem Food System - Food/Distribution", info: "042-822-**** | sales@hanssem***.com", color: "var(--color-cyan)" },
+          { name: "The Park Pension - Tourism/Accommodation", info: "033-644-**** | reserve@thepark***.com", color: "var(--color-primary)" },
+          { name: "Apex Marketing - Advertising Agency", info: "02-998-**** | biz@apex***.com", color: "var(--color-purple)" },
+          { name: "Ocean Drive - Rent-a-car/Transport", info: "064-711-**** | car@oceandrive***.com", color: "var(--color-cyan)" },
+          { name: "Barun Dental Clinic - Clinic", info: "02-2231-**** | dental@barun***.com", color: "var(--color-purple)" },
+          { name: "Shining English Academy - Education", info: "010-4498-**** | class@shinyedu***.com", color: "var(--color-primary)" },
+          { name: "J&C Design - Interior/Architecture", info: "02-712-**** | design@jnc***.com", color: "var(--color-cyan)" },
+          { name: "Union Law Firm - Professional Services", info: "02-887-**** | contact@unionlaw***.com", color: "var(--color-purple)" },
+          { name: "Smart Fitness - Health/PT", info: "010-2342-**** | gym@smartfit***.com", color: "var(--color-primary)" },
+          { name: "Green Eco House - Eco-friendly Materials", info: "031-778-**** | green@ecohouse***.com", color: "var(--color-cyan)" }
+        ];
+
+        let poolIndex = 0;
+
+        function updateCounterAndFeed() {
+          const increment = Math.floor(Math.random() * 5) + 1; // 1~5 무작위 증가
+          count += increment;
+          counterEl.innerText = count.toLocaleString();
+          
+          // 카운터 네온 틱 펄스 효과
+          counterEl.classList.add('tick');
+          setTimeout(() => {
+            counterEl.classList.remove('tick');
+          }, 200);
+
+          // 실시간 스크롤 리스트 피드 연동 (슬라이딩 오르내림)
+          const firstItem = viewportEl.querySelector('.mockup-list-item');
+          if (firstItem) {
+            firstItem.classList.add('slide-out');
+            setTimeout(() => {
+              firstItem.remove(); // 애니메이션 종료 후 DOM에서 영구 제거
+            }, 600);
+          }
+
+          const nextCompany = companyPool[poolIndex];
+          poolIndex = (poolIndex + 1) % companyPool.length;
+
+          const newItem = document.createElement('div');
+          newItem.className = 'mockup-list-item slide-in';
+          newItem.style.borderLeftColor = nextCompany.color || 'var(--color-cyan)';
+          
+          const nameSpan = document.createElement('span');
+          nameSpan.innerText = nextCompany.name;
+          const infoSpan = document.createElement('span');
+          infoSpan.innerText = nextCompany.info;
+          
+          newItem.appendChild(nameSpan);
+          newItem.appendChild(infoSpan);
+          viewportEl.appendChild(newItem);
+
+          // 1.2초 ~ 2.8초 사이 무작위 간격으로 증가
+          const nextTick = Math.floor(Math.random() * 1600) + 1200;
+          setTimeout(updateCounterAndFeed, nextTick);
+        }
+        
+        setTimeout(updateCounterAndFeed, 1200);
+      })();
+
+      // ─── 봇 우회 인공지능 시뮬레이터 구동 엔진 ───
+      (function() {
+        const terminal = document.getElementById('sim-terminal');
+        const formWrapper = document.getElementById('sim-form-wrapper');
+        const successWrapper = document.getElementById('sim-success-wrapper');
+        const statusEl = document.getElementById('bypass-sim-status');
+        
+        const inputName = document.getElementById('sim-input-name');
+        const inputEmail = document.getElementById('sim-input-email');
+        const inputMsg = document.getElementById('sim-input-msg');
+
+        if (!terminal || !formWrapper || !successWrapper) return;
+
+        const logs = [
+          { text: "Business Website Extraction Complete", color: "var(--text-muted)" },
+          { text: "Contact Message Form Discovered", color: "var(--color-primary)" },
+          { text: "CAPTCHA Security Discovered", color: "#e11d48" },
+          { text: "CAPTCHA Auto-Bypass Complete", color: "#00f5ff" },
+          { text: "Starting Auto Form Input...", color: "var(--color-purple)" }
+        ];
+
+        function delay(ms) {
+          return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function typeText(element, text, speed = 80) {
+          element.value = "";
+          for (let i = 0; i < text.length; i++) {
+            element.value += text[i];
+            await delay(speed);
+          }
+        }
+
+        async function startSimulation() {
+          // 1. 초기화
+          statusEl.innerText = "Analyzing";
+          statusEl.style.color = "var(--color-primary)";
+          terminal.innerHTML = "";
+          terminal.style.display = "flex";
+          formWrapper.style.display = "none";
+          formWrapper.style.opacity = "0";
+          successWrapper.style.display = "none";
+          successWrapper.style.opacity = "0";
+
+          inputName.value = "";
+          inputEmail.value = "";
+          inputMsg.value = "";
+
+          await delay(800);
+
+          // 2. 로그 출력
+          for (let i = 0; i < logs.length; i++) {
+            const log = logs[i];
+            const logEl = document.createElement('div');
+            logEl.className = 'sim-log-row';
+            
+            const dot = document.createElement('span');
+            dot.innerHTML = i === 2 ? "⚠️" : "✓";
+            dot.style.color = i === 2 ? "#e11d48" : (i === 3 ? "#00f5ff" : "var(--color-purple)");
+            
+            const txt = document.createElement('span');
+            txt.innerText = log.text;
+            txt.style.color = log.color;
+
+            logEl.appendChild(dot);
+            logEl.appendChild(txt);
+            terminal.appendChild(logEl);
+            await delay(900);
+          }
+
+          await delay(1000);
+
+          // 3. 폼 페이드인
+          statusEl.innerText = "Filling Form";
+          statusEl.style.color = "var(--color-purple)";
+          terminal.style.display = "none";
+          formWrapper.style.display = "flex";
+          await delay(50);
+          formWrapper.style.opacity = "1";
+
+          await delay(500);
+
+          // 4. 타이핑
+          await typeText(inputName, "John Doe", 100);
+          await delay(400);
+          await typeText(inputEmail, "honggildong@gmail.com", 60);
+          await delay(400);
+          await typeText(inputMsg, "This is an automated proposal message sent via XPIDER.", 50);
+
+          await delay(1000);
+
+          // 5. 제출 및 성공 splash
+          statusEl.innerText = "Success";
+          statusEl.style.color = "#00f5ff";
+          formWrapper.style.opacity = "0";
+          await delay(400);
+          formWrapper.style.display = "none";
+
+          successWrapper.style.display = "flex";
+          await delay(50);
+          successWrapper.style.opacity = "1";
+
+          // 6. 4.5초 대기 후 무한 루프 재시작
+          await delay(4500);
+          startSimulation();
+        }
+
+        // 최초 기동
+        setTimeout(startSimulation, 2000);
+      })();
+
+      // ─── GMaps Finder 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('gmaps-finder-card');
+        const link = document.getElementById('gmaps-finder-link');
+        const overlay = document.getElementById('gmapsModalOverlay');
+        const closeBtn = document.getElementById('gmapsModalCloseBtn');
+        const closeFooterBtn = document.getElementById('gmapsModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('gmapsModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden'; // 스크롤 방지
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = ''; // 스크롤 복원
+        }
+
+        // 카드 및 링크 클릭 이벤트 바인딩
+        card.addEventListener('click', openModal);
+        if (link) {
+          link.addEventListener('click', openModal);
+        }
+
+        // 닫기 버튼들 이벤트 바인딩
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        // 오버레이 외곽 클릭 시 닫기
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) {
+            closeModal();
+          }
+        });
+
+        // Download 버튼 클릭 시 이동
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) {
+                downloadSection.scrollIntoView({ behavior: 'smooth' });
+              }
+            }, 300); // 모달이 닫히는 애니메이션 시간 동안 대기
+          });
+        }
+      })();
+
+      // ─── AutoForm Sender 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('autoform-sender-card');
+        const link = document.getElementById('autoform-sender-link');
+        const overlay = document.getElementById('autoformModalOverlay');
+        const closeBtn = document.getElementById('autoformModalCloseBtn');
+        const closeFooterBtn = document.getElementById('autoformModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('autoformModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+
+        card.addEventListener('click', openModal);
+        if (link) link.addEventListener('click', openModal);
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeModal();
+        });
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) downloadSection.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          });
+        }
+      })();
+
+      // ─── SendForce Mailer 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('sendforce-mailer-card');
+        const link = document.getElementById('sendforce-mailer-link');
+        const overlay = document.getElementById('sendforceModalOverlay');
+        const closeBtn = document.getElementById('sendforceModalCloseBtn');
+        const closeFooterBtn = document.getElementById('sendforceModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('sendforceModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+
+        card.addEventListener('click', openModal);
+        if (link) link.addEventListener('click', openModal);
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeModal();
+        });
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) downloadSection.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          });
+        }
+      })();
+
+      // ─── XPIDER Secure VPN 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('vpn-card');
+        const link = document.getElementById('vpn-link');
+        const overlay = document.getElementById('vpnModalOverlay');
+        const closeBtn = document.getElementById('vpnModalCloseBtn');
+        const closeFooterBtn = document.getElementById('vpnModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('vpnModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+
+        card.addEventListener('click', openModal);
+        if (link) link.addEventListener('click', openModal);
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeModal();
+        });
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) downloadSection.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          });
+        }
+      })();
+
+      // ─── Email Extractor 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('email-extractor-card');
+        const link = document.getElementById('email-extractor-link');
+        const overlay = document.getElementById('emailModalOverlay');
+        const closeBtn = document.getElementById('emailModalCloseBtn');
+        const closeFooterBtn = document.getElementById('emailModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('emailModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+
+        card.addEventListener('click', openModal);
+        if (link) link.addEventListener('click', openModal);
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeModal();
+        });
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) downloadSection.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          });
+        }
+      })();
+
+      // ─── Bing Maps Business Finder 팝업 모달 제어 ───
+      (function() {
+        const card = document.getElementById('bingmaps-card');
+        const link = document.getElementById('bingmaps-link');
+        const overlay = document.getElementById('bingmapsModalOverlay');
+        const closeBtn = document.getElementById('bingmapsModalCloseBtn');
+        const closeFooterBtn = document.getElementById('bingmapsModalCloseFooterBtn');
+        const downloadBtn = document.getElementById('bingmapsModalDownloadBtn');
+
+        if (!card || !overlay) return;
+
+        function openModal(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+
+        card.addEventListener('click', openModal);
+        if (link) link.addEventListener('click', openModal);
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (closeFooterBtn) closeFooterBtn.addEventListener('click', closeModal);
+
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) closeModal();
+        });
+
+        if (downloadBtn) {
+          downloadBtn.addEventListener('click', () => {
+            closeModal();
+            setTimeout(() => {
+              const downloadSection = document.querySelector('#download');
+              if (downloadSection) downloadSection.scrollIntoView({ behavior: 'smooth' });
+            }, 300);
+          });
+        }
+      })();
+    });
+
+    // ─── 깃허브 최신 릴리즈 동적 Download 및 버전 갱신 기능 ───
+    (function() {
+      const winLink = document.getElementById('windows-download-link');
+      const macLink = document.getElementById('macos-download-link');
+      const verTextElements = document.querySelectorAll('.release-ver-txt');
+      const repo = "goodkie/xpider-browser";
+      
+      // 기본값 설정 (API 실패에 대비)
+      const fallbackVer = "v7.0.31";
+      if (winLink) winLink.href = `https://github.com/${repo}/releases/download/${fallbackVer}/XPIDER-Browser-Windows-${fallbackVer}-Setup.exe`;
+      if (macLink) macLink.href = `https://github.com/${repo}/releases/download/${fallbackVer}/XPIDER-Browser-Mac-Arm-${fallbackVer}.dmg`;
+      
+      // /releases/latest 우선 사용 (rate limit 절약), 실패시 목록 폴백
+      fetch(`https://api.github.com/repos/${repo}/releases/latest`)
+        .then(res => {
+          if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+          return res.json();
+        })
+        .then(release => {
+          // latest가 -win7 전용이면 목록 폴백
+          if (!release || !release.tag_name || release.tag_name.includes('-win7')) {
+            throw new Error('Latest is win7, fallback to list');
+          }
+          return release;
+        })
+        .catch(() => {
+          // /releases/latest 실패시 목록 조회로 폴백
+          return fetch(`https://api.github.com/repos/${repo}/releases?per_page=5`)
+            .then(res => {
+              if (!res.ok) throw new Error(`GitHub API list ${res.status}`);
+              return res.json();
+            })
+            .then(releases => {
+              if (!Array.isArray(releases) || releases.length === 0) throw new Error('No releases found');
+              const latestNormal = releases.find(r => 
+                r.tag_name && 
+                !r.tag_name.includes('-win7') && 
+                !r.tag_name.includes('-dev') && 
+                r.prerelease === false
+              );
+              if (!latestNormal) throw new Error('No normal release found');
+              return latestNormal;
+            });
+        })
+        .then(latestNormal => {
+          const version = latestNormal.tag_name;
+          const cleanVer = version.startsWith('v') ? version : 'v' + version;
+          
+          let normalWinUrl = `https://github.com/${repo}/releases/download/${version}/XPIDER-Browser-Windows-${cleanVer}-Setup.exe`;
+          let normalMacUrl = `https://github.com/${repo}/releases/download/${version}/XPIDER-Browser-Mac-Arm-${cleanVer}.dmg`;
+          
+          if (latestNormal.assets && latestNormal.assets.length > 0) {
+            const winAsset = latestNormal.assets.find(a => a.name && a.name.endsWith('.exe') && !a.name.includes('-win7'));
+            const macAsset = latestNormal.assets.find(a => a.name && a.name.endsWith('.dmg'));
+            if (winAsset) normalWinUrl = winAsset.browser_download_url;
+            if (macAsset) normalMacUrl = macAsset.browser_download_url;
+          }
+          
+          if (winLink) winLink.href = normalWinUrl;
+          if (macLink) macLink.href = normalMacUrl;
+          
+          // 버전 텍스트 동적 업데이트
+          verTextElements.forEach(el => {
+            el.textContent = el.textContent.startsWith('v') ? cleanVer : cleanVer.replace('v', '');
+          });
+          console.log(`[XPIDER] Successfully updated to normal release ${cleanVer}`);
+        })
+        .catch(err => {
+          console.warn('[XPIDER] GitHub API rate limited or failed. Default version text will be shown.', err);
+        });
+    })();
+  </script>
+
+  <!-- GMaps Finder 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="gmapsModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="gmapsModalLeft">
+        <img class="gmaps-modal-img" src="./GMaps.png" alt="GMaps Finder 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">📍 Premium Extension</span>
+            <h3 class="gmaps-modal-title">GMaps Finder</h3>
+          </div>
+          <button class="gmaps-modal-close" id="gmapsModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">Google Maps-based Ultra-fast Prospect Information Extractor</h4>
+            <p class="gmaps-modal-desc">
+              GMaps Finder is an innovative auto-scraping extension that fully extracts business information registered on Google Maps and portal platforms worldwide in just a few seconds. Immediately after entering target industries and search areas, it accurately collects business phone numbers, owner info, website links, and active email addresses to build a high-quality marketing DB.
+            </p>
+          </div>
+          
+          <!-- Core Features 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">⚡</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Ultra-fast Parallel Extraction Technology</span>
+                <span class="gmaps-modal-feature-desc">Scans multiple tabs simultaneously to collect thousands of high-value leads in minutes.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🔍</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Discover Hidden Website Information</span>
+                <span class="gmaps-modal-feature-desc">Explores site domains in real-time to intercept SNS profiles and valid email addresses.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🛡️</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Smart Bypass & CAPTCHA Handling</span>
+                <span class="gmaps-modal-feature-desc">Temporarily suspends scanning upon block detection and resumes simultaneously after user verification.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">📊</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">원클릭 정제 및 엑셀 Download</span>
+                <span class="gmaps-modal-feature-desc">Filters duplicate contacts and invalid domains to export a perfect CSV/Excel file.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="gmapsModalCloseFooterBtn">Close</button>
+          <button class="btn-modal-download" id="gmapsModalDownloadBtn">
+            <span>Download Free Now</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- AutoForm Sender 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="autoformModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="autoformModalLeft">
+        <img class="gmaps-modal-img" src="./AutoForm.JPG" alt="AutoForm Sender 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">🚀 Premium Extension</span>
+            <h3 class="gmaps-modal-title">AutoForm Sender</h3>
+          </div>
+          <button class="gmaps-modal-close" id="autoformModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">Latest Framework Humanoid Contact Form Bypass Sender</h4>
+            <p class="gmaps-modal-desc">
+              Combines virtual mouse coordinate curves, React Fiber State synchronization, and 'insertText' typing simulation to securely bypass modern web firewalls and anti-bot systems. Guarantees 100% submission success even on modern JS frameworks like Wix or Webflow.
+            </p>
+          </div>
+          
+          <!-- Core Features 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">⌨️</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Humanoid Typing and Mouse Simulation</span>
+                <span class="gmaps-modal-feature-desc">Excludes mechanical inputs and perfectly simulates natural typing speed and mouse trajectories.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🎯</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Smart Dynamic iframe Form Field Detection</span>
+                <span class="gmaps-modal-feature-desc">Intelligently auto-detects hidden dynamic iframes and nested TPA form fields.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🛡️</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Smart CAPTCHA Bypass Process</span>
+                <span class="gmaps-modal-feature-desc">Auto-detects Google reCAPTCHA and other defenses, responding in real-time upon user verification.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="autoformModalCloseFooterBtn">Close</button>
+          <button class="btn-modal-download" id="autoformModalDownloadBtn">
+            <span>Download Free Now</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- SendForce Mailer 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="sendforceModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="sendforceModalLeft">
+        <img class="gmaps-modal-img" src="./SendForce.JPG" alt="SendForce Mailer 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">📧 Premium Extension</span>
+            <h3 class="gmaps-modal-title">SendForce Mailer</h3>
+          </div>
+          <button class="gmaps-modal-close" id="sendforceModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">High-density Customized Email Auto Sender for Extracted Prospects</h4>
+            <p class="gmaps-modal-desc">
+              SendForce Mailer instantly sends high-density customized automated emails to large-scale extracted prospect email lists. By applying a powerful SMTP rotation system, it minimizes spam filtering and maximizes delivery and open rates to ensure a leap in marketing ROI.
+            </p>
+          </div>
+          
+          <!-- Core Features 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🚀</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Ultra-fast Mass Mail Sending</span>
+                <span class="gmaps-modal-feature-desc">Instantly sends tens of thousands of emails without delay via cloud-based parallel threads.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">✨</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Apply Personalization Parameters</span>
+                <span class="gmaps-modal-feature-desc">Automatically inserts custom variables like recipient name and business name to compose 1:1 personalized emails.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🔀</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Intelligent SMTP Rotation</span>
+                <span class="gmaps-modal-feature-desc">Dynamically alternates multiple SMTP servers to proactively avoid server spam penalties.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">📈</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Real-time Performance Tracking</span>
+                <span class="gmaps-modal-feature-desc">Provides campaign performance metrics like email open rate, click rate, and bounce rate via real-time dashboard.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="sendforceModalCloseFooterBtn">Close</button>
+          <button class="btn-modal-download" id="sendforceModalDownloadBtn">
+            <span>Download Free Now</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- XPIDER Secure VPN 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="vpnModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="vpnModalLeft">
+        <img class="gmaps-modal-img" src="./VPN.JPG" alt="XPIDER Secure VPN 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">🛡️ Premium Extension</span>
+            <h3 class="gmaps-modal-title">XPIDER Secure VPN</h3>
+          </div>
+          <button class="gmaps-modal-close" id="vpnModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">Secure Proxy Communication that Perfectly Bypasses ERR_TUNNEL Issues</h4>
+            <p class="gmaps-modal-desc">
+              XPIDER Secure VPN is a next-generation VPN extension using a 127.0.0.1 local relay virtual tunnel, developed to fundamentally resolve the proxy authentication conflict (ERR_TUNNEL_CONNECTION_FAILED) that frequently occurs in Chromium browsers. 
+            </p>
+          </div>
+          
+          <!-- Core Features 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🌐</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Local Relay Communication Technology</span>
+                <span class="gmaps-modal-feature-desc">Prevents browser engine authentication conflicts by routing through localhost (127.0.0.1) instead of connecting directly to an external proxy.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🌍</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Global Multi-national Server Support</span>
+                <span class="gmaps-modal-feature-desc">Supports an ultra-fast global proxy server network across 12+ countries to securely collect local business info in target countries.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">⚡</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Ultra-low Latency Data Tunneling</span>
+                <span class="gmaps-modal-feature-desc">Provides low-latency communication optimized for marketing data collection and form sending to prevent extraction slowdowns.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🔒</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">IP Fingerprint Tracking Defense</span>
+                <span class="gmaps-modal-feature-desc">Perfectly masks the sender actual IP and identifiers to bypass security system account blocks.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="vpnModalCloseFooterBtn">Close</button>
+          <button class="btn-modal-download" id="vpnModalDownloadBtn">
+            <span>Download Free Now</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Extractor 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="emailModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="emailModalLeft">
+        <img class="gmaps-modal-img" src="./EMAIL.png" alt="Email Extractor 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">🔎 Premium Extension</span>
+            <h3 class="gmaps-modal-title">Email Extractor</h3>
+          </div>
+          <button class="gmaps-modal-close" id="emailModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">Real-time Email Harvesting and Lossless Customer List Extractor</h4>
+            <p class="gmaps-modal-desc">
+              Email Extractor is an intelligent lead collection solution that monitors the DOM and network communication of all active tabs in real-time, intercepting email addresses exposed on screen or hidden in source code within seconds.
+            </p>
+          </div>
+          
+          <!-- Core Features 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">⚡</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Real-time Live Extraction</span>
+                <span class="gmaps-modal-feature-desc">As soon as a webpage is browsed, it detects and collects email patterns from the rendered screen and source code in real-time.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🛡️</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Powerful De-obfuscation Feature</span>
+                <span class="gmaps-modal-feature-desc">Decodes email addresses cleverly hidden via JS or CSS (obfuscation) using a proprietary engine to intercept them intact.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">📂</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Simultaneous Multi-Tab Parallel Capture</span>
+                <span class="gmaps-modal-feature-desc">Scans dozens of active and background tabs simultaneously, compiling directories without skipping a single domain.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">📊</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">One-Click Duplicate Filtering & Excel Export</span>
+                <span class="gmaps-modal-feature-desc">Automatically filters duplicates from the vast collected email list and supports one-click export to CSV/Excel format.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="emailModalCloseFooterBtn">Close</button>
+          <button class="btn-modal-download" id="emailModalDownloadBtn">
+            <span>Download Free Now</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <!-- Bing Maps Business Finder 상세 정보 팝업 모달 -->
+  <div class="gmaps-modal-overlay" id="bingmapsModalOverlay">
+    <div class="gmaps-modal-content">
+      
+      <!-- 좌측 이미지 패널 -->
+      <div class="gmaps-modal-left" id="bingmapsModalLeft">
+        <img class="gmaps-modal-img" src="./BingMaps.png" alt="Bing Maps Business Finder 구동 화면">
+      </div>
+      
+      <!-- 우측 정보 패널 -->
+      <div class="gmaps-modal-right">
+        
+        <!-- 모달 헤더 -->
+        <div class="gmaps-modal-header">
+          <div class="gmaps-modal-title-area">
+            <span class="gmaps-modal-tag">📍 Premium Extension</span>
+            <h3 class="gmaps-modal-title">Bing Maps Business Finder</h3>
+          </div>
+          <button class="gmaps-modal-close" id="bingmapsModalCloseBtn" aria-label="닫기">&times;</button>
+        </div>
+        
+        <!-- 모달 바디 -->
+        <div class="gmaps-modal-body">
+          <!-- 상세 설명 -->
+          <div class="gmaps-modal-desc-wrap">
+            <h4 class="gmaps-modal-desc-title">Extract specialized localized business leads from MS Bing Maps</h4>
+            <p class="gmaps-modal-desc">
+              Bing Maps Business Finder targets the Microsoft Bing Maps ecosystem to extract localized leads omitted on Google Maps. Coordinates-based geofence targeting allows you to mine high-value niche B2B leads in bulk at extreme speeds.
+            </p>
+          </div>
+          
+          <!-- Core Features 요약 리스트 -->
+          <div class="gmaps-modal-features">
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🎯</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Microsoft Map Database Lead Capture</span>
+                <span class="gmaps-modal-feature-desc">Discovers unlisted local enterprise addresses, phone numbers, and URLs from Microsoft Bing database sheets.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">⚡</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Multi-Threaded Parallel Scraping Engine</span>
+                <span class="gmaps-modal-feature-desc">Yields lightning-fast scraping iterations across coordinates grids via a proprietary multi-threaded runtime.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">🛡️</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Intelligent Query Load Distribution</span>
+                <span class="gmaps-modal-feature-desc">Distributes scraping request streams across IP nodes and simulates human search delays to bypass map platform threat limits.</span>
+              </div>
+            </div>
+            <div class="gmaps-modal-feature-item">
+              <span class="gmaps-modal-feature-icon">📊</span>
+              <div class="gmaps-modal-feature-text">
+                <span class="gmaps-modal-feature-name">Instant CRM & SendForce Ingestion</span>
+                <span class="gmaps-modal-feature-desc">Returns a high-quality spreadsheet format instantly compatible with the email auto sender (SendForce) upon extraction completion.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 모달 푸터 -->
+        <div class="gmaps-modal-footer">
+          <button class="btn-modal-close" id="bingmapsModalCloseFooterBtn">Close</button>
+          <button class="btn-modal-download" id="bingmapsModalDownloadBtn">
+            <span>Download Free Now</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </button>
+        </div>
+        
+      </div>
+    </div>
+  </div>
+</body>
+</html>

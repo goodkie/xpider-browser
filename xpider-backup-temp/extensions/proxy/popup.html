@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XPIDER VPN</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Ambient Background Orbs -->
+  <div class="ambient-orb orb-1"></div>
+  <div class="ambient-orb orb-2"></div>
+
+  <div class="app-container">
+    <header class="premium-header">
+      <div class="header-main">
+        <div class="title-container">
+          <img src="icons/icon128.png" id="logoImg" alt="Icon" class="app-icon-large" />
+          <div class="text-group">
+            <h1 class="main-title">XPIDER</h1>
+            <h2 class="sub-title">VPN <span class="version-tag">v2.6.0</span></h2>
+          </div>
+        </div>
+        <div class="header-actions" style="display: flex; gap: 8px;">
+          <button id="reset-trigger" class="icon-btn glass-panel" title="Initialization (초기화)">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          </button>
+          <button id="settings-trigger" class="icon-btn glass-panel" title="Settings">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </button>
+        </div>
+      </div>
+      <p class="subtitle">Next-Generation Secure Browsing & High-Speed Proxy</p>
+    </header>
+
+    <main>
+      <div class="status-header">
+        <div id="connection-status" class="status-badge">Disconnected</div>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-card glass-panel">
+          <div class="stat-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          </div>
+          <div class="stat-info">
+            <span class="label" id="label-ip">Proxy IP</span>
+            <span id="current-ip" class="value font-mono">— — — —</span>
+          </div>
+        </div>
+        <div class="stat-card glass-panel">
+          <div class="stat-icon loc-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+          </div>
+          <div class="stat-info">
+            <span class="label" id="label-loc">Location</span>
+            <span id="current-location" class="value">None</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="power-button-container">
+        <!-- 3D button structure -->
+        <button id="connect-btn" class="power-btn">
+          <div class="btn-ripple"></div>
+          <div class="btn-shadow"></div>
+          <div class="btn-outer">
+            <div class="btn-inner">
+              <svg viewBox="0 0 24 24">
+                <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                <line x1="12" y1="2" x2="12" y2="12"></line>
+              </svg>
+            </div>
+          </div>
+        </button>
+        <div class="action-hint-container">
+          <div class="hint-dot"></div>
+          <p id="action-hint">Ready to Connect</p>
+        </div>
+      </div>
+
+      <!-- Auto Select Panel -->
+      <div class="auto-select-panel glass-panel" style="border-radius: 24px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div class="flag-placeholder" style="font-size: 1.2rem; background: linear-gradient(135deg, #00f2ff, #7000ff); color: white;">🤖</div>
+          <div class="selector-info">
+            <label id="label-autoselect" style="font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 2px;">Proxy Mode</label>
+            <span id="autoselect-status" style="font-size: 0.95rem; font-weight: 700;">Auto Clean Rotate</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center;">
+          <label class="switch-container" style="position: relative; display: inline-block; width: 46px; height: 26px;">
+            <input type="checkbox" id="auto-select-toggle" checked style="opacity: 0; width: 0; height: 0;">
+            <span class="slider-round" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); transition: .4s; border-radius: 34px;"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="server-selector glass-panel" id="server-list-trigger">
+        <div class="selector-left">
+          <div class="flag-placeholder"></div>
+          <div class="selector-info">
+            <label id="label-server">Current Server</label>
+            <span id="selected-server-name">Optimal Location</span>
+          </div>
+        </div>
+        <div class="selector-right">
+          <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </div>
+      </div>
+
+      <!-- Precision Logs Console Panel -->
+      <div class="logs-console-panel glass-panel" style="border-radius: 20px; padding: 14px 18px; margin-top: 12px; display: flex; flex-direction: column; max-height: 180px; box-sizing: border-box;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; color: var(--accent-color);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+            <span style="font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Precision Logs</span>
+          </div>
+          <button id="clear-logs-btn" style="background: transparent; border: none; color: var(--text-muted); font-size: 0.65rem; cursor: pointer; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; transition: var(--transition);">Clear</button>
+        </div>
+        <div id="logs-container" style="flex: 1; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 10px; padding: 8px; font-family: 'Courier New', Courier, monospace; font-size: 0.65rem; color: #a5f3fc; line-height: 1.4; border: 1px solid rgba(255,255,255,0.04); max-height: 120px;">
+          <div style="color: #64748b;">[SYSTEM] Console ready. Logs will appear here.</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Server Modal -->
+    <div id="server-modal" class="modal">
+      <div class="modal-content glass-modal">
+        <div class="modal-header">
+          <h2 id="modal-title-server">Select Location</h2>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <button id="refresh-servers-btn" class="icon-btn glass-panel" style="width: 36px; height: 36px; border-radius: 10px;" title="Refresh Server List">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            </button>
+            <button id="close-modal" class="icon-btn modal-close">&times;</button>
+          </div>
+        </div>
+        <div id="server-list" class="server-list">
+          <!-- servers -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-panel" class="modal">
+      <div class="modal-content glass-modal">
+        <div class="modal-header">
+          <h2 id="modal-title-set">System Configuration</h2>
+          <button id="close-settings" class="icon-btn modal-close">&times;</button>
+        </div>
+        <div class="settings-body">
+          <div class="settings-section">
+            <div class="section-title">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+              <label id="label-lang">Language Preference</label>
+            </div>
+            <div class="lang-grid" id="lang-grid">
+              <!-- 12 languages -->
+            </div>
+          </div>
+          <div class="app-version">
+            XPIDER ENGINE PRO v3.0
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

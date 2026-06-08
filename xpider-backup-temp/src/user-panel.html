@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XPIDER — Premium My Account</title>
+  
+  <!-- SEO & Fonts -->
+  <meta name="description" content="XPIDER Premium User Command Center & Dashboard">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="user-panel.css">
+</head>
+<body>
+
+  <!-- 3D Neon Backglow -->
+  <div class="neon-light-orb orb-purple"></div>
+  <div class="neon-light-orb orb-cyan"></div>
+  <div class="neon-light-orb orb-pink"></div>
+
+  <!-- Premium Header -->
+  <header>
+    <div class="container nav-container">
+      <a href="index.html" class="logo-area">
+        <img src="logo.png" alt="XPIDER" style="width: 32px; height: 32px; object-fit: contain; margin-right: 8px;">
+        <span class="logo-text">XPIDER</span>
+      </a>
+      <ul class="nav-menu">
+        <li><a href="#dashboard" class="nav-link">Dashboard</a></li>
+        <li><a href="#history" class="nav-link">Audit Logs</a></li>
+        <li><a href="#showcase" class="nav-link">Core Modules</a></li>
+        <li><a href="#pricing" class="nav-link">Pricing Plans</a></li>
+        <li><a href="#faq" class="nav-link">FAQ</a></li>
+        <li><a href="tos.html" class="nav-link" target="_blank">Terms of Service</a></li>
+      </ul>
+      <div class="header-actions">
+        <div class="user-badge" id="user-badge">
+          <span class="user-avatar" id="user-avatar">?</span>
+          <span id="header-username">Loading...</span>
+        </div>
+        <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero & Welcome Section -->
+  <section class="hero-section" id="dashboard">
+    <div class="container">
+      <div class="badge-promo">
+        <span></span>
+        <span id="welcome-sub">Premium Account Center</span>
+      </div>
+      <h1 class="hero-title" id="welcome-title">
+        <span>Welcome!</span>
+      </h1>
+      
+      <!-- 4 Core Account Stats Grid -->
+      <div class="stats-grid">
+        <!-- 1. AI Tokens Remaining -->
+        <div class="stat-card primary-stat" data-tilt data-tilt-max="4">
+          <div class="stat-header-row">
+            <span class="stat-label">AI Tokens Remaining</span>
+            <span class="plan-badge-inline" id="plan-name">Free</span>
+          </div>
+          <div class="stat-value" id="stat-tokens">-</div>
+          <div class="stat-progress-wrap">
+            <div class="progress-bar">
+              <div class="progress-fill" id="token-progress" style="width: 0%"></div>
+            </div>
+            <div class="stat-progress-desc" id="token-pct">0% Left</div>
+          </div>
+          <a href="#pricing" class="btn-upgrade-token" id="btn-upgrade-token">
+            <i class="fa-solid fa-bolt"></i>
+            <span>Upgrade Plan</span>
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          </a>
+        </div>
+
+        <!-- 2. Created At -->
+        <div class="stat-card" data-tilt data-tilt-max="4">
+          <span class="stat-label">Created At</span>
+          <div class="stat-value small-val" id="stat-joined">-</div>
+          <span class="stat-desc">Active License Plan</span>
+        </div>
+
+        <!-- 3. Last Activity -->
+        <div class="stat-card" data-tilt data-tilt-max="4">
+          <span class="stat-label">Last Access</span>
+          <div class="stat-value small-val" id="stat-last-login">-</div>
+          <span class="stat-desc">Recent Login Time</span>
+        </div>
+
+        <!-- 4. Total Executions -->
+        <div class="stat-card" data-tilt data-tilt-max="4">
+          <span class="stat-label">Total Executions</span>
+          <div class="stat-value" id="stat-total-uses">-</div>
+          <span class="stat-desc">Cumulative bot action triggers</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Admin-Only Command Center (Only visible for admin plan) -->
+  <section class="admin-section hidden" id="admin-panel">
+    <div class="container">
+      <div class="section-header">
+        <p class="section-tag">ADMIN CONTROL CENTER</p>
+        <h2 class="section-title">Developer Resource Monitor</h2>
+        <p class="section-desc">Real-time status check for active proxy nodes, captcha solver balances, and SMTP outbox packages.</p>
+      </div>
+      
+      <div class="admin-grid">
+        <!-- 1. UltraSolver Pro -->
+        <div class="admin-card" data-tilt data-tilt-max="4">
+          <div class="admin-card-icon color-cyan"><i class="fa-solid fa-robot"></i></div>
+          <div class="admin-card-title">UltraSolver Pro reCAPTCHA</div>
+          <div class="admin-stats-row">
+            <div class="admin-stat-item">
+              <span class="admin-stat-label">Remaining Tokens</span>
+              <span class="admin-stat-value">1,250 Tokens</span>
+            </div>
+            <div class="admin-stat-item">
+              <span class="admin-stat-label">Balance</span>
+              <span class="admin-stat-value">$2.50</span>
+            </div>
+          </div>
+          <div class="admin-card-footer">
+            <a href="https://2captcha.com?from=18329628" target="_blank" class="admin-btn-action">
+              <span>Recharge Solver</span>
+              <i class="fa-solid fa-bolt"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- 2. XPIDER VPN -->
+        <div class="admin-card" data-tilt data-tilt-max="4">
+          <div class="admin-card-icon color-purple"><i class="fa-solid fa-shield-halved"></i></div>
+          <div class="admin-card-title">XPIDER VPN</div>
+          <div class="admin-stats-row">
+            <div class="admin-stat-item">
+              <span class="admin-stat-label">Remaining Traffic</span>
+              <span class="admin-stat-value">45 GB (24 Days)</span>
+            </div>
+            <div class="admin-stat-item">
+              <span class="admin-stat-label">Balance</span>
+              <span class="admin-stat-value">$12.00</span>
+            </div>
+          </div>
+          <div class="admin-card-footer">
+            <a href="https://xpider.pro/vpn-recharge" target="_blank" class="admin-btn-action">
+              <span>Recharge VPN</span>
+              <i class="fa-solid fa-globe"></i>
+            </a>
+          </div>
+        </div>
+
+        <!-- 3. XPIDER SendForce Mailer Pro -->
+        <div class="admin-card" data-tilt data-tilt-max="4">
+          <div class="admin-card-icon color-pink"><i class="fa-solid fa-paper-plane"></i></div>
+          <div class="admin-card-title">SendForce Mailer Pro</div>
+          <div class="admin-stats-row">
+            <div class="admin-stat-item">
+              <span class="admin-stat-label">Remaining Credits</span>
+              <span class="admin-stat-value" id="brevo-credits-val">Loading...</span>
+            </div>
+            <div class="admin-stat-item">
+              <span class="admin-stat-label">Account Plan</span>
+              <span class="admin-stat-value" id="brevo-plan-val">Loading...</span>
+            </div>
+          </div>
+          <div class="admin-card-footer">
+            <a href="https://xpider.pro/mailer-recharge" target="_blank" class="admin-btn-action">
+              <span>Top-up Outbox</span>
+              <i class="fa-solid fa-key"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Transaction History (Audit Logs) -->
+  <section class="history-section" id="history">
+    <div class="container">
+      <div class="section-header">
+        <p class="section-tag">LOG AUDIT</p>
+        <h2 class="section-title">Transaction Audit Logs</h2>
+        <p class="section-desc">Real-time transactional execution logs of XPIDER AI miners, scrapers, and secure VPN node triggers.</p>
+      </div>
+
+      <div class="history-control-panel">
+        <div class="filter-group">
+          <select id="log-filter-ext" onchange="loadLogs()">
+            <option value="">Filter by Module</option>
+            <option value="AI Crawler">AI Crawler</option>
+            <option value="Email Extractor">Email Extractor</option>
+            <option value="VPN">VPN</option>
+            <option value="Campaign">Campaigns</option>
+          </select>
+          <input type="text" id="log-filter-date" placeholder="YYYY-MM-DD" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'" onchange="loadLogs()" />
+        </div>
+        <button class="btn-refresh" onclick="loadLogs()">
+          <i class="fa-solid fa-arrows-rotate"></i>
+          <span>Refresh</span>
+        </button>
+      </div>
+
+      <div class="history-table-wrap">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Active Module</th>
+              <th>Executed Action</th>
+              <th>Tokens Consumed</th>
+              <th>Data Specs / Metadata</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <tr class="loading-row">
+              <td colspan="5">
+                <div class="loader-ring"></div>
+                <span>Querying and auditing real-time module logs...</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="history-footer" id="history-footer" style="display:none">
+        Matches found: <span id="history-count">0</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- B2B Pricing Section -->
+  <section class="pricing-section" id="pricing">
+    <div class="container">
+      <div class="section-header">
+        <p class="section-tag">PRICING PLANS</p>
+        <h2 class="section-title">Innovative Data Mining Plans</h2>
+        <p class="section-desc">Scale your AI power and automate your lead generation funnel with enterprise-ready subscription plans.</p>
+      </div>
+
+      <!-- Monthly/Yearly Billing Toggle -->
+      <div class="billing-switcher-wrap">
+        <span class="switcher-label active" id="label-monthly">Monthly</span>
+        <div class="billing-toggle" id="billing-toggle" onclick="toggleBilling()">
+          <div class="toggle-handle"></div>
+        </div>
+        <span class="switcher-label" id="label-yearly">Yearly</span>
+        <span class="yearly-discount-tag">Save 20%</span>
+      </div>
+
+      <div class="pricing-grid">
+        <!-- 1. Starter Plan -->
+        <div class="price-card" data-tilt data-tilt-max="5">
+          <div>
+            <h3 class="plan-name">Starter Plan</h3>
+            <div class="plan-price-wrap">
+              <span class="plan-price" id="price-starter">$59</span>
+              <span class="plan-period">/ mo</span>
+            </div>
+            <p class="plan-desc">For individual creators and local marketers getting started with basic scraping tools and localized listings.</p>
+            <button class="btn-pricing" onclick="openPurchase('starter')">Get Started</button>
+            <ul class="plan-features-list">
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>6,000 tokens / mo</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>10-Engine Local Business Crawler</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Google Maps Business Finder</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Real-time Email Extractor Support</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>AutoForm Sender Pro</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>XPIDER VPN Dedicated Proxy</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 2. Business Pro Plan (Recommended) -->
+        <div class="price-card recommended" data-tilt data-tilt-max="5">
+          <div class="recommended-badge">B2B BEST VALUE</div>
+          <div>
+            <h3 class="plan-name">Business Pro Plan</h3>
+            <div class="plan-price-wrap">
+              <span class="plan-price" id="price-business">$99</span>
+              <span class="plan-period">/ mo</span>
+            </div>
+            <p class="plan-desc">The ultimate plan for growing teams, opening access to high-performance mining modules and dedicated proxy networks.</p>
+            <button class="btn-pricing" onclick="openPurchase('pro')">Upgrade to Pro</button>
+            <ul class="plan-features-list">
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>12,000 tokens / mo</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>All 7 Core Premium Engines Fully Unlocked</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Google & Bing Maps Cross Scans</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>XPIDER VPN Node Masking Integration</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>AI AutoForm Sender Pro Form Submitter</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>SendForce Mailer Pro Bulk Outreach Engine</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 3. Enterprise Plan -->
+        <div class="price-card enterprise" data-tilt data-tilt-max="5">
+          <div>
+            <h3 class="plan-name">Enterprise Plan</h3>
+            <div class="plan-price-wrap">
+              <span class="plan-price" id="price-enterprise">$199</span>
+              <span class="plan-period">/ mo</span>
+            </div>
+            <p class="plan-desc">Tailored for large agencies requiring multiple virtual scraper instances, dedicated proxy subnets, and customized flows.</p>
+            <button class="btn-pricing" onclick="openPurchase('enterprise')">Deploy Enterprise</button>
+            <ul class="plan-features-list">
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>30,000 tokens / mo</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>All features from Business Pro included</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Dedicated Multi-Proxy Premium Subnets</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Unlimited concurrent browser profiles</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>1:1 Dedicated Technical Engineering Support</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Custom Scraper Integration & B2B API access</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3D Package Showcase -->
+  <section class="showcase-section" id="showcase">
+    <div class="container">
+      <div class="section-header">
+        <p class="section-tag">XPIDER ECOSYSTEM</p>
+        <h2 class="section-title">Next-Gen AI B2B Leads Engine & Automation Platform</h2>
+        <p class="section-desc">
+          XPIDER is not just a scraper. It is an enterprise-grade B2B automation platform integrating AI data extraction, geospatial lead mining, automated email outreach, form submission, and military-grade VPN node security.
+        </p>
+      </div>
+
+      <div class="dynamic-showcase-grid">
+        <!-- 1. Local Business Crawler Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(0)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-cyan">AI EXTRACTION</span>
+            <h3 class="module-title-dynamic">Local Business Crawler Pro</h3>
+            <p class="module-desc-dynamic">
+              Taps directly into 10 global search engines simultaneously to mine business directories, domain websites, contact numbers, and social linkages in bulk.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>Multi-Engine Cross Scanning Engine</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>AI-Driven Depth-Targeted Domain Parsing</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-cyan"></div>
+            <img src="mockup-t/local_business_crawler2.png" alt="Local Business Crawler Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 2. GMaps Business Finder -->
+        <div class="dynamic-module-row" onclick="openModuleModal(1)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-green">GOOGLE MAPS</span>
+            <h3 class="module-title-dynamic">GMaps Business Finder</h3>
+            <p class="module-desc-dynamic">
+              Integrates directly with Google Maps to gather granular offline leads (name, rating, phone, websites, and emails) within designated geographic coordinates.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>Geospatial Coordinate-Targeted Radius Scans</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>Real-time CSV/JSON Export Optimization</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-green"></div>
+            <img src="mockup-t/gmaps_business_finder2.png" alt="GMaps Finder Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 3. Bing Maps Business Finder -->
+        <div class="dynamic-module-row" onclick="openModuleModal(2)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-orange">MS ECOSYSTEM</span>
+            <h3 class="module-title-dynamic">Bing Maps Finder</h3>
+            <p class="module-desc-dynamic">
+              Mines data across Microsoft Bing Maps, featuring deep cross-validation filters against Google Maps datasets to minimize data error rates.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>Geographical Dual-Engine Cross Validation</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>Missing Parameter Recovery Algorithm</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-orange"></div>
+            <img src="mockup-t/bing_maps_finder2.png" alt="Bing Maps Finder Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 4. XPIDER VPN -->
+        <div class="dynamic-module-row" onclick="openModuleModal(3)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-purple">SECURE & ANONYMOUS</span>
+            <h3 class="module-title-dynamic">XPIDER VPN</h3>
+            <p class="module-desc-dynamic">
+              Military-grade IP encryption and lightning-fast proxy pipelines to perfectly bypass portal blocks, scraper bans, and geolocation gates.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Global High-Anonymity Proxy IP Pool</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Anti-Detection Tunneling for Permanent Crawls</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-purple"></div>
+            <img src="mockup-t/xpider_vpn2.png" alt="XPIDER VPN Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 5. Email Extractor -->
+        <div class="dynamic-module-row" onclick="openModuleModal(4)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-pink">REAL-TIME LEAD CAPTURE</span>
+            <h3 class="module-title-dynamic">Email Extractor</h3>
+            <p class="module-desc-dynamic">
+              Automatically harvests, parses, and logs visible email addresses from webpages in the background as you traverse different browser tabs.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>Junk & Temporary Mail Filter Sorting</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>Multi-Threaded Cross-Tab Background Parsing</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-pink"></div>
+            <img src="mockup-t/email2.png" alt="Email Extractor Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 6. AutoForm Sender Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(5)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-primary">AI AUTOMATION</span>
+            <h3 class="module-title-dynamic">AutoForm Sender Pro</h3>
+            <p class="module-desc-dynamic">
+              Applies AI-driven field decoding to resolve complex target contact page forms, inputting and mass-submitting outreach copy in milliseconds.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>Intelligent Multi-Language Field Mapper</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>Live Outreach Success Metrics Analytics</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-primary"></div>
+            <img src="mockup-t/autoform_sender2.png" alt="AutoForm Sender Pro Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 7. SendForce Mailer Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(6)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-purple">BULK EMAIL OUTREACH</span>
+            <h3 class="module-title-dynamic">SendForce Mailer Pro</h3>
+            <p class="module-desc-dynamic">
+              Mass bulk outreach email deployment tool equipped with spam-defense interval pacing and distributed SMTP relay rotation.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Outbox Headers Optimization for Inbox Landing</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Dynamic Transmit Delay Scheduler</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-purple"></div>
+            <img src="mockup-t/sendforce_mailer2.png" alt="SendForce Mailer Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust Badges -->
+  <section class="trust-section" id="trust">
+    <div class="container">
+      <div class="trust-grid">
+        <div class="trust-card">
+          <div class="trust-icon-box">
+            <i class="fa-solid fa-fingerprint"></i>
+          </div>
+          <div class="trust-info">
+            <h4>B2B Secured Gateway</h4>
+            <p>Your payment transaction data is secured with industry-leading tokenized encryption models.</p>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon-box">
+            <i class="fa-solid fa-handshake-simple"></i>
+          </div>
+          <div class="trust-info">
+            <h4>14-Day Money-Back Guarantee</h4>
+            <p>Full refund processed transparently within 14 days if modules encounter technical crawling errors.</p>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon-box">
+            <i class="fa-solid fa-bolt"></i>
+          </div>
+          <div class="trust-info">
+            <h4>Instant License Delivery</h4>
+            <p>Your unique API authorization and license key are dispatched immediately within 1 minute via email.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Accordion -->
+  <section class="faq-section" id="faq">
+    <div class="container">
+      <div class="section-header">
+        <p class="section-tag">FAQ SUITE</p>
+        <h2 class="section-title">Frequently Asked Questions</h2>
+        <p class="section-desc">Key information about XPIDER B2B license acquisition, usage rules, and configuration guidelines.</p>
+      </div>
+
+      <div class="faq-wrapper">
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Can I run scrapers on multiple devices with a single license?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>A single standard license key is bound to one system profile instance. For large agencies running concurrent workflows across multiple seats, we highly recommend acquiring the Enterprise Plan which unlocks unlimited concurrent profiles and port expansions.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Does the mailer bypass spam detection servers?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>Yes. SendForce Mailer Pro features intelligent outbox delay timers and rotating SMTP headers to proactively prevent domain blacklist triggers and maximize inbox deliverability metrics.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Is the proxy active outside the crawler?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>XPIDER VPN encapsulates the integrated browser pipeline, meaning all tab queries and outbound extraction packets within XPIDER are completely encrypted. External sites only perceive the proxy IP node.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Can I upgrade from Starter to Business Pro mid-subscription?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>Yes, you can upgrade instantly through your dashboard. The billing portal will dynamically calculate the pro-rated cost difference, immediately unlocking premium capabilities.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>How do I process a refund guarantee?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>If you encounter technical system defects within 14 days of purchase, submit a ticket with your order ID. Our billing department will verify the logs and execute a 100% refund on the same business day.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3D Engine Spin Overlay Modal -->
+  <div class="modal-overlay" id="module-modal" onclick="closeModuleModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <!-- Left Media Area -->
+      <div class="modal-left">
+        <div class="modal-glow-back"></div>
+        <div class="modal-media-viewport">
+          <img src="" alt="Main Spec Screenshot" id="modal-main-img" class="modal-screenshot-img">
+          <img src="" alt="3D Package Spin Packshot" id="modal-packshot-overlay" class="modal-package-3d-fly">
+        </div>
+      </div>
+
+      <!-- Right Spec Details -->
+      <div class="modal-right">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-tag-text" id="modal-module-tag">AI ENGINE SPEC</span>
+            <h3 class="modal-title-text" id="modal-module-title">Local Business Crawler</h3>
+          </div>
+          <button class="modal-close-btn" onclick="closeModuleModal(event)">×</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-section">
+            <h4 class="modal-section-title">Module Performance Design</h4>
+            <p class="modal-desc-para" id="modal-module-desc">Loading specs...</p>
+          </div>
+
+          <div class="modal-section">
+            <h4 class="modal-section-title">Advanced Technical Specs</h4>
+            <div class="modal-feature-grid" id="modal-spec-grid">
+              <!-- Dynamically populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-modal-close" onclick="closeModuleModal(event)">Close</button>
+          <a href="#pricing" class="btn-modal-action" onclick="closeModuleModal(event)">
+            <span>Subscribe Plan</span>
+            <i class="fa-solid fa-key"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stripe Checkout Modal -->
+  <div class="modal-overlay" id="purchase-modal" onclick="closePurchaseModal()">
+    <div class="modal-content purchase-box" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-tag-text">SECURE CHECKOUT</span>
+          <h3 class="modal-title-text">Subscribe Plan</h3>
+        </div>
+        <button class="modal-close-btn" onclick="closePurchaseModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <!-- Plan Summary -->
+        <div class="stripe-plan-summary" id="stripe-plan-summary">
+          <div class="stripe-plan-icon"><i class="fa-solid fa-layer-group"></i></div>
+          <div class="stripe-plan-details">
+            <div class="stripe-plan-name" id="stripe-plan-name">Starter Plan</div>
+            <div class="stripe-plan-price" id="stripe-plan-price">$59 / month</div>
+            <div class="stripe-plan-tokens" id="stripe-plan-tokens">6,000 tokens per month</div>
+          </div>
+        </div>
+
+        <!-- Billing Toggle -->
+        <div class="stripe-billing-row">
+          <span class="stripe-billing-label" id="modal-billing-monthly" style="font-weight:700; color:#fff;">Monthly</span>
+          <div class="stripe-billing-toggle" id="modal-billing-toggle" onclick="toggleModalBilling()">
+            <div class="stripe-toggle-handle"></div>
+          </div>
+          <span class="stripe-billing-label" id="modal-billing-yearly">Yearly</span>
+          <span class="stripe-save-badge">Save 20%</span>
+        </div>
+
+        <!-- Trust badges -->
+        <div class="stripe-trust-row">
+          <span class="stripe-trust-item"><i class="fa-brands fa-stripe"></i> Powered by Stripe</span>
+          <span class="stripe-trust-item"><i class="fa-solid fa-lock"></i> 256-bit SSL</span>
+          <span class="stripe-trust-item"><i class="fa-solid fa-rotate-left"></i> 14-Day Guarantee</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal-close" onclick="closePurchaseModal()">Cancel</button>
+        <button class="btn-modal-action" id="btn-stripe-checkout" onclick="startStripeCheckout()">
+          <i class="fa-brands fa-stripe-s"></i>
+          <span>Pay with Stripe</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+      <!-- 결제 완료 후 확인 단계 (결제 버튼 클릭 후 표시) -->
+      <div class="verify-purchase-row hidden" id="verify-purchase-row">
+        <div class="verify-notice">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>Completed payment in your browser? Click below to activate your plan.</span>
+        </div>
+        <button class="btn-verify-purchase" id="btn-verify-purchase" onclick="verifyPurchase()">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>I've Completed Payment — Activate Plan</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Element -->
+  <div id="up-toast" class="up-toast hidden">
+    <span id="up-toast-msg">✅ Done</span>
+  </div>
+
+  <!-- Footer Area -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="logo-area">
+            <img src="logo.png" alt="XPIDER" style="width: 32px; height: 32px; object-fit: contain; margin-right: 8px;">
+            <span class="logo-text">XPIDER</span>
+          </a>
+          <p class="footer-brand-desc">
+            XPIDER is the industry-leading all-in-one corporate-focused marketing browser ecosystem designed for rapid and secured B2B leads mining.
+          </p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul class="footer-links">
+            <li><a href="index.html" class="footer-link">Landing Home</a></li>
+            <li><a href="#pricing" class="footer-link">Pricing Plans</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul class="footer-links">
+            <li><a href="#faq" class="footer-link">Frequently Asked Questions</a></li>
+            <li><a href="#dashboard" class="footer-link">Subscription Dashboard</a></li>
+            <li><a href="#" class="footer-link">Interactive Tutorials</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <ul class="footer-links">
+            <li><a href="tos.html" class="footer-link">Terms of Service</a></li>
+            <li><a href="#" class="footer-link">Privacy Policy</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span class="footer-copy">&copy; 2026 XPIDER Suite. All rights reserved.</span>
+        <div class="footer-bottom-links">
+          <a href="#" class="footer-bottom-link">Sitemap</a>
+          <a href="#" class="footer-bottom-link">B2B Compliance</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- JS SDKs -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.1/vanilla-tilt.min.js"></script>
+  <script src="user-panel.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+E:\vivpr\ai\full-xpider-v9\src\deploy\XpiderSetup\bin\Release\net48\XPIDER-Setup.exe.config
+E:\vivpr\ai\full-xpider-v9\src\deploy\XpiderSetup\bin\Release\net48\XPIDER-Setup.exe
+E:\vivpr\ai\full-xpider-v9\src\deploy\XpiderSetup\obj\Release\net48\XpiderSetup.csproj.AssemblyReference.cache
+E:\vivpr\ai\full-xpider-v9\src\deploy\XpiderSetup\obj\Release\net48\XpiderSetup.GeneratedMSBuildEditorConfig.editorconfig
+E:\vivpr\ai\full-xpider-v9\src\deploy\XpiderSetup\obj\Release\net48\XpiderSetup.AssemblyInfoInputs.cache
+E:\vivpr\ai\full-xpider-v9\src\deploy\XpiderSetup\obj\Release\net48\XpiderSetup.AssemblyInfo.cs
+E:\vivpr\ai\full-xpider-v9\src\deploy\XpiderSetup\obj\Release\net48\XpiderSetup.csproj.CoreCompileInputs.cache
+E:\vivpr\ai\full-xpider-v9\src\deploy\XpiderSetup\obj\Release\net48\XPIDER-Setup.exe

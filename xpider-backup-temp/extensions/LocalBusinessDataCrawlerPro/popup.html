@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Business Data Crawler Pro</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <header class="premium-header">
+            <div class="header-main">
+                <div class="title-container">
+                    <img src="icons/icon128.png" alt="Icon" class="app-icon-large">
+                    <div class="text-group">
+                        <h1 class="main-title" data-i18n="app_title">X PIDER Pro</h1>
+                        <h2 class="sub-title">Local Business Data Crawler <span class="version-tag">v1.2.1 Pro</span></h2>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button id="settings-toggle" class="icon-btn" title="Settings">⚙️</button>
+                </div>
+            </div>
+            <p class="subtitle" data-i18n="app_subtitle">The World's Most Powerful Business Discovery Engine</p>
+        </header>
+
+        <main>
+            <!-- [v3.0] CAPTCHA Detected → New Tab → Waiting for Resolution Modal -->
+            <div id="captcha-modal-overlay" class="modal-overlay hidden">
+                <div class="captcha-friendly-modal" style="max-width:420px;">
+
+                    <!-- Step Header -->
+                    <div id="captcha-step-header" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+                        <div id="captcha-modal-icon" class="modal-icon" style="font-size:2rem;margin:0;">🔍</div>
+                        <div>
+                            <h2 id="captcha-modal-title" style="margin:0;font-size:1.1rem;">CAPTCHA Detected</h2>
+                            <div id="captcha-step-label" style="font-size:0.78rem;color:#888;margin-top:2px;">Checking...</div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Step Bar -->
+                    <div style="display:flex;gap:6px;margin-bottom:14px;" id="captcha-steps-bar">
+                        <div class="c-step c-step-active" id="cstep-1" style="flex:1;height:4px;border-radius:4px;background:#667eea;transition:background .3s;"></div>
+                        <div class="c-step" id="cstep-2" style="flex:1;height:4px;border-radius:4px;background:#e0e0e0;transition:background .3s;"></div>
+                        <div class="c-step" id="cstep-3" style="flex:1;height:4px;border-radius:4px;background:#e0e0e0;transition:background .3s;"></div>
+                    </div>
+
+                    <!-- Status Message -->
+                    <div id="captcha-status-msg" style="background:rgba(102,126,234,0.07);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:0.85rem;line-height:1.6;color:#444;">
+                        🌐 Google has detected automated requests.<br>
+                        A <strong>new tab</strong> has opened in your browser. Please solve the CAPTCHA there.
+                    </div>
+
+                    <!-- New Tab Indicator -->
+                    <div id="captcha-tab-indicator" style="display:none;align-items:center;gap:8px;padding:9px 12px;background:rgba(52,199,89,0.08);border:1px solid rgba(52,199,89,0.3);border-radius:8px;margin-bottom:12px;font-size:0.82rem;color:#2d9f52;">
+                        <span style="font-size:1.1rem;">🆕</span>
+                        <span id="captcha-tab-url" style="word-break:break-all;"></span>
+                    </div>
+
+                    <!-- Loading Spinner (Waiting) -->
+                    <div id="captcha-spinner-row" class="modal-loader" style="margin-bottom:10px;">
+                        <div class="spinner"></div>
+                        <span id="captcha-wait-text">Waiting for CAPTCHA resolution in new tab...</span>
+                    </div>
+
+                    <!-- Manual Continue Button -->
+                    <button id="manual-captcha-btn" class="secondary-btn" style="margin-top:6px;width:100%;font-weight:700;font-size:0.95rem;">
+                        ✅ I Solved the CAPTCHA — Continue Collection
+                    </button>
+
+                    <!-- Timeout / Failure Message (hidden by default) -->
+                    <div id="captcha-fail-msg" style="display:none;margin-top:10px;padding:9px;background:rgba(255,59,48,0.08);border-radius:8px;font-size:0.8rem;color:#cc3333;text-align:center;">
+                        ⏱️ Time exceeded — skipping this item and continuing.
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- [v36.9] Hard Block Recovery Modal -->
+            <div id="hard-block-modal-overlay" class="modal-overlay hidden">
+                <div class="captcha-friendly-modal" style="border-top: 5px solid #ff3366;">
+                    <div class="modal-icon" style="color: #ff3366;">🛑</div>
+                    <h2 data-i18n="hard_block_popup_title">Hard Block Detected</h2>
+                    <p data-i18n="hard_block_popup_msg">Google detected automated queries and blocked access. Choose a recovery option:</p>
+                    <div class="recovery-actions" style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                        <button id="btn-wait-30" class="primary-btn" style="background: #ff3366;" data-i18n="btn_wait_30">Pause 30 min, then Auto-Resume</button>
+                        <button id="btn-vpn-resume" class="secondary-btn" data-i18n="btn_vpn_resume">VPN Active (Resume Now)</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tabs" id="main-tabs">
+                <button class="tab-btn active" data-tab="text" data-i18n="tab_text">텍스트 수집</button>
+                <button class="tab-btn" data-tab="url" data-i18n="tab_link">링크 수집</button>
+                <button class="tab-btn" data-tab="search" data-i18n="tab_search">검색엔진 수집</button>
+            </div>
+
+            <!-- [v14.0] Global Target Extraction Selector -->
+            <div class="depth-control global-target-section">
+                <div class="depth-header">
+                    <span><span data-i18n="target_extraction">핵심 수집 목표 (Target Extraction)</span></span>
+                    <span class="depth-info" data-i18n="target_desc">선택된 정보 위주로 심층 스크랩</span>
+                </div>
+                <select id="collection-target" class="premium-select" style="margin-top: 10px; width: 100%;">
+                    <option value="all" data-i18n="target_all">🌐 전체 (모든 사용가능한 정보)</option>
+                    <option value="name" data-i18n="target_name">🏷️ 업체명 필수</option>
+                    <option value="webpage" data-i18n="target_webpage">🌐 웹페이지 필수</option>
+                    <option value="address" data-i18n="target_address">📍 주소 필수</option>
+                    <option value="phone" data-i18n="target_phone">📞 전화번호 필수</option>
+                    <option value="email" data-i18n="target_email">✉️ 이메일 필수</option>
+                    <option value="sns" data-i18n="target_sns">📱 소셜(SNS) 필수</option>
+                </select>
+            </div>
+
+            <div class="tab-content active" id="text-tab">
+                <textarea id="text-input" data-i18n-placeholder="placeholder_text_input"
+                    placeholder="상호명이 포함된 텍스트를 붙여넣으세요..."></textarea>
+            </div>
+
+            <div class="tab-content" id="url-tab">
+                <input type="text" id="url-input" data-i18n-placeholder="placeholder_url_input"
+                    placeholder="https://example.com/partners">
+                <div class="depth-control">
+                    <div class="depth-header">
+                        <span><span data-i18n="label_depth">탐색 깊이</span>: <span id="depth-value">1</span><span
+                                data-i18n="label_steps">단계</span></span>
+                        <span class="depth-info" data-i18n="depth_info_1">1단계: 하위 페이지까지</span>
+                    </div>
+                    <input type="range" id="depth-range" min="1" max="333" value="1">
+                </div>
+            </div>
+
+            <div class="tab-content" id="search-tab">
+                <div class="multi-select" id="engine-multi-select">
+                    <div class="select-header" id="engine-select-header">
+                        <span data-i18n="engine_all">🌐 검색 엔진 선택</span>
+                        <i class="arrow-icon"></i>
+                    </div>
+                    <div class="select-options hidden" id="engine-options">
+                        <label class="option-item all-option">
+                            <input type="checkbox" id="select-all-engines">
+                            <span data-i18n="label_select_all">🌐 전체 선택</span>
+                        </label>
+                        <hr class="divider">
+                        <div id="engine-list-container">
+                            <!-- JS에서 동적으로 생성됨 -->
+                        </div>
+                        <button id="engine-confirm-btn" class="engine-confirm-btn" data-i18n="btn_confirm">✅ 확인</button>
+                    </div>
+                </div>
+
+                <input type="text" id="keyword-input" data-i18n-placeholder="placeholder_keyword_input"
+                    placeholder="검색 키워드 입력 (예: 강남구 카페)">
+                <div class="depth-control">
+                    <div class="depth-header">
+                        <span><span data-i18n="label_search_range">검색 범위</span>: <span id="start-page-value">1</span> ~ <span id="end-page-value">1</span> <span data-i18n="label_pages">페이지</span></span>
+                        <span class="depth-info" data-i18n="search_info_max">최대 333페이지 (시작~끝 지정 가능)</span>
+                    </div>
+                    <div class="range-sliders">
+                        <div class="range-item">
+                            <span data-i18n="label_start">시작</span>
+                            <input type="range" id="start-page-range" min="1" max="333" value="1">
+                        </div>
+                        <div class="range-item">
+                            <span data-i18n="label_end">끝</span>
+                            <input type="range" id="end-page-range" min="1" max="333" value="1">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Overlay -->
+            <div id="settings-overlay" class="overlay hidden">
+                <div class="settings-panel">
+                    <div class="settings-header">
+                        <h2 data-i18n="tab_settings">⚙️ Settings</h2>
+                        <button id="settings-close" class="close-btn">&times;</button>
+                    </div>
+                    <div class="settings-scroll-content">
+                        <div class="settings-group">
+                            <label data-i18n="label_system_lang">🌐 System Language</label>
+                            <select id="language-select" class="premium-select">
+                                <option value="en">English</option>
+                                <option value="ko">한국어</option>
+                                <option value="ja">日本語</option>
+                                <option value="zh">中文</option>
+                                <option value="es">Español</option>
+                                <option value="de">Deutsch</option>
+                                <option value="fr">Français</option>
+                                <option value="it">Italiano</option>
+                                <option value="pt">Português</option>
+                                <option value="id">Bahasa Indonesia</option>
+                            </select>
+                        </div>
+                        <div class="settings-group">
+                            <label data-i18n="label_search_region">📍 Target Region</label>
+                            <select id="region-select" class="premium-select">
+                                <option value="us" data-i18n="region_us">United States</option>
+                                <option value="ca" data-i18n="region_ca">Canada</option>
+                                <option value="mx" data-i18n="region_mx">Mexico</option>
+                                <option value="uk" data-i18n="region_uk">United Kingdom</option>
+                                <option value="de" data-i18n="region_de">Germany</option>
+                                <option value="fr" data-i18n="region_fr">France</option>
+                                <option value="it" data-i18n="region_it">Italy</option>
+                                <option value="es" data-i18n="region_es">Spain</option>
+                                <option value="nl" data-i18n="region_nl">Netherlands</option>
+                                <option value="se" data-i18n="region_se">Sweden</option>
+                                <option value="cn" data-i18n="region_cn">China</option>
+                                <option value="jp" data-i18n="region_jp">Japan</option>
+                                <option value="kr" data-i18n="region_kr">South Korea</option>
+                                <option value="in" data-i18n="region_in">India</option>
+                                <option value="id" data-i18n="region_id">Indonesia</option>
+                                <option value="sg" data-i18n="region_sg">Singapore</option>
+                                <option value="tw" data-i18n="region_tw">Taiwan</option>
+                                <option value="tr" data-i18n="region_tr">Turkey</option>
+                                <option value="sa" data-i18n="region_sa">Saudi Arabia</option>
+                                <option value="ae" data-i18n="region_ae">UAE</option>
+                                <option value="br" data-i18n="region_br">Brazil</option>
+                                <option value="au" data-i18n="region_au">Australia</option>
+                            </select>
+                        </div>
+                        <!-- Auto CAPTCHA Solver UI removed -->
+                        <div class="settings-group">
+                            <label data-i18n="label_stealth_mode">🛡️ Stealth Mode (Behave Like a Human)</label>
+                            <label class="switch">
+                                <input type="checkbox" id="stealth-mode-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                            <p class="settings-subtip" data-i18n="stealth_tip" style="margin-top: 5px;">Mimics human behavior to bypass CAPTCHA blocks.</p>
+                        </div>
+                        <div class="settings-group">
+                            <label data-i18n="label_vpn_check">🔘 Enable Recommended Free VPN Mode</label>
+                            <label class="switch">
+                                <input type="checkbox" id="vpn-check-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        <div class="settings-group">
+                            <label data-i18n="label_slow_mode">🐢 Bot Detection Prevention (Extended Page Delays)</label>
+                            <label class="switch">
+                                <input type="checkbox" id="slow-mode-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                            <p class="settings-subtip" data-i18n="slow_mode_tip" style="margin-top: 5px;">Increases delays between searches to minimize blocking risk.</p>
+                        </div>
+                        <div class="settings-group">
+                            <label data-i18n="label_auto_clear_session">🧹 Auto-Clear Session on Start (Google Bypass)</label>
+                            <label class="switch">
+                                <input type="checkbox" id="auto-clear-session-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                            <p class="settings-subtip" data-i18n="auto_clear_session_tip" style="margin-top: 5px;">Clears cookies & cache before starting to prevent Google blocks.</p>
+                        </div>
+                        <div class="settings-group">
+                            <label data-i18n="label_stealth_headers">🛡️ Premium Stealth Headers & UA Spoofing</label>
+                            <label class="switch">
+                                <input type="checkbox" id="stealth-headers-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                            <p class="settings-subtip" data-i18n="stealth_headers_tip" style="margin-top: 5px;">Spoofs headers & client hints to act as a real retail browser.</p>
+                        </div>
+                        
+                        <hr class="divider" style="margin: 15px 0; border: none; border-top: 1px solid rgba(0,0,0,0.05);">
+                        
+                        <div class="settings-group">
+                            <label data-i18n="label_proxy_settings" style="font-weight: 800; color: var(--primary-color);">🌐 Custom Proxy / VPN Settings</label>
+                            <label class="switch">
+                                <input type="checkbox" id="proxy-enable-toggle">
+                                <span class="slider round"></span>
+                            </label>
+                        </div>
+                        
+                        <div id="proxy-settings-fields" class="hidden" style="margin-left: 10px; padding-left: 10px; border-left: 2px solid var(--primary-color);">
+                            <div class="settings-group">
+                                <label data-i18n="label_proxy_host">Proxy Host (IP)</label>
+                                <input type="text" id="proxy-host-input" class="premium-input" placeholder="e.g. 1.2.3.4">
+                            </div>
+                            <div class="settings-group">
+                                <label data-i18n="label_proxy_port">Port</label>
+                                <input type="text" id="proxy-port-input" class="premium-input" placeholder="8080" style="width: 80px;">
+                            </div>
+                            <div class="settings-group">
+                                <label data-i18n="label_proxy_user">Username</label>
+                                <input type="text" id="proxy-user-input" class="premium-input" placeholder="Username (Optional)">
+                            </div>
+                            <div class="settings-group">
+                                <label data-i18n="label_proxy_pass">Password</label>
+                                <input type="password" id="proxy-pass-input" class="premium-input" placeholder="Password (Optional)">
+                            </div>
+                            <p class="settings-subtip" data-i18n="proxy_tip" style="color: #ff4d4d; margin-top: 5px; font-weight: bold;"></p>
+                        </div>
+                        <button id="save-settings-btn" class="primary-btn" data-i18n="btn_save_settings">💾 Save & Apply Settings</button>
+                        <p class="settings-tip" data-i18n="settings_tip">💡 Search results are optimized based on your selected region and language.</p>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="action-buttons">
+                <button id="start-btn" class="primary-btn" data-i18n="btn_start">데이터 수집 및 검색 시작</button>
+                <button id="pause-btn" class="primary-btn pause-btn" data-i18n="btn_pause" disabled>⏸️ 일시정지</button>
+                <button id="cancel-btn" class="primary-btn cancel-btn" data-i18n="btn_cancel" disabled>⛔ 수집 중단</button>
+            </div>
+
+            <div id="status-box" class="hidden">
+                <div class="status-header">
+                    <span id="status-title" data-i18n="status_title">진행 상황</span>
+                    <span id="progress-text">0%</span>
+                </div>
+                <div id="status-detail" class="status-detail">Ready...</div>
+                <div class="progress-bar-bg">
+                    <div id="progress-bar"></div>
+                </div>
+                <div id="stats-info" class="stats-info">
+                    <span data-i18n="stats_prefix" id="stats-prefix-span">유효 데이터 </span>
+                    <span id="link-count">0</span>
+                    <span data-i18n="stats_suffix">개 발견됨</span>
+                </div>
+                <div class="status-diagnostics-toggle-container">
+                    <button id="toggle-diagnostics-btn" class="secondary-btn" data-i18n="btn_toggle_diagnostics">
+                        🔍 정밀 진단 로그 보기
+                    </button>
+                </div>
+                <div id="log-container"></div>
+            </div>
+
+            <!-- CAPTCHA Diagnostics Box removed -->
+
+            <div id="result-box" class="hidden">
+                <div class="result-header" style="flex-direction: column; align-items: stretch;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <h3 data-i18n="result_title">수집 결과</h3>
+                    </div>
+                    <div style="text-align: center; margin-bottom: 10px;">
+                        <h2 data-i18n="label_download_title" style="color: var(--primary-color); font-size: 1.5rem; font-weight: 800; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);">다운로드</h2>
+                    </div>
+                    <div class="download-options" style="justify-content: center; width: 100%;">
+                        <button id="download-csv" class="secondary-btn" data-i18n="btn_download_csv">📊 CSV</button>
+                        <button id="download-txt" class="secondary-btn" data-i18n="btn_download_txt">📄 TXT</button>
+                        <button id="download-gs" class="secondary-btn" data-i18n="btn_download_gs">🈯 Sheets</button>
+                        <button id="clear-results-btn" class="secondary-btn" style="background:#ff3366;color:white;" data-i18n="btn_clear_results">🧹 결과 비우기</button>
+                    </div>
+                </div>
+                <div class="table-scroll">
+                    <table id="result-table">
+                        <thead>
+                            <tr>
+                                <th class="col-name" data-i18n="col_name">상호</th>
+                                <th class="col-addr" data-i18n="col_address">주소</th>
+                                <th class="col-url" data-i18n="col_url">홈페이지</th>
+                                <th class="col-sns" data-i18n="col_sns">소셜미디어</th>
+                                <th class="col-email" data-i18n="col_email">이메일</th>
+                                <th class="col-phone" data-i18n="col_phone">전화번호</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="translations.js"></script>
+    <script src="popup.js"></script>
+</body>
+
+</html>

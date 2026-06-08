@@ -1,0 +1,55 @@
+node_modules/
+out/
+.electron-forge-prerelease/
+
+# 불필요한 디자인 템플릿 폴더
+colors-logo-template-*/
+drone-x-logo-template-*/
+captcha.JPG
+
+# GitHub 설정 임시 스크립트
+github-setup.js
+add-device-column.js
+
+# 민감 정보
+*.env
+.env
+.env.*
+.env.local
+
+# 빌드 임시 파일
+*.nupkg
+*.zip
+
+# OS 파일
+.DS_Store
+Thumbs.db
+
+# 로그
+*.log
+logs/
+
+# 임시 스크립트 (개발용)
+add-device-column.js
+setup-supabase.js
+test-supabase.js
+create-storage-bucket.js
+setup-stripe-products.js
+run-migration.js
+deploy-edge-function.js
+deploy-to-supabase.js
+set-edge-secrets.js
+register-stripe-webhook.js
+
+# 대용량 바이너리 파일
+*.crx
+*.pem
+
+# XPIDER 임시 및 데이터 파일
+data/
+restore_points/
+extension_logs*.txt
+*.exe
+
+# 리드 데이터 파일 (API 토큰 포함 가능)
+*leads*.txt

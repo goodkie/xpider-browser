@@ -1,0 +1,3065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XPIDER ??Premium My Account</title>
+  
+  <!-- SEO & Fonts -->
+  <meta name="description" content="XPIDER Premium User Command Center & Dashboard">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+/* ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??   XPIDER B2B Premium User Panel Style Suite
+   ?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧?먥븧??*/
+
+:root {
+  --bg-dark: #020012;
+  --bg-mid: #060320;
+  --bg-light: #0b0732;
+  
+  --color-primary: #3b82f6;
+  --color-cyan: #06b6d4;
+  --color-purple: #8b5cf6;
+  --color-pink: #ec4899;
+  --color-green: #10b981;
+  --color-orange: #f97316;
+  
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  
+  --glass-surface: rgba(255, 255, 255, 0.02);
+  --glass-border: rgba(255, 255, 255, 0.05);
+  --glass-border-hover: rgba(255, 255, 255, 0.15);
+  
+  --radius-lg: 24px;
+  --radius-md: 16px;
+  --radius-sm: 8px;
+  
+  --shadow-deep: 0 30px 60px rgba(0, 0, 0, 0.6);
+  --transition-dynamic: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* ??? 珥덇린????? */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  position: relative;
+  z-index: 2;
+}
+
+/* ??? ?붾젮??3D ?ㅼ삩 議곕챸 諛깃?濡쒖슦 ??? */
+.neon-light-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(160px);
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.4;
+  animation: float-orb 15s ease-in-out infinite alternate;
+}
+
+.orb-purple {
+  top: -10%;
+  right: 15%;
+  width: 650px;
+  height: 650px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 70%);
+}
+
+.orb-cyan {
+  top: 40%;
+  left: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.2) 0%, transparent 70%);
+  animation-delay: -5s;
+}
+
+.orb-pink {
+  bottom: 10%;
+  right: -5%;
+  width: 550px;
+  height: 550px;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.15) 0%, transparent 70%);
+  animation-delay: -10s;
+}
+
+@keyframes float-orb {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(40px, 40px) scale(1.08); }
+}
+
+/* ??? ?ㅻ뜑 & ?대퉬寃뚯씠????? */
+header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--glass-border);
+  z-index: 100;
+  background: rgba(2, 0, 18, 0.85);
+  transition: var(--transition-dynamic);
+}
+
+.nav-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 84px;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.logo-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  font-size: 20px;
+  color: #fff;
+  box-shadow: 0 0 25px rgba(59, 130, 246, 0.5);
+}
+
+.logo-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  background: linear-gradient(90deg, #fff 30%, var(--color-cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.nav-menu {
+  display: flex;
+  list-style: none;
+  gap: 32px;
+  align-items: center;
+}
+
+.nav-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: var(--transition-dynamic);
+}
+
+.nav-link:hover {
+  color: #fff;
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px;
+  border-radius: 50px;
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-border);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.user-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-cyan), var(--color-primary));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+#header-username {
+  color: #fff;
+}
+
+.btn-logout {
+  padding: 8px 18px;
+  border-radius: 50px;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--glass-border);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-dynamic);
+}
+
+.btn-logout:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+/* ??? ?덉뼱濡??뱀뀡 ??? */
+.hero-section {
+  padding-top: 160px;
+  padding-bottom: 40px;
+  text-align: center;
+  position: relative;
+}
+
+.badge-promo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 24px;
+  border-radius: 50px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-cyan);
+  margin-bottom: 20px;
+}
+
+.badge-promo > span:first-child {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-cyan);
+  box-shadow: 0 0 10px var(--color-cyan);
+  display: inline-block;
+  animation: pulse-ring 2s infinite;
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.9); opacity: 1; }
+  50% { transform: scale(1.3); opacity: 0.4; }
+  100% { transform: scale(0.9); opacity: 1; }
+}
+
+.hero-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 48px;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: -1.5px;
+  margin-bottom: 36px;
+}
+
+.hero-title span {
+  background: linear-gradient(135deg, #fff 10%, var(--color-cyan) 60%, var(--color-purple) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ??? 4? 怨꾩젙 ??쒕낫???ㅽ꺈 洹몃━????? */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr 1fr 1fr;
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+@media (max-width: 992px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stat-card.primary-stat {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 576px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, transparent 100%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 150px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: var(--transition-dynamic);
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+}
+
+.stat-card.primary-stat {
+  background: linear-gradient(180deg, rgba(6, 182, 212, 0.06) 0%, transparent 100%);
+  border-color: rgba(6, 182, 212, 0.2);
+}
+
+.stat-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.stat-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+}
+
+.plan-badge-inline {
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  background: rgba(6, 182, 212, 0.15);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  color: var(--color-cyan);
+  padding: 3px 10px;
+  border-radius: 50px;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.25);
+}
+
+.stat-value {
+  font-family: 'Outfit', sans-serif;
+  font-size: 38px;
+  font-weight: 900;
+  color: #fff;
+  margin: 12px 0 6px 0;
+  line-height: 1;
+}
+
+.stat-card.primary-stat .stat-value {
+  color: var(--color-cyan);
+  text-shadow: 0 0 20px rgba(6, 182, 212, 0.25);
+}
+
+.stat-value.small-val {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'Inter', sans-serif;
+  word-break: keep-all;
+}
+
+.stat-progress-wrap {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--color-cyan), var(--color-primary));
+  transition: width 1.2s cubic-bezier(0.1, 0.8, 0.2, 1);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+}
+
+.stat-progress-desc {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.stat-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+
+/* ??? ?쒕퉬???댁슜 ?댁뿭 (Service History) ??? */
+.history-section {
+  padding: 60px 0;
+  position: relative;
+}
+
+.section-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.section-tag {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--color-cyan);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 36px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -1px;
+  margin-bottom: 16px;
+}
+
+.section-desc {
+  font-size: 15px;
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* 而⑦듃濡??먮꽟 */
+.history-control-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-border);
+  padding: 16px 24px;
+  border-radius: var(--radius-md);
+  margin-bottom: 24px;
+  backdrop-filter: blur(10px);
+}
+
+@media (max-width: 768px) {
+  .history-control-panel {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+}
+
+.filter-group {
+  display: flex;
+  gap: 12px;
+}
+
+.filter-group select,
+.filter-group input {
+  background: rgba(2, 0, 18, 0.6);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  padding: 10px 16px;
+  font-size: 13.5px;
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition-dynamic);
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.15);
+}
+
+.btn-refresh {
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  color: var(--color-cyan);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition-dynamic);
+}
+
+.btn-refresh:hover {
+  background: rgba(6, 182, 212, 0.15);
+  border-color: rgba(6, 182, 212, 0.4);
+  transform: translateY(-1px);
+}
+
+/* ?댁슜濡쒓렇 ?뚯씠釉?*/
+.history-table-wrap {
+  background: rgba(4, 2, 24, 0.4);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 400px;
+  box-shadow: var(--shadow-deep);
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13.5px;
+}
+
+.history-table th {
+  position: sticky;
+  top: 0;
+  background: rgba(18, 19, 26, 0.95);
+  z-index: 2;
+  color: var(--text-muted);
+  font-weight: 700;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--glass-border);
+  text-transform: uppercase;
+  font-size: 11.5px;
+  letter-spacing: 1px;
+}
+.history-table td {
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.history-table tbody tr:hover td {
+  background: rgba(6, 182, 212, 0.02);
+}
+
+.ext-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #60a5fa;
+}
+
+.token-consumed {
+  font-family: 'Outfit', sans-serif;
+  color: var(--color-orange);
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.loading-row td {
+  text-align: center;
+  padding: 60px 0;
+  color: var(--text-muted);
+}
+
+.loading-row span {
+  display: block;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.history-footer {
+  margin-top: 14px;
+  text-align: right;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+/* ??? 7? ?꾨━誘몄뾼 ?붿쭊 ?쇱??댁뒪 ??? */
+.showcase-section {
+  padding: 100px 0;
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.dynamic-showcase-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 50px;
+  margin-top: 64px;
+}
+
+.dynamic-module-row {
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 60px;
+  align-items: center;
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, rgba(255,255,255,0.02) 0%, transparent 100%);
+  border: 1px solid var(--glass-border);
+  transition: var(--transition-dynamic);
+  cursor: pointer;
+}
+
+.dynamic-module-row:hover {
+  border-color: rgba(6, 182, 212, 0.25);
+  background: rgba(6, 3, 32, 0.5);
+  box-shadow: var(--shadow-deep);
+}
+
+.dynamic-module-row:nth-child(even) {
+  grid-template-columns: 1.1fr 1fr;
+}
+
+.dynamic-module-row:nth-child(even) .module-visual-panel {
+  order: -1;
+}
+
+.module-info-panel {
+  text-align: left;
+}
+
+.module-tag-badge {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  display: inline-block;
+}
+
+.tag-cyan { color: var(--color-cyan); }
+.tag-green { color: var(--color-green); }
+.tag-orange { color: var(--color-orange); }
+.tag-purple { color: var(--color-purple); }
+.tag-pink { color: var(--color-pink); }
+.tag-primary { color: var(--color-primary); }
+
+.module-title-dynamic {
+  font-family: 'Outfit', sans-serif;
+  font-size: 28px;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 16px;
+  letter-spacing: -0.5px;
+}
+
+.module-desc-dynamic {
+  font-size: 14.5px;
+  color: var(--text-muted);
+  line-height: 1.65;
+  margin-bottom: 28px;
+}
+
+.spec-bullets-dynamic {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+}
+
+.spec-bullet-dynamic-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.action-trigger-modal {
+  margin-top: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-cyan);
+  transition: var(--transition-dynamic);
+}
+
+.dynamic-module-row:hover .action-trigger-modal {
+  transform: translateX(5px);
+  color: #fff;
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+}
+
+.module-visual-panel {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.module-visual-glow {
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.35;
+  z-index: 1;
+  transition: var(--transition-dynamic);
+}
+
+.glow-cyan { background: var(--color-cyan); }
+.glow-green { background: var(--color-green); }
+.glow-orange { background: var(--color-orange); }
+.glow-purple { background: var(--color-purple); }
+.glow-pink { background: var(--color-pink); }
+.glow-primary { background: var(--color-primary); }
+
+.dynamic-module-row:hover .module-visual-glow {
+  opacity: 0.65;
+  width: 220px;
+  height: 220px;
+}
+
+.floating-mockup-3d {
+  max-height: 200px;
+  object-fit: contain;
+  z-index: 3;
+  transform: translateZ(30px);
+  filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.65));
+  animation: dynamic-levitation 6s ease-in-out infinite;
+}
+
+@keyframes dynamic-levitation {
+  0%, 100% { transform: translateZ(30px) translateY(0); }
+  50% { transform: translateZ(30px) translateY(-8px); }
+}
+
+/* ??? B2B ?붽툑???뱀뀡 (Pricing) ??? */
+.pricing-section {
+  padding: 100px 0;
+  text-align: center;
+  position: relative;
+}
+
+.billing-switcher-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 40px 0 50px 0;
+}
+
+.switcher-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-muted);
+  transition: var(--transition-dynamic);
+}
+
+.switcher-label.active {
+  color: #fff;
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.4);
+}
+
+.billing-toggle {
+  width: 64px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 50px;
+  position: relative;
+  cursor: pointer;
+  transition: var(--transition-dynamic);
+}
+
+.toggle-handle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-cyan), var(--color-primary));
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: var(--transition-dynamic);
+  box-shadow: 0 0 10px var(--color-cyan);
+}
+
+.billing-toggle.yearly .toggle-handle {
+  left: 35px;
+}
+
+.yearly-discount-tag {
+  font-size: 11px;
+  font-weight: 900;
+  color: #00f5ff;
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+
+/* ?붽툑??洹몃━??*/
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  align-items: stretch;
+}
+
+@media (max-width: 992px) {
+  .pricing-grid {
+    grid-template-columns: 1fr;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+}
+
+.price-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0) 100%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  padding: 48px 36px;
+  text-align: left;
+  transition: var(--transition-dynamic);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.price-card:hover {
+  transform: translateY(-8px) scale(1.01);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: var(--shadow-deep);
+}
+
+.price-card.recommended {
+  background: linear-gradient(180deg, rgba(59, 130, 246, 0.06) 0%, rgba(59, 130, 246, 0) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  box-shadow: 0 15px 40px rgba(59, 130, 246, 0.1);
+}
+
+.price-card.recommended::before {
+  content: '';
+  position: absolute;
+  top: -1.5px;
+  left: 10%;
+  right: 10%;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--color-cyan), var(--color-purple), transparent);
+}
+
+.price-card.recommended:hover {
+  border-color: rgba(6, 182, 212, 0.5);
+  box-shadow: var(--shadow-deep), 0 0 25px rgba(6, 182, 212, 0.2);
+}
+
+.price-card.enterprise:hover {
+  border-color: rgba(249, 115, 22, 0.4) !important;
+  box-shadow: var(--shadow-deep), 0 0 25px rgba(249, 115, 22, 0.2) !important;
+}
+
+.recommended-badge {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--color-cyan), var(--color-primary));
+  padding: 5px 18px;
+  border-radius: 50px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.plan-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.price-card.recommended .plan-name {
+  color: var(--color-cyan);
+}
+
+.plan-price-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 24px;
+}
+
+.plan-price {
+  font-family: 'Outfit', sans-serif;
+  font-size: 48px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -1.5px;
+  transition: var(--transition-dynamic);
+}
+
+.plan-period {
+  font-size: 13.5px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.plan-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+
+.btn-pricing {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: var(--transition-dynamic);
+  margin-bottom: 32px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.01);
+  color: #fff;
+}
+
+.btn-pricing:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--glass-border-hover);
+}
+
+.price-card.recommended .btn-pricing {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-purple));
+  border: none;
+  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.25);
+}
+
+.price-card.recommended .btn-pricing:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(59, 130, 246, 0.45);
+}
+
+.btn-enterprise {
+  border: 1px solid rgba(249, 115, 22, 0.3) !important;
+}
+
+.btn-enterprise:hover {
+  background: linear-gradient(135deg, #ff6b00, #ff9e00) !important;
+  border-color: #ff9e00 !important;
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.4) !important;
+}
+
+.plan-features-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.plan-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.plan-feature-item i {
+  font-size: 14px;
+  color: var(--color-cyan);
+}
+
+.plan-feature-item.disabled {
+  color: var(--text-dim);
+}
+
+.plan-feature-item.disabled i {
+  color: var(--text-dim);
+}
+
+/* ??? ?좊ː??吏????? */
+.trust-section {
+  padding: 80px 0;
+  background: rgba(2, 0, 14, 0.4);
+}
+
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+}
+
+@media (max-width: 768px) {
+  .trust-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.trust-card {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  text-align: left;
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-border);
+  padding: 24px;
+  border-radius: var(--radius-md);
+  transition: var(--transition-dynamic);
+}
+
+.trust-card:hover {
+  border-color: rgba(6, 182, 212, 0.2);
+}
+
+.trust-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(6, 182, 212, 0.05);
+  border: 1px solid rgba(6, 182, 212, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-cyan);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.trust-info h4 {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.trust-info p {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ??? FAQ ?꾩퐫?붿뼵 ??? */
+.faq-section {
+  padding: 100px 0;
+}
+
+.faq-wrapper {
+  max-width: 800px;
+  margin: 48px auto 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+}
+
+.faq-item {
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: var(--transition-dynamic);
+}
+
+.faq-item:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.faq-question {
+  padding: 22px 28px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+
+.faq-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.15);
+  padding: 0 28px;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+
+.faq-item.active .faq-answer {
+  padding-bottom: 24px;
+  max-height: 300px;
+}
+
+.faq-arrow {
+  font-size: 13px;
+  transition: var(--transition-dynamic);
+  color: var(--text-muted);
+}
+
+.faq-item.active .faq-arrow {
+  transform: rotate(180deg);
+  color: var(--color-cyan);
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+}
+
+/* ??? ?명꽣 ?곸뿭 ??? */
+footer {
+  background: #01000e;
+  padding: 80px 0 36px 0;
+  border-top: 1px solid var(--glass-border);
+  color: var(--text-muted);
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, 1fr);
+  gap: 40px;
+  margin-bottom: 48px;
+  text-align: left;
+}
+
+@media (max-width: 768px) {
+  .footer-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.footer-brand-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  max-width: 320px;
+}
+
+.footer-col h4 {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.footer-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.footer-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 13px;
+  transition: var(--transition-dynamic);
+}
+
+.footer-link:hover {
+  color: #fff;
+  padding-left: 4px;
+}
+
+.footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.02);
+  padding-top: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+}
+
+.footer-copy {
+  color: var(--text-dim);
+}
+
+.footer-bottom-links {
+  display: flex;
+  gap: 18px;
+}
+
+.footer-bottom-link {
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: var(--transition-dynamic);
+}
+
+.footer-bottom-link:hover {
+  color: #fff;
+}
+
+/* ??? ?쒕꽕留덊떛 3D ?ㅽ? ?ㅻ쾭?덉씠 紐⑤떖 ??? */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(2, 0, 14, 0.9);
+  backdrop-filter: blur(20px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s cubic-bezier(0.19, 1, 0.22, 1), visibility 0.5s;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-content {
+  background: linear-gradient(135deg, rgba(10, 6, 36, 0.96) 0%, rgba(6, 3, 26, 0.99) 100%);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  border-radius: var(--radius-lg);
+  width: 92%;
+  max-width: 1000px;
+  height: 80vh;
+  max-height: 640px;
+  overflow: hidden;
+  box-shadow: 0 35px 90px rgba(0, 0, 0, 0.85), 0 0 60px rgba(6, 182, 212, 0.15);
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  transform: perspective(1200px) translate3d(0, 80px, -200px) rotateY(-45deg);
+  opacity: 0;
+  transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.8s;
+}
+
+.modal-overlay.active .modal-content {
+  transform: perspective(1200px) translate3d(0, 0, 0) rotateY(0deg);
+  opacity: 1;
+}
+
+/* 寃곗젣?덈궡 ?앹뾽 ?쒕떇 */
+.modal-content.purchase-box {
+  grid-template-columns: 1fr;
+  max-width: 480px;
+  height: auto;
+  max-height: 620px;
+  padding: 10px;
+  transform: perspective(1200px) translate3d(0, 80px, -100px);
+}
+
+.modal-overlay.active .modal-content.purchase-box {
+  transform: perspective(1200px) translate3d(0, 0, 0);
+}
+
+/* ??? Stripe Plan Summary Card ??? */
+.stripe-plan-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(139, 92, 246, 0.08) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.stripe-plan-icon {
+  width: 52px;
+  height: 52px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.35);
+}
+
+.stripe-plan-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stripe-plan-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.stripe-plan-price {
+  font-size: 22px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.stripe-plan-tokens {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ??? Billing Toggle Row ??? */
+.stripe-billing-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.stripe-billing-label {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+  transition: color 0.2s, font-weight 0.2s;
+}
+
+.stripe-billing-toggle {
+  width: 48px;
+  height: 26px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 50px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.stripe-billing-toggle.yearly {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-color: transparent;
+}
+
+.stripe-toggle-handle {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.stripe-billing-toggle.yearly .stripe-toggle-handle {
+  transform: translateX(22px);
+}
+
+.stripe-save-badge {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 50px;
+  letter-spacing: 0.4px;
+}
+
+/* ??? Trust Row ??? */
+.stripe-trust-row {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stripe-trust-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.stripe-trust-item i {
+  color: var(--color-green);
+}
+
+.stripe-trust-item .fa-stripe {
+  color: #635bff;
+}
+
+.modal-left {
+  background: #030111;
+  border-right: 1px solid rgba(6, 182, 212, 0.12);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+}
+
+.modal-glow-back {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.2) 0%, transparent 70%);
+  filter: blur(60px);
+  z-index: 1;
+  opacity: 0.6;
+}
+
+.modal-media-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.modal-screenshot-img {
+  max-width: 85%;
+  max-height: 75%;
+  object-fit: contain;
+  border-radius: 10px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.modal-package-3d-fly {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 110px;
+  height: auto;
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.8));
+  z-index: 3;
+  transform: translate3d(60px, 30px, 120px) rotateY(-360deg);
+  opacity: 0;
+  transition: transform 1.2s cubic-bezier(0.19, 1, 0.22, 1) 0.2s, opacity 1.2s ease 0.2s;
+}
+
+.modal-overlay.active .modal-package-3d-fly {
+  transform: translate3d(0, 0, 0) rotateY(0deg);
+  opacity: 1;
+}
+
+.modal-right {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: rgba(2, 0, 18, 0.4);
+}
+
+.modal-header {
+  padding: 30px 36px 20px 36px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.modal-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.modal-tag-text {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-cyan);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.modal-title-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 26px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.modal-close-btn {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  transition: var(--transition-dynamic);
+}
+
+.modal-close-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  transform: rotate(90deg);
+}
+
+.modal-body {
+  padding: 30px 36px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.modal-section {
+  text-align: left;
+}
+
+.modal-section-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-section-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: var(--color-cyan);
+  border-radius: 2px;
+}
+
+.modal-desc-para {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.modal-feature-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.modal-feature-card {
+  background: rgba(255, 255, 255, 0.005);
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  transition: var(--transition-dynamic);
+}
+
+.modal-feature-card:hover {
+  background: rgba(6, 182, 212, 0.02);
+  border-color: rgba(6, 182, 212, 0.15);
+}
+
+.modal-feature-icon-box {
+  font-size: 13px;
+  color: var(--color-cyan);
+  background: rgba(6, 182, 212, 0.06);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.modal-feature-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modal-feature-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.modal-feature-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.modal-footer {
+  padding: 20px 36px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.btn-modal-close {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-dynamic);
+}
+
+.btn-modal-close:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.btn-modal-action {
+  background: linear-gradient(135deg, var(--color-cyan) 0%, var(--color-primary) 100%);
+  border: none;
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: var(--transition-dynamic);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.btn-modal-action:hover {
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.35);
+  transform: translateY(-1px);
+}
+
+/* 寃곗젣 ?앹뾽 ?몃? ?댁슜 */
+.payment-notice {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.notice-orange-icon {
+  font-size: 40px;
+  color: var(--color-orange);
+  margin-bottom: 12px;
+  text-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+}
+
+.payment-notice h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.payment-notice p {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.modal-selected-plan {
+  padding: 10px;
+  background: rgba(6, 182, 212, 0.08);
+  border: 1px solid rgba(6, 182, 212, 0.15);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-cyan);
+}
+
+/* ??? ?좎뒪???뚮┝ ??? */
+.up-toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(6, 3, 26, 0.95);
+  border: 1px solid var(--color-cyan);
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.3);
+  color: #fff;
+  border-radius: 50px;
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 700;
+  z-index: 2000;
+  backdrop-filter: blur(12px);
+  animation: toast-in 0.3s ease;
+}
+
+.up-toast.hidden {
+  display: none;
+}
+
+@keyframes toast-in {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+/* ??? 濡쒕뜑 ?ㅽ? ??? */
+.loader-ring {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(6, 182, 212, 0.1);
+  border-top-color: var(--color-cyan);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 諛섏쓳??紐⑤떖 ?덉쇅 */
+@media (max-width: 992px) {
+  .modal-content {
+    grid-template-columns: 1fr;
+    height: 90vh;
+    max-height: none;
+  }
+  .modal-left {
+    display: none;
+  }
+}
+
+</style>
+</head>
+<body>
+
+  <!-- 3D Neon Backglow -->
+  <div class="neon-light-orb orb-purple"></div>
+  <div class="neon-light-orb orb-cyan"></div>
+  <div class="neon-light-orb orb-pink"></div>
+
+  <!-- Premium Header -->
+  <header>
+    <div class="container nav-container">
+      <a href="index.html" class="logo-area">
+        <img src="logo.png" alt="XPIDER" style="width: 32px; height: 32px; object-fit: contain; margin-right: 8px;">
+        <span class="logo-text">XPIDER</span>
+      </a>
+      <ul class="nav-menu">
+        <li><a href="#dashboard" class="nav-link">Dashboard</a></li>
+        <li><a href="#history" class="nav-link">Audit Logs</a></li>
+        <li><a href="#showcase" class="nav-link">Core Modules</a></li>
+        <li><a href="#pricing" class="nav-link">Pricing Plans</a></li>
+        <li><a href="#faq" class="nav-link">FAQ</a></li>
+        <li><a href="tos.html" class="nav-link" target="_blank">Terms of Service</a></li>
+      </ul>
+      <div class="header-actions">
+        <div class="user-badge" id="user-badge">
+          <span class="user-avatar" id="user-avatar">?</span>
+          <span id="header-username">Loading...</span>
+        </div>
+        <button class="btn-logout" onclick="handleLogout()">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero & Welcome Section -->
+  <section class="hero-section" id="dashboard">
+    <div class="container">
+      <div class="badge-promo">
+        <span></span>
+        <span id="welcome-sub">Premium Account Center</span>
+      </div>
+      <h1 class="hero-title" id="welcome-title">
+        <span>Welcome!</span>
+      </h1>
+      
+      <!-- 4 Core Account Stats Grid -->
+      <div class="stats-grid">
+        <!-- 1. AI Tokens Remaining -->
+        <div class="stat-card primary-stat" data-tilt data-tilt-max="4">
+          <div class="stat-header-row">
+            <span class="stat-label">AI Tokens Remaining</span>
+            <span class="plan-badge-inline" id="plan-name">Free</span>
+          </div>
+          <div class="stat-value" id="stat-tokens">-</div>
+          <div class="stat-progress-wrap">
+            <div class="progress-bar">
+              <div class="progress-fill" id="token-progress" style="width: 0%"></div>
+            </div>
+            <div class="stat-progress-desc" id="token-pct">0% Left</div>
+          </div>
+        </div>
+
+        <!-- 2. Created At -->
+        <div class="stat-card" data-tilt data-tilt-max="4">
+          <span class="stat-label">Created At</span>
+          <div class="stat-value small-val" id="stat-joined">-</div>
+          <span class="stat-desc">Active License Plan</span>
+        </div>
+
+        <!-- 3. Last Activity -->
+        <div class="stat-card" data-tilt data-tilt-max="4">
+          <span class="stat-label">Last Access</span>
+          <div class="stat-value small-val" id="stat-last-login">-</div>
+          <span class="stat-desc">Recent Login Time</span>
+        </div>
+
+        <!-- 4. Total Executions -->
+        <div class="stat-card" data-tilt data-tilt-max="4">
+          <span class="stat-label">Total Executions</span>
+          <div class="stat-value" id="stat-total-uses">-</div>
+          <span class="stat-desc">Cumulative bot action triggers</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Transaction History (Audit Logs) -->
+  <section class="history-section" id="history">
+    <div class="container">
+      <div class="section-header">
+        <p class="section-tag">LOG AUDIT</p>
+        <h2 class="section-title">Transaction Audit Logs</h2>
+        <p class="section-desc">Real-time transactional execution logs of XPIDER AI miners, scrapers, and secure VPN node triggers.</p>
+      </div>
+
+      <div class="history-control-panel">
+        <div class="filter-group">
+          <select id="log-filter-ext" onchange="loadLogs()">
+            <option value="">Filter by Module</option>
+            <option value="AI Crawler">AI Crawler</option>
+            <option value="Email Extractor">Email Extractor</option>
+            <option value="VPN">VPN</option>
+            <option value="Campaign">Campaigns</option>
+          </select>
+          <input type="text" id="log-filter-date" placeholder="YYYY-MM-DD" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'" onchange="loadLogs()" />
+        </div>
+        <button class="btn-refresh" onclick="loadLogs()">
+          <i class="fa-solid fa-arrows-rotate"></i>
+          <span>Refresh</span>
+        </button>
+      </div>
+
+      <div class="history-table-wrap">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Active Module</th>
+              <th>Executed Action</th>
+              <th>Tokens Consumed</th>
+              <th>Data Specs / Metadata</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <tr class="loading-row">
+              <td colspan="5">
+                <div class="loader-ring"></div>
+                <span>Querying and auditing real-time module logs...</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="history-footer" id="history-footer" style="display:none">
+        Matches found: <span id="history-count">0</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- B2B Pricing Section -->
+  <section class="pricing-section" id="pricing">
+    <div class="container">
+      <div class="section-header">
+        <p class="section-tag">B2B PRICING PLANS</p>
+        <h2 class="section-title">Innovative Data Mining Plans</h2>
+        <p class="section-desc">Scale your AI power and automate your lead generation funnel with enterprise-ready subscription plans.</p>
+      </div>
+
+      <!-- Monthly/Yearly Billing Toggle -->
+      <div class="billing-switcher-wrap">
+        <span class="switcher-label active" id="label-monthly">Monthly</span>
+        <div class="billing-toggle" id="billing-toggle" onclick="toggleBilling()">
+          <div class="toggle-handle"></div>
+        </div>
+        <span class="switcher-label" id="label-yearly">Yearly</span>
+        <span class="yearly-discount-tag">Save 20%</span>
+      </div>
+
+      <div class="pricing-grid">
+        <!-- 1. Starter Plan -->
+        <div class="price-card" data-tilt data-tilt-max="5">
+          <div>
+            <h3 class="plan-name">Starter Plan</h3>
+            <div class="plan-price-wrap">
+              <span class="plan-price" id="price-starter">$59</span>
+              <span class="plan-period">/ mo</span>
+            </div>
+            <p class="plan-desc">For individual creators and local marketers getting started with basic scraping tools and localized listings.</p>
+            <button class="btn-pricing" onclick="openPurchase('starter')">Get Started</button>
+            <ul class="plan-features-list">
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>6,000 tokens / mo</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>10-Engine Local Business Crawler</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Google Maps Business Finder</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Real-time Email Extractor Support</span></li>
+              <li class="plan-feature-item disabled"><i class="fa-solid fa-circle-xmark"></i> <span>AutoForm Sender Pro (Not Supported)</span></li>
+              <li class="plan-feature-item disabled"><i class="fa-solid fa-circle-xmark"></i> <span>XPIDER VPN Dedicated Proxy (Not Supported)</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 2. Business Pro Plan (Recommended) -->
+        <div class="price-card recommended" data-tilt data-tilt-max="5">
+          <div class="recommended-badge">B2B BEST VALUE</div>
+          <div>
+            <h3 class="plan-name">Business Pro Plan</h3>
+            <div class="plan-price-wrap">
+              <span class="plan-price" id="price-business">$99</span>
+              <span class="plan-period">/ mo</span>
+            </div>
+            <p class="plan-desc">The ultimate plan for growing teams, opening access to high-performance mining modules and dedicated proxy networks.</p>
+            <button class="btn-pricing" onclick="openPurchase('pro')">Upgrade to Pro</button>
+            <ul class="plan-features-list">
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>12,000 tokens / mo</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>All 7 Core Premium Engines Fully Unlocked</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Google & Bing Maps Cross Scans</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>XPIDER VPN Node Masking Integration</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>AI AutoForm Sender Pro Form Submitter</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>SendForce Mailer Pro Bulk Outreach Engine</span></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 3. Enterprise Plan -->
+        <div class="price-card enterprise" data-tilt data-tilt-max="5">
+          <div>
+            <h3 class="plan-name">Enterprise Plan</h3>
+            <div class="plan-price-wrap">
+              <span class="plan-price" id="price-enterprise">$199</span>
+              <span class="plan-period">/ mo</span>
+            </div>
+            <p class="plan-desc">Tailored for large agencies requiring multiple virtual scraper instances, dedicated proxy subnets, and customized flows.</p>
+            <button class="btn-pricing" onclick="openPurchase('enterprise')">Deploy Enterprise</button>
+            <ul class="plan-features-list">
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>30,000 tokens / mo</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>All features from Business Pro included</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Dedicated Multi-Proxy Premium Subnets</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Unlimited concurrent browser profiles</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>1:1 Dedicated Technical Engineering Support</span></li>
+              <li class="plan-feature-item"><i class="fa-solid fa-circle-check"></i> <span>Custom Scraper Integration & B2B API access</span></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3D Package Showcase -->
+  <section class="showcase-section" id="showcase">
+    <div class="container">
+      <div class="section-header">
+        <p class="section-tag">XPIDER ECOSYSTEM</p>
+        <h2 class="section-title">Next-Gen AI B2B Leads Engine & Automation Platform</h2>
+        <p class="section-desc">
+          XPIDER is not just a scraper. It is an enterprise-grade B2B automation platform integrating AI data extraction, geospatial lead mining, automated email outreach, form submission, and military-grade VPN node security.
+        </p>
+      </div>
+
+      <div class="dynamic-showcase-grid">
+        <!-- 1. Local Business Crawler Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(0)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-cyan">AI EXTRACTION</span>
+            <h3 class="module-title-dynamic">Local Business Crawler Pro</h3>
+            <p class="module-desc-dynamic">
+              Taps directly into 10 global search engines simultaneously to mine business directories, domain websites, contact numbers, and social linkages in bulk.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>Multi-Engine Cross Scanning Engine</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-cyan"></i> <span>AI-Driven Depth-Targeted Domain Parsing</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-cyan"></div>
+            <img src="mockup-t/local_business_crawler2.png" alt="Local Business Crawler Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 2. GMaps Business Finder -->
+        <div class="dynamic-module-row" onclick="openModuleModal(1)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-green">GOOGLE MAPS</span>
+            <h3 class="module-title-dynamic">GMaps Business Finder</h3>
+            <p class="module-desc-dynamic">
+              Integrates directly with Google Maps to gather granular offline leads (name, rating, phone, websites, and emails) within designated geographic coordinates.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>Geospatial Coordinate-Targeted Radius Scans</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-green"></i> <span>Real-time CSV/JSON Export Optimization</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-green"></div>
+            <img src="mockup-t/gmaps_business_finder2.png" alt="GMaps Finder Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 3. Bing Maps Business Finder -->
+        <div class="dynamic-module-row" onclick="openModuleModal(2)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-orange">MS ECOSYSTEM</span>
+            <h3 class="module-title-dynamic">Bing Maps Finder</h3>
+            <p class="module-desc-dynamic">
+              Mines data across Microsoft Bing Maps, featuring deep cross-validation filters against Google Maps datasets to minimize data error rates.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>Geographical Dual-Engine Cross Validation</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-orange"></i> <span>Missing Parameter Recovery Algorithm</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-orange"></div>
+            <img src="mockup-t/bing_maps_finder2.png" alt="Bing Maps Finder Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 4. XPIDER VPN -->
+        <div class="dynamic-module-row" onclick="openModuleModal(3)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-purple">SECURE & ANONYMOUS</span>
+            <h3 class="module-title-dynamic">XPIDER VPN</h3>
+            <p class="module-desc-dynamic">
+              Military-grade IP encryption and lightning-fast proxy pipelines to perfectly bypass portal blocks, scraper bans, and geolocation gates.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Global High-Anonymity Proxy IP Pool</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Anti-Detection Tunneling for Permanent Crawls</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-purple"></div>
+            <img src="mockup-t/xpider_vpn2.png" alt="XPIDER VPN Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 5. Email Extractor -->
+        <div class="dynamic-module-row" onclick="openModuleModal(4)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-pink">REAL-TIME LEAD CAPTURE</span>
+            <h3 class="module-title-dynamic">Email Extractor</h3>
+            <p class="module-desc-dynamic">
+              Automatically harvests, parses, and logs visible email addresses from webpages in the background as you traverse different browser tabs.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>Junk & Temporary Mail Filter Sorting</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-pink"></i> <span>Multi-Threaded Cross-Tab Background Parsing</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-pink"></div>
+            <img src="mockup-t/email2.png" alt="Email Extractor Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 6. AutoForm Sender Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(5)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-primary">AI AUTOMATION</span>
+            <h3 class="module-title-dynamic">AutoForm Sender Pro</h3>
+            <p class="module-desc-dynamic">
+              Applies AI-driven field decoding to resolve complex target contact page forms, inputting and mass-submitting outreach copy in milliseconds.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>Intelligent Multi-Language Field Mapper</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-primary"></i> <span>Live Outreach Success Metrics Analytics</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-primary"></div>
+            <img src="mockup-t/autoform_sender2.png" alt="AutoForm Sender Pro Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+
+        <!-- 7. SendForce Mailer Pro -->
+        <div class="dynamic-module-row" onclick="openModuleModal(6)">
+          <div class="module-info-panel">
+            <span class="module-tag-badge tag-purple">BULK EMAIL OUTREACH</span>
+            <h3 class="module-title-dynamic">SendForce Mailer Pro</h3>
+            <p class="module-desc-dynamic">
+              Mass bulk outreach email deployment tool equipped with spam-defense interval pacing and distributed SMTP relay rotation.
+            </p>
+            <ul class="spec-bullets-dynamic">
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Outbox Headers Optimization for Inbox Landing</span></li>
+              <li class="spec-bullet-dynamic-item"><i class="fa-solid fa-circle-check tag-purple"></i> <span>Dynamic Transmit Delay Scheduler</span></li>
+            </ul>
+            <div class="action-trigger-modal">
+              <span>View Features & Visual Mockups</span>
+              <i class="fa-solid fa-circle-chevron-right"></i>
+            </div>
+          </div>
+          <div class="module-visual-panel" data-tilt data-tilt-max="10" data-tilt-speed="500">
+            <div class="module-visual-glow glow-purple"></div>
+            <img src="mockup-t/sendforce_mailer2.png" alt="SendForce Mailer Mockup" class="floating-mockup-3d">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust Badges -->
+  <section class="trust-section" id="trust">
+    <div class="container">
+      <div class="trust-grid">
+        <div class="trust-card">
+          <div class="trust-icon-box">
+            <i class="fa-solid fa-fingerprint"></i>
+          </div>
+          <div class="trust-info">
+            <h4>B2B Secured Gateway</h4>
+            <p>Your payment transaction data is secured with industry-leading tokenized encryption models.</p>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon-box">
+            <i class="fa-solid fa-handshake-simple"></i>
+          </div>
+          <div class="trust-info">
+            <h4>14-Day Money-Back Guarantee</h4>
+            <p>Full refund processed transparently within 14 days if modules encounter technical crawling errors.</p>
+          </div>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon-box">
+            <i class="fa-solid fa-bolt"></i>
+          </div>
+          <div class="trust-info">
+            <h4>Instant License Delivery</h4>
+            <p>Your unique API authorization and license key are dispatched immediately within 1 minute via email.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Accordion -->
+  <section class="faq-section" id="faq">
+    <div class="container">
+      <div class="section-header">
+        <p class="section-tag">FAQ SUITE</p>
+        <h2 class="section-title">Frequently Asked Questions</h2>
+        <p class="section-desc">Key information about XPIDER B2B license acquisition, usage rules, and configuration guidelines.</p>
+      </div>
+
+      <div class="faq-wrapper">
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Can I run scrapers on multiple devices with a single license?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>A single standard license key is bound to one system profile instance. For large agencies running concurrent workflows across multiple seats, we highly recommend acquiring the Enterprise Plan which unlocks unlimited concurrent profiles and port expansions.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Does the mailer bypass spam detection servers?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>Yes. SendForce Mailer Pro features intelligent outbox delay timers and rotating SMTP headers to proactively prevent domain blacklist triggers and maximize inbox deliverability metrics.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Is the proxy active outside the crawler?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>XPIDER VPN encapsulates the integrated browser pipeline, meaning all tab queries and outbound extraction packets within XPIDER are completely encrypted. External sites only perceive the proxy IP node.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>Can I upgrade from Starter to Business Pro mid-subscription?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>Yes, you can upgrade instantly through your dashboard. The billing portal will dynamically calculate the pro-rated cost difference, immediately unlocking premium capabilities.</p>
+          </div>
+        </div>
+
+        <div class="faq-item" onclick="toggleFaq(this)">
+          <div class="faq-question">
+            <span>How do I process a refund guarantee?</span>
+            <i class="fa-solid fa-chevron-down faq-arrow"></i>
+          </div>
+          <div class="faq-answer">
+            <p>If you encounter technical system defects within 14 days of purchase, submit a ticket with your order ID. Our billing department will verify the logs and execute a 100% refund on the same business day.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3D Engine Spin Overlay Modal -->
+  <div class="modal-overlay" id="module-modal" onclick="closeModuleModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <!-- Left Media Area -->
+      <div class="modal-left">
+        <div class="modal-glow-back"></div>
+        <div class="modal-media-viewport">
+          <img src="" alt="Main Spec Screenshot" id="modal-main-img" class="modal-screenshot-img">
+          <img src="" alt="3D Package Spin Packshot" id="modal-packshot-overlay" class="modal-package-3d-fly">
+        </div>
+      </div>
+
+      <!-- Right Spec Details -->
+      <div class="modal-right">
+        <div class="modal-header">
+          <div class="modal-title-wrap">
+            <span class="modal-tag-text" id="modal-module-tag">AI ENGINE SPEC</span>
+            <h3 class="modal-title-text" id="modal-module-title">Local Business Crawler</h3>
+          </div>
+          <button class="modal-close-btn" onclick="closeModuleModal(event)">횞</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-section">
+            <h4 class="modal-section-title">Module Performance Design</h4>
+            <p class="modal-desc-para" id="modal-module-desc">Loading specs...</p>
+          </div>
+
+          <div class="modal-section">
+            <h4 class="modal-section-title">Advanced Technical Specs</h4>
+            <div class="modal-feature-grid" id="modal-spec-grid">
+              <!-- Dynamically populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-modal-close" onclick="closeModuleModal(event)">Close</button>
+          <a href="#pricing" class="btn-modal-action" onclick="closeModuleModal(event)">
+            <span>Subscribe Plan</span>
+            <i class="fa-solid fa-key"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stripe Checkout Modal -->
+  <div class="modal-overlay" id="purchase-modal" onclick="closePurchaseModal()">
+    <div class="modal-content purchase-box" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <span class="modal-tag-text">SECURE CHECKOUT</span>
+          <h3 class="modal-title-text">Subscribe Plan</h3>
+        </div>
+        <button class="modal-close-btn" onclick="closePurchaseModal()">횞</button>
+      </div>
+      <div class="modal-body">
+        <!-- Plan Summary -->
+        <div class="stripe-plan-summary" id="stripe-plan-summary">
+          <div class="stripe-plan-icon"><i class="fa-solid fa-layer-group"></i></div>
+          <div class="stripe-plan-details">
+            <div class="stripe-plan-name" id="stripe-plan-name">Starter Plan</div>
+            <div class="stripe-plan-price" id="stripe-plan-price">$59 / month</div>
+            <div class="stripe-plan-tokens" id="stripe-plan-tokens">6,000 tokens per month</div>
+          </div>
+        </div>
+
+        <!-- Billing Toggle -->
+        <div class="stripe-billing-row">
+          <span class="stripe-billing-label" id="modal-billing-monthly" style="font-weight:700; color:#fff;">Monthly</span>
+          <div class="stripe-billing-toggle" id="modal-billing-toggle" onclick="toggleModalBilling()">
+            <div class="stripe-toggle-handle"></div>
+          </div>
+          <span class="stripe-billing-label" id="modal-billing-yearly">Yearly</span>
+          <span class="stripe-save-badge">Save 20%</span>
+        </div>
+
+        <!-- Trust badges -->
+        <div class="stripe-trust-row">
+          <span class="stripe-trust-item"><i class="fa-brands fa-stripe"></i> Powered by Stripe</span>
+          <span class="stripe-trust-item"><i class="fa-solid fa-lock"></i> 256-bit SSL</span>
+          <span class="stripe-trust-item"><i class="fa-solid fa-rotate-left"></i> 14-Day Guarantee</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-modal-close" onclick="closePurchaseModal()">Cancel</button>
+        <button class="btn-modal-action" id="btn-stripe-checkout" onclick="startStripeCheckout()">
+          <i class="fa-brands fa-stripe-s"></i>
+          <span>Pay with Stripe</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Element -->
+  <div id="up-toast" class="up-toast hidden">
+    <span id="up-toast-msg">??Done</span>
+  </div>
+
+  <!-- Footer Area -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="index.html" class="logo-area">
+            <img src="logo.png" alt="XPIDER" style="width: 32px; height: 32px; object-fit: contain; margin-right: 8px;">
+            <span class="logo-text">XPIDER</span>
+          </a>
+          <p class="footer-brand-desc">
+            XPIDER is the industry-leading all-in-one corporate-focused marketing browser ecosystem designed for rapid and secured B2B leads mining.
+          </p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <ul class="footer-links">
+            <li><a href="index.html" class="footer-link">Landing Home</a></li>
+            <li><a href="#pricing" class="footer-link">B2B Pricing Plans</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <ul class="footer-links">
+            <li><a href="#faq" class="footer-link">Frequently Asked Questions</a></li>
+            <li><a href="#dashboard" class="footer-link">Subscription Dashboard</a></li>
+            <li><a href="#" class="footer-link">Interactive Tutorials</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <ul class="footer-links">
+            <li><a href="tos.html" class="footer-link">Terms of Service</a></li>
+            <li><a href="#" class="footer-link">Privacy Policy</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span class="footer-copy">&copy; 2026 XPIDER Suite. All rights reserved.</span>
+        <div class="footer-bottom-links">
+          <a href="#" class="footer-bottom-link">Sitemap</a>
+          <a href="#" class="footer-bottom-link">B2B Compliance</a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- JS SDKs -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.1/vanilla-tilt.min.js"></script>
+  <script>
+// user-panel.js - Logic & Core Integrations for XPIDER Premium Account Center
+let currentProfile = null;
+
+const SUPABASE_URL  = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTczNzYsImV4cCI6MjA5MjM3MzM3Nn0.k3qu4QiHjhbQEhTpr90UIr4ZKGbKA1YbvANE2kYog-c';
+const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// 이중 자가 치유 동기화 엔진 (Stripe 웹훅 폴백 보장)
+async function performSelfHealingSync() {
+  try {
+    const rawPlan = localStorage.getItem('xpider_purchased_plan');
+    if (!rawPlan) return;
+
+    const PLAN_MAP = {
+      starter:    'starter',
+      business:   'pro',
+      enterprise: 'enterprise'
+    };
+
+    const PLAN_TOKENS_MAP = {
+      starter:    6000,
+      business:   12000,
+      enterprise: 30000
+    };
+
+    const planKey = PLAN_MAP[rawPlan] || 'starter';
+    const planTokens = PLAN_TOKENS_MAP[rawPlan] || 6000;
+
+    // 현재 Supabase 로그인 세션 획득
+    const { data: { session } } = await sbClient.auth.getSession();
+    if (!session || !session.user) {
+      console.warn('[Self-Healing] User session not found.');
+      return;
+    }
+
+    const userId = session.user.id;
+    console.log(`[Self-Healing] Detected pending plan ${planKey} for user ${userId}. Healing profile...`);
+
+    const syncPlan = async () => {
+      const { error } = await sbClient
+        .from('profiles')
+        .update({
+          plan: planKey,
+          tokens_remaining: planTokens,
+          is_active: true
+        })
+        .eq('id', userId);
+
+      if (!error) {
+        console.log('[Self-Healing Success] User profile plan successfully updated in DB!');
+        
+        // 로컬 스토리지 시뮬레이터 연동 데이터도 갱신
+        localStorage.setItem('xpider-sim-plan', planKey);
+        localStorage.setItem('xpider-sim-tokens', planTokens.toString());
+        localStorage.setItem('xpider-sim-email', session.user.email);
+      } else {
+        console.error('[Self-Healing Error] Sync failed:', error.message);
+      }
+    };
+
+    await syncPlan();
+
+    // 2. Stripe Webhook이 뒤늦게 도달해 덮어쓰는 것을 방지하기 위해 6초 후 2차 복구 실행
+    setTimeout(async () => {
+      console.log('[Self-Healing] Running secondary sync to override potential webhook downgrade...');
+      await syncPlan();
+      localStorage.removeItem('xpider_purchased_plan');
+    }, 6000);
+  } catch (e) {
+    console.error('[Self-Healing] Exception occurred:', e);
+  }
+}
+
+// ?€?€?€ Plan Token Map ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
+const PLAN_TOKENS = {
+  free:       600,
+  starter:    6000,
+  pro:        12000,
+  enterprise: 30000,
+  admin:      99999
+};
+// Helper: get max tokens for current profile's plan
+function getPlanMaxTokens(plan) {
+  return PLAN_TOKENS[plan] || PLAN_TOKENS.free;
+}
+
+// Electron API bridge
+const api = window.electronAPI || {
+  invoke: async (channel, args) => {
+    // Web Browser Fallback - Direct Supabase simulation if needed
+    console.log(`[Browser Simulation] Invoke channel: ${channel}`, args);
+    if (channel === 'user-get-profile') {
+      const email = localStorage.getItem('xpider-sim-email') || 'buyer@enterprise.com';
+      return {
+        username: email.split('@')[0],
+        email: email,
+        plan: localStorage.getItem('xpider-sim-plan') || 'pro',
+        tokens_remaining: parseInt(localStorage.getItem('xpider-sim-tokens') || '2000'),
+        created_at: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
+        last_login: new Date().toISOString()
+      };
+    }
+    if (channel === 'user-get-logs') {
+      return [
+        { created_at: new Date(Date.now() - 50000).toISOString(), extension_name: 'AI Crawler', action: 'Local Crawl', tokens_consumed: 30, details: 'Mined 12 target local businesses' },
+        { created_at: new Date(Date.now() - 3600000).toISOString(), extension_name: 'VPN', action: 'IP Masking', tokens_consumed: 3, details: 'Proxy tunnel active for 1 minute' },
+        { created_at: new Date(Date.now() - 7200000).toISOString(), extension_name: 'Email Extractor', action: 'Lead Scrape', tokens_consumed: 15, details: 'Extracted 3 B2B prospect emails' }
+      ];
+    }
+    return {};
+  },
+  send: (channel, args) => {
+    console.log(`[Browser Simulation] Send channel: ${channel}`, args);
+  }
+};
+
+// ?€?€?€ Init ?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€?€
+window.addEventListener('DOMContentLoaded', async () => {
+  // 이중 자가 치유 동기화 최초 가동
+  await performSelfHealingSync();
+
+  await loadProfile();
+  await loadLogs();
+
+  // Initialize Tilt Animations safely
+  if (typeof VanillaTilt !== 'undefined') {
+    VanillaTilt.init(document.querySelectorAll("[data-tilt]"), {
+      max: 5,
+      speed: 400,
+      glare: true,
+      "max-glare": 0.25,
+    });
+  }
+
+  // ??? Real-time Token Refresh (Every 30 Seconds) ????????????????
+  // Queries local cache (Fast IPC response)
+  setInterval(async () => {
+    try {
+      const remaining = await api.invoke('xpider-token-get-remaining');
+      if (remaining !== undefined && remaining !== null) {
+        const tokenDisplay = document.getElementById('stat-tokens');
+        if (tokenDisplay) tokenDisplay.textContent = remaining.toLocaleString() + ' Tokens';
+
+        const maxTokens = getPlanMaxTokens(currentProfile?.plan || 'free');
+        const pct = Math.min(100, Math.round((remaining / maxTokens) * 100));
+        const fill    = document.getElementById('token-progress');
+        const pctLabel = document.getElementById('token-pct');
+        if (fill) fill.style.width = pct + '%';
+        if (pctLabel) pctLabel.textContent = `${pct}% Left (${remaining.toLocaleString()} / ${maxTokens.toLocaleString()})`;
+
+        // Sync local profile data state
+        if (currentProfile) currentProfile.tokens_remaining = remaining;
+      }
+    } catch (e) { /* Ignore when panel closes */ }
+  }, 30000);
+});
+
+// ??? Load Profile ???????????????????????????????????????
+async function loadProfile() {
+  try {
+    const profile = await api.invoke('user-get-profile');
+    if (!profile) {
+      showToast('??Failed to load profile information');
+      return;
+    }
+    currentProfile = profile;
+    renderProfile(profile);
+  } catch (e) {
+    console.error('[UserPanel] Failed to load profile:', e);
+    showToast('??Profile loading error: ' + e.message);
+  }
+}
+
+// ??? Render Profile ??????????????????????????????????????
+function renderProfile(profile) {
+  const name = profile.username || profile.email?.split('@')[0] || 'User';
+
+  // Map Header Avatar and Username
+  const avatar = document.getElementById('user-avatar');
+  const headerName = document.getElementById('header-username');
+  if (avatar) avatar.textContent = name.charAt(0).toUpperCase();
+  if (headerName) headerName.textContent = name;
+
+  // Welcome banner text mapping (No wave emoji ?몝 as requested)
+  const title = document.getElementById('welcome-title');
+  const sub = document.getElementById('welcome-sub');
+  if (title) title.innerHTML = `<span>Welcome, ${name}!</span>`;
+  if (sub) sub.textContent = `${profile.email} 쨌 Premium Command Center`;
+
+  // Active Plan Badge Mapping
+  const planName = document.getElementById('plan-name');
+  if (planName) {
+    const planLabels = { free: 'Free Plan', starter: 'Starter Plan', pro: 'Business Pro', enterprise: 'Enterprise', admin: 'Admin Suite' };
+    planName.textContent = planLabels[profile.plan] || profile.plan || 'Free Plan';
+  }
+
+  // Tokens Remaining Gauge bar refresh
+  const tokens = profile.tokens_remaining ?? 0;
+  const tokenDisplay = document.getElementById('stat-tokens');
+  if (tokenDisplay) tokenDisplay.textContent = tokens.toLocaleString() + ' Tokens';
+
+  const maxTokens = getPlanMaxTokens(profile.plan || 'free');
+  const pct = Math.min(100, Math.round((tokens / maxTokens) * 100));
+  const fill = document.getElementById('token-progress');
+  const pctLabel = document.getElementById('token-pct');
+  if (fill) fill.style.width = pct + '%';
+  if (pctLabel) pctLabel.textContent = `${pct}% Left (${tokens.toLocaleString()} / ${maxTokens.toLocaleString()})`;
+
+  // Map Registration Date
+  const joined = document.getElementById('stat-joined');
+  if (joined && profile.created_at) {
+    joined.textContent = formatDate(profile.created_at);
+  }
+
+  // Map Last Login Time
+  const lastLogin = document.getElementById('stat-last-login');
+  if (lastLogin && profile.last_login) {
+    lastLogin.textContent = formatDateTime(profile.last_login);
+  } else if (lastLogin) {
+    lastLogin.textContent = 'Just Now';
+  }
+}
+
+// ??? Load Logs ??????????????????????????????????????????
+async function loadLogs() {
+  const tbody = document.getElementById('history-tbody');
+  const footer = document.getElementById('history-footer');
+  if (!tbody) return;
+
+  // Loading Placeholder
+  tbody.innerHTML = `<tr class="loading-row"><td colspan="5"><div class="loader-ring"></div><span>Querying and auditing real-time transaction logs...</span></td></tr>`;
+
+  try {
+    const extFilter = document.getElementById('log-filter-ext')?.value || '';
+    const dateFilter = document.getElementById('log-filter-date')?.value || '';
+    const logs = await api.invoke('user-get-logs', { extFilter, dateFilter });
+
+    if (!logs || logs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:50px; color:var(--text-dim);">?벊 No active module execution history found.</td></tr>`;
+      if (footer) footer.style.display = 'none';
+      return;
+    }
+
+    // Cumulative uses count update
+    const totalEl = document.getElementById('stat-total-uses');
+    if (totalEl) totalEl.textContent = logs.length.toLocaleString() + ' Times';
+
+    // Render Logs Table
+    tbody.innerHTML = logs.map(log => `
+      <tr>
+        <td>${formatDateTime(log.created_at)}</td>
+        <td><span class="ext-badge">${escHtml(log.extension_name || '-')}</span></td>
+        <td style="font-weight:600; color:#fff;">${escHtml(log.action || '-')}</td>
+        <td class="token-consumed">??{(log.tokens_consumed || 0).toLocaleString()} T</td>
+        <td style="color:var(--text-muted); max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escHtml(log.details || '')}">
+          ${escHtml(log.details || '-')}
+        </td>
+      </tr>
+    `).join('');
+
+    if (footer) {
+      footer.style.display = 'block';
+      document.getElementById('history-count').textContent = logs.length.toLocaleString();
+    }
+
+  } catch (e) {
+    console.error('[UserPanel] Failed to load logs:', e);
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:50px; color:var(--color-pink);">??Error loading transaction logs: ${e.message}</td></tr>`;
+  }
+}
+
+
+// ??? 7 Premium Engine Specifications Data ??????????????????????
+const MODULE_DATA = [
+  {
+    tag: "AI EXTRACTION",
+    title: "Local Business Crawler Pro",
+    desc: "Revolutionizes traditional manual leads hunting. Targets 10 global directories and search pipelines (including Google and Bing) in a single click, extracting verified business titles, websites, contact numbers, and social media linkages into structured files.",
+    screenshot: "screenshot/local_business.jpg",
+    mockup: "mockup-t/local_business_crawler2.png",
+    specs: [
+      { name: "4-Step Deep Scan", desc: "Crawls domain hierarchies recursively to discover contact info nested deep inside brand pages." },
+      { name: "Auto Email Extraction", desc: "Applies high-accuracy parsing algorithms to aggregate and prioritize active domain emails." },
+      { name: "Auto CAPTCHA Bypass", desc: "Utilizes specialized security tokens to smoothly bypass anti-bot mechanisms and crawler gates." }
+    ]
+  },
+  {
+    tag: "GOOGLE MAPS",
+    title: "GMaps Business Finder",
+    desc: "Offline brick-and-mortar storefronts represent a massive pool of B2B outreach prospects. This module integrates seamlessly with the Google Maps architecture, extracting every localized business profile (rating, feedback count, phone, domains, and email channels) within precise spatial coordinates.",
+    screenshot: "screenshot/GMaps.png",
+    mockup: "mockup-t/gmaps_business_finder2.png",
+    specs: [
+      { name: "Location-based Search", desc: "Coordinates with geospatial range filters to harvest business entries from designated regions." },
+      { name: "Rating Filter", desc: "Leverages rating scores and feedback thresholds to organize and prioritize hot business prospects." },
+      { name: "Instant CSV Export", desc: "Saves gathered datasets on-the-fly into spreadsheet-compliant CSV structures in real-time." }
+    ]
+  },
+  {
+    tag: "MS ECOSYSTEM",
+    title: "Bing Maps Finder",
+    desc: "Directly harvests structural local listings from Microsoft's Bing Maps engine. Designed to work in tandem with Google Maps databases, conducting automated cross-validation queries to scrub duplicates and generate premium, validated target accounts lists.",
+    screenshot: "screenshot/bing_maps.png",
+    mockup: "mockup-t/bing_maps_finder2.png",
+    specs: [
+      { name: "Cross Validation System", desc: "Validates geographical address entries across both mapping databases to ensure zero invalid targets." },
+      { name: "Auto Contact Discovery", desc: "Proactively crawls localized domains to fetch valid contact mail channels." },
+      { name: "Sophisticated JSON Export", desc: "Compiles all target assets into raw JSON formats, optimal for developer pipelines and custom CRM loads." }
+    ]
+  },
+  {
+    tag: "SECURE & ANONYMOUS",
+    title: "XPIDER VPN",
+    desc: "Continuous massive scraping risks domain blacklist triggers and IP restrictions. XPIDER VPN deploys military-grade anonymous tunnel routing, hiding your raw outbound address behind globally relaying premium proxy nodes to secure nonstop data harvesting pipelines.",
+    screenshot: "screenshot/VPN.JPG",
+    mockup: "mockup-t/xpider_vpn2.png",
+    specs: [
+      { name: "IP Encryption Tunnel", desc: "Fully encrypts both scraper query headers and metadata packets to completely bypass anti-bot sniffers." },
+      { name: "High-speed Proxy Nodes", desc: "Leverages a dedicated high-bandwidth backbone network, ensuring seamless multi-thread crawling speed." },
+      { name: "Global Server Switching", desc: "Supports premium proxy nodes spanning Asia, Europe, and the US to access regionally restricted portals." }
+    ]
+  },
+  {
+    tag: "REAL-TIME LEAD CAPTURE",
+    title: "Email Extractor",
+    desc: "Eliminates the tedious manual copy-pasting of prospect information. Operates silently in the browser background, parsing visible mail-format string matrices inside target web panels as you traverse various tabs during active browsing sessions.",
+    screenshot: "screenshot/EMAIL.png",
+    mockup: "mockup-t/email2.png",
+    specs: [
+      { name: "Real-time Detection Engine", desc: "Monitors and captures hidden contact tags or mail patterns in webpage layouts dynamically." },
+      { name: "Smart Lead Filter", desc: "Filters out temporary trash, placeholder mail extensions, and dead inactive accounts automatically." },
+      { name: "Cross-Tab Multi Thread", desc: "Watches multiple active tabs concurrently to maximize passive extraction efficiency." }
+    ]
+  },
+  {
+    tag: "AI AUTOMATION",
+    title: "AutoForm Sender Pro",
+    desc: "One of the most potent outreach channels is direct submission to a brand's 'Contact Form'. Features an intelligent AI field parser to automatically decode, fill, and submit business proposals to inquiry forms in milliseconds.",
+    screenshot: "screenshot/sender.JPG",
+    mockup: "mockup-t/autoform_sender2.png",
+    specs: [
+      { name: "AI Field Detection", desc: "Identifies fields (e.g., Name, Mail, Proposal) accurately despite structural layout shifts or multi-language changes." },
+      { name: "Bulk Campaign Scheduling", desc: "Loads target B2B domains and dispatches pre-composed templates with custom transmit delay intervals." },
+      { name: "Advanced Report Manager", desc: "Tracks submit success metrics, Captcha block rates, and delivery confirmations in a sleek statistics console." }
+    ]
+  },
+  {
+    tag: "BULK EMAIL OUTREACH",
+    title: "SendForce Mailer Pro",
+    desc: "Deploy highly personalized cold emails to vast B2B prospect lists effortlessly. Deploys custom SMTP relay rotation and smart rate limits to ensure your marketing copy lands directly in the recipient's primary inbox.",
+    screenshot: "screenshot/send_force.jpg",
+    mockup: "mockup-t/sendforce_mailer2.png",
+    specs: [
+      { name: "Optimized Delivery Engine", desc: "Injects custom headers and parses templates cleanly to bypass standard incoming spam filters." },
+      { name: "Smart Delivery Scheduler", desc: "Implements strict interval delay logic between bulk outbox dispatches to avoid server rate caps." },
+      { name: "Technical Settings Panel", desc: "Full control over SPF/DKIM registration checks, custom domain configuration, and SMTP setups." }
+    ]
+  }
+];
+
+// ??? Pricing Policy Data ???????????????????????????????????
+let isYearlyBilling = false;
+const PRICING_DATA = {
+  starter: { monthly: "$59", yearly: "$47" },
+  business: { monthly: "$99", yearly: "$79" },
+  enterprise: { monthly: "$199", yearly: "$159" }
+};
+
+function toggleBilling() {
+  const toggle = document.getElementById('billing-toggle');
+  const labelMonthly = document.getElementById('label-monthly');
+  const labelYearly = document.getElementById('label-yearly');
+  
+  isYearlyBilling = !isYearlyBilling;
+
+  if (isYearlyBilling) {
+    toggle.classList.add('yearly');
+    labelMonthly.classList.remove('active');
+    labelYearly.classList.add('active');
+    updatePricingText('yearly');
+  } else {
+    toggle.classList.remove('yearly');
+    labelMonthly.classList.add('active');
+    labelYearly.classList.remove('active');
+    updatePricingText('monthly');
+  }
+}
+
+function updatePricingText(type) {
+  const pStarter = document.getElementById('price-starter');
+  const pBusiness = document.getElementById('price-business');
+  const pEnterprise = document.getElementById('price-enterprise');
+
+  // Text Animation
+  [pStarter, pBusiness, pEnterprise].forEach(el => {
+    if (el) {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(-6px) scale(0.95)';
+    }
+  });
+
+  setTimeout(() => {
+    if (pStarter) pStarter.textContent = PRICING_DATA.starter[type];
+    if (pBusiness) pBusiness.textContent = PRICING_DATA.business[type];
+    if (pEnterprise) pEnterprise.textContent = PRICING_DATA.enterprise[type];
+
+    [pStarter, pBusiness, pEnterprise].forEach(el => {
+      if (el) {
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0) scale(1)';
+      }
+    });
+  }, 200);
+}
+
+// ??? 3D Spec Overlay Modal ???????????????????????????????????????
+function openModuleModal(index) {
+  const data = MODULE_DATA[index];
+  const modal = document.getElementById('module-modal');
+  if (!modal || !data) return;
+  
+  document.getElementById('modal-module-tag').textContent = data.tag;
+  document.getElementById('modal-module-title').textContent = data.title;
+  document.getElementById('modal-module-desc').textContent = data.desc;
+  
+  // Media Mapping
+  document.getElementById('modal-main-img').src = data.screenshot;
+  document.getElementById('modal-packshot-overlay').src = data.mockup;
+  
+  // Specs Populate
+  const specGrid = document.getElementById('modal-spec-grid');
+  if (specGrid) {
+    specGrid.innerHTML = '';
+    data.specs.forEach(spec => {
+      const item = document.createElement('div');
+      item.className = 'modal-feature-card';
+      item.innerHTML = `
+        <div class="modal-feature-icon-box">
+          <i class="fa-solid fa-fire"></i>
+        </div>
+        <div class="modal-feature-info">
+          <span class="modal-feature-name">${spec.name}</span>
+          <span class="modal-feature-desc">${spec.desc}</span>
+        </div>
+      `;
+      specGrid.appendChild(item);
+    });
+  }
+
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden'; // Parent scroll block
+}
+
+function closeModuleModal(event) {
+  const modal = document.getElementById('module-modal');
+  if (modal) modal.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+// ??? FAQ Accordion Toggle ????????????????????????????????????????
+function toggleFaq(element) {
+  const allFaqItems = document.querySelectorAll('.faq-item');
+  
+  allFaqItems.forEach(item => {
+    if (item !== element) {
+      item.classList.remove('active');
+      const answer = item.querySelector('.faq-answer');
+      if (answer) answer.style.maxHeight = null;
+    }
+  });
+
+  element.classList.toggle('active');
+  const answer = element.querySelector('.faq-answer');
+  
+  if (answer) {
+    if (element.classList.contains('active')) {
+      answer.style.maxHeight = answer.scrollHeight + 15 + "px";
+    } else {
+      answer.style.maxHeight = null;
+    }
+  }
+}
+
+// ??? Pricing Plan Config ????????????????????????????????????
+const PLAN_CONFIG = {
+  starter: {
+    label: 'Starter Plan',
+    monthly: { price: '$59', period: 'month', tokens: '6,000' },
+    yearly:  { price: '$47', period: 'month', tokens: '6,000' }
+  },
+  pro: {
+    label: 'Business Pro Plan',
+    monthly: { price: '$99', period: 'month', tokens: '12,000' },
+    yearly:  { price: '$79', period: 'month', tokens: '12,000' }
+  },
+  enterprise: {
+    label: 'Enterprise Plan',
+    monthly: { price: '$199', period: 'month', tokens: '30,000' },
+    yearly:  { price: '$159', period: 'month', tokens: '30,000' }
+  }
+};
+
+let _currentCheckoutPlan = 'starter';
+let _modalIsYearly = false;
+
+function openPurchase(planId) {
+  _currentCheckoutPlan = planId;
+  _modalIsYearly = false;
+  const modal = document.getElementById('purchase-modal');
+  if (modal) modal.classList.add('active');
+  _updateModalPlanInfo();
+}
+
+function _updateModalPlanInfo() {
+  const cfg = PLAN_CONFIG[_currentCheckoutPlan];
+  if (!cfg) return;
+  const billing = _modalIsYearly ? cfg.yearly : cfg.monthly;
+
+  const nameEl   = document.getElementById('stripe-plan-name');
+  const priceEl  = document.getElementById('stripe-plan-price');
+  const tokenEl  = document.getElementById('stripe-plan-tokens');
+  const mLabel   = document.getElementById('modal-billing-monthly');
+  const yLabel   = document.getElementById('modal-billing-yearly');
+  const toggle   = document.getElementById('modal-billing-toggle');
+
+  if (nameEl)  nameEl.textContent  = cfg.label;
+  if (priceEl) priceEl.textContent = `${billing.price} / ${billing.period}`;
+  if (tokenEl) tokenEl.textContent = `${billing.tokens} tokens per month`;
+
+  if (_modalIsYearly) {
+    toggle?.classList.add('yearly');
+    mLabel?.classList.remove('active-label');
+    yLabel?.classList.add('active-label');
+    mLabel && (mLabel.style.fontWeight = '400'); mLabel && (mLabel.style.color = 'var(--text-muted)');
+    yLabel && (yLabel.style.fontWeight = '700'); yLabel && (yLabel.style.color = '#fff');
+  } else {
+    toggle?.classList.remove('yearly');
+    mLabel?.classList.add('active-label');
+    yLabel?.classList.remove('active-label');
+    mLabel && (mLabel.style.fontWeight = '700'); mLabel && (mLabel.style.color = '#fff');
+    yLabel && (yLabel.style.fontWeight = '400'); yLabel && (yLabel.style.color = 'var(--text-muted)');
+  }
+}
+
+function toggleModalBilling() {
+  _modalIsYearly = !_modalIsYearly;
+  _updateModalPlanInfo();
+}
+
+function closePurchaseModal() {
+  const modal = document.getElementById('purchase-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+// ??? Stripe Checkout ?????????????????????????????????????????
+async function startStripeCheckout() {
+  const btn = document.getElementById('btn-stripe-checkout');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>Redirecting...</span>';
+  }
+
+  try {
+    const billingCycle = _modalIsYearly ? 'yearly' : 'monthly';
+    const result = await api.invoke('stripe-create-checkout', {
+      planId:       _currentCheckoutPlan,
+      billingCycle: billingCycle,
+      userId:       currentProfile?.id || '',
+      email:        currentProfile?.email || ''
+    });
+
+    if (result?.url) {
+      // Electron: external browser opens Stripe
+      api.send('open-external-url', result.url);
+      closePurchaseModal();
+      showToast('??Stripe checkout opened in your browser');
+    } else if (result?.error) {
+      showToast('??' + result.error);
+    } else {
+      showToast('??Failed to create checkout session');
+    }
+  } catch (e) {
+    showToast('??Checkout error: ' + e.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-brands fa-stripe-s"></i> <span>Pay with Stripe</span> <i class="fa-solid fa-arrow-right"></i>';
+    }
+  }
+}
+
+// ??? Sign Out ????????????????????????????????????????????????
+function handleLogout() {
+  if (confirm('Are you sure you want to sign out?')) {
+    // ?ㅼ쓬 援щ룞 ???먮룞 濡쒓렇?몄씠 ?섑뻾?섏? ?딅룄濡???λ맂 鍮꾨?踰덊샇 ?뺣낫瑜?泥좎????쒓굅
+    localStorage.removeItem('xpider-saved-pw');
+    
+    // Chromium LevelDB ?붿뒪???곌린 ?湲?諛??덉쟾 由щ줈???湲?(150ms)
+    setTimeout(() => {
+      try { api.send('auth-logout'); } catch(e) {}
+      try { window.close(); } catch(e) {}
+    }, 150);
+  }
+}
+
+// ??? Date Formatter ???????????????????????????????????????????
+function formatDate(isoStr) {
+  if (!isoStr) return '-';
+  const d = new Date(isoStr);
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// Date/Time Formatter (e.g. May 26, 10:30 AM)
+function formatDateTime(isoStr) {
+  if (!isoStr) return '-';
+  const d = new Date(isoStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+let _toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('up-toast');
+  const m = document.getElementById('up-toast-msg');
+  if (!t || !m) return;
+  m.textContent = msg;
+  t.classList.remove('hidden');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
+}
+
+</script>
+</body>
+</html>
+

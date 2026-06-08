@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XPIDER VPN</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <div class="logo">
+        <h1>XPIDER <span>VPN</span></h1>
+        <p class="tagline" id="tagline">Hide Your Online Presence Completely</p>
+      </div>
+      <button id="settings-trigger" class="icon-btn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+    </header>
+
+    <main>
+      <div class="status-panel">
+        <div id="connection-status" class="status-badge">Disconnected</div>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="label" id="label-ip">Proxy IP</span>
+            <span id="current-ip" class="value">— — — —</span>
+          </div>
+          <div class="stat-item">
+            <span class="label" id="label-loc">Location</span>
+            <span id="current-location" class="value">None</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="power-button-container">
+        <button id="connect-btn" class="power-btn">
+          <div class="neon-ring"></div>
+          <div class="power-inner">
+            <svg viewBox="0 0 24 24">
+              <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+              <line x1="12" y1="2" x2="12" y2="12"></line>
+            </svg>
+          </div>
+        </button>
+        <p id="action-hint">Tap to Connect</p>
+      </div>
+
+      <div class="server-selector" id="server-list-trigger">
+        <div class="selector-info">
+          <label id="label-server">Server</label>
+          <span id="selected-server-name">Auto Select</span>
+        </div>
+        <span class="chevron">▼</span>
+      </div>
+    </main>
+
+    <!-- Server Modal -->
+    <div id="server-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-title-server">Select Location</h2>
+          <button id="close-modal" class="icon-btn">&times;</button>
+        </div>
+        <div id="server-list" class="server-list">
+          <!-- servers -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-panel" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-title-set">Settings</h2>
+          <button id="close-settings" class="icon-btn">&times;</button>
+        </div>
+        <div class="settings-body">
+          <label id="label-lang" style="font-size:0.7rem; color:var(--text-muted); margin-bottom:15px; display:block; text-transform:uppercase; letter-spacing:1px;">Language Selection</label>
+          <div class="lang-grid" id="lang-grid">
+            <!-- 12 languages -->
+          </div>
+          <div style="margin-top:30px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.05); text-align:center; font-size:0.6rem; color:#444;">
+            XPIDER VPN Engine v2.5.0
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

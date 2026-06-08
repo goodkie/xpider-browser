@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "8H80FWC3n+g=",
+  "success": true,
+  "projectFilePath": "E:\\vivpr\\ai\\full-xpider-v9\\src\\deploy\\XpiderSetup\\XpiderSetup.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\vivPR\\.nuget\\packages\\microsoft.netframework.referenceassemblies\\1.0.3\\microsoft.netframework.referenceassemblies.1.0.3.nupkg.sha512",
+    "C:\\Users\\vivPR\\.nuget\\packages\\microsoft.netframework.referenceassemblies.net48\\1.0.3\\microsoft.netframework.referenceassemblies.net48.1.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}

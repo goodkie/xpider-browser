@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XPIDER PRO — Terms of Service</title>
+    <!-- Google Font Integration -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #06090e;
+            --bg-glass: rgba(16, 22, 35, 0.65);
+            --bg-glass-hover: rgba(22, 30, 48, 0.8);
+            --border-color: rgba(255, 255, 255, 0.05);
+            --border-glow: rgba(0, 242, 254, 0.2);
+            --color-text-main: #f3f5f9;
+            --color-text-muted: #7f90a6;
+            --accent-blue: #00f2fe;
+            --accent-purple: #4facfe;
+            --accent-red: #ff3366;
+            --accent-gold: #ffd700;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--color-text-main);
+            font-family: 'Outfit', sans-serif;
+            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Ambient Glow backgrounds */
+        body::before, body::after {
+            content: '';
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            filter: blur(140px);
+            z-index: -1;
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        body::before {
+            top: 10%;
+            left: 5%;
+            background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-purple) 100%);
+        }
+        body::after {
+            bottom: 15%;
+            right: 5%;
+            background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-red) 100%);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        /* Header styling */
+        .tos-header {
+            text-align: center;
+            margin-bottom: 50px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 40px;
+        }
+
+        .tos-logo {
+            font-size: 40px;
+            background: rgba(0, 242, 254, 0.08);
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            border: 1px solid rgba(0, 242, 254, 0.2);
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.15);
+        }
+
+        .tos-header h1 {
+            font-size: 36px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff 40%, #a2b0c3 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+        }
+
+        .tos-header p {
+            color: var(--color-text-muted);
+            font-size: 14px;
+        }
+
+        /* Content Card styling */
+        .tos-card {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 48px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+        }
+
+        .tos-section {
+            margin-bottom: 40px;
+        }
+
+        .tos-section h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-blue);
+            margin-bottom: 16px;
+            border-left: 3px solid var(--accent-purple);
+            padding-left: 12px;
+            letter-spacing: -0.2px;
+        }
+
+        .tos-section p {
+            font-size: 14.5px;
+            color: #d1d9e6;
+            margin-bottom: 14px;
+            text-align: justify;
+        }
+
+        .tos-section ul, .tos-section ol {
+            margin-left: 24px;
+            margin-bottom: 16px;
+            color: #d1d9e6;
+            font-size: 14px;
+        }
+
+        .tos-section li {
+            margin-bottom: 8px;
+        }
+
+        .prohibited-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 16px;
+            background: rgba(255, 51, 102, 0.04);
+            border: 1px solid rgba(255, 51, 102, 0.15);
+            padding: 20px;
+            border-radius: 16px;
+        }
+
+        .prohibited-item {
+            font-size: 13.5px;
+            color: #f7d6dd;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .prohibited-item::before {
+            content: '❌';
+            font-size: 11px;
+        }
+
+        .alert-box {
+            background: rgba(0, 242, 254, 0.05);
+            border: 1px solid rgba(0, 242, 254, 0.15);
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            color: #d6f6ff;
+            font-size: 13.5px;
+        }
+
+        /* Footer styling */
+        .tos-footer {
+            text-align: center;
+            margin-top: 40px;
+            color: var(--color-text-muted);
+            font-size: 12px;
+        }
+
+        .tos-footer a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .tos-footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .tos-card {
+                padding: 24px;
+            }
+            .prohibited-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="tos-header">
+            <div class="tos-logo">
+                <img src="logo.png" alt="XPIDER" style="width: 48px; height: 48px; object-fit: contain;">
+            </div>
+            <h1>XPIDER PRO Terms of Service</h1>
+            <p>Effective Date: Mar 27, 2025</p>
+        </header>
+
+        <main class="tos-card">
+            <!-- 1. Agreement -->
+            <section class="tos-section">
+                <h2>1. Agreement</h2>
+                <p>
+                    This is the Terms of Service Agreement (“Agreement”) between **XPIDER B.V.** (“XPIDER PRO”, "we", "us", or "our") and you (“User”, “Customer”, or “your”), which goes into effect as of the date of your use of this software, browser application, or electronic acceptance of this Agreement.
+                </p>
+                <p>
+                    These Terms of Service govern your use of the custom Chromium browser client, automated mining extensions, and the Admin Command Center web service (collectively, the "Services") provided by XPIDER PRO. By exploring this Site or purchasing/subscribing to our Services, you acknowledge that you have fully understood, accepted, and agreed to be bound by this Agreement and all related policies.
+                </p>
+            </section>
+
+            <!-- 2. Eligibility & Account Security -->
+            <section class="tos-section">
+                <h2>2. Eligibility & Account Security</h2>
+                <p>
+                    By accessing or purchasing our Services, you affirm and warrant that you are at least **eighteen (18) years of age** and are fully capable of forming legally binding contractual obligations under applicable law.
+                </p>
+                <p>
+                    To access certain features of our Services, you are required to register and create a user Account. You must ensure that all registered information remains truthful, current, and complete at all times. If you voluntarily grant access or share your Account (Account Sharing) with any third party, you assume full legal and financial responsibility for all activities, transactions, and liabilities incurred under your Account.
+                </p>
+            </section>
+
+            <!-- 3. Resource & Token System Policy -->
+            <section class="tos-section">
+                <h2>3. Resource & Token Deduction Policy</h2>
+                <div class="alert-box">
+                    💡 **Token-Based Billing System**: XPIDER PRO dynamically deducts your remaining tokens in real time based on the execution counts of extensions and the volume of lead extractions.
+                </div>
+                <p>
+                    Customers are entitled to utilize system resources within the specific allocations designated under their subscribed B2B Pricing Plans (Starter, Pro, or Enterprise).
+                </p>
+                <ul>
+                    <li>**Token Reset**: Upon monthly or annual subscription renewal, the remaining token balance will be reset and recharged to the default amount of your plan.</li>
+                    <li>**Automated Feature Restriction**: Once your token balance is fully depleted (0 tokens), the operation of all extensions and browser mining tasks will immediately suspend in real time, and you will be automatically redirected to the recharge page.</li>
+                    <li>**Default Welcome Tokens**: New accounts are credited with a default welcome balance of exactly 600 tokens.</li>
+                </ul>
+            </section>
+
+            <!-- 4. Acceptable Use -->
+            <section class="tos-section">
+                <h2>4. Acceptable Use & Strict Restrictions</h2>
+                <p>
+                    You acknowledge and agree that our Services are intended strictly for commercial, business-to-business (B2B) marketing, and lead mining purposes. Any unauthorized usage that infringes upon the intellectual property of others or negatively impacts our server and network stability is strictly prohibited. Violation of these policies will result in immediate suspension or permanent termination of your account, along with the permanent destruction of all associated data.
+                </p>
+                
+                <div class="prohibited-grid">
+                    <div class="prohibited-item">Spam & Mass Mailing</div>
+                    <div class="prohibited-item">Phishing & Impersonation</div>
+                    <div class="prohibited-item">DDoS Scripts & Packet Floods</div>
+                    <div class="prohibited-item">SIP Scanning & Exploitation</div>
+                    <div class="prohibited-item">Viruses & Trojans Distribution</div>
+                    <div class="prohibited-item">Virtual Currency Generators</div>
+                    <div class="prohibited-item">Reverse Proxies & Botnet C&C</div>
+                    <div class="prohibited-item">Forex & Unlawful Banking Schemes</div>
+                </div>
+            </section>
+
+            <!-- 5. Refund & Crypto Disclaimers -->
+            <section class="tos-section">
+                <h2>5. Refund, Chargebacks & Cryptocurrencies</h2>
+                <p>
+                    **Shared Hosting & Subscription**: A 30-day money-back guarantee is offered for valid subscriptions and shared plans, provided that a refund request is made **within fourteen (14) days of purchase** and the user has not violated any acceptable use terms.
+                </p>
+                <p>
+                    **Cryptocurrency Non-Refundable**: You explicitly acknowledge and agree that all transactions processed via cryptocurrencies of any kind are strictly non-refundable under all circumstances, and no full or prorated refunds will be issued.
+                </p>
+                <p>
+                    **Dispute & Chargeback**: Initiating a chargeback or payment dispute through PayPal or card issuers without first contacting XPIDER PRO and making a good-faith effort to resolve the issue will be considered a fraudulent act. XPIDER PRO reserves the complete right to terminate the account immediately and permanently destroy all database records without prior notice.
+                </p>
+            </section>
+
+            <!-- 6. Backup, Restoration & Telemetry -->
+            <section class="tos-section">
+                <h2>6. Backup, Restoration & Telemetry</h2>
+                <p>
+                    XPIDER PRO operates the following system monitors and failsafes to maintain the reliability of services and reinforce user security.
+                </p>
+                <ul>
+                    <li>**Real-time Activity Tracking**: The user's public IP address and hardware physical address (MAC Address) at the time of login are captured and recorded in the Admin Command Center to facilitate active device verification and prevent unauthorized multi-device sharing.</li>
+                    <li>**Periodic Remote Backups**: The main application process automatically captures full database snapshots hourly and commits them to our secure remote GitHub repository (`goodkie/xpider-browser`) in encrypted JSON format.</li>
+                    <li>**Restoration & Recovery**: In the event of system instability or user error, XPIDER PRO reserves the unilateral right—subject to authorized administrator approval—to restore profiles and user_logs tables immediately from the remote GitHub backups.</li>
+                </ul>
+            </section>
+
+            <!-- 7. Disclaimer of Warranties -->
+            <section class="tos-section">
+                <h2>7. Limited Warranties & Disclaimer</h2>
+                <p>
+                    YOU EXPRESSLY ACKNOWLEDGE AND AGREE THAT YOUR USE OF THE XPIDER PRO SERVICES IS ENTIRELY AT YOUR OWN RISK. ALL SERVICES AND BROWSER CLIENTS ARE PROVIDED STRICTLY ON AN “AS IS,” “AS AVAILABLE,” AND “WITH ALL FAULTS” BASIS.
+                </p>
+                <p>
+                    XPIDER PRO and its officers, directors, and employees make no warranties regarding the uninterrupted availability, merchantability, or fitness for a particular purpose of the Services. No advice or instructions provided through our guides or customer support shall be construed as professional, financial, or legal counsel.
+                </p>
+                <p>
+                    **Users are solely responsible for any data loss, system accidents, or failures that occur during the installation process. All responsibilities regarding the collection, handling, and management of data gathered through this software lie entirely and exclusively with the user.**
+                </p>
+            </section>
+
+            <!-- 8. Contact Information -->
+            <section class="tos-section">
+                <h2>8. Contact Information</h2>
+                <p>
+                    If you have any questions, concerns, or require clarification about this Agreement, you are welcome to reach out to us:
+                </p>
+                <p>
+                    📧 **Support Email**: <a href="mailto:info@xpider.pro">info@xpider.pro</a> (AbeloHost B.V. Partner Network)<br>
+                    📍 **Main Office**: Wibautstraat 131D, 1091 GL Amsterdam, Netherlands
+                </p>
+            </section>
+        </main>
+
+        <footer class="tos-footer">
+            <p>&copy; 2025 XPIDER B.V. All rights reserved. | <a href="index.html">Back to Home</a></p>
+        </footer>
+    </div>
+</body>
+</html>

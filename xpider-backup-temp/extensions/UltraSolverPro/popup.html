@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UltraSolver Pro reCAPTCHA</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #050b0a 0%, #0d1614 100%);
+      --card-bg: rgba(10, 25, 20, 0.65);
+      --card-border: rgba(16, 185, 129, 0.12);
+      --primary: #10b981;
+      --primary-glow: rgba(16, 185, 129, 0.35);
+      --secondary: #059669;
+      --secondary-glow: rgba(5, 150, 105, 0.35);
+      --accent: #34d399;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --error: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text);
+      width: 360px;
+      height: auto;
+      overflow-x: hidden;
+      padding: 20px;
+      user-select: none;
+    }
+
+    /* Glassmorphic Container */
+    .container {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Glowing decorative orbs */
+    .bg-orb {
+      position: absolute;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      filter: blur(45px);
+      z-index: -1;
+      opacity: 0.45;
+    }
+    .orb-primary {
+      top: -30px;
+      right: -30px;
+      background: radial-gradient(circle, var(--primary) 0%, rgba(0,0,0,0) 70%);
+    }
+    .orb-secondary {
+      bottom: -40px;
+      left: -30px;
+      background: radial-gradient(circle, var(--secondary) 0%, rgba(0,0,0,0) 70%);
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .logo-container {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px var(--primary-glow);
+    }
+
+    .logo-container span {
+      font-size: 1.3rem;
+    }
+
+    .title-group h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(to right, #ffffff, #d8b4fe);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .title-group p {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Live Status Panel */
+    .status-panel {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .status-value {
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--text-muted);
+    }
+    .status-dot.solving {
+      background-color: var(--secondary);
+      box-shadow: 0 0 8px var(--secondary-glow);
+      animation: pulse 1.5s infinite;
+    }
+    .status-dot.success {
+      background-color: var(--accent);
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    }
+    .status-dot.error {
+      background-color: var(--error);
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0.6; }
+      50% { transform: scale(1.2); opacity: 1; }
+      100% { transform: scale(0.9); opacity: 0.6; }
+    }
+
+    /* Settings Form */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .input-wrapper {
+      position: relative;
+    }
+
+    .input-wrapper input {
+      width: 100%;
+      background: rgba(10, 15, 30, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 0.82rem;
+      color: #fff;
+      outline: none;
+      transition: all 0.3s;
+    }
+
+    .input-wrapper input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 10px var(--primary-glow);
+      background: rgba(10, 15, 30, 0.8);
+    }
+
+    /* Buttons */
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #fff;
+      box-shadow: 0 4px 15px var(--primary-glow);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1.5px);
+      box-shadow: 0 6px 20px var(--primary-glow);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    /* Balance / Stats Container */
+    .stats-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-title {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .stat-value.balance-glow {
+      color: #60a5fa;
+      text-shadow: 0 0 10px rgba(96, 165, 250, 0.3);
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(30px);
+      background: rgba(16, 185, 129, 0.9);
+      color: #fff;
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+      z-index: 10;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="bg-orb orb-primary"></div>
+    <div class="bg-orb orb-secondary"></div>
+
+    <!-- Header -->
+    <header>
+      <div class="logo-container" style="background: transparent; box-shadow: none; border-radius: 50%; width: 42px; height: 42px; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-right: 4px;">
+        <img src="icons/icon128.png" style="width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.5));">
+      </div>
+      <div class="title-group">
+        <h1 style="background: linear-gradient(to right, #ffffff, #a7f3d0); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">UltraSolver Pro reCAPTCHA</h1>
+        <p>XPIDER CAPTCHA Bypass Extension</p>
+      </div>
+    </header>
+
+    <!-- Stats Panel -->
+    <div class="stats-container">
+      <div class="stat-card">
+        <div class="stat-title">Credit Balance</div>
+        <div class="stat-value balance-glow" id="balance-val">0.00 USP</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">Solved Count</div>
+        <div class="stat-value" id="solves-val">0</div>
+      </div>
+    </div>
+
+    <!-- Status Indicator -->
+    <div class="status-panel">
+      <div class="status-row">
+        <span class="status-label">Status</span>
+        <div class="status-value">
+          <div class="status-dot" id="status-dot"></div>
+          <span id="status-text">Idle</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- XPIDER Token Balance Info -->
+    <div class="status-panel" style="margin-top: 10px; background: rgba(147, 51, 234, 0.05); border: 1px solid rgba(147, 51, 234, 0.15);">
+      <div class="status-row">
+        <span class="status-label" style="color: #c084fc;">XPIDER Tokens</span>
+        <span class="status-value" id="xpider-tokens-val" style="color: #d8b4fe;">...</span>
+      </div>
+      <p style="font-size: 0.68rem; color: var(--text-muted); line-height: 1.4; margin-top: 6px;">
+        * Rate: 1 USP = 3 XPIDER Tokens. CAPTCHA solving automatically consumes XPIDER Tokens from your account.
+      </p>
+    </div>
+
+    <!-- Real-time Logs -->
+    <div class="status-panel" style="margin-top: 10px; background: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.05); padding: 12px;">
+      <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <span>Real-time Solver Logs</span>
+        <span style="font-size: 0.6rem; color: #10b981; font-weight: 700; animation: pulse 1.5s infinite;">● LIVE</span>
+      </div>
+      <div id="log-box" style="font-family: 'Consolas', 'Courier New', monospace; font-size: 0.68rem; color: #a7f3d0; max-height: 90px; overflow-y: auto; text-align: left; line-height: 1.4; white-space: pre-wrap; word-break: break-all; padding: 4px; border-radius: 6px; background: rgba(10, 15, 30, 0.4);">No logs available.</div>
+    </div>
+
+    <!-- Buttons -->
+    <div style="margin-top: 15px; display: flex; gap: 8px;">
+      <button class="btn btn-primary" id="btn-refresh" style="flex: 1;">🔄 Refresh</button>
+      <button class="btn btn-secondary" id="btn-copy-logs" style="flex: 1; padding: 12px; font-size: 0.82rem; font-weight: 700; border-radius: 10px; cursor: pointer;">📋 Copy Logs</button>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">✅ Refreshed successfully!</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

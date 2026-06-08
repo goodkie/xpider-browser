@@ -499,11 +499,14 @@ function extractEmails(text) {
     const matches = text.match(emailRegex) || [];
     
     // [v1.3.2] Super-strong Email Blacklist (Excludes portals, government offices, org, gov domains)
+    // 일반 포털(gmail, naver 등)은 대량 이메일 발송 리스트 업로드를 위해 차단 목록에서 제외합니다.
     const blacklist = [
         // 관공서 및 공공기관 도메인
         '.gov', '.go.kr', 'korea.kr', 'police.go.kr', 'spo.go.kr', 'assembly.go.kr', 'scourt.go.kr',
+        // .org 및 비영리/기타 공공 도메인
+        '.org', '.or.kr', 
         // 기본 제외 키워드
-        'noreply', 'no-reply', 'postmaster'
+        'noreply', 'no-reply', 'admin', 'postmaster'
     ];
     
     return [...new Set(matches)].filter(email => {
