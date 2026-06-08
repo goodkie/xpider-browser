@@ -974,7 +974,7 @@ async function loadSmtpProviderSetting() {
         if (_smtpSaving) return;
 
         let provider = 'brevo';
-        if (data && data.plan && (data.plan === 'brevo' || data.plan === 'mailgun')) {
+        if (data && data.plan && (data.plan === 'brevo' || data.plan === 'resend')) {
             provider = data.plan;
         }
 
@@ -988,10 +988,10 @@ async function loadSmtpProviderSetting() {
 /**
  * 어드민이 토글 스위치 조작 시 호출 — provider 변경 및 Supabase 저장
  * profiles(smtp-config@xpider.pro).plan 컬럼에 UPDATE
- * @param {boolean} isMailgun - true: Mailgun, false: Brevo
+ * @param {boolean} isResend - true: Resend, false: Brevo
  */
-async function handleSmtpToggle(isMailgun) {
-    const provider = isMailgun ? 'mailgun' : 'brevo';
+async function handleSmtpToggle(isResend) {
+    const provider = isResend ? 'resend' : 'brevo';
     const statusEl = document.getElementById('smtp-save-status');
     if (statusEl) { statusEl.textContent = '🔄 저장 중...'; statusEl.style.color = '#6b7a8d'; }
 
@@ -1037,7 +1037,7 @@ async function handleSmtpToggle(isMailgun) {
 
 /**
  * provider에 따라 토글 스위치 UI 상태 업데이트
- * @param {'brevo'|'mailgun'} provider
+ * @param {'brevo'|'resend'} provider
  */
 function updateSmtpToggleUI(provider) {
     const toggle = document.getElementById('smtp-relay-toggle');
@@ -1045,24 +1045,26 @@ function updateSmtpToggleUI(provider) {
     const thumb = document.getElementById('smtp-toggle-thumb');
     const badge = document.getElementById('smtp-status-badge');
     const brevoLabel = document.getElementById('smtp-label-brevo');
-    const mailgunLabel = document.getElementById('smtp-label-mailgun');
+    const resendLabel = document.getElementById('smtp-label-resend');
     if (!toggle) return;
 
-    const isMailgun = (provider === 'mailgun');
-    toggle.checked = isMailgun;
+    const isResend = (provider === 'resend');
+    toggle.checked = isResend;
 
-    if (isMailgun) {
-        // Mailgun 활성
+    if (isResend) {
+        // Resend 활성
         track.style.background = 'rgba(251,146,60,0.4)';
         track.style.borderColor = 'rgba(251,146,60,0.5)';
         track.style.boxShadow = '0 0 10px rgba(251,146,60,0.4)';
         thumb.style.left = '27px';
-        badge.textContent = 'MAILGUN';
+        badge.textContent = 'RESEND';
         badge.style.color = '#fb923c';
-        // Mailgun 레이블 하이라이트
-        mailgunLabel.style.border = '1px solid rgba(251,146,60,0.5)';
-        mailgunLabel.style.background = 'rgba(251,146,60,0.1)';
-        mailgunLabel.querySelector('span:last-child').style.color = '#fb923c';
+        // Resend 레이블 하이라이트
+        if (resendLabel) {
+            resendLabel.style.border = '1px solid rgba(251,146,60,0.5)';
+            resendLabel.style.background = 'rgba(251,146,60,0.1)';
+            resendLabel.querySelector('span:last-child').style.color = '#fb923c';
+        }
         // Brevo 레이블 닙우기
         brevoLabel.style.border = '1px solid rgba(255,255,255,0.08)';
         brevoLabel.style.background = 'rgba(255,255,255,0.03)';
@@ -1079,10 +1081,12 @@ function updateSmtpToggleUI(provider) {
         brevoLabel.style.border = '1px solid rgba(99,179,237,0.3)';
         brevoLabel.style.background = 'rgba(99,179,237,0.1)';
         brevoLabel.querySelector('span:last-child').style.color = '#63b3ed';
-        // Mailgun 레이블 닙우기
-        mailgunLabel.style.border = '1px solid rgba(255,255,255,0.08)';
-        mailgunLabel.style.background = 'rgba(255,255,255,0.03)';
-        mailgunLabel.querySelector('span:last-child').style.color = '#6b7a8d';
+        // Resend 레이블 닙우기
+        if (resendLabel) {
+            resendLabel.style.border = '1px solid rgba(255,255,255,0.08)';
+            resendLabel.style.background = 'rgba(255,255,255,0.03)';
+            resendLabel.querySelector('span:last-child').style.color = '#6b7a8d';
+        }
     }
 }
 
@@ -1091,15 +1095,15 @@ window.handleSmtpToggle = handleSmtpToggle;
 window.loadSmtpProviderSetting = loadSmtpProviderSetting;
 
 /**
- * Mailgun 또는 Brevo 레이블 div 클릭 시 해당 provider로 직접 전환
- * @param {'brevo'|'mailgun'} provider
+ * Resend 또는 Brevo 레이블 div 클릭 시 해당 provider로 직접 전환
+ * @param {'brevo'|'resend'} provider
  */
 window.switchSmtpTo = async function(provider) {
     const toggle = document.getElementById('smtp-relay-toggle');
     if (!toggle) return;
-    const isMailgun = (provider === 'mailgun');
-    toggle.checked = isMailgun;
-    await handleSmtpToggle(isMailgun);
+    const isResend = (provider === 'resend');
+    toggle.checked = isResend;
+    await handleSmtpToggle(isResend);
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -1346,7 +1350,7 @@ async function checkAndFireNotifications() {
 }
 
 /**
- * 현재 SMTP 릴레이 설정에 따라 Brevo 또는 Mailgun으로 알림 이메일 발송
+ * 현재 SMTP 릴레이 설정에 따라 Brevo 또는 Resend로 알림 이메일 발송
  * @param {string} subject - 이메일 제목
  * @param {string} htmlBody - HTML 본문
  */
@@ -1357,11 +1361,11 @@ async function sendAdminNotificationEmail(subject, htmlBody) {
     // 현재 SMTP provider 확인
     const provider = (() => {
         const toggle = document.getElementById('smtp-relay-toggle');
-        return (toggle && toggle.checked) ? 'mailgun' : 'brevo';
+        return (toggle && toggle.checked) ? 'resend' : 'brevo';
     })();
 
-    if (provider === 'mailgun') {
-        await _sendViaMailgun(toEmail, subject, htmlBody);
+    if (provider === 'resend') {
+        await _sendViaResend(toEmail, subject, htmlBody);
     } else {
         await _sendViaBrevo(toEmail, subject, htmlBody);
     }
@@ -1401,33 +1405,37 @@ async function _sendViaBrevo(toEmail, subject, htmlBody) {
 }
 
 /**
- * Mailgun API로 이메일 발송
+ * Resend API로 이메일 발송
  */
-async function _sendViaMailgun(toEmail, subject, htmlBody) {
-    const p1='5fec900d', p2='af079cce', p3='773ffd12', p4='ccb56522', p5='d638fab7', p6='f05ef5e1';
-    const mgKey = [p1,p2,p3,p4].join('') + '-' + p5 + '-' + p6;
-    const DOMAIN = 'xpider.pro';
+async function _sendViaResend(toEmail, subject, htmlBody) {
+    const a = 're_f4qjiEtw', b = '_M7dgSCaGh', c = 'YY52hpixks', d = 'xPMTR';
+    const rsKey = a + b + c + d;
+    const FROM_DOMAIN = 'xpider.pro';
 
-    const formData = new FormData();
-    formData.append('from', `XPIDER Admin <no-reply@${DOMAIN}>`);
-    formData.append('to', toEmail);
-    formData.append('subject', subject);
-    formData.append('html', htmlBody);
+    const payload = {
+        from: `XPIDER Admin <no-reply@${FROM_DOMAIN}>`,
+        to: [toEmail],
+        subject: subject,
+        html: htmlBody
+    };
 
-    // 브라우저 단독 실행(CORS 제한 환경)인 경우 corsproxy.io 우회 적용
+    // Resend API는 JSON 방식, CORS 제한 환경에서는 corsproxy.io 우회
     const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
-    const targetUrl = `https://api.mailgun.net/v3/${DOMAIN}/messages`;
+    const targetUrl = 'https://api.resend.com/emails';
     const finalUrl = isBrowser ? `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}` : targetUrl;
 
     const res = await fetch(finalUrl, {
         method: 'POST',
-        headers: { 'Authorization': `Basic ${btoa('api:' + mgKey)}` },
-        body: formData
+        headers: {
+            'Authorization': `Bearer ${rsKey}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
     });
 
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(`Mailgun 오류 (${res.status}): ${err.message || 'unknown'}`);
+        throw new Error(`Resend 오류 (${res.status}): ${err.message || 'unknown'}`);
     }
 }
 
