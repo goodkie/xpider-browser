@@ -762,7 +762,7 @@ async function restoreCampaignState() {
             chrome.storage.local.get([
                 'xpider_isActive', 'xpider_queue', 'xpider_tpl', 'xpider_delayMs', 
                 'xpider_sessionId', 'xpider_success', 'xpider_total', 'xpider_visited', 'xpider_successful'
-            ], (data) => {
+            ], async (data) => {
                 try {
                     if (data.xpider_isActive && data.xpider_queue && data.xpider_queue.length > 0) {
                         campaignState.isActive = true;
@@ -776,6 +776,39 @@ async function restoreCampaignState() {
                         campaignState.successfulUrls = data.xpider_successful || [];
                         
                         logBg(null, `Restored previous active campaign: ${campaignState.queue.length} targets remaining.`, "info");
+
+                        // [v4.1.0] SMTP Provider 복원: 서비스 워커 재시작 후에도 Admin 설정 유지
+                        try {
+                            const smtpProvider = await getSmtpProviderSetting();
+                            campaignState.engineMode = smtpProvider;
+                            logBg(null, `📡 [Restore] SMTP Provider restored: ${smtpProvider.toUpperCase()}`, "info");
+
+                            if (smtpProvider === 'mailgun') {
+                                campaignState.apiKey = 'MAILGUN_INTERNAL';
+                                logBg(null, "✅ [Restore] Mailgun 모드 복원 완료.", "success");
+                            } else {
+                                // Brevo: API 키 재조회
+                                const gatewayUrl = 'https://brevo-key-provider.goodkie-com.workers.dev/';
+                                const key = await fetchRemoteApiKey(gatewayUrl);
+                                if (key) {
+                                    campaignState.apiKey = key;
+                                    logBg(null, "✅ [Restore] Brevo API Key re-authenticated.", "success");
+                                } else {
+                                    logBg(null, "❌ [Restore] Brevo API Key 재조회 실패. 캠페인 중단.", "error");
+                                    campaignState.isActive = false;
+                                    chrome.storage.local.set({ xpider_isActive: false });
+                                    resolve();
+                                    return;
+                                }
+                            }
+                        } catch (smtpErr) {
+                            logBg(null, `⚠️ [Restore] SMTP 설정 복원 실패, Brevo로 폴백: ${smtpErr.message}`, "warning");
+                            campaignState.engineMode = 'brevo';
+                            // Brevo 폴백: API 키 조회
+                            const gatewayUrl = 'https://brevo-key-provider.goodkie-com.workers.dev/';
+                            const key = await fetchRemoteApiKey(gatewayUrl).catch(() => null);
+                            if (key) campaignState.apiKey = key;
+                        }
                         
                         // Resume if not already running
                         if (!campaignState.isLoopRunning) processNextCampaignTarget(campaignState.sessionId);
