@@ -1312,7 +1312,50 @@ async function loadSettings() {
     
     // [v1.7.0] Populate template library
     await updateTemplateDropdown();
+
+    // [v5.0.0] Sync SMTP Provider from Supabase to local storage cache
+    try {
+        await syncSmtpProviderSetting();
+    } catch (e) {
+        console.error('[Popup] SMTP Sync failed on loadSettings:', e);
+    }
 }
+
+/**
+ * [v5.0.0] Sync SMTP Provider config from Supabase to chrome.storage.local
+ */
+async function syncSmtpProviderSetting() {
+    try {
+        const SUPABASE_URL = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTczNzYsImV4cCI6MjA5MjM3MzM3Nn0.k3qu4QiHjhbQEhTpr90UIr4ZKGbKA1YbvANE2kYog-c';
+        const res = await fetch(
+            `${SUPABASE_URL}/rest/v1/profiles?email=eq.smtp-config%40xpider.pro&select=plan&_ts=${Date.now()}`,
+            {
+                headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Accept': 'application/json'
+                },
+                cache: 'no-store'
+            }
+        );
+        if (res.ok) {
+            const rows = await res.json();
+            if (rows && rows.length > 0 && rows[0].plan) {
+                const provider = rows[0].plan.trim().toLowerCase();
+                if (provider === 'resend' || provider === 'brevo') {
+                    await chrome.storage.local.set({ xpider_smtp_provider: provider });
+                    console.log(`[Popup] SMTP Provider synced and cached: ${provider.toUpperCase()}`);
+                    return provider;
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[Popup] SMTP config sync failed:', e);
+    }
+    return null;
+}
+
 
 // ─── [XPIDER] Browser Language-Change Broadcast Listener ──────────────
 window.addEventListener('message', (event) => {

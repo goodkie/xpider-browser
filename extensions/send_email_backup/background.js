@@ -437,15 +437,25 @@ async function startCampaignOrchestrator(queue, template, delayMs, directApiKey)
  */
 async function getSmtpProviderSetting() {
     try {
+        // 1. chrome.storage.local에 캐싱된 설정이 있는지 먼저 확인
+        const cached = await chrome.storage.local.get(['xpider_smtp_provider']);
+        if (cached && cached.xpider_smtp_provider) {
+            const provider = cached.xpider_smtp_provider.trim().toLowerCase();
+            if (provider === 'resend' || provider === 'brevo') {
+                logBg(null, `📡 SMTP Provider loaded from DB cache: ${provider.toUpperCase()}`, 'success');
+                return provider;
+            }
+        }
+
+        // 2. 캐시가 없을 시 Supabase 직접 조회 (Fallback - anon key 사용)
         const SUPABASE_URL = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
-        // service_role key 사용 — RLS 완전 우회 (항상 읽기 성공)
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Njc5NzM3NiwiZXhwIjoyMDkyMzczMzc2fQ.ifTar2cFr_PwTPYc4dv4AegXC_g5sSn3zm9kHUwQJmo';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTczNzYsImV4cCI6MjA5MjM3MzM3Nn0.k3qu4QiHjhbQEhTpr90UIr4ZKGbKA1YbvANE2kYog-c';
         const res = await fetch(
             `${SUPABASE_URL}/rest/v1/profiles?email=eq.smtp-config%40xpider.pro&select=plan&_ts=${Date.now()}`,
             {
                 headers: {
-                    'apikey': SUPABASE_KEY,
-                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
                     'Accept': 'application/json'
                 },
                 cache: 'no-store'
@@ -456,7 +466,9 @@ async function getSmtpProviderSetting() {
             if (rows && rows.length > 0 && rows[0].plan) {
                 const provider = rows[0].plan.trim().toLowerCase();
                 if (provider === 'resend' || provider === 'brevo') {
-                    logBg(null, `📡 SMTP Provider loaded: ${provider.toUpperCase()}`, 'success');
+                    // 성공 시 로컬 캐시 업데이트
+                    await chrome.storage.local.set({ xpider_smtp_provider: provider });
+                    logBg(null, `📡 SMTP Provider loaded from DB: ${provider.toUpperCase()}`, 'success');
                     return provider;
                 }
             }
