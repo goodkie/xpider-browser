@@ -1,0 +1,162 @@
+name: Build XPIDER Browser (DEV TEST — Admin Only)
+
+# v*-dev 태그에서만 트리거 (예: v7.0.29-dev)
+# 이 빌드는 prerelease=true로 설정되어 일반 사용자 업데이트 체크에 노출되지 않음
+on:
+  push:
+    tags:
+      - 'v*-dev'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ──────────────────────────────────────────────────────────
+  # Windows DEV TEST 빌드 (--test-mode 기본 활성화)
+  # ──────────────────────────────────────────────────────────
+  build-windows-dev:
+    name: Build Windows DEV TEST
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: npm ci
+      - name: Create .env from GitHub Secrets (TEST MODE ON)
+        shell: bash
+        run: |
+          cat > .env << 'ENVEOF'
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PRICE_STARTER_MONTHLY=${{ secrets.STRIPE_PRICE_STARTER_MONTHLY }}
+          STRIPE_PRICE_STARTER_YEARLY=${{ secrets.STRIPE_PRICE_STARTER_YEARLY }}
+          STRIPE_PRICE_PRO_MONTHLY=${{ secrets.STRIPE_PRICE_PRO_MONTHLY }}
+          STRIPE_PRICE_PRO_YEARLY=${{ secrets.STRIPE_PRICE_PRO_YEARLY }}
+          STRIPE_PRICE_ENTERPRISE_MONTHLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_MONTHLY }}
+          STRIPE_PRICE_ENTERPRISE_YEARLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_YEARLY }}
+          STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          XPIDER_TEST_MODE=true
+          ENVEOF
+          sed -i 's/^[[:space:]]*//' .env
+      - name: Build Windows ZIP (DEV)
+        run: npm run make:win-zip
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Rename Windows ZIP (DEV)
+        shell: bash
+        run: mv out/make/zip/win32/x64/*.zip "out/make/zip/win32/x64/XPIDER-Browser-DEV-Windows-${{ github.ref_name }}.zip"
+      - name: Build Windows SFX (DEV)
+        shell: powershell
+        run: powershell src\\deploy\\build-sfx.ps1
+      - name: Rename SFX (DEV)
+        shell: bash
+        run: |
+          cd out/make
+          for f in **/*.exe; do
+            mv "$f" "$(dirname "$f")/XPIDER-Browser-DEV-Windows-${{ github.ref_name }}-Setup.exe"
+          done || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-dev-artifacts
+          path: |
+            out/make/**/*.zip
+            out/make/**/*.exe
+          retention-days: 7
+          compression-level: 0
+
+  # ──────────────────────────────────────────────────────────
+  # macOS Apple Silicon DEV TEST 빌드
+  # ──────────────────────────────────────────────────────────
+  build-macos-dev:
+    name: Build macOS DEV TEST
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Create .env from GitHub Secrets (TEST MODE ON)
+        run: |
+          cat > .env << 'ENVEOF'
+          STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PUBLISHABLE_KEY=${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PRICE_STARTER_MONTHLY=${{ secrets.STRIPE_PRICE_STARTER_MONTHLY }}
+          STRIPE_PRICE_STARTER_YEARLY=${{ secrets.STRIPE_PRICE_STARTER_YEARLY }}
+          STRIPE_PRICE_PRO_MONTHLY=${{ secrets.STRIPE_PRICE_PRO_MONTHLY }}
+          STRIPE_PRICE_PRO_YEARLY=${{ secrets.STRIPE_PRICE_PRO_YEARLY }}
+          STRIPE_PRICE_ENTERPRISE_MONTHLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_MONTHLY }}
+          STRIPE_PRICE_ENTERPRISE_YEARLY=${{ secrets.STRIPE_PRICE_ENTERPRISE_YEARLY }}
+          STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          XPIDER_TEST_MODE=true
+          ENVEOF
+          sed -i '' 's/^[[:space:]]*//' .env || sed -i 's/^[[:space:]]*//' .env
+      - name: Build macOS ARM64 DMG (DEV)
+        run: npm run make:mac-arm
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Rename Mac DMG (DEV)
+        run: |
+          mkdir -p out/make/dmg/arm64
+          find out/make -name "*.dmg" -exec mv {} "out/make/dmg/arm64/XPIDER-Browser-DEV-Mac-Arm-${{ github.ref_name }}.dmg" \; || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-dev-dmg
+          path: out/make/**/*.dmg
+          retention-days: 7
+          compression-level: 0
+
+  # ──────────────────────────────────────────────────────────
+  # GitHub Releases에 DEV 빌드 업로드 (prerelease=true)
+  # ──────────────────────────────────────────────────────────
+  release-dev:
+    name: Publish DEV Release
+    needs: [build-windows-dev, build-macos-dev]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      - name: List artifacts
+        run: find dist/ -type f | sort
+
+      - name: Upload to GitHub Release (prerelease)
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "⚡ XPIDER Browser DEV TEST ${{ github.ref_name }} [ADMIN ONLY]"
+          body: |
+            ## ⚡ XPIDER Browser Developer Test Build — ${{ github.ref_name }}
+
+            > 🔒 **이 버전은 관리자 전용 개발/테스트 버전입니다.**
+            > 일반 사용자에게는 표시되지 않습니다.
+
+            ### 특징
+            - ✅ **로그인 불필요** — 바로 브라우저 실행
+            - ✅ **토큰 무제한** — ∞ Unlimited Tokens
+            - ✅ **Enterprise 플랜 권한** — 모든 기능 접근 가능
+            - ⚠️ **실제 결제/Stripe 연동 비활성화**
+
+            ### 📦 다운로드
+
+            | Platform | File |
+            |----------|------|
+            | 🪟 Windows | `XPIDER-Browser-DEV-Windows-${{ github.ref_name }}-Setup.exe` |
+            | 🍎 macOS (Apple Silicon) | `XPIDER-Browser-DEV-Mac-Arm-${{ github.ref_name }}.dmg` |
+          files: |
+            dist/**/*.zip
+            dist/**/*.dmg
+            dist/**/*.exe
+          draft: false
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
