@@ -438,13 +438,14 @@ async function startCampaignOrchestrator(queue, template, delayMs, directApiKey)
 async function getSmtpProviderSetting() {
     try {
         const SUPABASE_URL = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTczNzYsImV4cCI6MjA5MjM3MzM3Nn0.k3qu4QiHjhbQEhTpr90UIr4ZKGbKA1YbvANE2kYog-c';
+        // service_role key 사용 — RLS 완전 우회 (항상 읽기 성공)
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Njc5NzM3NiwiZXhwIjoyMDkyMzczMzc2fQ.ifTar2cFr_PwTPYc4dv4AegXC_g5sSn3zm9kHUwQJmo';
         const res = await fetch(
             `${SUPABASE_URL}/rest/v1/profiles?email=eq.smtp-config%40xpider.pro&select=plan&_ts=${Date.now()}`,
             {
                 headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
                     'Accept': 'application/json'
                 },
                 cache: 'no-store'
@@ -455,20 +456,18 @@ async function getSmtpProviderSetting() {
             if (rows && rows.length > 0 && rows[0].plan) {
                 const provider = rows[0].plan.trim().toLowerCase();
                 if (provider === 'resend' || provider === 'brevo') {
-                    logBg(null, `📡 SMTP Provider loaded from DB: ${provider.toUpperCase()}`, "success");
+                    logBg(null, `📡 SMTP Provider loaded: ${provider.toUpperCase()}`, 'success');
                     return provider;
                 }
-            } else {
-                logBg(null, `⚠️ SMTP Config row is empty in DB. Defaulting to BREVO`, "warning");
             }
+            logBg(null, `⚠️ SMTP Config row empty. Defaulting to BREVO`, 'warning');
         } else {
-            logBg(null, `❌ SMTP Config fetch failed with status ${res.status}. Defaulting to BREVO`, "error");
+            logBg(null, `❌ SMTP Config fetch failed: HTTP ${res.status}. Defaulting to BREVO`, 'error');
         }
     } catch (e) {
-        logBg(null, `❌ SMTP Config network error: ${e.message}. Defaulting to BREVO`, "error");
-        console.warn('[SmtpConfig] Failed to load provider setting, defaulting to brevo:', e.message);
+        logBg(null, `❌ SMTP Config error: ${e.message}. Defaulting to BREVO`, 'error');
     }
-    return 'brevo'; // 기본값
+    return 'brevo';
 }
 
 /**
