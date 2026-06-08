@@ -502,12 +502,8 @@ function extractEmails(text) {
     const blacklist = [
         // 관공서 및 공공기관 도메인
         '.gov', '.go.kr', 'korea.kr', 'police.go.kr', 'spo.go.kr', 'assembly.go.kr', 'scourt.go.kr',
-        // .org 및 비영리/기타 공공 도메인
-        '.org', '.or.kr', 
-        // 유명 포탈 도메인
-        'naver.com', 'daum.net', 'hanmail.net', 'gmail.com', 'outlook.com', 'hotmail.com', 'nate.com', 'yahoo.com', 'yahoo.co.kr', 'icloud.com',
         // 기본 제외 키워드
-        'noreply', 'no-reply', 'admin', 'postmaster'
+        'noreply', 'no-reply', 'postmaster'
     ];
     
     return [...new Set(matches)].filter(email => {
