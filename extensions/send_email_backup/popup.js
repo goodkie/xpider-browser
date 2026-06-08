@@ -1357,12 +1357,12 @@ async function syncSmtpProviderSetting() {
     try {
         const SUPABASE_URL = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTczNzYsImV4cCI6MjA5MjM3MzM3Nn0.k3qu4QiHjhbQEhTpr90UIr4ZKGbKA1YbvANE2kYog-c';
+        
+        // CORS Simple Request를 유지하기 위해 apikey를 쿼리 파라미터로 전송하여 OPTIONS 400 에러 차단 우회
         const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/profiles?email=eq.smtp-config%40xpider.pro&select=plan&_ts=${Date.now()}`,
+            `${SUPABASE_URL}/rest/v1/profiles?email=eq.smtp-config%40xpider.pro&select=plan&apikey=${SUPABASE_ANON_KEY}&_ts=${Date.now()}`,
             {
                 headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
                     'Accept': 'application/json'
                 },
                 cache: 'no-store'
@@ -1378,9 +1378,17 @@ async function syncSmtpProviderSetting() {
                     return provider;
                 }
             }
+        } else {
+            const errText = await res.text().catch(() => 'No body');
+            if (typeof addLog === 'function') {
+                addLog(`❌ SMTP Sync failed: HTTP ${res.status} (${errText})`, 'error');
+            }
         }
     } catch (e) {
         console.error('[Popup] SMTP config sync failed:', e);
+        if (typeof addLog === 'function') {
+            addLog(`❌ SMTP Sync error: ${e.message}`, 'error');
+        }
     }
     return null;
 }
