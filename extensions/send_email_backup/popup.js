@@ -498,20 +498,35 @@ function extractEmails(text) {
     const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
     const matches = text.match(emailRegex) || [];
     
-    // [v1.3.2] Super-strong Email Blacklist (Excludes portals, government offices, org, gov domains)
-    // 일반 포털(gmail, naver 등)은 대량 이메일 발송 리스트 업로드를 위해 차단 목록에서 제외합니다.
-    const blacklist = [
-        // 관공서 및 공공기관 도메인
-        '.gov', '.go.kr', 'korea.kr', 'police.go.kr', 'spo.go.kr', 'assembly.go.kr', 'scourt.go.kr',
-        // .org 및 비영리/기타 공공 도메인
-        '.org', '.or.kr', 
-        // 기본 제외 키워드
+    // [v2.0.2] 개선된 블랙리스트 필터링 (정확한 ID/도메인 매칭으로 과차단 방지)
+    const blockDomains = [
+        'korea.kr', 'police.go.kr', 'spo.go.kr', 'assembly.go.kr', 'scourt.go.kr'
+    ];
+    const blockDomainSuffixes = [
+        '.gov', '.go.kr', '.org', '.or.kr'
+    ];
+    const blockIds = [
         'noreply', 'no-reply', 'admin', 'postmaster'
     ];
     
     return [...new Set(matches)].filter(email => {
         const lower = email.toLowerCase();
-        return !blacklist.some(domain => lower.includes(domain));
+        const parts = lower.split('@');
+        if (parts.length !== 2) return false;
+        
+        const id = parts[0];
+        const domain = parts[1];
+        
+        // 1. ID 정확성 체크 (예: ID가 정확히 'admin'인 경우만 차단, 'madman'이나 'badminton'은 허용)
+        if (blockIds.includes(id)) return false;
+        
+        // 2. 도메인 전체 매칭 체크
+        if (blockDomains.includes(domain)) return false;
+        
+        // 3. 도메인 접미사 체크 (예: 도메인이 .org, .gov 등으로 끝나는 경우만 차단, 'organization.com'은 허용)
+        if (blockDomainSuffixes.some(suffix => domain.endsWith(suffix))) return false;
+        
+        return true;
     });
 }
 
