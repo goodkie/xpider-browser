@@ -62,6 +62,11 @@ DROP POLICY IF EXISTS "self_insert" ON public.profiles;
 CREATE POLICY "self_insert" ON public.profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
+-- [추가] 일반 사용자 및 비로그인(anon) 사용자도 SMTP 설정용 프로필 행은 읽을 수 있도록 허용
+DROP POLICY IF EXISTS "allow_anon_smtp_config_read" ON public.profiles;
+CREATE POLICY "allow_anon_smtp_config_read" ON public.profiles
+  FOR SELECT USING (email = 'smtp-config@xpider.pro');
+
 
 
 
