@@ -522,33 +522,66 @@ async function handleFileUpload(e) {
 
     const nameDisplay = document.getElementById('filename-display');
     if (nameDisplay) nameDisplay.textContent = file.name;
+
+    addLog(`📂 파일 읽는 중: ${file.name} (${(file.size/1024).toFixed(1)}KB)`, 'info');
     
-    const text = await file.text();
+    let text = '';
+    try {
+        text = await file.text();
+    } catch (readErr) {
+        addLog(`❌ 파일 읽기 실패: ${readErr.message}`, 'error');
+        console.error('[FileUpload] File read error:', readErr);
+        return;
+    }
+
+    if (!text || text.trim().length === 0) {
+        addLog(`❌ 파일이 비어 있습니다: ${file.name}`, 'error');
+        return;
+    }
+
+    addLog(`🔍 이메일 추출 중... (${text.length} 문자)`, 'info');
     const extracted = extractEmails(text);
     
     if (extracted.length === 0) {
-        addLog("No valid emails found in the file.", "error");
+        addLog(`❌ 유효한 이메일을 찾을 수 없습니다. (파일 형식: CSV/TXT, 이메일 주소 포함 여부 확인)`, 'error');
+        addLog(`📋 파일 내용 미리보기: ${text.substring(0, 200)}...`, 'debug');
         return;
     }
 
     campaignQueue = extracted;
-
     totalTargets = campaignQueue.length;
+    remainingTargets = totalTargets;
+
     const countDisplay = document.getElementById('url-count-display');
     if (countDisplay) countDisplay.textContent = `${totalTargets} Recipients found`;
     
     const fileInfo = document.getElementById('file-info');
     if (fileInfo) fileInfo.classList.remove('hidden');
+
+    // [v2.0.59] 업로드 성공 시 status-box 표시
+    const statusBox = document.getElementById('status-box');
+    if (statusBox) statusBox.classList.remove('hidden');
     
     // [v1.2.0] Save to Permanent Lists
-    await saveListToStorage(file.name, campaignQueue);
+    try {
+        await saveListToStorage(file.name, campaignQueue);
+    } catch (saveErr) {
+        addLog(`⚠️ 리스트 저장 실패 (스토리지 오류): ${saveErr.message}`, 'error');
+    }
 
-    chrome.storage.local.set({ 
-        xpider_queue: campaignQueue,
-        xpider_total: totalTargets,
-        xpider_success: 0
-    });
-    addLog(`Loaded ${totalTargets} recipient emails.`, 'info');
+    // [v2.0.59] await 추가 - 저장 완료 후 로그 표시
+    try {
+        await chrome.storage.local.set({ 
+            xpider_queue: campaignQueue,
+            xpider_total: totalTargets,
+            xpider_success: 0
+        });
+        addLog(`✅ ${totalTargets}개 이메일 로드 완료: ${file.name}`, 'success');
+        updateRealTimeStatus({ successCount: 0, remainingCount: totalTargets });
+    } catch (storageErr) {
+        addLog(`❌ 스토리지 저장 실패: ${storageErr.message}`, 'error');
+        console.error('[FileUpload] Storage save error:', storageErr);
+    }
 }
 
 async function saveListToStorage(name, urls) {

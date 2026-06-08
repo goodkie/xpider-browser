@@ -1,4 +1,6 @@
 {
   "token": "XPIDER_SECURE_SESSION_v4_17_5",
-  "timestamp": 1780683102547
+  "issued": "2026-06-08",
+  "host": "XPIDER_BROWSER",
+  "version": "2.0.58"
 }
