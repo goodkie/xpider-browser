@@ -454,10 +454,18 @@ async function getSmtpProviderSetting() {
             const rows = await res.json();
             if (rows && rows.length > 0 && rows[0].plan) {
                 const provider = rows[0].plan.trim().toLowerCase();
-                if (provider === 'resend' || provider === 'brevo') return provider;
+                if (provider === 'resend' || provider === 'brevo') {
+                    logBg(null, `📡 SMTP Provider loaded from DB: ${provider.toUpperCase()}`, "success");
+                    return provider;
+                }
+            } else {
+                logBg(null, `⚠️ SMTP Config row is empty in DB. Defaulting to BREVO`, "warning");
             }
+        } else {
+            logBg(null, `❌ SMTP Config fetch failed with status ${res.status}. Defaulting to BREVO`, "error");
         }
     } catch (e) {
+        logBg(null, `❌ SMTP Config network error: ${e.message}. Defaulting to BREVO`, "error");
         console.warn('[SmtpConfig] Failed to load provider setting, defaulting to brevo:', e.message);
     }
     return 'brevo'; // 기본값
