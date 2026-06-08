@@ -1383,7 +1383,12 @@ async function _sendViaBrevo(toEmail, subject, htmlBody) {
         htmlContent: htmlBody
     };
 
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    // 브라우저 단독 실행(CORS 제한 환경)인 경우 corsproxy.io 우회 적용
+    const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
+    const targetUrl = 'https://api.brevo.com/v3/smtp/email';
+    const finalUrl = isBrowser ? `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}` : targetUrl;
+
+    const res = await fetch(finalUrl, {
         method: 'POST',
         headers: { 'accept': 'application/json', 'api-key': apiKey, 'content-type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1409,7 +1414,12 @@ async function _sendViaMailgun(toEmail, subject, htmlBody) {
     formData.append('subject', subject);
     formData.append('html', htmlBody);
 
-    const res = await fetch(`https://api.mailgun.net/v3/${DOMAIN}/messages`, {
+    // 브라우저 단독 실행(CORS 제한 환경)인 경우 corsproxy.io 우회 적용
+    const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
+    const targetUrl = `https://api.mailgun.net/v3/${DOMAIN}/messages`;
+    const finalUrl = isBrowser ? `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}` : targetUrl;
+
+    const res = await fetch(finalUrl, {
         method: 'POST',
         headers: { 'Authorization': `Basic ${btoa('api:' + mgKey)}` },
         body: formData
