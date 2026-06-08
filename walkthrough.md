@@ -1,6 +1,19 @@
 # XPIDER AutoForm Sender Pro 폼 자동작성 고도화 및 최초 STT 설정 팝업 Walkthrough
 
-## 🚀 [v7.0.20] 웹 브라우저 단독 구동 시 Brevo API CORS 프록시 우회 추가 핫픽스
+## 🚀 [v7.0.35] Actions 자동 빌드 및 SendForce Mailer Pro SMTP Relay 복원 핫픽스 릴리즈
+
+어드민 페이지에서 📡 SMTP Relay Server로 Mailgun을 선택했음에도 Chrome 서비스 워커가 재시작(Service Worker Restart)될 때 Brevo로 발송되던 버그를 수정한 익스텐션과 함께 최신 XPIDER Browser를 **Actions를 통해 자동 빌드 및 릴리즈**했습니다!
+
+- **서비스 워커 재시작 후 SMTP 설정 유실 버그 해결**:
+  - `background.js`의 `restoreCampaignState()` 함수 내부에서 캠페인을 재개하기 전에 Supabase 서버로부터 SMTP 설정(`getSmtpProviderSetting()`)을 실시간 재조회하여 `engineMode` 및 API Key를 복원하도록 수정했습니다.
+  - 이로써 백그라운드 서비스 워커가 종료되었다가 다시 구동되더라도 Mailgun/Brevo 라우팅 설정이 항상 올바르게 유지됩니다.
+- **익스텐션 버전 갱신 및 ZIP 패키징**:
+  - `SendForce Mailer Pro` 버전을 `2.0.60`으로 업데이트하고, `send_email_backup_v2.0.60.zip`으로 재패키징하여 무결성을 검증했습니다.
+- **전체 프로젝트 릴리즈 및 GitHub Actions 배포 트리거**:
+  - `package.json` 버전을 `7.0.35`로 갱신하고, `landing/dev-release.json`의 정보를 업데이트하여 `origin/main`에 푸시했습니다.
+  - 릴리즈 태그 `v7.0.35` 및 `v7.0.35-dev`를 생성하여 GitHub 원격 저장소에 푸시 완료했습니다. 이로 인해 **GitHub Actions에서 자동 릴리즈 빌드(Win/Mac DMG/Setup) 및 AWS Amplify 배포**가 정상적으로 트리거되었습니다.
+
+---
 
 어드민이 데스크톱 앱을 전혀 실행하지 않은 상태에서 최초로 웹 브라우저(Amplify)를 통해 대시보드에만 단독 접속했을 경우, Supabase 캐시가 없어 Brevo 크레딧 정보가 여전히 `API Error`로 노출되는 현상을 완벽히 규명하여 추가 핫픽스를 배포했습니다!
 - **CORS 프록시 우회 연동**:
