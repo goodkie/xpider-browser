@@ -132,6 +132,17 @@ window.onerror = function(msg, url, line) {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // ── Update version tag dynamically from manifest ──
+    try {
+        const manifest = chrome.runtime.getManifest();
+        const versionTag = document.querySelector('.version-tag');
+        if (versionTag && manifest && manifest.version) {
+            versionTag.textContent = `v${manifest.version}`;
+        }
+    } catch(e) {
+        console.error('[Popup] Failed to display version:', e);
+    }
+
     // ── Step 1: Bind ALL events FIRST (no async, cannot fail) ──
     try { bindEvents(); } catch(e) { console.error('[Popup] bindEvents failed:', e); }
     
