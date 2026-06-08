@@ -300,7 +300,7 @@ try {
                                 new Promise(res => setTimeout(res, 1000))
                             ]).catch(() => {});
                         }
-                        await startCampaignOrchestrator(request.queue, request.template, request.delayMs, request.directApiKey);
+                        await startCampaignOrchestrator(request.queue, request.template, request.delayMs, request.directApiKey, request.smtpProvider);
                     } catch (e) {
                         console.error("[StartError]", e);
                         logBg(null, `❌ Engine failed to start: ${e.message}`, "error");
@@ -382,7 +382,7 @@ try {
 
 
 
-async function startCampaignOrchestrator(queue, template, delayMs, directApiKey) {
+async function startCampaignOrchestrator(queue, template, delayMs, directApiKey, explicitSmtpProvider) {
     logBg(null, "[Boot] Orchestrator entered.", "debug");
 
     try {
@@ -399,7 +399,8 @@ async function startCampaignOrchestrator(queue, template, delayMs, directApiKey)
         logBg(null, "🚀 Engine booting...", "start");
 
         // [v4.0.0] SMTP Provider 설정 읽기 (Admin이 설정한 Brevo/Resend 선택)
-        const smtpProvider = await getSmtpProviderSetting();
+        // 파라미터로 명시적인 smtpProvider가 넘어오면 우선 사용하고, 없으면 DB조회
+        const smtpProvider = explicitSmtpProvider || await getSmtpProviderSetting();
         campaignState.engineMode = smtpProvider;
         logBg(null, `📡 SMTP Provider: ${smtpProvider.toUpperCase()}`, "info");
 
@@ -448,14 +449,13 @@ async function getSmtpProviderSetting() {
         }
 
         // 2. 캐시가 없을 시 Supabase 직접 조회 (Fallback - anon key 사용)
+        // CORS Simple Request를 유지하기 위해 apikey를 쿼리 파라미터로 전송 (Header 400 에러 우회)
         const SUPABASE_URL = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTczNzYsImV4cCI6MjA5MjM3MzM3Nn0.k3qu4QiHjhbQEhTpr90UIr4ZKGbKA1YbvANE2kYog-c';
         const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/profiles?email=eq.smtp-config%40xpider.pro&select=plan&_ts=${Date.now()}`,
+            `${SUPABASE_URL}/rest/v1/profiles?email=eq.smtp-config%40xpider.pro&select=plan&apikey=${SUPABASE_ANON_KEY}&_ts=${Date.now()}`,
             {
                 headers: {
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
                     'Accept': 'application/json'
                 },
                 cache: 'no-store'
@@ -474,7 +474,8 @@ async function getSmtpProviderSetting() {
             }
             logBg(null, `⚠️ SMTP Config row empty. Defaulting to BREVO`, 'warning');
         } else {
-            logBg(null, `❌ SMTP Config fetch failed: HTTP ${res.status}. Defaulting to BREVO`, 'error');
+            const errBody = await res.text().catch(() => 'No body');
+            logBg(null, `❌ SMTP Config fetch failed: HTTP ${res.status} (${errBody}). Defaulting to BREVO`, 'error');
         }
     } catch (e) {
         logBg(null, `❌ SMTP Config error: ${e.message}. Defaulting to BREVO`, 'error');

@@ -826,7 +826,24 @@ async function addSingleEmail() {
     input.value = '';
 }
 
-function startCampaign() {
+async function startCampaign() {
+    // 1. Sync SMTP configuration from Supabase before starting
+    let provider = null;
+    try {
+        provider = await syncSmtpProviderSetting();
+    } catch (e) {
+        console.error('[Popup] SMTP sync failed on startCampaign:', e);
+    }
+
+    if (!provider) {
+        try {
+            const cached = await chrome.storage.local.get(['xpider_smtp_provider']);
+            provider = cached ? cached.xpider_smtp_provider : null;
+        } catch (e) {
+            console.error('[Popup] Failed to read cached SMTP provider:', e);
+        }
+    }
+
     // If input has value, add it before starting if empty queue
     const manualInput = document.getElementById('manual-url-input');
     if (manualInput && manualInput.value.trim() && campaignQueue.length === 0) {
@@ -879,7 +896,8 @@ function startCampaign() {
         action: 'START_CAMPAIGN',
         queue: campaignQueue,
         template: saveTemplate(), // [v18.20.0] Ensure latest UI data is sent
-        delayMs: delayMs
+        delayMs: delayMs,
+        smtpProvider: provider || 'brevo' // Pass the cached/synced SMTP provider
     };
 
     // [v18.25.0] Deep Diagnostic Timeout: Read engine blackbox on stall
