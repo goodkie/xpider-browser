@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
@@ -2637,7 +2637,7 @@
       const repo = "goodkie/xpider-browser";
       
       // 기본값 설정 (API 실패에 대비)
-      const fallbackVer = "v7.0.30";
+      const fallbackVer = "v7.0.31";
       if (winLink) winLink.href = `https://github.com/${repo}/releases/download/${fallbackVer}/XPIDER-Browser-Windows-${fallbackVer}-Setup.exe`;
       if (macLink) macLink.href = `https://github.com/${repo}/releases/download/${fallbackVer}/XPIDER-Browser-Mac-Arm-${fallbackVer}.dmg`;
       
@@ -2663,7 +2663,12 @@
             })
             .then(releases => {
               if (!Array.isArray(releases) || releases.length === 0) throw new Error('No releases found');
-              const latestNormal = releases.find(r => r.tag_name && !r.tag_name.includes('-win7'));
+              const latestNormal = releases.find(r => 
+                r.tag_name && 
+                !r.tag_name.includes('-win7') && 
+                !r.tag_name.includes('-dev') && 
+                r.prerelease === false
+              );
               if (!latestNormal) throw new Error('No normal release found');
               return latestNormal;
             });
