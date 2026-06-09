@@ -922,7 +922,19 @@ async function sendDirectEmailViaResend(recipient, template) {
         logBg(null, `[Resend] Sending to: ${recipient}`, 'info');
 
         const fromName = template.senderName || template.name || 'XPIDER Mailer Pro';
-        const fromEmail = template.email || `no-reply@${FROM_DOMAIN}`;
+        const replyToEmail = template.email;
+        let fromEmail = template.email || `no-reply@${FROM_DOMAIN}`;
+
+        // Resend API는 인증된 도메인(xpider.pro)만 발신 가능하므로 도메인이 다르면 강제 치환
+        if (fromEmail && !fromEmail.toLowerCase().endsWith(`@${FROM_DOMAIN}`)) {
+            const parts = fromEmail.split('@');
+            if (parts.length === 2) {
+                fromEmail = `${parts[0]}@${FROM_DOMAIN}`;
+            } else {
+                fromEmail = `no-reply@${FROM_DOMAIN}`;
+            }
+        }
+
         const htmlBody = template.message.replace(/\r\n/g, '<br>').replace(/\n/g, '<br>');
 
         // Resend API는 JSON 형식 사용
@@ -932,6 +944,11 @@ async function sendDirectEmailViaResend(recipient, template) {
             subject: template.subject,
             html: htmlBody
         };
+
+        // 회신 주소(Reply-To)가 다를 경우 헤더에 지정하여 수신자가 입력 이메일로 답장할 수 있게 함
+        if (replyToEmail && replyToEmail !== fromEmail) {
+            payload.reply_to = replyToEmail;
+        }
 
         const response = await fetch(RESEND_API_URL, {
             method: 'POST',
