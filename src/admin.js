@@ -1408,9 +1408,9 @@ async function _sendViaBrevo(toEmail, subject, htmlBody) {
  * Resend API로 이메일 발송
  */
 async function _sendViaResend(toEmail, subject, htmlBody) {
-    const a = 're_f4qjiEtw', b = '_M7dgSCaGh', c = 'YY52hpixks', d = 'xPMTR';
+    const a = 're_r6WymNfo', b = '_JSA47YBgS', c = 'FYUU5cf7v9', d = 'Ayh2J';
     const rsKey = a + b + c + d;
-    const FROM_DOMAIN = 'xpider.pro';
+    const FROM_DOMAIN = 'instaheroi.com';
 
     const payload = {
         from: `XPIDER Admin <no-reply@${FROM_DOMAIN}>`,

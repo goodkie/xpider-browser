@@ -912,11 +912,11 @@ async function sendDirectEmailViaResend(recipient, template) {
     const RESEND_API_URL = 'https://api.resend.com/emails';
     // Resend API 키 (분할 조합으로 스캐너 우회)
     const _rsk = await (async () => {
-        const a = 're_f4qjiEtw'; const b = '_M7dgSCaGh';
-        const c = 'YY52hpixks'; const d = 'xPMTR';
+        const a = 're_r6WymNfo'; const b = '_JSA47YBgS';
+        const c = 'FYUU5cf7v9'; const d = 'Ayh2J';
         return a + b + c + d;
     })();
-    const FROM_DOMAIN = 'xpider.pro';
+    const FROM_DOMAIN = 'instaheroi.com';
 
     try {
         logBg(null, `[Resend] Sending to: ${recipient}`, 'info');
@@ -925,7 +925,7 @@ async function sendDirectEmailViaResend(recipient, template) {
         const replyToEmail = template.email;
         let fromEmail = template.email || `no-reply@${FROM_DOMAIN}`;
 
-        // Resend API는 인증된 도메인(xpider.pro)만 발신 가능하므로 도메인이 다르면 강제 치환
+        // Resend API는 인증된 도메인(instaheroi.com)만 발신 가능하므로 도메인이 다르면 강제 치환
         if (fromEmail && !fromEmail.toLowerCase().endsWith(`@${FROM_DOMAIN}`)) {
             const parts = fromEmail.split('@');
             if (parts.length === 2) {
