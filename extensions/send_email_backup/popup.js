@@ -1360,7 +1360,7 @@ async function syncSmtpProviderSetting() {
         
         // CORS Simple Request를 유지하기 위해 apikey를 쿼리 파라미터로 전송하여 OPTIONS 400 에러 차단 우회
         const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/profiles?email=eq.smtp-config%40xpider.pro&select=plan&apikey=${SUPABASE_ANON_KEY}&_ts=${Date.now()}`,
+            `${SUPABASE_URL}/rest/v1/profiles?email=eq.smtp-config%40xpider.pro&select=plan&apikey=${SUPABASE_ANON_KEY}`,
             {
                 headers: {
                     'Accept': 'application/json'

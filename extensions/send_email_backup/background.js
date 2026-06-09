@@ -453,7 +453,7 @@ async function getSmtpProviderSetting() {
         const SUPABASE_URL = 'https://gfgudbxpkpfevsuobdmr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmZ3VkYnhwa3BmZXZzdW9iZG1yIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3OTczNzYsImV4cCI6MjA5MjM3MzM3Nn0.k3qu4QiHjhbQEhTpr90UIr4ZKGbKA1YbvANE2kYog-c';
         const res = await fetch(
-            `${SUPABASE_URL}/rest/v1/profiles?email=eq.smtp-config%40xpider.pro&select=plan&apikey=${SUPABASE_ANON_KEY}&_ts=${Date.now()}`,
+            `${SUPABASE_URL}/rest/v1/profiles?email=eq.smtp-config%40xpider.pro&select=plan&apikey=${SUPABASE_ANON_KEY}`,
             {
                 headers: {
                     'Accept': 'application/json'
