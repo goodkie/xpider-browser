@@ -15,6 +15,7 @@
     "make:mac": "electron-forge make --platform=darwin --arch=x64",
     "make:mac-arm": "electron-forge make --platform=darwin --arch=arm64",
     "publish": "electron-forge publish",
+    "bundle:admin": "node bundle-admin.js",
     "sync": "git add -A && git commit -m \"dev-sync: %date% %time%\" && git push origin main",
     "sync:ext": "cd extensions/google_maps_extension_source && git add -A && git commit -m \"ext-sync\" && git push"
   },
