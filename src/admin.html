@@ -124,25 +124,40 @@
             
             <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
                 <!-- 1. UltraSolver Pro -->
-                <div class="stat-card" style="border: 1px solid rgba(0, 242, 254, 0.15); background: linear-gradient(180deg, rgba(0, 242, 254, 0.03) 0%, transparent 100%); flex-direction: column; align-items: flex-start;">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px; width: 100%;">
-                        <div class="stat-icon-wrap" style="color: #00f2fe; background: rgba(0, 242, 254, 0.1); box-shadow: 0 0 15px rgba(0, 242, 254, 0.2); width: 44px; height: 44px; font-size: 18px; margin: 0;">🤖</div>
-                        <div class="stat-label" style="font-size: 16px; font-weight: 700; color: #fff; margin: 0;">UltraSolver Pro reCAPTCHA</div>
+                <div class="stat-card" style="border: 1px solid rgba(0, 242, 254, 0.15); background: linear-gradient(180deg, rgba(0, 242, 254, 0.03) 0%, transparent 100%); flex-direction: column; align-items: flex-start; min-height: 250px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px; width: 100%;">
+                        <div class="stat-icon-wrap" style="color: #00f2fe; background: rgba(0, 242, 254, 0.1); box-shadow: 0 0 15px rgba(0, 242, 254, 0.2); width: 40px; height: 40px; font-size: 16px; margin: 0;">🤖</div>
+                        <div class="stat-label" style="font-size: 15px; font-weight: 700; color: #fff; margin: 0;">UltraSolver Pro reCAPTCHA</div>
                     </div>
-                    <div style="width: 100%; display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: #a4b3c6;">
-                        <div style="display: flex; justify-content: space-between;">
-                            <span>Remaining Tokens:</span>
-                            <span style="font-weight: 700; color: #fff;">1,250 Tokens</span>
+                    
+                    <!-- CapSolver Section -->
+                    <div style="width: 100%; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04); margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+                            <span style="font-weight: 600; color: #fff;">1. CapSolver (1st)</span>
+                            <span id="capsolver-status" style="font-weight: 700; color: #ffb703; font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(255,183,3,0.1);">Checking...</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; border-top: 1px solid rgba(255,255,255,0.03); padding-top: 6px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #a4b3c6;">
                             <span>Balance:</span>
-                            <span style="font-weight: 700; color: #00f2fe;">$2.50</span>
+                            <span id="capsolver-balance" style="font-weight: 700; color: #00f2fe;">$0.00</span>
+                        </div>
+                        <div style="margin-top: 6px;">
+                            <a href="https://dashboard.capsolver.com/" target="_blank" style="font-size: 10px; color: #60a5fa; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;">Top-up CapSolver 🔗</a>
                         </div>
                     </div>
-                    <div style="margin-top: 20px; width: 100%;">
-                        <a href="https://2captcha.com?from=18329628" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 10px; border-radius: 8px; background: rgba(0, 242, 254, 0.1); border: 1px solid rgba(0, 242, 254, 0.25); color: #00f2fe; text-decoration: none; font-size: 12px; font-weight: 700; transition: all 0.2s;" onmouseover="this.style.background='rgba(0, 242, 254, 0.2)'" onmouseout="this.style.background='rgba(0, 242, 254, 0.1)'">
-                            <span>Recharge Solver</span> ⚡
-                        </a>
+
+                    <!-- 2Captcha Section -->
+                    <div style="width: 100%; padding: 8px 10px; border-radius: 8px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.04); margin-bottom: 8px;">
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px;">
+                            <span style="font-weight: 600; color: #fff;">2. 2Captcha (Fallback)</span>
+                            <span id="twocaptcha-status" style="font-weight: 700; color: #ffb703; font-size: 10px; padding: 1px 6px; border-radius: 4px; background: rgba(255,183,3,0.1);">Checking...</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #a4b3c6;">
+                            <span>Balance:</span>
+                            <span id="twocaptcha-balance" style="font-weight: 700; color: #00f2fe;">$0.00</span>
+                        </div>
+                        <div style="margin-top: 6px;">
+                            <a href="https://2captcha.com/enterpage" target="_blank" style="font-size: 10px; color: #60a5fa; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;">Top-up 2Captcha 🔗</a>
+                        </div>
                     </div>
                 </div>
 

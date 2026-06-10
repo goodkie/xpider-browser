@@ -371,6 +371,26 @@
       <div id="log-box" style="font-family: 'Consolas', 'Courier New', monospace; font-size: 0.68rem; color: #a7f3d0; max-height: 90px; overflow-y: auto; text-align: left; line-height: 1.4; white-space: pre-wrap; word-break: break-all; padding: 4px; border-radius: 6px; background: rgba(10, 15, 30, 0.4);">No logs available.</div>
     </div>
 
+    <!-- API Keys Configuration -->
+    <div class="status-panel" style="margin-top: 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); padding: 12px;">
+      <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
+        ⚙️ Solver API Keys (Optional)
+      </div>
+      <div class="form-group" style="margin-bottom: 8px;">
+        <label style="font-size: 0.65rem; display: block; margin-bottom: 4px;">CapSolver Key</label>
+        <div class="input-wrapper">
+          <input type="password" id="capsolver-key-input" placeholder="Using Master Key" style="padding: 6px 10px; font-size: 0.75rem;">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom: 10px;">
+        <label style="font-size: 0.65rem; display: block; margin-bottom: 4px;">2Captcha Key</label>
+        <div class="input-wrapper">
+          <input type="password" id="twocaptcha-key-input" placeholder="Using Master Key" style="padding: 6px 10px; font-size: 0.75rem;">
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-save-keys" style="padding: 8px; font-size: 0.75rem; width: 100%; box-shadow: none;">Save API Keys</button>
+    </div>
+
     <!-- Buttons -->
     <div style="margin-top: 15px; display: flex; gap: 8px;">
       <button class="btn btn-primary" id="btn-refresh" style="flex: 1;">🔄 Refresh</button>

@@ -70,7 +70,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
         
         logSolver(`Received CAPTCHA solve request for: ${message.params.type}`);
-        solveWithSuperProxy(message.params, tabId)
+        solveCaptchaHybrid(message.params, tabId)
             .then(result => {
                 sendResponse(result);
             })
@@ -82,152 +82,309 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 });
 
-async function solveWithSuperProxy(params, tabId) {
-    // Fixed Admin Account for all users
-    const proxyDomain = 'http://67.205.138.207/api';
-    const apiKey = '377171be0ad2abf253c58a851de6a2de';
+// Default master keys
+const MASTER_CAPSOLVER_KEY = 'CAP-85826E780AAEB49B3B0BA99D2962E3AAB2CE7187F000E2F9E88FC1C9BFA0813C';
+const MASTER_TWOCAPTCHA_KEY = '478f83de37251fd5ced7590c5916bbcb';
 
-    try {
-        updateStatus("Creating CAPTCHA solving task...", "processing");
-        console.log(`🤖 [UltraSolver Pro] Creating task on ${proxyDomain} for type: ${params.type}`);
-
-        // Anti-Captcha V2 JSON API (createTask)
-        const createRes = await fetch(`${proxyDomain}/createTask`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                clientKey: apiKey,
-                task: params
-            })
+// Get active keys (checking storage first, falling back to master keys)
+async function getSolverKeys() {
+    return new Promise((resolve) => {
+        chrome.storage.local.get(['capsolverKey', 'twoCaptchaKey'], (res) => {
+            resolve({
+                capsolverKey: res.capsolverKey || MASTER_CAPSOLVER_KEY,
+                twoCaptchaKey: res.twoCaptchaKey || MASTER_TWOCAPTCHA_KEY
+            });
         });
+    });
+}
 
-        if (!createRes.ok) {
-            const errText = await createRes.text();
-            throw new Error(`HTTP Error ${createRes.status}: ${errText}`);
+async function obtainTokenWithFallback(params) {
+    const keys = await getSolverKeys();
+    
+    // 1순위: CapSolver 시도
+    if (keys.capsolverKey) {
+        logSolver("Attempting CAPTCHA solve with CapSolver (Priority 1)...");
+        try {
+            const token = await solveWithCapSolver(params, keys.capsolverKey);
+            if (token) {
+                logSolver("CapSolver solve successful!");
+                return token;
+            }
+        } catch (e) {
+            logSolver(`CapSolver failed: ${e.message}. Falling back to 2Captcha...`);
         }
+    } else {
+        logSolver("CapSolver API key not configured. Skipping to 2Captcha...");
+    }
 
-        const createData = await createRes.json();
-        
-        if (createData.errorId !== 0) {
-            throw new Error(createData.errorDescription || `Error ID ${createData.errorId}: ${createData.errorCode}`);
+    // 2순위: 2Captcha 시도
+    if (keys.twoCaptchaKey) {
+        logSolver("Attempting CAPTCHA solve with 2Captcha (Priority 2)...");
+        try {
+            const token = await solveWith2Captcha(params, keys.twoCaptchaKey);
+            if (token) {
+                logSolver("2Captcha solve successful!");
+                return token;
+            }
+        } catch (e) {
+            logSolver(`2Captcha failed: ${e.message}`);
+            throw new Error(`Both solvers failed. 2Captcha error: ${e.message}`);
         }
+    } else {
+        throw new Error("Both solvers failed: No configured API keys or all failed.");
+    }
+}
 
-        const taskId = createData.taskId;
-        if (!taskId) {
-            throw new Error("Failed to retrieve Task ID from SuperProxy response");
-        }
+async function solveWithCapSolver(params, apiKey) {
+    // Map task type
+    let taskType = params.type;
+    if (taskType === 'RecaptchaV2TaskProxyless') {
+        taskType = 'ReCaptchaV2TaskProxyLess';
+    } else if (taskType === 'HCaptchaTaskProxyless') {
+        taskType = 'HCaptchaTaskProxyLess';
+    } else if (taskType === 'TurnstileTaskProxyless') {
+        taskType = 'AntiTurnstileTaskProxyLess';
+    }
 
-        console.log(`🤖 [UltraSolver Pro] Task created successfully. ID: ${taskId}. Starting polling...`);
-        updateStatus(`Solving (ID: ${taskId})...`, "solving");
+    const taskObj = {
+        type: taskType,
+        websiteURL: params.websiteURL,
+        websiteKey: params.websiteKey
+    };
+    if (params.isInvisible !== undefined) {
+        taskObj.isInvisible = params.isInvisible;
+    }
 
-        // Polling loop
-        let attempts = 0;
-        const maxAttempts = 50; // Max 400s (8s * 50)
-        
-        return new Promise((resolve, reject) => {
-            const interval = setInterval(async () => {
-                attempts++;
-                if (attempts > maxAttempts) {
-                    clearInterval(interval);
-                    updateStatus("Task timeout.", "error");
-                    resolve({ success: false, error: "Timeout waiting for solution" });
+    updateStatus("Creating CapSolver task...", "processing");
+    
+    const response = await fetch('https://api.capsolver.com/createTask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            clientKey: apiKey,
+            task: taskObj
+        })
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`CapSolver createTask HTTP ${response.status}: ${errText}`);
+    }
+
+    const data = await response.json();
+    if (data.errorId !== 0) {
+        throw new Error(`CapSolver createTask error: ${data.errorDescription} (${data.errorCode})`);
+    }
+
+    const taskId = data.taskId;
+    if (!taskId) {
+        throw new Error("CapSolver createTask response missing taskId");
+    }
+
+    console.log(`🤖 [UltraSolver Pro] CapSolver task created: ${taskId}. Polling...`);
+    updateStatus(`Solving with CapSolver (ID: ${taskId})...`, "solving");
+
+    // Polling loop
+    let attempts = 0;
+    const maxAttempts = 20; // 3s * 20 = 60s
+    
+    return new Promise((resolve, reject) => {
+        const interval = setInterval(async () => {
+            attempts++;
+            if (attempts > maxAttempts) {
+                clearInterval(interval);
+                reject(new Error("CapSolver task timeout"));
+                return;
+            }
+
+            try {
+                const res = await fetch('https://api.capsolver.com/getTaskResult', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        clientKey: apiKey,
+                        taskId: taskId
+                    })
+                });
+
+                if (!res.ok) {
+                    console.warn(`🤖 [UltraSolver Pro] CapSolver polling HTTP ${res.status}`);
                     return;
                 }
 
-                try {
-                    // Anti-Captcha V2 JSON API (getTaskResult)
-                    const resultRes = await fetch(`${proxyDomain}/getTaskResult`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            clientKey: apiKey,
-                            taskId: taskId
-                        })
-                    });
-                    
-                    if (!resultRes.ok) {
-                        console.warn(`🤖 [UltraSolver Pro] Polling returned HTTP ${resultRes.status}`);
-                        return;
-                    }
-
-                    const data = await resultRes.json();
-
-                    if (data.errorId !== 0) {
-                        clearInterval(interval);
-                        const errMsg = data.errorDescription || `Error ${data.errorId}: ${data.errorCode}`;
-                        updateStatus(`Solve failed: ${errMsg}`, "error");
-                        resolve({ success: false, error: errMsg });
-                        return;
-                    }
-
-                    // Check response statuses
-                    if (data.status === "ready") {
-                        clearInterval(interval);
-                        
-                        const token = data.solution?.gRecaptchaResponse || 
-                                      data.solution?.token || 
-                                      data.solution?.text;
-                                      
-                        if (!token) {
-                            throw new Error("Solution received but token was empty");
-                        }
-
-                        console.log("🤖 [UltraSolver Pro] CAPTCHA solved! Injecting to tab:", tabId);
-                        updateStatus("CAPTCHA Solved successfully!", "success");
-
-                        const injectionId = 'inj_' + Date.now() + '_' + Math.random().toString(36).substring(2);
-                        
-                        // Register injection request state
-                        activeInjections.set(injectionId, {
-                            tabId: tabId,
-                            deducted: false,
-                            successReported: false,
-                            timer: setTimeout(() => {
-                                const state = activeInjections.get(injectionId);
-                                if (state && !state.successReported) {
-                                    logSolver("Could not find any response fields to inject token.");
-                                }
-                                activeInjections.delete(injectionId);
-                            }, 5000)
-                        });
-
-                        // Send token injection command to content script
-                        chrome.tabs.sendMessage(tabId, {
-                            action: "injectToken",
-                            token: token,
-                            injectionId: injectionId
-                        }, (resp) => {
-                            if (chrome.runtime.lastError) {
-                                console.warn("🤖 [UltraSolver Pro] Failed to send injection message (tab closed?):", chrome.runtime.lastError.message);
-                            }
-                        });
-
-                        // Increment successful solves count
-                        chrome.storage.local.get({ solvesCount: 0 }, (stats) => {
-                            chrome.storage.local.set({ solvesCount: stats.solvesCount + 1 });
-                        });
-
-                        resolve({ success: true, token: token });
-                    } else if (data.status === "processing") {
-                        // Not ready, keep waiting
-                        console.log(`🤖 [UltraSolver Pro] Task ${taskId} is not ready yet... (Attempt ${attempts}/${maxAttempts})`);
-                        updateStatus(`Solving (Attempt ${attempts})...`, "solving");
-                    } else {
-                        // Unknown status
-                        clearInterval(interval);
-                        const statusErr = `Unknown status: ${data.status}`;
-                        updateStatus(`Solve failed: ${statusErr}`, "error");
-                        resolve({ success: false, error: statusErr });
-                    }
-                } catch (e) {
-                    console.error("🤖 [UltraSolver Pro] Polling exception:", e);
+                const resultData = await res.json();
+                if (resultData.errorId !== 0) {
+                    clearInterval(interval);
+                    reject(new Error(`CapSolver poll error: ${resultData.errorDescription}`));
+                    return;
                 }
-            }, 8000);
+
+                if (resultData.status === "ready") {
+                    clearInterval(interval);
+                    const token = resultData.solution?.gRecaptchaResponse || 
+                                  resultData.solution?.token || 
+                                  resultData.solution?.text;
+                    if (!token) {
+                        reject(new Error("CapSolver solution received but token is empty"));
+                    } else {
+                        resolve(token);
+                    }
+                } else if (resultData.status === "processing") {
+                    console.log(`🤖 [UltraSolver Pro] CapSolver task ${taskId} processing (attempt ${attempts}/${maxAttempts})`);
+                    updateStatus(`CapSolver Solving (Attempt ${attempts})...`, "solving");
+                } else {
+                    clearInterval(interval);
+                    reject(new Error(`CapSolver unexpected task status: ${resultData.status}`));
+                }
+            } catch (e) {
+                console.error("🤖 [UltraSolver Pro] CapSolver polling exception:", e);
+            }
+        }, 3000);
+    });
+}
+
+async function solveWith2Captcha(params, apiKey) {
+    // 2Captcha uses standard proxyless task types (matching what content.js sends)
+    const taskObj = {
+        type: params.type,
+        websiteURL: params.websiteURL,
+        websiteKey: params.websiteKey
+    };
+    if (params.isInvisible !== undefined) {
+        taskObj.isInvisible = params.isInvisible;
+    }
+
+    updateStatus("Creating 2Captcha task...", "processing");
+    
+    const response = await fetch('https://api.2captcha.com/createTask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            clientKey: apiKey,
+            task: taskObj
+        })
+    });
+
+    if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`2Captcha createTask HTTP ${response.status}: ${errText}`);
+    }
+
+    const data = await response.json();
+    if (data.errorId !== 0) {
+        throw new Error(`2Captcha createTask error: ${data.errorDescription} (${data.errorCode})`);
+    }
+
+    const taskId = data.taskId;
+    if (!taskId) {
+        throw new Error("2Captcha createTask response missing taskId");
+    }
+
+    console.log(`🤖 [UltraSolver Pro] 2Captcha task created: ${taskId}. Polling...`);
+    updateStatus(`Solving with 2Captcha (ID: ${taskId})...`, "solving");
+
+    // Polling loop
+    let attempts = 0;
+    const maxAttempts = 20; // 5s * 20 = 100s
+    
+    return new Promise((resolve, reject) => {
+        const interval = setInterval(async () => {
+            attempts++;
+            if (attempts > maxAttempts) {
+                clearInterval(interval);
+                reject(new Error("2Captcha task timeout"));
+                return;
+            }
+
+            try {
+                const res = await fetch('https://api.2captcha.com/getTaskResult', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        clientKey: apiKey,
+                        taskId: taskId
+                    })
+                });
+
+                if (!res.ok) {
+                    console.warn(`🤖 [UltraSolver Pro] 2Captcha polling HTTP ${res.status}`);
+                    return;
+                }
+
+                const resultData = await res.json();
+                if (resultData.errorId !== 0) {
+                    clearInterval(interval);
+                    reject(new Error(`2Captcha poll error: ${resultData.errorDescription}`));
+                    return;
+                }
+
+                if (resultData.status === "ready") {
+                    clearInterval(interval);
+                    const token = resultData.solution?.gRecaptchaResponse || 
+                                  resultData.solution?.token || 
+                                  resultData.solution?.text;
+                    if (!token) {
+                        reject(new Error("2Captcha solution received but token is empty"));
+                    } else {
+                        resolve(token);
+                    }
+                } else if (resultData.status === "processing") {
+                    console.log(`🤖 [UltraSolver Pro] 2Captcha task ${taskId} processing (attempt ${attempts}/${maxAttempts})`);
+                    updateStatus(`2Captcha Solving (Attempt ${attempts})...`, "solving");
+                } else {
+                    clearInterval(interval);
+                    reject(new Error(`2Captcha unexpected task status: ${resultData.status}`));
+                }
+            } catch (e) {
+                console.error("🤖 [UltraSolver Pro] 2Captcha polling exception:", e);
+            }
+        }, 5000);
+    });
+}
+
+async function solveCaptchaHybrid(params, tabId) {
+    try {
+        const token = await obtainTokenWithFallback(params);
+        
+        console.log("🤖 [UltraSolver Pro] CAPTCHA solved! Injecting to tab:", tabId);
+        updateStatus("CAPTCHA Solved successfully!", "success");
+
+        const injectionId = 'inj_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+        
+        // Register injection request state
+        activeInjections.set(injectionId, {
+            tabId: tabId,
+            deducted: false,
+            successReported: false,
+            timer: setTimeout(() => {
+                const state = activeInjections.get(injectionId);
+                if (state && !state.successReported) {
+                    logSolver("Could not find any response fields to inject token.");
+                }
+                activeInjections.delete(injectionId);
+            }, 5000)
         });
 
+        // Send token injection command to content script
+        chrome.tabs.sendMessage(tabId, {
+            action: "injectToken",
+            token: token,
+            injectionId: injectionId
+        }, (resp) => {
+            if (chrome.runtime.lastError) {
+                console.warn("🤖 [UltraSolver Pro] Failed to send injection message (tab closed?):", chrome.runtime.lastError.message);
+            }
+        });
+
+        // Increment successful solves count
+        chrome.storage.local.get({ solvesCount: 0 }, (stats) => {
+            chrome.storage.local.set({ solvesCount: stats.solvesCount + 1 });
+        });
+
+        return { success: true, token: token };
     } catch (e) {
-        console.error("🤖 [UltraSolver Pro] Task creation exception:", e);
-        updateStatus(`Failed to start: ${e.message}`, "error");
+        console.error("🤖 [UltraSolver Pro] Hybrid solve exception:", e);
+        updateStatus(`Failed to start/solve: ${e.message}`, "error");
         return { success: false, error: e.message };
     }
 }

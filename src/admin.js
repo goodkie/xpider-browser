@@ -250,6 +250,7 @@ async function loadAllData(isManual = false) {
         
         // 4. Brevo Credits Sync
         loadBrevoCreditsAdmin().catch(() => {});
+        loadSolverCreditsAdmin().catch(() => {});
 
         // 5. SMTP Relay Provider 설정 로드
         loadSmtpProviderSetting().catch(() => {});
@@ -930,6 +931,77 @@ async function loadBrevoCreditsAdmin() {
         
         creditsVal.textContent = 'API Error';
         planVal.textContent = 'Connection Fail';
+    }
+}
+
+// ─── CapSolver & 2Captcha 실시간 모니터링 ───
+async function loadSolverCreditsAdmin() {
+    const csStatus = document.getElementById('capsolver-status');
+    const csBalance = document.getElementById('capsolver-balance');
+    const tcStatus = document.getElementById('twocaptcha-status');
+    const tcBalance = document.getElementById('twocaptcha-balance');
+
+    const capSolverKey = 'CAP-85826E780AAEB49B3B0BA99D2962E3AAB2CE7187F000E2F9E88FC1C9BFA0813C';
+    const twoCaptchaKey = '478f83de37251fd5ced7590c5916bbcb';
+
+    const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
+
+    // 1. CapSolver
+    if (csStatus && csBalance) {
+        try {
+            const targetUrl = 'https://api.capsolver.com/getBalance';
+            const finalUrl = isBrowser ? `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}` : targetUrl;
+            
+            const res = await fetch(finalUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientKey: capSolverKey })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data.errorId !== 0) {
+                throw new Error(data.errorDescription || 'API Error');
+            }
+            csBalance.textContent = `$${Number(data.balance).toFixed(4)}`;
+            csStatus.textContent = 'Active';
+            csStatus.style.color = '#10b981';
+            csStatus.style.backgroundColor = 'rgba(16,185,129,0.1)';
+        } catch (e) {
+            console.error('[AdminPanel] CapSolver API Error:', e.message);
+            csBalance.textContent = '$0.00';
+            csStatus.textContent = e.message.includes('authorization') || e.message.includes('denied') || e.message.includes('invalid') ? 'Auth Error' : 'Offline';
+            csStatus.style.color = '#ef4444';
+            csStatus.style.backgroundColor = 'rgba(239,68,68,0.1)';
+        }
+    }
+
+    // 2. 2Captcha
+    if (tcStatus && tcBalance) {
+        try {
+            const targetUrl = 'https://api.2captcha.com/getBalance';
+            const finalUrl = isBrowser ? `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}` : targetUrl;
+
+            const res = await fetch(finalUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientKey: twoCaptchaKey })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data.errorId !== 0) {
+                throw new Error(data.errorDescription || 'API Error');
+            }
+            tcBalance.textContent = `$${Number(data.balance).toFixed(4)}`;
+            tcStatus.textContent = 'Active';
+            tcStatus.style.color = '#10b981';
+            tcStatus.style.backgroundColor = 'rgba(16,185,129,0.1)';
+        } catch (e) {
+            console.error('[AdminPanel] 2Captcha API Error:', e.message);
+            tcBalance.textContent = '$0.00';
+            tcStatus.textContent = e.message.includes('missing') || e.message.includes('format') || e.message.includes('exist') ? 'Auth Error' : 'Offline';
+            tcStatus.style.color = '#ef4444';
+            tcStatus.style.backgroundColor = 'rgba(239,68,68,0.1)';
+        }
     }
 }
 

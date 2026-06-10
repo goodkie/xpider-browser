@@ -30,8 +30,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const capsolverKeyInput = document.getElementById('capsolver-key-input');
+    const twocaptchaKeyInput = document.getElementById('twocaptcha-key-input');
+    const btnSaveKeys = document.getElementById('btn-save-keys');
+
     // 1. Initial State Load
-    chrome.storage.local.get(['solvesCount', 'solverStatus', 'solverState', 'solverLogs'], (storage) => {
+    chrome.storage.local.get(['solvesCount', 'solverStatus', 'solverState', 'solverLogs', 'capsolverKey', 'twoCaptchaKey'], (storage) => {
         solvesVal.textContent = storage.solvesCount || 0;
         
         if (storage.solverStatus) {
@@ -44,9 +48,31 @@ document.addEventListener('DOMContentLoaded', () => {
             updateLogsUI(storage.solverLogs);
         }
 
+        if (storage.capsolverKey && capsolverKeyInput) {
+            capsolverKeyInput.value = storage.capsolverKey;
+        }
+        if (storage.twoCaptchaKey && twocaptchaKeyInput) {
+            twocaptchaKeyInput.value = storage.twoCaptchaKey;
+        }
+
         // Fetch XPIDER Tokens on startup
         refreshBalances();
     });
+
+    // Save Keys Button Click
+    if (btnSaveKeys) {
+        btnSaveKeys.addEventListener('click', () => {
+            const capKey = capsolverKeyInput ? capsolverKeyInput.value.trim() : '';
+            const twKey = twocaptchaKeyInput ? twocaptchaKeyInput.value.trim() : '';
+            
+            chrome.storage.local.set({
+                capsolverKey: capKey,
+                twoCaptchaKey: twKey
+            }, () => {
+                showToast('🔑 API Keys saved successfully!');
+            });
+        });
+    }
 
     // 2. Refresh Button Click
     btnRefresh.addEventListener('click', () => {

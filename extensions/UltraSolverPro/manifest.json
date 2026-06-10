@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "UltraSolver Pro reCAPTCHA",
-  "version": "1.0.2",
-  "description": "Automatic CAPTCHA Solver integrated with Anti-Captcha SuperProxy.",
+  "version": "1.0.3",
+  "description": "Automatic CAPTCHA Solver with high-speed CapSolver & 2Captcha hybrid bypass engine.",
   "icons": {
     "16": "icons/icon16.png",
     "24": "icons/icon24.png",
