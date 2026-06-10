@@ -1989,3 +1989,47 @@ window.getWebviewById = function(id) {
     }
     return null;
 };
+
+// ─── [Zoom] 탭 개별 확대/축소 IPC 이벤트 수신 ──────────────────
+if (window.electronAPI && typeof window.electronAPI.on === 'function') {
+    window.electronAPI.on('trigger-zoom', (direction) => {
+        const wv = getActiveWebview();
+        if (!wv) return;
+
+        try {
+            const res = wv.getZoomLevel((currentZoom) => {
+                applyZoom(wv, currentZoom, direction);
+            });
+
+            if (res instanceof Promise) {
+                res.then(currentZoom => applyZoom(wv, currentZoom, direction))
+                   .catch(err => console.error('[Zoom] getZoomLevel promise failed:', err));
+            } else if (typeof res === 'number') {
+                applyZoom(wv, res, direction);
+            }
+        } catch (e) {
+            console.error('[Zoom] Failed to handle trigger-zoom event:', e);
+        }
+    });
+}
+
+function applyZoom(wv, currentZoom, direction) {
+    let nextZoom = currentZoom;
+    if (direction === 'reset') {
+        nextZoom = 0; // 0 은 100% (기본값)
+    } else {
+        const zoomStep = 0.2; // 0.2씩 증감하여 조밀하고 자연스럽게 확대/축소
+        nextZoom = currentZoom + (direction === 'in' ? zoomStep : -zoomStep);
+        
+        // 줌 범위 한도 설정 (-2.0 ~ 4.0, 즉 60% ~ 250% 수준)
+        if (nextZoom < -2) nextZoom = -2;
+        if (nextZoom > 4) nextZoom = 4;
+    }
+
+    try {
+        wv.setZoomLevel(nextZoom);
+        console.log(`[Zoom] Webview zoom applied: ${nextZoom}`);
+    } catch (e) {
+        console.error('[Zoom] setZoomLevel failed:', e);
+    }
+}

@@ -170,6 +170,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   on: (channel, func) => {
     const allowed = [
       'extensions_loaded', 'profile_id', 'app_version',
+      'trigger-zoom',
       'app-update-result', 'ext-sync-progress',
       'xpider-renderer-update-active-tab', 'open-new-tab',
       'xpider-renderer-update-badge', 'xpider-ext-runtime-on-message',

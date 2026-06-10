@@ -291,6 +291,27 @@ function createWindow() {
 
   // Global handler to catch all window.open / target="_blank" from ANY webview or tab
   app.on('web-contents-created', (event, contents) => {
+    contents.on('before-input-event', (inputEvent, input) => {
+      const isCmdOrCtrl = process.platform === 'darwin' ? input.meta : input.control;
+      if (isCmdOrCtrl && input.type === 'keyDown') {
+        if (input.key === '=' || input.key === '+') {
+          inputEvent.preventDefault();
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('trigger-zoom', 'in');
+          }
+        } else if (input.key === '-') {
+          inputEvent.preventDefault();
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('trigger-zoom', 'out');
+          }
+        } else if (input.key === '0') {
+          inputEvent.preventDefault();
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('trigger-zoom', 'reset');
+          }
+        }
+      }
+    });
 
     // ─── [v4.17.0] 탭 전체 로깅 훅 ────────────────────────────
     const _tabSrc = () => {
