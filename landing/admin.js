@@ -905,6 +905,40 @@ async function loadBrevoCreditsAdmin() {
         }
     }
 
+    // Electron 환경인지 체크
+    const isElectron = window.electronAPI && typeof window.electronAPI.invoke === 'function' && !window.electronAPI.isBrowserFallback;
+
+    if (isElectron) {
+        try {
+            const result = await window.electronAPI.invoke('admin-get-brevo-credits');
+            if (result.success) {
+                const planLabels = { payAsYouGo: 'Pay As You Go', free: 'Free Plan', subscription: 'Subscription' };
+                creditsVal.textContent = result.totalCredits.toLocaleString() + ' Credits';
+                planVal.textContent = planLabels[result.planName] || result.planName;
+
+                // Supabase에 캐시 저장
+                const sb = getSbAdmin();
+                if (sb) {
+                    await sb.from('profiles').update({
+                        tokens_remaining: result.totalCredits,
+                        plan: result.planName,
+                        last_active_at: new Date().toISOString()
+                    }).eq('email', 'brevo@xpider.pro');
+                }
+
+                const syncTimeEl = document.getElementById('mailer-sync-time');
+                if (syncTimeEl) {
+                    syncTimeEl.textContent = `Last Synced: ${new Date().toLocaleString('ko-KR')}`;
+                }
+                return;
+            } else {
+                throw new Error(result.error || 'IPC call failed');
+            }
+        } catch (ipcErr) {
+            console.warn('[AdminPanel] IPC Brevo credits check failed, falling back to fetch:', ipcErr.message);
+        }
+    }
+
     try {
         const gatewayUrl = 'https://brevo-key-provider.goodkie-com.workers.dev/';
         const keyRes = await fetch(gatewayUrl, { cache: 'no-store' });
@@ -1254,6 +1288,43 @@ async function loadVpnCreditsAdmin() {
             }
         } catch (dbErr) {
             console.error('[AdminPanel] VPN DB Cache fetch failed:', dbErr);
+        }
+    }
+
+    // Electron 환경인지 체크
+    const isElectron = window.electronAPI && typeof window.electronAPI.invoke === 'function' && !window.electronAPI.isBrowserFallback;
+
+    if (isElectron) {
+        try {
+            const result = await window.electronAPI.invoke('admin-get-vpn-credits');
+            if (result.success) {
+                trafficVal.textContent = `${result.remainingGb} GB (${result.daysRemaining} Days)`;
+                balanceVal.textContent = result.vpnStatus;
+
+                // Supabase에 캐시 저장
+                const sb = getSbAdmin();
+                if (sb) {
+                    const vpnInfo = {
+                        remaining_traffic: result.remainingGb,
+                        days_remaining: result.daysRemaining,
+                        status: result.vpnStatus
+                    };
+                    await sb.from('profiles').update({
+                        stripe_customer_id: JSON.stringify(vpnInfo),
+                        last_active_at: new Date().toISOString()
+                    }).eq('email', 'vpn@xpider.pro');
+                }
+
+                const syncTimeEl = document.getElementById('vpn-sync-time');
+                if (syncTimeEl) {
+                    syncTimeEl.textContent = `Last Synced: ${new Date().toLocaleString('ko-KR')}`;
+                }
+                return;
+            } else {
+                throw new Error(result.error || 'IPC call failed');
+            }
+        } catch (ipcErr) {
+            console.warn('[AdminPanel] IPC VPN credits check failed, falling back to fetch:', ipcErr.message);
         }
     }
 

@@ -999,6 +999,91 @@ ipcMain.handle('admin-get-solver-credits', async () => {
   return result;
 });
 
+ipcMain.handle('admin-get-brevo-credits', async () => {
+  const gatewayUrl = 'https://brevo-key-provider.goodkie-com.workers.dev/';
+  const result = { success: false, totalCredits: 0, planName: 'Free Plan', error: null };
+  try {
+    const keyRes = await fetch(gatewayUrl, { cache: 'no-store' });
+    if (!keyRes.ok) throw new Error(`Key fetch HTTP ${keyRes.status}`);
+    const apiKey = (await keyRes.text()).trim();
+
+    if (!apiKey) throw new Error('API Key missing in provider');
+
+    const accountRes = await fetch('https://api.brevo.com/v3/accounts', {
+      method: 'GET',
+      headers: {
+        'accept': 'application/json',
+        'api-key': apiKey
+      }
+    });
+
+    if (!accountRes.ok) throw new Error(`HTTP ${accountRes.status}`);
+    const accountData = await accountRes.json();
+
+    let totalCredits = 0;
+    let planName = 'Free Plan';
+
+    if (accountData.plan && accountData.plan.length > 0) {
+      accountData.plan.forEach(p => {
+        if (p.credits !== undefined) {
+          totalCredits += p.credits;
+        }
+      });
+      planName = accountData.plan[0].type || planName;
+    }
+
+    result.success = true;
+    result.totalCredits = totalCredits;
+    result.planName = planName;
+  } catch (e) {
+    result.error = e.message;
+  }
+  return result;
+});
+
+ipcMain.handle('admin-get-vpn-credits', async () => {
+  const apiKey = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
+  const result = { success: false, remainingGb: '0.00', daysRemaining: 0, vpnStatus: 'Offline', error: null };
+  try {
+    // 1. Subscription 조회
+    const subRes = await fetch('https://proxy.webshare.io/api/v2/subscription/', {
+      headers: { Authorization: `Token ${apiKey}` }
+    });
+    if (!subRes.ok) throw new Error(`Sub HTTP ${subRes.status}`);
+    const subData = await subRes.json();
+
+    const endDate = new Date(subData.end_date);
+    const daysRemaining = Math.max(0, Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24)));
+    const renewStatus = subData.renewals_enabled ? 'Auto-renew' : 'Manual';
+    const vpnStatus = subData.paused ? 'Paused' : `Active (${renewStatus})`;
+
+    // 2. Stats 조회
+    const statsRes = await fetch('https://proxy.webshare.io/api/v2/stats/', {
+      headers: { Authorization: `Token ${apiKey}` }
+    });
+    if (!statsRes.ok) throw new Error(`Stats HTTP ${statsRes.status}`);
+    const statsData = await statsRes.json();
+
+    const realStats = statsData.filter(s => !s.is_projected);
+    let totalBandwidthBytes = 0;
+    for (const s of realStats) {
+      totalBandwidthBytes += s.bandwidth_total || 0;
+    }
+
+    const usedGb = totalBandwidthBytes / (1024 * 1024 * 1024);
+    const limitGb = 250;
+    const remainingGb = Math.max(0, limitGb - usedGb);
+
+    result.success = true;
+    result.remainingGb = remainingGb.toFixed(2);
+    result.daysRemaining = daysRemaining;
+    result.vpnStatus = vpnStatus;
+  } catch (e) {
+    result.error = e.message;
+  }
+  return result;
+});
+
 // ─── [Stripe] 결제 서비스 초기화 ─────────────────────────────────────────────
 // Secret Key는 환경변수 STRIPE_SECRET_KEY에서 주입됩니다.
 // 개발: .env 파일, 배포(CI): GitHub Actions Secrets → 빌드 시 .env 자동 생성

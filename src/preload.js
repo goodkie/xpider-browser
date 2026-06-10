@@ -207,6 +207,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-get-usp-cookie',          // [UltraSolver] SuperProxy 쿠키 데이터 조회
       'xpider-usp-recharge-db',          // [UltraSolver] 가상 결제 승인 시 SSH DB 충전 쿼리 실행
       'admin-get-solver-credits',
+      'admin-get-vpn-credits',
+      'admin-get-brevo-credits',
       'admin-github-backup',
       'admin-github-restore'
     ];
