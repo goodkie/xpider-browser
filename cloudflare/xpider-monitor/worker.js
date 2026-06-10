@@ -70,6 +70,9 @@ export default {
 async function runMonitor(env) {
   console.log('[Monitor] 실행 시작:', new Date().toISOString());
 
+  // 0. 어드민 리소스 실시간 정보 수집 및 캐싱 동기화
+  await syncDeveloperResourcesCache().catch(e => console.error('[Monitor] Sync Cache crash:', e.message));
+
   try {
     // 1. 알림 설정 로드 (smtp-config@xpider.pro 프로필)
     const settings = await loadNotifySettings();
@@ -435,4 +438,161 @@ function escHtml(str) {
     .replace(/</g,'&lt;')
     .replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;');
+}
+
+// ─── 어드민 리소스 실시간 정보 수집 및 캐싱 동기화 ───
+async function syncDeveloperResourcesCache() {
+  console.log('[Monitor] Syncing Developer Resources Cache...');
+  
+  // 1. Brevo Sync
+  try {
+    const keyRes = await fetch(BREVO_WORKER_URL, { cache: 'no-store' });
+    if (keyRes.ok) {
+      const apiKey = (await keyRes.text()).trim();
+      if (apiKey) {
+        const accountRes = await fetch('https://api.brevo.com/v3/accounts', {
+          headers: { 'accept': 'application/json', 'api-key': apiKey }
+        });
+        if (accountRes.ok) {
+          const accountData = await accountRes.json();
+          let totalCredits = 0;
+          let planName = 'Free Plan';
+          if (accountData.plan && accountData.plan.length > 0) {
+            accountData.plan.forEach(p => { if (p.credits !== undefined) totalCredits += p.credits; });
+            planName = accountData.plan[0].type || planName;
+          }
+          await saveCacheToSupabase('brevo@xpider.pro', {
+            tokens_remaining: totalCredits,
+            plan: planName,
+            last_active_at: new Date().toISOString()
+          });
+          console.log('[Monitor] Brevo Cache Synced:', totalCredits);
+        }
+      }
+    }
+  } catch(e) {
+    console.error('[Monitor] Brevo Cache Sync Error:', e.message);
+  }
+
+  // 2. CapSolver & 2Captcha Sync
+  try {
+    const capSolverKey = 'CAP-85826E780AAEB49B3B0BA99D2962E3AAB2CE7187F000E2F9E88FC1C9BFA0813C';
+    const twoCaptchaKey = '478f83de37251fd5ced7590c5916bbcb';
+    const solverInfo = { capsolver: '0.0000', twocaptcha: '0.0000', capsolver_status: 'Offline', twocaptcha_status: 'Offline' };
+
+    // CapSolver
+    try {
+      const res = await fetch('https://api.capsolver.com/getBalance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientKey: capSolverKey })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.errorId === 0) {
+          solverInfo.capsolver = Number(data.balance).toFixed(4);
+          solverInfo.capsolver_status = 'Active';
+        } else {
+          solverInfo.capsolver_status = data.errorDescription?.includes('authorization') ? 'Auth Error' : 'Offline';
+        }
+      }
+    } catch(e) { solverInfo.capsolver_status = 'Offline'; }
+
+    // 2Captcha
+    try {
+      const res = await fetch('https://api.2captcha.com/getBalance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientKey: twoCaptchaKey })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.errorId === 0) {
+          solverInfo.twocaptcha = Number(data.balance).toFixed(4);
+          solverInfo.twocaptcha_status = 'Active';
+        } else {
+          solverInfo.twocaptcha_status = data.errorDescription?.includes('authorization') ? 'Auth Error' : 'Offline';
+        }
+      }
+    } catch(e) { solverInfo.twocaptcha_status = 'Offline'; }
+
+    await saveCacheToSupabase('solver@xpider.pro', {
+      stripe_customer_id: JSON.stringify(solverInfo),
+      last_active_at: new Date().toISOString()
+    });
+    console.log('[Monitor] Solver Cache Synced:', JSON.stringify(solverInfo));
+  } catch(e) {
+    console.error('[Monitor] Solver Cache Sync Error:', e.message);
+  }
+
+  // 3. Webshare VPN Sync
+  try {
+    const webshareApiKey = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
+    const vpnInfo = { remaining_traffic: '0.00', days_remaining: 0, status: 'Connection Fail' };
+
+    // Sub
+    let daysRemaining = 0;
+    let renewStatus = 'Manual';
+    let isPaused = false;
+    try {
+      const subRes = await fetch('https://proxy.webshare.io/api/v2/subscription/', {
+        headers: { Authorization: `Token ${webshareApiKey}` }
+      });
+      if (subRes.ok) {
+        const subData = await subRes.json();
+        const endDate = new Date(subData.end_date);
+        daysRemaining = Math.max(0, Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24)));
+        renewStatus = subData.renewals_enabled ? 'Auto-renew' : 'Manual';
+        isPaused = subData.paused;
+        vpnInfo.days_remaining = daysRemaining;
+        vpnInfo.status = isPaused ? 'Paused' : `Active (${renewStatus})`;
+      }
+    } catch(e) { vpnInfo.status = 'Offline'; }
+
+    // Stats
+    try {
+      const statsRes = await fetch('https://proxy.webshare.io/api/v2/stats/', {
+        headers: { Authorization: `Token ${webshareApiKey}` }
+      });
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        const realStats = statsData.filter(s => !s.is_projected);
+        let totalBandwidthBytes = 0;
+        for (const s of realStats) {
+          totalBandwidthBytes += s.bandwidth_total || 0;
+        }
+        const usedGb = totalBandwidthBytes / (1024 * 1024 * 1024);
+        const limitGb = 250;
+        const remainingGb = Math.max(0, limitGb - usedGb);
+        vpnInfo.remaining_traffic = remainingGb.toFixed(2);
+      }
+    } catch(e) {}
+
+    await saveCacheToSupabase('vpn@xpider.pro', {
+      stripe_customer_id: JSON.stringify(vpnInfo),
+      last_active_at: new Date().toISOString()
+    });
+    console.log('[Monitor] VPN Cache Synced:', JSON.stringify(vpnInfo));
+  } catch(e) {
+    console.error('[Monitor] VPN Cache Sync Error:', e.message);
+  }
+}
+
+async function saveCacheToSupabase(email, patchData) {
+  // Check if exists
+  const exist = await supabaseFetch(`/rest/v1/profiles?email=eq.${encodeURIComponent(email)}&select=id`, 'GET');
+  if (exist && exist.length > 0) {
+    // Update
+    await supabaseFetch(`/rest/v1/profiles?email=eq.${encodeURIComponent(email)}`, 'PATCH', patchData);
+  } else {
+    // Insert
+    const insertData = {
+      email,
+      username: email.split('@')[0],
+      plan: 'free',
+      tokens_remaining: 0,
+      ...patchData
+    };
+    await supabaseFetch(`/rest/v1/profiles`, 'POST', insertData);
+  }
 }

@@ -63,6 +63,38 @@ if (typeof window.electronAPI === 'undefined') {
     }, 200);
 }
 
+async function ensureCacheProfile(email, username, password) {
+    const sb = getSbAdmin();
+    if (!sb) return;
+    try {
+        const { data: exist } = await sb.from('profiles').select('id').eq('email', email).maybeSingle();
+        if (!exist) {
+            console.log(`[XPIDER] Creating cache bot profile: ${email}`);
+            await sb.auth.admin.createUser({
+                email: email,
+                password: password,
+                user_metadata: { username: username },
+                email_confirm: true
+            }).catch(() => {});
+        }
+    } catch (e) {
+        console.error(`[XPIDER] ensureCacheProfile (${email}) failed:`, e);
+    }
+}
+
+async function initializeCacheProfiles() {
+    const sb = getSbAdmin();
+    if (!sb) return;
+    try {
+        await ensureCacheProfile('brevo@xpider.pro', 'Brevo Monitor', 'BrevoSyncTemp135!@');
+        await ensureCacheProfile('solver@xpider.pro', 'Solver Monitor', 'SolverSyncTemp135!@');
+        await ensureCacheProfile('vpn@xpider.pro', 'VPN Monitor', 'VpnSyncTemp135!@');
+        await ensureCacheProfile('smtp-config@xpider.pro', 'SMTP Config', 'SmtpConfigTemp135!@');
+    } catch (e) {
+        console.error('[XPIDER] initializeCacheProfiles failed:', e);
+    }
+}
+
 
 let usersCached = [];
 let logsCached = [];
@@ -228,6 +260,7 @@ if (document.readyState === 'loading') {
 async function loadAllData(isManual = false) {
     const refreshAllBtn = getEl('refresh-all-btn');
     try {
+        await initializeCacheProfiles();
         if (isManual) {
             if (refreshAllBtn) refreshAllBtn.textContent = '⚡ Syncing...';
             appendDebugLog('Syncing full command center datasets...', 'api');
@@ -847,6 +880,31 @@ async function loadBrevoCreditsAdmin() {
     const planVal = document.getElementById('brevo-plan-val-admin');
     if (!creditsVal || !planVal) return;
 
+    const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
+
+    if (isBrowser) {
+        try {
+            const sb = getSbAdmin();
+            if (sb) {
+                const { data, error } = await sb.from('profiles').select('tokens_remaining, plan, last_active_at').eq('email', 'brevo@xpider.pro').maybeSingle();
+                if (data && !error) {
+                    const planLabels = { payAsYouGo: 'Pay As You Go', free: 'Free Plan', subscription: 'Subscription' };
+                    creditsVal.textContent = (data.tokens_remaining || 0).toLocaleString() + ' Credits';
+                    planVal.textContent = planLabels[data.plan] || data.plan || 'Free Plan';
+                    
+                    const syncTimeEl = document.getElementById('mailer-sync-time');
+                    if (syncTimeEl && data.last_active_at) {
+                        const localTime = new Date(data.last_active_at).toLocaleString('ko-KR');
+                        syncTimeEl.textContent = `Last Synced: ${localTime}`;
+                    }
+                    return;
+                }
+            }
+        } catch (dbErr) {
+            console.error('[AdminPanel] Brevo Browser Cache Load Error:', dbErr);
+        }
+    }
+
     try {
         const gatewayUrl = 'https://brevo-key-provider.goodkie-com.workers.dev/';
         const keyRes = await fetch(gatewayUrl, { cache: 'no-store' });
@@ -859,7 +917,6 @@ async function loadBrevoCreditsAdmin() {
             return;
         }
 
-        const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
         const targetUrl = 'https://api.brevo.com/v3/accounts';
         const finalUrl = isBrowser ? `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}` : targetUrl;
 
@@ -895,21 +952,16 @@ async function loadBrevoCreditsAdmin() {
         // ─── Supabase DB에 캐싱 ───
         const sb = getSbAdmin();
         if (sb) {
-            const { data: exist } = await sb.from('profiles').select('id').eq('email', 'brevo@xpider.pro').maybeSingle();
-            if (!exist) {
-                await sb.auth.admin.createUser({
-                    email: 'brevo@xpider.pro',
-                    password: 'BrevoSyncTemp135!@',
-                    user_metadata: { username: 'Brevo Monitor' },
-                    email_confirm: true
-                }).catch(() => {});
-            }
-            
             await sb.from('profiles').update({
                 tokens_remaining: totalCredits,
                 plan: planName,
                 last_active_at: new Date().toISOString()
             }).eq('email', 'brevo@xpider.pro');
+        }
+
+        const syncTimeEl = document.getElementById('mailer-sync-time');
+        if (syncTimeEl) {
+            syncTimeEl.textContent = `Last Synced: ${new Date().toLocaleString('ko-KR')}`;
         }
 
     } catch (e) {
@@ -945,6 +997,56 @@ async function loadSolverCreditsAdmin() {
 
     if (!csStatus || !csBalance || !tcStatus || !tcBalance) return;
 
+    const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
+
+    // 브라우저 모드인 경우 Supabase에서 캐시 데이터를 우선 가져옴
+    if (isBrowser) {
+        try {
+            const sb = getSbAdmin();
+            if (sb) {
+                const { data, error } = await sb.from('profiles').select('stripe_customer_id, last_active_at').eq('email', 'solver@xpider.pro').maybeSingle();
+                if (data && !error && data.stripe_customer_id) {
+                    const solverInfo = JSON.parse(data.stripe_customer_id);
+                    
+                    // CapSolver
+                    if (solverInfo.capsolver_status === 'Active') {
+                        csBalance.textContent = `$${Number(solverInfo.capsolver).toFixed(4)}`;
+                        csStatus.textContent = 'Active';
+                        csStatus.style.color = '#10b981';
+                        csStatus.style.backgroundColor = 'rgba(16,185,129,0.1)';
+                    } else {
+                        csBalance.textContent = `$${Number(solverInfo.capsolver || 0).toFixed(4)}`;
+                        csStatus.textContent = solverInfo.capsolver_status || 'Offline';
+                        csStatus.style.color = '#ef4444';
+                        csStatus.style.backgroundColor = 'rgba(239,68,68,0.1)';
+                    }
+
+                    // 2Captcha
+                    if (solverInfo.twocaptcha_status === 'Active') {
+                        tcBalance.textContent = `$${Number(solverInfo.twocaptcha).toFixed(4)}`;
+                        tcStatus.textContent = 'Active';
+                        tcStatus.style.color = '#10b981';
+                        tcStatus.style.backgroundColor = 'rgba(16,185,129,0.1)';
+                    } else {
+                        tcBalance.textContent = `$${Number(solverInfo.twocaptcha || 0).toFixed(4)}`;
+                        tcStatus.textContent = solverInfo.twocaptcha_status || 'Offline';
+                        tcStatus.style.color = '#ef4444';
+                        tcStatus.style.backgroundColor = 'rgba(239,68,68,0.1)';
+                    }
+
+                    const syncTimeEl = document.getElementById('solver-sync-time');
+                    if (syncTimeEl && data.last_active_at) {
+                        const localTime = new Date(data.last_active_at).toLocaleString('ko-KR');
+                        syncTimeEl.textContent = `Last Synced: ${localTime}`;
+                    }
+                    return;
+                }
+            }
+        } catch (dbErr) {
+            console.error('[AdminPanel] Solver DB Cache fetch failed:', dbErr);
+        }
+    }
+
     // Electron 환경인지 체크
     const isElectron = window.electronAPI && typeof window.electronAPI.invoke === 'function' && !window.electronAPI.isBrowserFallback;
 
@@ -977,6 +1079,26 @@ async function loadSolverCreditsAdmin() {
                 tcStatus.style.color = '#ef4444';
                 tcStatus.style.backgroundColor = 'rgba(239,68,68,0.1)';
             }
+
+            // Supabase에 캐시 저장
+            const sb = getSbAdmin();
+            if (sb) {
+                const solverInfo = {
+                    capsolver: result.capsolver.success ? String(result.capsolver.balance) : '0.0000',
+                    twocaptcha: result.twocaptcha.success ? String(result.twocaptcha.balance) : '0.0000',
+                    capsolver_status: result.capsolver.success ? 'Active' : result.capsolver.status,
+                    twocaptcha_status: result.twocaptcha.success ? 'Active' : result.twocaptcha.status
+                };
+                await sb.from('profiles').update({
+                    stripe_customer_id: JSON.stringify(solverInfo),
+                    last_active_at: new Date().toISOString()
+                }).eq('email', 'solver@xpider.pro');
+            }
+
+            const syncTimeEl = document.getElementById('solver-sync-time');
+            if (syncTimeEl) {
+                syncTimeEl.textContent = `Last Synced: ${new Date().toLocaleString('ko-KR')}`;
+            }
             return;
         } catch (ipcErr) {
             console.warn('[AdminPanel] IPC credits check failed, falling back to fetch:', ipcErr.message);
@@ -985,7 +1107,11 @@ async function loadSolverCreditsAdmin() {
 
     const capSolverKey = 'CAP-85826E780AAEB49B3B0BA99D2962E3AAB2CE7187F000E2F9E88FC1C9BFA0813C';
     const twoCaptchaKey = '478f83de37251fd5ced7590c5916bbcb';
-    const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
+
+    let capsolverBalance = '0.0000';
+    let capsolverStatus = 'Offline';
+    let twocaptchaBalance = '0.0000';
+    let twocaptchaStatus = 'Offline';
 
     // 1. CapSolver
     try {
@@ -1002,14 +1128,17 @@ async function loadSolverCreditsAdmin() {
         if (data.errorId !== 0) {
             throw new Error(data.errorDescription || 'API Error');
         }
-        csBalance.textContent = `$${Number(data.balance).toFixed(4)}`;
+        capsolverBalance = Number(data.balance).toFixed(4);
+        csBalance.textContent = `$${capsolverBalance}`;
         csStatus.textContent = 'Active';
         csStatus.style.color = '#10b981';
         csStatus.style.backgroundColor = 'rgba(16,185,129,0.1)';
+        capsolverStatus = 'Active';
     } catch (e) {
         console.error('[AdminPanel] CapSolver API Error:', e.message);
         csBalance.textContent = '$0.00';
-        csStatus.textContent = e.message.includes('authorization') || e.message.includes('denied') || e.message.includes('invalid') ? 'Auth Error' : 'Offline';
+        capsolverStatus = e.message.includes('authorization') || e.message.includes('denied') || e.message.includes('invalid') ? 'Auth Error' : 'Offline';
+        csStatus.textContent = capsolverStatus;
         csStatus.style.color = '#ef4444';
         csStatus.style.backgroundColor = 'rgba(239,68,68,0.1)';
     }
@@ -1029,16 +1158,42 @@ async function loadSolverCreditsAdmin() {
         if (data.errorId !== 0) {
             throw new Error(data.errorDescription || 'API Error');
         }
-        tcBalance.textContent = `$${Number(data.balance).toFixed(4)}`;
+        twocaptchaBalance = Number(data.balance).toFixed(4);
+        tcBalance.textContent = `$${twocaptchaBalance}`;
         tcStatus.textContent = 'Active';
         tcStatus.style.color = '#10b981';
         tcStatus.style.backgroundColor = 'rgba(16,185,129,0.1)';
+        twocaptchaStatus = 'Active';
     } catch (e) {
         console.error('[AdminPanel] 2Captcha API Error:', e.message);
         tcBalance.textContent = '$0.00';
-        tcStatus.textContent = e.message.includes('missing') || e.message.includes('format') || e.message.includes('exist') ? 'Auth Error' : 'Offline';
+        twocaptchaStatus = e.message.includes('missing') || e.message.includes('format') || e.message.includes('exist') ? 'Auth Error' : 'Offline';
+        tcStatus.textContent = twocaptchaStatus;
         tcStatus.style.color = '#ef4444';
         tcStatus.style.backgroundColor = 'rgba(239,68,68,0.1)';
+    }
+
+    // DB에 캐싱 저장
+    try {
+        const sb = getSbAdmin();
+        if (sb) {
+            const solverInfo = {
+                capsolver: capsolverBalance,
+                twocaptcha: twocaptchaBalance,
+                capsolver_status: capsolverStatus,
+                twocaptcha_status: twocaptchaStatus
+            };
+            await sb.from('profiles').update({
+                stripe_customer_id: JSON.stringify(solverInfo),
+                last_active_at: new Date().toISOString()
+            }).eq('email', 'solver@xpider.pro');
+        }
+        const syncTimeEl = document.getElementById('solver-sync-time');
+        if (syncTimeEl) {
+            syncTimeEl.textContent = `Last Synced: ${new Date().toLocaleString('ko-KR')}`;
+        }
+    } catch (dbErr) {
+        console.error('[AdminPanel] Solver fetch DB caching error:', dbErr);
     }
 }
 
@@ -1077,9 +1232,33 @@ async function loadVpnCreditsAdmin() {
     const balanceVal = document.getElementById('vpn-balance-val-admin');
     if (!trafficVal || !balanceVal) return;
 
+    const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
+
+    if (isBrowser) {
+        try {
+            const sb = getSbAdmin();
+            if (sb) {
+                const { data, error } = await sb.from('profiles').select('stripe_customer_id, last_active_at').eq('email', 'vpn@xpider.pro').maybeSingle();
+                if (data && !error && data.stripe_customer_id) {
+                    const vpnInfo = JSON.parse(data.stripe_customer_id);
+                    trafficVal.textContent = `${vpnInfo.remaining_traffic} GB (${vpnInfo.days_remaining} Days)`;
+                    balanceVal.textContent = vpnInfo.status;
+                    
+                    const syncTimeEl = document.getElementById('vpn-sync-time');
+                    if (syncTimeEl && data.last_active_at) {
+                        const localTime = new Date(data.last_active_at).toLocaleString('ko-KR');
+                        syncTimeEl.textContent = `Last Synced: ${localTime}`;
+                    }
+                    return;
+                }
+            }
+        } catch (dbErr) {
+            console.error('[AdminPanel] VPN DB Cache fetch failed:', dbErr);
+        }
+    }
+
     try {
         const apiKey = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
-        const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
 
         // 1. Subscription 조회 (남은 날짜 및 구독 상태)
         const subUrl = 'https://proxy.webshare.io/api/v2/subscription/';
@@ -1094,8 +1273,9 @@ async function loadVpnCreditsAdmin() {
         const endDate = new Date(subData.end_date);
         const daysRemaining = Math.max(0, Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24)));
         const renewStatus = subData.renewals_enabled ? 'Auto-renew' : 'Manual';
+        const vpnStatus = subData.paused ? 'Paused' : `Active (${renewStatus})`;
         
-        balanceVal.textContent = subData.paused ? 'Paused' : `Active (${renewStatus})`;
+        balanceVal.textContent = vpnStatus;
 
         // 2. Stats 조회 (대역폭 사용량 계산)
         const statsUrl = 'https://proxy.webshare.io/api/v2/stats/';
@@ -1116,8 +1296,32 @@ async function loadVpnCreditsAdmin() {
         const usedGb = totalBandwidthBytes / (1024 * 1024 * 1024);
         const limitGb = 250; // 기본값 250GB 한도
         const remainingGb = Math.max(0, limitGb - usedGb);
+        const remainingTrafficStr = remainingGb.toFixed(2);
 
-        trafficVal.textContent = `${remainingGb.toFixed(2)} GB (${daysRemaining} Days)`;
+        trafficVal.textContent = `${remainingTrafficStr} GB (${daysRemaining} Days)`;
+
+        // Supabase DB에 캐싱
+        try {
+            const sb = getSbAdmin();
+            if (sb) {
+                const vpnInfo = {
+                    remaining_traffic: remainingTrafficStr,
+                    days_remaining: daysRemaining,
+                    status: vpnStatus
+                };
+                await sb.from('profiles').update({
+                    stripe_customer_id: JSON.stringify(vpnInfo),
+                    last_active_at: new Date().toISOString()
+                }).eq('email', 'vpn@xpider.pro');
+            }
+            const syncTimeEl = document.getElementById('vpn-sync-time');
+            if (syncTimeEl) {
+                syncTimeEl.textContent = `Last Synced: ${new Date().toLocaleString('ko-KR')}`;
+            }
+        } catch (dbErr) {
+            console.error('[AdminPanel] VPN fetch DB caching error:', dbErr);
+        }
+
     } catch (e) {
         console.error('[AdminPanel] VPN (Webshare) API Error:', e);
         trafficVal.textContent = 'API Error';
