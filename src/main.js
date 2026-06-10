@@ -155,7 +155,11 @@ let _logoutExitInProgress = false;
 // --no-auto-login 플래그 여부 (로그아웃 후 재시작 시 자동 로그인 원천 차단)
 const _noAutoLogin = process.argv.includes('--no-auto-login');
 // --test-mode 플래그 여부 (로그인 불필요, 토큰 무제한 개발/테스트 전용 모드)
-const _testMode = process.argv.includes('--test-mode') || process.env.XPIDER_TEST_MODE === 'true';
+const pkg = require('../package.json');
+const _testMode = process.argv.includes('--test-mode') || 
+                  process.env.XPIDER_TEST_MODE === 'true' || 
+                  (pkg && pkg.version && pkg.version.includes('-dev'));
+
 
 // ─── [v4.17.0] 전역 실시간 로그 (devlog 라우팅) ──────────────
 function xLog(level, source, ...args) {
