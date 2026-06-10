@@ -939,6 +939,66 @@ ipcMain.handle('admin-get-user-logs', async (_, { filterUserId, filterDate }) =>
   return authService.adminGetUserLogs(filterUserId, filterDate);
 });
 
+ipcMain.handle('admin-get-solver-credits', async () => {
+  const capSolverKey = 'CAP-85826E780AAEB49B3B0BA99D2962E3AAB2CE7187F000E2F9E88FC1C9BFA0813C';
+  const twoCaptchaKey = '478f83de37251fd5ced7590c5916bbcb';
+
+  const result = {
+    capsolver: { success: false, balance: '0.0000', status: 'Offline', error: null },
+    twocaptcha: { success: false, balance: '0.0000', status: 'Offline', error: null }
+  };
+
+  // 1. CapSolver
+  try {
+    const response = await fetch('https://api.capsolver.com/getBalance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientKey: capSolverKey })
+    });
+    if (response.ok) {
+      const data = await response.json();
+      if (data.errorId === 0) {
+        result.capsolver.success = true;
+        result.capsolver.balance = Number(data.balance).toFixed(4);
+        result.capsolver.status = 'Active';
+      } else {
+        result.capsolver.status = data.errorDescription?.includes('authorization') || data.errorDescription?.includes('denied') ? 'Auth Error' : 'Offline';
+        result.capsolver.error = data.errorDescription;
+      }
+    } else {
+      result.capsolver.error = `HTTP ${response.status}`;
+    }
+  } catch (e) {
+    result.capsolver.error = e.message;
+  }
+
+  // 2. 2Captcha
+  try {
+    const response = await fetch('https://api.2captcha.com/getBalance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientKey: twoCaptchaKey })
+    });
+    if (response.ok) {
+      const data = await response.json();
+      if (data.errorId === 0) {
+        result.twocaptcha.success = true;
+        result.twocaptcha.balance = Number(data.balance).toFixed(4);
+        result.twocaptcha.status = 'Active';
+      } else {
+        result.twocaptcha.status = data.errorDescription?.includes('authorization') || data.errorDescription?.includes('denied') ? 'Auth Error' : 'Offline';
+        result.twocaptcha.error = data.errorDescription;
+      }
+    } else {
+      result.twocaptcha.error = `HTTP ${response.status}`;
+    }
+  } catch (e) {
+    result.twocaptcha.error = e.message;
+  }
+
+  return result;
+});
+
 // ─── [Stripe] 결제 서비스 초기화 ─────────────────────────────────────────────
 // Secret Key는 환경변수 STRIPE_SECRET_KEY에서 주입됩니다.
 // 개발: .env 파일, 배포(CI): GitHub Actions Secrets → 빌드 시 .env 자동 생성

@@ -205,7 +205,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'stripe-open-portal',             // [Stripe] 구독 관리 포털 열기
       'user-verify-purchase',           // [Stripe] 구매 완료 검증 및 DB 반영
       'xpider-get-usp-cookie',          // [UltraSolver] SuperProxy 쿠키 데이터 조회
-      'xpider-usp-recharge-db'          // [UltraSolver] 가상 결제 승인 시 SSH DB 충전 쿼리 실행
+      'xpider-usp-recharge-db',          // [UltraSolver] 가상 결제 승인 시 SSH DB 충전 쿼리 실행
+      'admin-get-solver-credits',
+      'admin-github-backup',
+      'admin-github-restore'
     ];
     if (allowed.includes(channel)) {
       return ipcRenderer.invoke(channel, data);
