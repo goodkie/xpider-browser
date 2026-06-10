@@ -1,6 +1,6 @@
 {
-  "tag_name": "v7.0.51-dev",
-  "published_at": "2026-06-10T03:02:00Z",
-  "win_url": "https://github.com/goodkie/xpider-browser/releases/download/v7.0.51-dev/XPIDER-Browser-DEV-Windows-v7.0.51-dev-Setup.exe",
-  "mac_url": "https://github.com/goodkie/xpider-browser/releases/download/v7.0.51-dev/XPIDER-Browser-DEV-Mac-Arm-v7.0.51-dev.dmg"
+  "tag_name": "v7.0.52-dev",
+  "published_at": "2026-06-10T21:10:00Z",
+  "win_url": "https://github.com/goodkie/xpider-browser/releases/download/v7.0.52-dev/XPIDER-Browser-Windows-v7.0.52-Setup.exe",
+  "mac_url": "https://github.com/goodkie/xpider-browser/releases/download/v7.0.52-dev/XPIDER-Browser-DEV-Mac-Arm-v7.0.52-dev.dmg"
 }
