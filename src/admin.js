@@ -252,6 +252,7 @@ async function loadAllData(isManual = false) {
         loadBrevoCreditsAdmin().catch(() => {});
         loadSolverCreditsAdmin().catch(() => {});
         loadSolverUsageAdmin().catch(() => {});
+        loadVpnCreditsAdmin().catch(() => {});
 
         // 5. SMTP Relay Provider 설정 로드
         loadSmtpProviderSetting().catch(() => {});
@@ -1067,6 +1068,60 @@ async function loadSolverUsageAdmin() {
         console.error('[AdminPanel] Solver Usage Error:', e.message);
         totalSolvedEl.textContent = 'Error';
         totalTokensEl.textContent = 'Error';
+    }
+}
+
+// ─── XPIDER VPN (Webshare) 실시간 모니터링 ───
+async function loadVpnCreditsAdmin() {
+    const trafficVal = document.getElementById('vpn-traffic-val-admin');
+    const balanceVal = document.getElementById('vpn-balance-val-admin');
+    if (!trafficVal || !balanceVal) return;
+
+    try {
+        const apiKey = 'h4o8ksxhv8lnvq19hpbthqshgbfcwoq67t6gnga1';
+        const isBrowser = (typeof window.electronAPI === 'undefined') || window.electronAPI.isBrowserFallback || !window.electronAPI.send;
+
+        // 1. Subscription 조회 (남은 날짜 및 구독 상태)
+        const subUrl = 'https://proxy.webshare.io/api/v2/subscription/';
+        const finalSubUrl = isBrowser ? `https://corsproxy.io/?url=${encodeURIComponent(subUrl)}` : subUrl;
+
+        const subRes = await fetch(finalSubUrl, {
+            headers: { Authorization: `Token ${apiKey}` }
+        });
+        if (!subRes.ok) throw new Error(`Sub HTTP ${subRes.status}`);
+        const subData = await subRes.json();
+
+        const endDate = new Date(subData.end_date);
+        const daysRemaining = Math.max(0, Math.ceil((endDate - new Date()) / (1000 * 60 * 60 * 24)));
+        const renewStatus = subData.renewals_enabled ? 'Auto-renew' : 'Manual';
+        
+        balanceVal.textContent = subData.paused ? 'Paused' : `Active (${renewStatus})`;
+
+        // 2. Stats 조회 (대역폭 사용량 계산)
+        const statsUrl = 'https://proxy.webshare.io/api/v2/stats/';
+        const finalStatsUrl = isBrowser ? `https://corsproxy.io/?url=${encodeURIComponent(statsUrl)}` : statsUrl;
+
+        const statsRes = await fetch(finalStatsUrl, {
+            headers: { Authorization: `Token ${apiKey}` }
+        });
+        if (!statsRes.ok) throw new Error(`Stats HTTP ${statsRes.status}`);
+        const statsData = await statsRes.json();
+
+        const realStats = statsData.filter(s => !s.is_projected);
+        let totalBandwidthBytes = 0;
+        for (const s of realStats) {
+            totalBandwidthBytes += s.bandwidth_total || 0;
+        }
+
+        const usedGb = totalBandwidthBytes / (1024 * 1024 * 1024);
+        const limitGb = 250; // 기본값 250GB 한도
+        const remainingGb = Math.max(0, limitGb - usedGb);
+
+        trafficVal.textContent = `${remainingGb.toFixed(2)} GB (${daysRemaining} Days)`;
+    } catch (e) {
+        console.error('[AdminPanel] VPN (Webshare) API Error:', e);
+        trafficVal.textContent = 'API Error';
+        balanceVal.textContent = 'Connection Fail';
     }
 }
 
