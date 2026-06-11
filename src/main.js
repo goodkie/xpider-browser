@@ -440,15 +440,6 @@ function createWindow() {
     mainWindow.webContents.send('app_version', app.getVersion());
     mainWindow.webContents.send('app_language', app.getLocale().split('-')[0]);
 
-    // [SessionRestore] 저장된 세션 데이터를 렌더러로 전송 (1초 딜레이로 렌더러 초기화 완료 대기)
-    setTimeout(() => {
-      const savedSession = loadSessionFromFile();
-      if (savedSession) {
-        mainWindow.webContents.send('restore-session', savedSession);
-        log.info('[SessionRestore] 저장된 세션 렌더러에 전송:', savedSession.tabs ? savedSession.tabs.length : 0, '개 탭');
-      }
-    }, 1000);
-
     // 렌더러가 완전히 준비된 후 앱 최신버전 확인 (2초 딜레이)
     // 익스텐션 버전 검사는 시작 시 실행하지 않음 (trigger-background-sync IPC로만 수동 실행 가능)
     setTimeout(() => {

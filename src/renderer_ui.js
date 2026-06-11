@@ -1958,13 +1958,32 @@ window.__getSessionSnapshot = function() {
         .filter(t => t.url && t.url !== 'about:blank')
         .map(t => {
             const wv = document.getElementById(`webview-${t.id}`);
-            const currentUrl = wv ? (wv.getURL ? wv.getURL() : t.url) : t.url;
-            const currentTitle = wv ? (wv.getTitle ? wv.getTitle() : t.title) : t.title;
+            let currentUrl = t.url;
+            let currentTitle = t.title;
+            if (wv) {
+                try {
+                    if (wv.getURL) currentUrl = wv.getURL() || t.url;
+                } catch (e) {
+                    console.warn('[SessionRestore] getURL() failed for webview:', t.id, e);
+                }
+                try {
+                    if (wv.getTitle) currentTitle = wv.getTitle() || t.title;
+                } catch (e) {
+                    console.warn('[SessionRestore] getTitle() failed for webview:', t.id, e);
+                }
+            }
             return { url: currentUrl || t.url, title: currentTitle || t.title || currentUrl };
         });
     const activeWv = activeTabId ? document.getElementById(`webview-${activeTabId}`) : null;
     const activeTab = tabs.find(t => t.id === activeTabId);
-    const activeUrl = activeWv && activeWv.getURL ? activeWv.getURL() : (activeTab ? activeTab.url : '');
+    let activeUrl = activeTab ? activeTab.url : '';
+    if (activeWv) {
+        try {
+            if (activeWv.getURL) activeUrl = activeWv.getURL() || activeUrl;
+        } catch (e) {
+            console.warn('[SessionRestore] active webview getURL() failed:', e);
+        }
+    }
     return { tabs: tabList, activeTabUrl: activeUrl, savedAt: Date.now() };
 };
 
@@ -1986,73 +2005,62 @@ function saveSessionState() {
 setInterval(saveSessionState, 10000);
 
 // ─── [SessionRestore] 시작 시 저장된 세션 복원 + 최초 탭 열기 ──────────────────
-// restore-session 이벤트는 main.js의 did-finish-load에서 1초 후 도착
-window.addEventListener('DOMContentLoaded', () => {
-    // 세션 복원 이벤트 수신 대기 — main.js가 restore-session을 보내온 경우 탭을 복원
-    window.electronAPI.on('restore-session', (sessionData) => {
-        // 세션 복원 기능 OFF이면 무시
-        if (!_sessionRestoreEnabled()) {
-            console.log('[SessionRestore] 복원 기능 OFF — 저장된 세션 무시');
-            return;
-        }
-        if (!sessionData || !sessionData.tabs || sessionData.tabs.length === 0) return;
+window.addEventListener('DOMContentLoaded', async () => {
+    // 세션 복원 기능 활성화 여부 확인
+    if (_sessionRestoreEnabled()) {
+        try {
+            console.log('[SessionRestore] 저장된 세션 데이터 조회 시도 (Pull)...');
+            const sessionData = await window.electronAPI.invoke('get-session-state');
+            
+            if (sessionData && sessionData.tabs && sessionData.tabs.length > 0) {
+                // start_page.html / about:blank 제외한 유효 탭만 필터링
+                const validTabs = sessionData.tabs.filter(t => t.url &&
+                    !t.url.includes('start_page.html') &&
+                    !t.url.includes('about:blank'));
 
-        console.log('[SessionRestore] 이전 세션 복원 시도 — 저장된 탭:', sessionData.tabs.length, '개');
+                if (validTabs.length > 0) {
+                    console.log('[SessionRestore] 이전 세션 복원 시작 —', validTabs.length, '개 탭');
 
-        // start_page.html / about:blank 제외한 유효 탭만 복원
-        const validTabs = sessionData.tabs.filter(t => t.url &&
-            !t.url.includes('start_page.html') &&
-            !t.url.includes('about:blank'));
+                    validTabs.forEach((tabData, idx) => {
+                        const isLast = (idx === validTabs.length - 1);
+                        createNewTab(tabData.url, isLast);
+                    });
 
-        // 복원할 유효한 탭이 있는 경우에만 복원 진행하고 기존 기본 시작 탭을 제거
-        if (validTabs.length > 0) {
-            const hasOnlyStartPage = tabs.length === 1 &&
-                (tabs[0].url || '').includes('start_page.html');
+                    // 이전에 활성화되어 있던 탭을 activeTabUrl로 찾아 활성화
+                    if (sessionData.activeTabUrl && validTabs.length > 1) {
+                        const targetTab = tabs.find(t => t.url === sessionData.activeTabUrl);
+                        if (targetTab) switchTab(targetTab.id);
+                    }
 
-            if (hasOnlyStartPage) {
-                const startTabId = tabs[0].id;
-                document.getElementById(`tab-ui-${startTabId}`)?.remove();
-                document.getElementById(`webview-${startTabId}`)?.remove();
-                tabs.splice(0, 1);
+                    console.log('[SessionRestore] 세션 복원 완료');
+                    // 복원 완료 즉시 최신 상태 저장
+                    setTimeout(saveSessionState, 500);
+
+                    // 세션 복원 성공 후 토스트 알림 (영어 번역 적용, 3초 후 자동 제거)
+                    const toast = document.createElement('div');
+                    toast.textContent = `Restored ${validTabs.length} tabs ✓`;
+                    toast.style.cssText = [
+                        'position:fixed', 'bottom:20px', 'left:50%', 'transform:translateX(-50%)',
+                        'background:rgba(108,99,255,0.92)', 'color:#fff',
+                        'font-size:12px', 'font-weight:600', 'padding:8px 16px',
+                        'border-radius:20px', 'z-index:99999', 'backdrop-filter:blur(8px)',
+                        'border:1px solid rgba(108,99,255,0.4)',
+                        'box-shadow:0 4px 20px rgba(108,99,255,0.3)',
+                        'pointer-events:none'
+                    ].join(';');
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 3000);
+                    return; // 복원 완료 시 기본 시작 페이지 생성 생략
+                }
             }
-
-            console.log('[SessionRestore] 이전 세션 복원 시작 —', validTabs.length, '개 탭');
-
-            validTabs.forEach((tabData, idx) => {
-                const isLast = (idx === validTabs.length - 1);
-                createNewTab(tabData.url, isLast);
-            });
-
-            // 이전에 활성화되어 있던 탭을 activeTabUrl로 찾아 활성화
-            if (sessionData.activeTabUrl && validTabs.length > 1) {
-                const targetTab = tabs.find(t => t.url === sessionData.activeTabUrl);
-                if (targetTab) switchTab(targetTab.id);
-            }
-
-            console.log('[SessionRestore] 세션 복원 완료');
-            // 복원 완료 즉시 최신 상태 저장
-            setTimeout(saveSessionState, 500);
-
-            // 세션 복원 성공 후 토스트 알림 (3초 후 자동 제거)
-            const toast = document.createElement('div');
-            toast.textContent = `탭 ${validTabs.length}개 복원 완료 ✓`;
-            toast.style.cssText = [
-                'position:fixed', 'bottom:20px', 'left:50%', 'transform:translateX(-50%)',
-                'background:rgba(108,99,255,0.92)', 'color:#fff',
-                'font-size:12px', 'font-weight:600', 'padding:8px 16px',
-                'border-radius:20px', 'z-index:99999', 'backdrop-filter:blur(8px)',
-                'border:1px solid rgba(108,99,255,0.4)',
-                'box-shadow:0 4px 20px rgba(108,99,255,0.3)',
-                'pointer-events:none'
-            ].join(';');
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        } else {
-            console.log('[SessionRestore] 복원할 유효 탭이 없어 기본 시작 페이지를 유지합니다.');
+        } catch (err) {
+            console.error('[SessionRestore] 세션 복원 오류:', err);
         }
-    });
+    } else {
+        console.log('[SessionRestore] 복원 기능 OFF — 저장된 세션 무시');
+    }
 
-    // 세션 복원 이벤트가 없으면 기본 시작 페이지 탭 열기
+    // 복원할 세션이 없거나 기능이 꺼진 경우 기본 시작 페이지 탭 생성
     createNewTab('start_page.html');
 });
 
