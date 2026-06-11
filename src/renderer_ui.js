@@ -1989,51 +1989,57 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         if (!sessionData || !sessionData.tabs || sessionData.tabs.length === 0) return;
 
-        // 탭이 이미 열려 있는 경우 (기본 탭 = start_page.html) 제거 후 복원
-        const hasOnlyStartPage = tabs.length === 1 &&
-            (tabs[0].url || '').includes('start_page.html');
-
-        if (hasOnlyStartPage) {
-            const startTabId = tabs[0].id;
-            document.getElementById(`tab-ui-${startTabId}`)?.remove();
-            document.getElementById(`webview-${startTabId}`)?.remove();
-            tabs.splice(0, 1);
-        }
-
-        console.log('[SessionRestore] 이전 세션 복원 시작 —', sessionData.tabs.length, '개 탭');
+        console.log('[SessionRestore] 이전 세션 복원 시도 — 저장된 탭:', sessionData.tabs.length, '개');
 
         // start_page.html / about:blank 제외한 유효 탭만 복원
         const validTabs = sessionData.tabs.filter(t => t.url &&
             !t.url.includes('start_page.html') &&
             !t.url.includes('about:blank'));
 
-        validTabs.forEach((tabData, idx) => {
-            const isLast = (idx === validTabs.length - 1);
-            createNewTab(tabData.url, isLast);
-        });
+        // 복원할 유효한 탭이 있는 경우에만 복원 진행하고 기존 기본 시작 탭을 제거
+        if (validTabs.length > 0) {
+            const hasOnlyStartPage = tabs.length === 1 &&
+                (tabs[0].url || '').includes('start_page.html');
 
-        // 이전에 활성화되어 있던 탭을 activeTabUrl로 찾아 활성화
-        if (sessionData.activeTabUrl && validTabs.length > 1) {
-            const targetTab = tabs.find(t => t.url === sessionData.activeTabUrl);
-            if (targetTab) switchTab(targetTab.id);
+            if (hasOnlyStartPage) {
+                const startTabId = tabs[0].id;
+                document.getElementById(`tab-ui-${startTabId}`)?.remove();
+                document.getElementById(`webview-${startTabId}`)?.remove();
+                tabs.splice(0, 1);
+            }
+
+            console.log('[SessionRestore] 이전 세션 복원 시작 —', validTabs.length, '개 탭');
+
+            validTabs.forEach((tabData, idx) => {
+                const isLast = (idx === validTabs.length - 1);
+                createNewTab(tabData.url, isLast);
+            });
+
+            // 이전에 활성화되어 있던 탭을 activeTabUrl로 찾아 활성화
+            if (sessionData.activeTabUrl && validTabs.length > 1) {
+                const targetTab = tabs.find(t => t.url === sessionData.activeTabUrl);
+                if (targetTab) switchTab(targetTab.id);
+            }
+
+            console.log('[SessionRestore] 세션 복원 완료');
+
+            // 세션 복원 성공 후 토스트 알림 (3초 후 자동 제거)
+            const toast = document.createElement('div');
+            toast.textContent = `탭 ${validTabs.length}개 복원 완료 ✓`;
+            toast.style.cssText = [
+                'position:fixed', 'bottom:20px', 'left:50%', 'transform:translateX(-50%)',
+                'background:rgba(108,99,255,0.92)', 'color:#fff',
+                'font-size:12px', 'font-weight:600', 'padding:8px 16px',
+                'border-radius:20px', 'z-index:99999', 'backdrop-filter:blur(8px)',
+                'border:1px solid rgba(108,99,255,0.4)',
+                'box-shadow:0 4px 20px rgba(108,99,255,0.3)',
+                'pointer-events:none'
+            ].join(';');
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        } else {
+            console.log('[SessionRestore] 복원할 유효 탭이 없어 기본 시작 페이지를 유지합니다.');
         }
-
-        console.log('[SessionRestore] 세션 복원 완료');
-
-        // 세션 복원 성공 후 토스트 알림 (3초 후 자동 제거)
-        const toast = document.createElement('div');
-        toast.textContent = `탭 ${validTabs.length}개 복원 완료 ✓`;
-        toast.style.cssText = [
-            'position:fixed', 'bottom:20px', 'left:50%', 'transform:translateX(-50%)',
-            'background:rgba(108,99,255,0.92)', 'color:#fff',
-            'font-size:12px', 'font-weight:600', 'padding:8px 16px',
-            'border-radius:20px', 'z-index:99999', 'backdrop-filter:blur(8px)',
-            'border:1px solid rgba(108,99,255,0.4)',
-            'box-shadow:0 4px 20px rgba(108,99,255,0.3)',
-            'pointer-events:none'
-        ].join(';');
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
     });
 
     // 세션 복원 이벤트가 없으면 기본 시작 페이지 탭 열기
