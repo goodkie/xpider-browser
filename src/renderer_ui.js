@@ -1686,6 +1686,26 @@ window.electronAPI.on('extensions_loaded', (extensions) => {
     // Store extensions for manual injection into webviews
     window.loadedExtensions = extensions;
 
+    // [SessionRestore] 저장된 세션 정보가 있고 사이드바 활성화 기록이 있다면 해당 익스텐션 활성화 및 복원
+    if (window.restoredSessionData && _sessionRestoreEnabled()) {
+        const savedData = window.restoredSessionData;
+        if (savedData.isSidePanelOpen && savedData.activeExtensionId) {
+            const targetExt = extensions.find(e => e.id === savedData.activeExtensionId);
+            if (targetExt) {
+                console.log('[SessionRestore] 이전 활성 익스텐션 복원 —', targetExt.name);
+                setTimeout(() => {
+                    const extBtn = document.querySelector(`button[data-ext-id="${targetExt.id}"]`);
+                    if (extBtn) {
+                        extBtn.click();
+                        console.log('[SessionRestore] 익스텐션 사이드바 복원 성공');
+                    }
+                }, 300);
+            }
+        }
+        // 한 번 사용한 복원 캐시는 비웁니다.
+        window.restoredSessionData = null;
+    }
+
     setTimeout(() => { if (startLangSetup()) startOnboarding(); }, 1000);
 });
 
@@ -1984,7 +2004,18 @@ window.__getSessionSnapshot = function() {
             console.warn('[SessionRestore] active webview getURL() failed:', e);
         }
     }
-    return { tabs: tabList, activeTabUrl: activeUrl, savedAt: Date.now() };
+
+    // [SessionRestore] 현재 활성 익스텐션 및 사이드바 오픈 여부 추가
+    const activeExtensionId = typeof currentExtensionId !== 'undefined' ? currentExtensionId : '';
+    const isSidePanelOpen = sidePanel ? !sidePanel.classList.contains('hidden') : false;
+
+    return { 
+        tabs: tabList, 
+        activeTabUrl: activeUrl, 
+        activeExtensionId, 
+        isSidePanelOpen, 
+        savedAt: Date.now() 
+    };
 };
 
 // 탭 목록을 IPC로 main.js에 저장하는 함수
@@ -2004,6 +2035,11 @@ function saveSessionState() {
 // 10초마다 자동저장 (비정상 종료 대비) — 30초에서 10초로 단축하여 복원 데이터 유실 최소화
 setInterval(saveSessionState, 10000);
 
+// [SessionRestore] 브라우저 창이 통채로 닫힐 때(beforeunload) 최신 상태 즉시 저장 보장
+window.addEventListener('beforeunload', () => {
+    saveSessionState();
+});
+
 // ─── [SessionRestore] 시작 시 저장된 세션 복원 + 최초 탭 열기 ──────────────────
 window.addEventListener('DOMContentLoaded', async () => {
     // 세션 복원 기능 활성화 여부 확인
@@ -2012,7 +2048,11 @@ window.addEventListener('DOMContentLoaded', async () => {
             console.log('[SessionRestore] 저장된 세션 데이터 조회 시도 (Pull)...');
             const sessionData = await window.electronAPI.invoke('get-session-state');
             
-            if (sessionData && sessionData.tabs && sessionData.tabs.length > 0) {
+            if (sessionData) {
+                // 익스텐션 복원을 위해 세션 데이터 캐시
+                window.restoredSessionData = sessionData;
+                
+                if (sessionData.tabs && sessionData.tabs.length > 0) {
                 // start_page.html / about:blank 제외한 유효 탭만 필터링
                 const validTabs = sessionData.tabs.filter(t => t.url &&
                     !t.url.includes('start_page.html') &&
