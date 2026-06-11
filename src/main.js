@@ -155,11 +155,7 @@ let _logoutExitInProgress = false;
 // --no-auto-login 플래그 여부 (로그아웃 후 재시작 시 자동 로그인 원천 차단)
 const _noAutoLogin = process.argv.includes('--no-auto-login');
 // --test-mode 플래그 여부 (로그인 불필요, 토큰 무제한 개발/테스트 전용 모드)
-const pkg = require('../package.json');
-const _testMode = process.argv.includes('--test-mode') || 
-                  process.env.XPIDER_TEST_MODE === 'true' || 
-                  (pkg && pkg.version && pkg.version.includes('-dev'));
-
+const _testMode = process.argv.includes('--test-mode') || process.env.XPIDER_TEST_MODE === 'true';
 
 // ─── [v4.17.0] 전역 실시간 로그 (devlog 라우팅) ──────────────
 function xLog(level, source, ...args) {
@@ -295,27 +291,6 @@ function createWindow() {
 
   // Global handler to catch all window.open / target="_blank" from ANY webview or tab
   app.on('web-contents-created', (event, contents) => {
-    contents.on('before-input-event', (inputEvent, input) => {
-      const isCmdOrCtrl = process.platform === 'darwin' ? input.meta : input.control;
-      if (isCmdOrCtrl && input.type === 'keyDown') {
-        if (input.key === '=' || input.key === '+') {
-          inputEvent.preventDefault();
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('trigger-zoom', 'in');
-          }
-        } else if (input.key === '-') {
-          inputEvent.preventDefault();
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('trigger-zoom', 'out');
-          }
-        } else if (input.key === '0') {
-          inputEvent.preventDefault();
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('trigger-zoom', 'reset');
-          }
-        }
-      }
-    });
 
     // ─── [v4.17.0] 탭 전체 로깅 훅 ────────────────────────────
     const _tabSrc = () => {
