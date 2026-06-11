@@ -1926,6 +1926,8 @@ function switchTab(tabId) {
             }
         }
     });
+    // [SessionRestore] 탭 전환 시 활성 탭 동기화 로 세션 저장 (activeTabUrl 갱신)
+    setTimeout(saveSessionState, 300);
 }
 
 function closeTab(tabId) {
@@ -1968,14 +1970,15 @@ function saveSessionState() {
     if (snapshot && snapshot.tabs.length > 0) {
         try {
             window.electronAPI.send('save-session-state', snapshot);
+            console.log('[SessionRestore] 세션 저장 요청 —', snapshot.tabs.length, '탭, 시점:', new Date().toLocaleTimeString());
         } catch(e) {
             console.warn('[SessionRestore] saveSessionState 실패:', e);
         }
     }
 }
 
-// 30초마다 자동저장 (비정상 종료 대비)
-setInterval(saveSessionState, 30000);
+// 10초마다 자동저장 (비정상 종료 대비) — 30초에서 10초로 단축하여 복원 데이터 유실 최소화
+setInterval(saveSessionState, 10000);
 
 // ─── [SessionRestore] 시작 시 저장된 세션 복원 + 최초 탭 열기 ──────────────────
 // restore-session 이벤트는 main.js의 did-finish-load에서 1초 후 도착

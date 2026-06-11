@@ -153,6 +153,9 @@ function getSessionFilePath() {
   return path.join(app.getPath('userData'), 'session-state.json');
 }
 
+// [SessionRestore] 최신 세션을 메모리에 캐시 — before-quit 동기 저장에 사용
+let _latestSessionCache = null;
+
 // 현재 세션 데이터를 파일에 동기 저장 (종료 직전 안전하게 사용)
 function saveSessionToFile(sessionData) {
   try {
@@ -633,7 +636,10 @@ ipcMain.on('auth-logout', async () => {
 });
 
 // ─── 앱 종료 전 잠금 해제 및 좀비 방지 2초 안전 타임아웃 ──────────────────────
-app.on('before-quit', async (e) => {
+// [중요] Electron before-quit은 async를 지원하지 않음.
+// await가 시작되면 e.preventDefault()가 동기 실행되지 않아 앱이 그냥 종료됨.
+// 따라서 e.preventDefault()를 즉시 동기 호출하고, 이후 비동기 로직 실행 후 app.exit(0) 처리.
+app.on('before-quit', (e) => {
   // [v4.17.0] devlog 파일 스트림 정리
   try { devlog.close(); } catch(_) {}
 
@@ -643,27 +649,23 @@ app.on('before-quit', async (e) => {
     return;
   }
 
-  // [SessionRestore] 종료 직전 최종 세션 상태를 렌더러에서 수집하여 저장
-  // (렌더러의 30초 자동저장과 별개로 종료 시점의 최신 상태를 동기 저장)
-  if (mainWindow && !mainWindow.isDestroyed()) {
+  // [SessionRestore] 종료 직전 캐시된 세션 동기 저장 (30초 자동저장 캐시 활용)
+  // — 비동기 executeJavaScript 없이 _latestSessionCache로 즉시 동기 저장
+  if (_latestSessionCache) {
     try {
-      const sessionData = await Promise.race([
-        mainWindow.webContents.executeJavaScript('window.__getSessionSnapshot ? window.__getSessionSnapshot() : null'),
-        new Promise(r => setTimeout(() => r(null), 1000)) // 1초 타임아웃
-      ]);
-      if (sessionData) {
-        saveSessionToFile(sessionData);
-      }
+      saveSessionToFile(_latestSessionCache);
+      log.info('[SessionRestore] 종료 시 캐시 세션 동기 저장 완료 —', _latestSessionCache.tabs ? _latestSessionCache.tabs.length : 0, '탭');
     } catch(err) {
-      log.warn('[SessionRestore] 종료 시 세션 수집 실패 (무시):', err.message);
+      log.warn('[SessionRestore] 종료 시 세션 저장 실패 (무시):', err.message);
     }
   }
-  
+
   const userId = authService.getCurrentUserId();
   if (userId) {
+    // e.preventDefault()를 await 이전 동기 코드에서 즉시 호출해야 실제로 적용됨
     e.preventDefault();
     log.info(`[Quit] 종료 이벤트 수신 -> 비동기 안전 로그아웃 처리 개시 (UID: ${userId})`);
-    
+
     releaseProfileLock();
     _stopTokenBatchSync();
 
@@ -672,15 +674,17 @@ app.on('before-quit', async (e) => {
       authService.logout(userId)
     ]);
     const timeoutPromise = new Promise(r => setTimeout(r, 3000));
-    
-    try {
-      await Promise.race([logoutPromise, timeoutPromise]);
-      log.info('[Quit] 안전 로그아웃 처리 혹은 3초 안전 대기 시간 종료. 프로세스 정상 폭파.');
-    } catch (err) {
-      log.error('[Quit] 로그아웃 중 예외 발생:', err.message);
-    } finally {
-      app.exit(0);
-    }
+
+    Promise.race([logoutPromise, timeoutPromise])
+      .then(() => {
+        log.info('[Quit] 안전 로그아웃 처리 혹은 3초 안전 대기 시간 종료. 프로세스 정상 폭파.');
+      })
+      .catch(err => {
+        log.error('[Quit] 로그아웃 중 예외 발생:', err.message);
+      })
+      .finally(() => {
+        app.exit(0);
+      });
   } else {
     releaseProfileLock();
   }
@@ -690,7 +694,9 @@ app.on('before-quit', async (e) => {
 // 렌더러(renderer_ui.js)에서 30초마다 또는 탭 변경 시 세션 저장 요청
 ipcMain.on('save-session-state', (_, sessionData) => {
   try {
+    _latestSessionCache = sessionData; // 메모리 캐시 갱신 (before-quit 동기 저장용)
     saveSessionToFile(sessionData);
+    log.info('[SessionRestore] 세션 자동저장 완료 —', sessionData && sessionData.tabs ? sessionData.tabs.length : 0, '탭');
   } catch(err) {
     log.error('[SessionRestore] save-session-state IPC 처리 실패:', err.message);
   }
