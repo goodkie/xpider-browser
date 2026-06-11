@@ -45,6 +45,11 @@
                         <button id="forward-btn" data-i18n-title="forward" title="Forward">→</button>
                         <button id="reload-btn" data-i18n-title="reload" title="Reload">↻</button>
                     </div>
+                    <div class="zoom-controls" style="display:flex; align-items:center; gap:2px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; height:36px; padding:0 6px;">
+                        <button id="zoom-out-btn" style="background:transparent; border:none; color:var(--text-main); font-size:16px; font-weight:700; cursor:pointer; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:6px; transition:background 0.2s;" title="Zoom Out" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">-</button>
+                        <span id="zoom-percent-display" style="font-size:11px; font-weight:700; color:var(--text-dim); min-width:38px; text-align:center; cursor:pointer; user-select:none; padding: 0 2px;" title="Reset Zoom">100%</span>
+                        <button id="zoom-in-btn" style="background:transparent; border:none; color:var(--text-main); font-size:16px; font-weight:700; cursor:pointer; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:6px; transition:background 0.2s;" title="Zoom In" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">+</button>
+                    </div>
                     <div class="address-bar-container">
                         <input type="text" id="address-bar" data-i18n-placeholder="placeholder_url" placeholder="Enter URL or search...">
                         <div class="address-bar-btns">

@@ -1689,8 +1689,23 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     wv.addEventListener('console-message', (e) => {
         window.electronAPI.send('log-from-renderer', `[MAIN-WEBVIEW] ${e.message}`);
     });
+
+    wv.addEventListener('dom-ready', () => {
+        const currentUrl = wv.getURL();
+        const savedZoom = getDomainZoom(currentUrl);
+        const t = tabs.find(x => x.id === tabId);
+        if (t) {
+            t.zoomFactor = savedZoom;
+        }
+        try {
+            wv.setZoomFactor(savedZoom);
+        } catch (err) {}
+        if (activeTabId === tabId) {
+            updateZoomDisplay(savedZoom);
+        }
+    });
     
-    tabs.push({ id: tabId, url, title: 'New Tab' });
+    tabs.push({ id: tabId, url, title: 'New Tab', zoomFactor: getDomainZoom(url) });
     
     wv.addEventListener('did-start-loading', () => { 
         if (activeTabId === tabId) reloadBtn.textContent = '✕'; 
@@ -1832,6 +1847,7 @@ function switchTab(tabId) {
             if (isAct) {
                 addressBar.value = wv.getURL();
                 updateBookmarkIcon();
+                updateZoomDisplay(t.zoomFactor || 1.0);
                 document.title = (t.title || 'XPIDER Browser') + (t.title ? ' - XPIDER Browser' : '');
                 wv.focus();
                 
@@ -1990,46 +2006,72 @@ window.getWebviewById = function(id) {
     return null;
 };
 
-// ─── [Zoom] 탭 개별 확대/축소 IPC 이벤트 수신 ──────────────────
-if (window.electronAPI && typeof window.electronAPI.on === 'function') {
-    window.electronAPI.on('trigger-zoom', (direction) => {
-        const wv = getActiveWebview();
-        if (!wv) return;
+// ─── XPIDER Browser Zoom Control Logic ───
+const zoomOutBtn = document.getElementById('zoom-out-btn');
+const zoomInBtn = document.getElementById('zoom-in-btn');
+const zoomPercentDisplay = document.getElementById('zoom-percent-display');
 
-        try {
-            const res = wv.getZoomLevel((currentZoom) => {
-                applyZoom(wv, currentZoom, direction);
-            });
-
-            if (res instanceof Promise) {
-                res.then(currentZoom => applyZoom(wv, currentZoom, direction))
-                   .catch(err => console.error('[Zoom] getZoomLevel promise failed:', err));
-            } else if (typeof res === 'number') {
-                applyZoom(wv, res, direction);
-            }
-        } catch (e) {
-            console.error('[Zoom] Failed to handle trigger-zoom event:', e);
-        }
-    });
+function getDomainZoom(url) {
+    if (!url || url === 'about:blank' || url.includes('start_page.html')) return 1.0;
+    try {
+        const parsed = new URL(url);
+        const domain = parsed.hostname;
+        const val = localStorage.getItem('zoom_' + domain);
+        return val ? parseFloat(val) : 1.0;
+    } catch (e) {
+        return 1.0;
+    }
 }
 
-function applyZoom(wv, currentZoom, direction) {
-    let nextZoom = currentZoom;
-    if (direction === 'reset') {
-        nextZoom = 0; // 0 은 100% (기본값)
-    } else {
-        const zoomStep = 0.2; // 0.2씩 증감하여 조밀하고 자연스럽게 확대/축소
-        nextZoom = currentZoom + (direction === 'in' ? zoomStep : -zoomStep);
-        
-        // 줌 범위 한도 설정 (-2.0 ~ 4.0, 즉 60% ~ 250% 수준)
-        if (nextZoom < -2) nextZoom = -2;
-        if (nextZoom > 4) nextZoom = 4;
-    }
-
+function setDomainZoom(url, factor) {
+    if (!url || url === 'about:blank' || url.includes('start_page.html')) return;
     try {
-        wv.setZoomLevel(nextZoom);
-        console.log(`[Zoom] Webview zoom applied: ${nextZoom}`);
-    } catch (e) {
-        console.error('[Zoom] setZoomLevel failed:', e);
+        const parsed = new URL(url);
+        const domain = parsed.hostname;
+        localStorage.setItem('zoom_' + domain, factor);
+    } catch (e) {}
+}
+
+function updateZoomDisplay(factor) {
+    if (zoomPercentDisplay) {
+        zoomPercentDisplay.textContent = Math.round(factor * 100) + '%';
     }
+}
+
+function adjustZoom(amount) {
+    const wv = getActiveWebview();
+    if (!wv) return;
+    const t = tabs.find(x => x.id === activeTabId);
+    if (!t) return;
+
+    let currentZoom = t.zoomFactor || 1.0;
+    let newZoom = Math.min(2.0, Math.max(0.5, currentZoom + amount));
+    newZoom = Math.round(newZoom * 10) / 10;
+    
+    t.zoomFactor = newZoom;
+    try {
+        wv.setZoomFactor(newZoom);
+    } catch (e) {
+        console.error('Failed to setZoomFactor:', e);
+    }
+    updateZoomDisplay(newZoom);
+    setDomainZoom(wv.getURL(), newZoom);
+}
+
+if (zoomOutBtn) zoomOutBtn.onclick = () => adjustZoom(-0.1);
+if (zoomInBtn) zoomInBtn.onclick = () => adjustZoom(0.1);
+if (zoomPercentDisplay) {
+    zoomPercentDisplay.onclick = () => {
+        const wv = getActiveWebview();
+        if (!wv) return;
+        const t = tabs.find(x => x.id === activeTabId);
+        if (!t) return;
+
+        t.zoomFactor = 1.0;
+        try {
+            wv.setZoomFactor(1.0);
+        } catch (e) {}
+        updateZoomDisplay(1.0);
+        setDomainZoom(wv.getURL(), 1.0);
+    };
 }
