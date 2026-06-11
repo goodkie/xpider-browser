@@ -147,6 +147,36 @@ let userPanelWindow   = null;  // [UserPanel] 일반 사용자 패널 저
 let loadedExtensionsInfo = [];
 let lastActiveTabByWindow = {}; // Cache active tab per windowId
 
+// ─── [SessionRestore] 세션 상태 파일 경로 및 헬퍼 ────────────────────────────
+// 앱 userData 경로 내 session-state.json에 탭 목록을 저장하여 복원 지원
+function getSessionFilePath() {
+  return path.join(app.getPath('userData'), 'session-state.json');
+}
+
+// 현재 세션 데이터를 파일에 동기 저장 (종료 직전 안전하게 사용)
+function saveSessionToFile(sessionData) {
+  try {
+    const filePath = getSessionFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(sessionData, null, 2), 'utf8');
+    log.info('[SessionRestore] 세션 상태 저장 완료:', filePath, `탭 ${sessionData.tabs ? sessionData.tabs.length : 0}개`);
+  } catch (err) {
+    log.error('[SessionRestore] 세션 저장 실패:', err.message);
+  }
+}
+
+// 저장된 세션 데이터를 파일에서 읽기
+function loadSessionFromFile() {
+  try {
+    const filePath = getSessionFilePath();
+    if (!fs.existsSync(filePath)) return null;
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return JSON.parse(raw);
+  } catch (err) {
+    log.warn('[SessionRestore] 세션 읽기 실패 (무시):', err.message);
+    return null;
+  }
+}
+
 // ─── 전역 앱 흐름 제어 플래그 ─────────────────────────────────
 // auth-success 중복 실행 방지
 let _authSuccessFired = false;
@@ -407,6 +437,15 @@ function createWindow() {
     mainWindow.webContents.send('app_version', app.getVersion());
     mainWindow.webContents.send('app_language', app.getLocale().split('-')[0]);
 
+    // [SessionRestore] 저장된 세션 데이터를 렌더러로 전송 (1초 딜레이로 렌더러 초기화 완료 대기)
+    setTimeout(() => {
+      const savedSession = loadSessionFromFile();
+      if (savedSession) {
+        mainWindow.webContents.send('restore-session', savedSession);
+        log.info('[SessionRestore] 저장된 세션 렌더러에 전송:', savedSession.tabs ? savedSession.tabs.length : 0, '개 탭');
+      }
+    }, 1000);
+
     // 렌더러가 완전히 준비된 후 앱 최신버전 확인 (2초 딜레이)
     // 익스텐션 버전 검사는 시작 시 실행하지 않음 (trigger-background-sync IPC로만 수동 실행 가능)
     setTimeout(() => {
@@ -603,6 +642,22 @@ app.on('before-quit', async (e) => {
     log.info('[Quit] 로그아웃 프로세스 진행 중 — before-quit 이중 처리 건너뜀');
     return;
   }
+
+  // [SessionRestore] 종료 직전 최종 세션 상태를 렌더러에서 수집하여 저장
+  // (렌더러의 30초 자동저장과 별개로 종료 시점의 최신 상태를 동기 저장)
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      const sessionData = await Promise.race([
+        mainWindow.webContents.executeJavaScript('window.__getSessionSnapshot ? window.__getSessionSnapshot() : null'),
+        new Promise(r => setTimeout(() => r(null), 1000)) // 1초 타임아웃
+      ]);
+      if (sessionData) {
+        saveSessionToFile(sessionData);
+      }
+    } catch(err) {
+      log.warn('[SessionRestore] 종료 시 세션 수집 실패 (무시):', err.message);
+    }
+  }
   
   const userId = authService.getCurrentUserId();
   if (userId) {
@@ -629,6 +684,21 @@ app.on('before-quit', async (e) => {
   } else {
     releaseProfileLock();
   }
+});
+
+// ─── [SessionRestore] 세션 저장/조회 IPC 핸들러 ─────────────────────────────
+// 렌더러(renderer_ui.js)에서 30초마다 또는 탭 변경 시 세션 저장 요청
+ipcMain.on('save-session-state', (_, sessionData) => {
+  try {
+    saveSessionToFile(sessionData);
+  } catch(err) {
+    log.error('[SessionRestore] save-session-state IPC 처리 실패:', err.message);
+  }
+});
+
+// 렌더러에서 시작 시 저장된 세션 데이터를 직접 조회할 때 사용
+ipcMain.handle('get-session-state', () => {
+  return loadSessionFromFile();
 });
 
 // ─── 어드민 IPC ───────────────────────────────────────────────

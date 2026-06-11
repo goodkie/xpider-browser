@@ -157,11 +157,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-ext-update-badge', 'xpider-ext-report-active-tab',
       'xpider-email-clear-all', 'xpider-email-clear-current',
       'open-path',                     // Downloads 패널 클릭 → 파일 탐색기
-      'xpider-captcha-tab-resolved',   // [v3.1] 캡챠 해결 후 탭 네비게이션 감지 신호
+      'xpider-captcha-tab-resolved',   // [v3.1] 캡차 해결 후 탭 네비게이션 감지 신호
       'xpider-captcha-tab-detected',   // [v3.2] 탭이 CAPTCHA로 리다이렉트된 감지 신호
       'xpider-vpn-state-forward',       // [VPN] VPN 상태 포워딩
       'set-extension-lang',            // [Lang] 브라우저 언어 변경 → 익스텐션 동기화
-      'open-external-url'               // [Stripe] 외부 브라우저로 URL 열기
+      'open-external-url',              // [Stripe] 외부 브라우저로 URL 열기
+      'save-session-state'             // [SessionRestore] 렌더러 → 메인 세션 저장 요청
     ];
     if (allowed.includes(channel)) ipcRenderer.send(channel, data);
   },
@@ -180,7 +181,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'xpider-download-progress',     // [v4.0] 다운로드 진행률
       'xpider-download-error',        // [v4.0] 다운로드 오류
       'xpider-vpn-state',              // [VPN] VPN 연결 상태 이벤트
-      'hot-update-progress'             // [HotUpdate] 업데이트 진행률 실시간 스트림
+      'hot-update-progress',            // [HotUpdate] 업데이트 진행률 실시간 스트림
+      'restore-session'               // [SessionRestore] 저장된 세션 복원 데이터 수신
     ];
     if (allowed.includes(channel)) {
       ipcRenderer.on(channel, (_, ...args) => func(...args));
@@ -210,7 +212,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       'admin-get-vpn-credits',
       'admin-get-brevo-credits',
       'admin-github-backup',
-      'admin-github-restore'
+      'admin-github-restore',
+      'get-session-state'               // [SessionRestore] 저장된 세션 데이터 조회
     ];
     if (allowed.includes(channel)) {
       return ipcRenderer.invoke(channel, data);

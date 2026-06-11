@@ -259,6 +259,42 @@ document.querySelectorAll('.lang-opt').forEach(opt => {
     };
 });
 
+// ─── [SessionRestore] 세션 복원 토글 설정 ─────────────────────────────────────
+// localStorage의 'restore-session' 키로 ON/OFF 상태를 저장 (기존 테마/언어 보존 방식과 동일)
+const sessionRestoreToggle = document.getElementById('session-restore-toggle');
+
+function _updateSessionToggleUI(enabled) {
+    if (!sessionRestoreToggle) return;
+    const thumb = sessionRestoreToggle.querySelector('.session-toggle-thumb');
+    if (enabled) {
+        sessionRestoreToggle.style.background = '#6c63ff'; // XPIDER 보라 액센트
+        sessionRestoreToggle.style.borderColor = 'rgba(108,99,255,0.4)';
+        if (thumb) { thumb.style.left = '18px'; thumb.style.background = '#fff'; }
+    } else {
+        sessionRestoreToggle.style.background = '#333';
+        sessionRestoreToggle.style.borderColor = 'rgba(255,255,255,0.1)';
+        if (thumb) { thumb.style.left = '2px'; thumb.style.background = '#666'; }
+    }
+}
+
+// 저장된 설정으로 토글 UI 실제 적용 (기본값: ON)
+const _sessionRestoreEnabled = () => localStorage.getItem('restore-session') !== 'false';
+_updateSessionToggleUI(_sessionRestoreEnabled());
+
+// 클릭 시 ON/OFF 토글
+const _sessionRestoreRow = document.getElementById('session-restore-row');
+if (_sessionRestoreRow) {
+    _sessionRestoreRow.onclick = () => {
+        const nowEnabled = _sessionRestoreEnabled();
+        const newState = !nowEnabled;
+        localStorage.setItem('restore-session', String(newState));
+        _updateSessionToggleUI(newState);
+        console.log('[SessionRestore] 세션 복원 설정 변경:', newState ? 'ON' : 'OFF');
+    };
+}
+
+
+
 // ─── 버튼 이벤트 ──────────────────────────────────────────────
 addBtn.onclick = () => { createNewTab('start_page.html'); };
 toggleSidebarBtn.onclick = () => { appContainer.classList.add('sidebar-collapsed'); localStorage.setItem('sidebar-collapsed', 'true'); };
@@ -1731,6 +1767,9 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
         }
         addHistory(currentUrl, currentTitle);
 
+        // [SessionRestore] 페이지 로딩 완료 시 세션 저장 트리거 (URL 변경 반영)
+        saveSessionState();
+
         // 수동 인젝션 블록 삭제됨 (Native loadExtension에서 처리)
 
         window.electronAPI.send('xpider-ext-notify-tab-updated', {
@@ -1899,10 +1938,107 @@ function closeTab(tabId) {
         if (tabs.length > 0) switchTab(tabs[Math.min(idx, tabs.length - 1)].id);
         else createNewTab();
     }
+    // [SessionRestore] 탭 닫힌 직후 세션 저장
+    setTimeout(saveSessionState, 300);
 }
 
 if (newTabBtn) newTabBtn.onclick = () => createNewTab();
-window.addEventListener('DOMContentLoaded', () => createNewTab('start_page.html'));
+
+// ─── [SessionRestore] 세션 스냅샷 전역 함수 ────────────────────────────────────
+// main.js의 before-quit executeJavaScript에서 직접 호출하는 스냅샷 함수
+window.__getSessionSnapshot = function() {
+    const tabList = tabs
+        .filter(t => t.url && t.url !== 'about:blank')
+        .map(t => {
+            const wv = document.getElementById(`webview-${t.id}`);
+            const currentUrl = wv ? (wv.getURL ? wv.getURL() : t.url) : t.url;
+            const currentTitle = wv ? (wv.getTitle ? wv.getTitle() : t.title) : t.title;
+            return { url: currentUrl || t.url, title: currentTitle || t.title || currentUrl };
+        });
+    const activeWv = activeTabId ? document.getElementById(`webview-${activeTabId}`) : null;
+    const activeTab = tabs.find(t => t.id === activeTabId);
+    const activeUrl = activeWv && activeWv.getURL ? activeWv.getURL() : (activeTab ? activeTab.url : '');
+    return { tabs: tabList, activeTabUrl: activeUrl, savedAt: Date.now() };
+};
+
+// 탭 목록을 IPC로 main.js에 저장하는 함수
+function saveSessionState() {
+    if (!_sessionRestoreEnabled()) return; // 세션 복원 기능 OFF이면 저장 안 함
+    const snapshot = window.__getSessionSnapshot();
+    if (snapshot && snapshot.tabs.length > 0) {
+        try {
+            window.electronAPI.send('save-session-state', snapshot);
+        } catch(e) {
+            console.warn('[SessionRestore] saveSessionState 실패:', e);
+        }
+    }
+}
+
+// 30초마다 자동저장 (비정상 종료 대비)
+setInterval(saveSessionState, 30000);
+
+// ─── [SessionRestore] 시작 시 저장된 세션 복원 + 최초 탭 열기 ──────────────────
+// restore-session 이벤트는 main.js의 did-finish-load에서 1초 후 도착
+window.addEventListener('DOMContentLoaded', () => {
+    // 세션 복원 이벤트 수신 대기 — main.js가 restore-session을 보내온 경우 탭을 복원
+    window.electronAPI.on('restore-session', (sessionData) => {
+        // 세션 복원 기능 OFF이면 무시
+        if (!_sessionRestoreEnabled()) {
+            console.log('[SessionRestore] 복원 기능 OFF — 저장된 세션 무시');
+            return;
+        }
+        if (!sessionData || !sessionData.tabs || sessionData.tabs.length === 0) return;
+
+        // 탭이 이미 열려 있는 경우 (기본 탭 = start_page.html) 제거 후 복원
+        const hasOnlyStartPage = tabs.length === 1 &&
+            (tabs[0].url || '').includes('start_page.html');
+
+        if (hasOnlyStartPage) {
+            const startTabId = tabs[0].id;
+            document.getElementById(`tab-ui-${startTabId}`)?.remove();
+            document.getElementById(`webview-${startTabId}`)?.remove();
+            tabs.splice(0, 1);
+        }
+
+        console.log('[SessionRestore] 이전 세션 복원 시작 —', sessionData.tabs.length, '개 탭');
+
+        // start_page.html / about:blank 제외한 유효 탭만 복원
+        const validTabs = sessionData.tabs.filter(t => t.url &&
+            !t.url.includes('start_page.html') &&
+            !t.url.includes('about:blank'));
+
+        validTabs.forEach((tabData, idx) => {
+            const isLast = (idx === validTabs.length - 1);
+            createNewTab(tabData.url, isLast);
+        });
+
+        // 이전에 활성화되어 있던 탭을 activeTabUrl로 찾아 활성화
+        if (sessionData.activeTabUrl && validTabs.length > 1) {
+            const targetTab = tabs.find(t => t.url === sessionData.activeTabUrl);
+            if (targetTab) switchTab(targetTab.id);
+        }
+
+        console.log('[SessionRestore] 세션 복원 완료');
+
+        // 세션 복원 성공 후 토스트 알림 (3초 후 자동 제거)
+        const toast = document.createElement('div');
+        toast.textContent = `탭 ${validTabs.length}개 복원 완료 ✓`;
+        toast.style.cssText = [
+            'position:fixed', 'bottom:20px', 'left:50%', 'transform:translateX(-50%)',
+            'background:rgba(108,99,255,0.92)', 'color:#fff',
+            'font-size:12px', 'font-weight:600', 'padding:8px 16px',
+            'border-radius:20px', 'z-index:99999', 'backdrop-filter:blur(8px)',
+            'border:1px solid rgba(108,99,255,0.4)',
+            'box-shadow:0 4px 20px rgba(108,99,255,0.3)',
+            'pointer-events:none'
+        ].join(';');
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    });
+
+    // 세션 복원 이벤트가 없으면 기본 시작 페이지 탭 열기
+    createNewTab('start_page.html');
+});
 
 // Expose to window for Electron bridge access
 window._captchaTabId = null; // 현재 캡챠 탭 UI ID (did-stop-loading에서 마킹)
@@ -1911,6 +2047,7 @@ window.getActiveWebview = getActiveWebview;
 window.createNewTab = createNewTab;
 window.switchTab = switchTab;
 window.closeTab = closeTab;
+
 
 function getActiveWebview() { return activeTabId ? document.getElementById(`webview-${activeTabId}`) : null; }
 
