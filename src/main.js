@@ -167,7 +167,31 @@ function saveSessionToFile(sessionData) {
   }
 }
 
-// 저장된 세션 데이터를 파일에서 읽기
+// 현재 세션 데이터를 파일에 비동기 저장 (일반 자동저장 시 스레드 락 방지)
+async function saveSessionToFileAsync(sessionData) {
+  try {
+    const filePath = getSessionFilePath();
+    await fs.promises.writeFile(filePath, JSON.stringify(sessionData, null, 2), 'utf8');
+    log.info('[SessionRestore] 세션 상태 비동기 저장 완료:', filePath, `탭 ${sessionData.tabs ? sessionData.tabs.length : 0}개`);
+  } catch (err) {
+    log.error('[SessionRestore] 세션 비동기 저장 실패:', err.message);
+  }
+}
+
+// 저장된 세션 데이터를 파일에서 비동기 읽기 (앱 기동 시 멈춤 방지)
+async function loadSessionFromFileAsync() {
+  try {
+    const filePath = getSessionFilePath();
+    if (!fs.existsSync(filePath)) return null;
+    const raw = await fs.promises.readFile(filePath, 'utf8');
+    return JSON.parse(raw);
+  } catch (err) {
+    log.warn('[SessionRestore] 세션 비동기 읽기 실패 (무시):', err.message);
+    return null;
+  }
+}
+
+// 저장된 세션 데이터를 파일에서 읽기 (동기 버전 폴백)
 function loadSessionFromFile() {
   try {
     const filePath = getSessionFilePath();
@@ -683,19 +707,18 @@ app.on('before-quit', (e) => {
 
 // ─── [SessionRestore] 세션 저장/조회 IPC 핸들러 ─────────────────────────────
 // 렌더러(renderer_ui.js)에서 30초마다 또는 탭 변경 시 세션 저장 요청
-ipcMain.on('save-session-state', (_, sessionData) => {
+ipcMain.on('save-session-state', async (_, sessionData) => {
   try {
     _latestSessionCache = sessionData; // 메모리 캐시 갱신 (before-quit 동기 저장용)
-    saveSessionToFile(sessionData);
-    log.info('[SessionRestore] 세션 자동저장 완료 —', sessionData && sessionData.tabs ? sessionData.tabs.length : 0, '탭');
+    await saveSessionToFileAsync(sessionData);
   } catch(err) {
     log.error('[SessionRestore] save-session-state IPC 처리 실패:', err.message);
   }
 });
 
 // 렌더러에서 시작 시 저장된 세션 데이터를 직접 조회할 때 사용
-ipcMain.handle('get-session-state', () => {
-  return loadSessionFromFile();
+ipcMain.handle('get-session-state', async () => {
+  return await loadSessionFromFileAsync();
 });
 
 // ─── 어드민 IPC ───────────────────────────────────────────────

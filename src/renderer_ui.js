@@ -2041,9 +2041,17 @@ window.addEventListener('beforeunload', () => {
 });
 
 // ─── [SessionRestore] 시작 시 저장된 세션 복원 + 최초 탭 열기 ──────────────────
-window.addEventListener('DOMContentLoaded', async () => {
-    // 세션 복원 기능 활성화 여부 확인
-    if (_sessionRestoreEnabled()) {
+window.addEventListener('DOMContentLoaded', () => {
+    // 1. 스턱(흰 화면) 방지를 위해 즉시 기본 시작 페이지 탭을 생성합니다.
+    createNewTab('start_page.html');
+
+    // 2. 백그라운드 비동기 태스크로 세션 데이터를 Pull 해와서 복원을 시도합니다.
+    (async () => {
+        if (!_sessionRestoreEnabled()) {
+            console.log('[SessionRestore] 복원 기능 OFF — 저장된 세션 무시');
+            return;
+        }
+
         try {
             console.log('[SessionRestore] 저장된 세션 데이터 조회 시도 (Pull)...');
             const sessionData = await window.electronAPI.invoke('get-session-state');
@@ -2053,55 +2061,58 @@ window.addEventListener('DOMContentLoaded', async () => {
                 window.restoredSessionData = sessionData;
                 
                 if (sessionData.tabs && sessionData.tabs.length > 0) {
-                // start_page.html / about:blank 제외한 유효 탭만 필터링
-                const validTabs = sessionData.tabs.filter(t => t.url &&
-                    !t.url.includes('start_page.html') &&
-                    !t.url.includes('about:blank'));
+                    // start_page.html / about:blank 제외한 유효 탭만 필터링
+                    const validTabs = sessionData.tabs.filter(t => t.url &&
+                        !t.url.includes('start_page.html') &&
+                        !t.url.includes('about:blank'));
 
-                if (validTabs.length > 0) {
-                    console.log('[SessionRestore] 이전 세션 복원 시작 —', validTabs.length, '개 탭');
+                    if (validTabs.length > 0) {
+                        console.log('[SessionRestore] 이전 세션 복원 시작 —', validTabs.length, '개 탭');
 
-                    validTabs.forEach((tabData, idx) => {
-                        const isLast = (idx === validTabs.length - 1);
-                        createNewTab(tabData.url, isLast);
-                    });
+                        // 3. 복원할 유효 탭이 존재하므로, 기동 시 임시로 생성했던 기본 시작 페이지 탭은 제거합니다.
+                        const startTab = tabs.find(t => (t.url || '').includes('start_page.html'));
+                        if (startTab) {
+                            document.getElementById(`tab-ui-${startTab.id}`)?.remove();
+                            document.getElementById(`webview-${startTab.id}`)?.remove();
+                            tabs.splice(tabs.indexOf(startTab), 1);
+                        }
 
-                    // 이전에 활성화되어 있던 탭을 activeTabUrl로 찾아 활성화
-                    if (sessionData.activeTabUrl && validTabs.length > 1) {
-                        const targetTab = tabs.find(t => t.url === sessionData.activeTabUrl);
-                        if (targetTab) switchTab(targetTab.id);
+                        validTabs.forEach((tabData, idx) => {
+                            const isLast = (idx === validTabs.length - 1);
+                            createNewTab(tabData.url, isLast);
+                        });
+
+                        // 이전에 활성화되어 있던 탭을 activeTabUrl로 찾아 활성화
+                        if (sessionData.activeTabUrl && validTabs.length > 1) {
+                            const targetTab = tabs.find(t => t.url === sessionData.activeTabUrl);
+                            if (targetTab) switchTab(targetTab.id);
+                        }
+
+                        console.log('[SessionRestore] 세션 복원 완료');
+                        // 복원 완료 즉시 최신 상태 저장
+                        setTimeout(saveSessionState, 500);
+
+                        // 세션 복원 성공 후 토스트 알림 (영어 번역 적용, 3초 후 자동 제거)
+                        const toast = document.createElement('div');
+                        toast.textContent = `Restored ${validTabs.length} tabs ✓`;
+                        toast.style.cssText = [
+                            'position:fixed', 'bottom:20px', 'left:50%', 'transform:translateX(-50%)',
+                            'background:rgba(108,99,255,0.92)', 'color:#fff',
+                            'font-size:12px', 'font-weight:600', 'padding:8px 16px',
+                            'border-radius:20px', 'z-index:99999', 'backdrop-filter:blur(8px)',
+                            'border:1px solid rgba(108,99,255,0.4)',
+                            'box-shadow:0 4px 20px rgba(108,99,255,0.3)',
+                            'pointer-events:none'
+                        ].join(';');
+                        document.body.appendChild(toast);
+                        setTimeout(() => toast.remove(), 3000);
                     }
-
-                    console.log('[SessionRestore] 세션 복원 완료');
-                    // 복원 완료 즉시 최신 상태 저장
-                    setTimeout(saveSessionState, 500);
-
-                    // 세션 복원 성공 후 토스트 알림 (영어 번역 적용, 3초 후 자동 제거)
-                    const toast = document.createElement('div');
-                    toast.textContent = `Restored ${validTabs.length} tabs ✓`;
-                    toast.style.cssText = [
-                        'position:fixed', 'bottom:20px', 'left:50%', 'transform:translateX(-50%)',
-                        'background:rgba(108,99,255,0.92)', 'color:#fff',
-                        'font-size:12px', 'font-weight:600', 'padding:8px 16px',
-                        'border-radius:20px', 'z-index:99999', 'backdrop-filter:blur(8px)',
-                        'border:1px solid rgba(108,99,255,0.4)',
-                        'box-shadow:0 4px 20px rgba(108,99,255,0.3)',
-                        'pointer-events:none'
-                    ].join(';');
-                    document.body.appendChild(toast);
-                    setTimeout(() => toast.remove(), 3000);
-                    return; // 복원 완료 시 기본 시작 페이지 생성 생략
                 }
             }
         } catch (err) {
             console.error('[SessionRestore] 세션 복원 오류:', err);
         }
-    } else {
-        console.log('[SessionRestore] 복원 기능 OFF — 저장된 세션 무시');
-    }
-
-    // 복원할 세션이 없거나 기능이 꺼진 경우 기본 시작 페이지 탭 생성
-    createNewTab('start_page.html');
+    })();
 });
 
 // Expose to window for Electron bridge access
