@@ -278,6 +278,9 @@ function _updateSessionToggleUI(enabled) {
 }
 
 // 저장된 설정으로 토글 UI 실제 적용 (기본값: ON)
+if (localStorage.getItem('restore-session') === null) {
+    localStorage.setItem('restore-session', 'true');
+}
 const _sessionRestoreEnabled = () => localStorage.getItem('restore-session') !== 'false';
 _updateSessionToggleUI(_sessionRestoreEnabled());
 
@@ -1742,6 +1745,8 @@ function createNewTab(url = 'start_page.html', makeActive = true) {
     });
     
     tabs.push({ id: tabId, url, title: 'New Tab', zoomFactor: getDomainZoom(url) });
+    // [SessionRestore] 탭이 신규 생성된 직후 세션 저장 예약 (did-stop-loading 유실 대비)
+    setTimeout(saveSessionState, 300);
     
     wv.addEventListener('did-start-loading', () => { 
         if (activeTabId === tabId) reloadBtn.textContent = '✕'; 
@@ -2025,6 +2030,8 @@ window.addEventListener('DOMContentLoaded', () => {
             }
 
             console.log('[SessionRestore] 세션 복원 완료');
+            // 복원 완료 즉시 최신 상태 저장
+            setTimeout(saveSessionState, 500);
 
             // 세션 복원 성공 후 토스트 알림 (3초 후 자동 제거)
             const toast = document.createElement('div');

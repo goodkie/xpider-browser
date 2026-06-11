@@ -4404,7 +4404,7 @@ async function checkAndSyncExtensionsInBackground() {
   try {
     const extDir = getExtDir();
     // 익스텐션 버전을 확인 중이라는 것을 알려줌 (토스트 팝업)
-    sendExtProgress('🔄 GitHub에서 익스텐션 버전을 확인하는 중...');
+    sendExtProgress('🔄 Checking extension versions on GitHub...');
 
     const syncResult = await syncExtensionsFromGitHub(extDir, (msg) => {
       sendExtProgress(msg);
@@ -4416,19 +4416,19 @@ async function checkAndSyncExtensionsInBackground() {
 
     if (hasUpdates || hasInstalls) {
       let msgParts = [];
-      if (hasInstalls) msgParts.push(`설치: ${syncResult.installed.join(', ')}`);
-      if (hasUpdates) msgParts.push(`업데이트: ${syncResult.updated.join(', ')}`);
-      sendExtProgress(`✅ 완료 (${msgParts.join(' / ')}), 적용 중...`);
+      if (hasInstalls) msgParts.push(`Installed: ${syncResult.installed.join(', ')}`);
+      if (hasUpdates) msgParts.push(`Updated: ${syncResult.updated.join(', ')}`);
+      sendExtProgress(`✅ Completed (${msgParts.join(' / ')}), applying...`);
       log.info(`[Extensions] Sync complete: ${msgParts.join(' / ')}`);
 
       // 변경사항이 있으므로 로컬 익스텐션을 다시 로드하고 화면에 반영
       loadedExtensionsInfo = await loadLocalExtensions();
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('extensions_loaded', loadedExtensionsInfo);
-        sendExtProgress('🚀 익스텐션이 사이드바에 성공적으로 적용되었습니다!');
+        sendExtProgress('🚀 Extensions successfully applied to sidebar!');
       }
     } else {
-      sendExtProgress('✅ 모든 익스텐션이 최신 상태입니다.');
+      sendExtProgress('✅ All extensions are up to date.');
     }
   } catch (e) {
     log.error('[Extensions] Background sync error:', e.message);
@@ -4622,7 +4622,7 @@ app.whenReady().then(async () => {
 
   // 2. 로컬 익스텐션 빠르게 로드
   if (splashWindow && !splashWindow.isDestroyed()) {
-    splashWindow.webContents.send('splash-progress', '로컬 익스텐션 로딩 중...');
+    splashWindow.webContents.send('splash-progress', 'Loading extensions...');
   }
   loadedExtensionsInfo = await loadLocalExtensions();
   devlog.addLog('INFO', 'Main', `익스텐션 ${loadedExtensionsInfo.length}개 로드 완료`);

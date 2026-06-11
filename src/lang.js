@@ -1,5 +1,7 @@
 const translations = {
     ko: {
+        restore_session: "세션 복원",
+        restore_session_desc: "재시작 시 이전 탭 열기",
         app_title: "XPIDER 브라우저",
         back: "뒤로",
         forward: "앞으로",
@@ -56,6 +58,8 @@ const translations = {
         ob_ext7_desc: "A professional marketing engine that sends large volumes of emails safely at high speed with optimized delivery."
     },
     en: {
+        restore_session: "Restore Session",
+        restore_session_desc: "Reopen tabs on restart",
         app_title: "XPIDER Browser",
         back: "Back",
         forward: "Forward",
@@ -112,6 +116,8 @@ const translations = {
         ob_ext7_desc: "A professional marketing engine that sends large volumes of emails safely at high speed with optimized delivery."
     },
     ja: {
+        restore_session: "セッション復元",
+        restore_session_desc: "再起動時に以前のタブを開く",
         app_title: "XPIDER ブラウザ",
         back: "戻る",
         forward: "進む",
@@ -164,6 +170,8 @@ const translations = {
         ob_ext7_desc: "大量のメールを高速かつ安全に送信するプロフェッショナル向けマーケティングエンジンです。最適化された配信アルゴリズムをサポートします。"
     },
     zh: {
+        restore_session: "恢复会话",
+        restore_session_desc: "重启时重新打开标签页",
         app_title: "XPIDER 浏览器",
         back: "后退",
         forward: "前进",
@@ -216,6 +224,8 @@ const translations = {
         ob_ext7_desc: "专业营销引擎，高速安全地发送大量电子邮件。通过优化的传递算法支持成功的营销活动。"
     },
     es: {
+        restore_session: "Restaurar sesión",
+        restore_session_desc: "Reabrir pestañas al reiniciar",
         app_title: "Navegador XPIDER",
         back: "Atrás",
         forward: "Adelante",
@@ -267,6 +277,8 @@ const translations = {
         ob_ext7_desc: "Motor de marketing profesional que envía grandes volúmenes de correos de forma segura a alta velocidad."
     },
     fr: {
+        restore_session: "Restaurer la session",
+        restore_session_desc: "Rouvrir les onglets au redémarrage",
         app_title: "Navigateur XPIDER",
         back: "Retour",
         forward: "Suivant",
@@ -318,6 +330,8 @@ const translations = {
         ob_ext7_desc: "Moteur de marketing professionnel qui envoie de gros volumes d'e-mails en toute sécurité."
     },
     de: {
+        restore_session: "Sitzung wiederherstellen",
+        restore_session_desc: "Tabs beim Neustart wieder öffnen",
         app_title: "XPIDER Browser",
         back: "Zurück",
         forward: "Vorwärts",
@@ -369,6 +383,8 @@ const translations = {
         ob_ext7_desc: "Professionelle Marketing-Engine, die große Mengen an E-Mails sicher und schnell versendet."
     },
     ru: {
+        restore_session: "Восстановление сессии",
+        restore_session_desc: "Открыть вкладки при перезапуске",
         app_title: "Браузер XPIDER",
         back: "Назад",
         forward: "Вперед",
@@ -420,6 +436,8 @@ const translations = {
         ob_ext7_desc: "Профессиональный движок для безопасной и быстрой рассылки больших объемов email."
     },
     pt: {
+        restore_session: "Restaurar sessão",
+        restore_session_desc: "Reabrir guias ao reiniciar",
         app_title: "Navegador XPIDER",
         back: "Voltar",
         forward: "Avançar",
@@ -471,6 +489,8 @@ const translations = {
         ob_ext7_desc: "Motor de marketing profissional que envia grandes volumes de e-mails com segurança."
     },
     it: {
+        restore_session: "Ripristina sessione",
+        restore_session_desc: "Riapri le schede al riavvio",
         app_title: "Browser XPIDER",
         back: "Indietro",
         forward: "Avanti",
@@ -522,6 +542,8 @@ const translations = {
         ob_ext7_desc: "Motore di marketing professionale per l'invio sicuro di grandi volumi di email."
     },
     vi: {
+        restore_session: "Khôi phục phiên",
+        restore_session_desc: "Mở lại các tab khi khởi động lại",
         app_title: "Trình duyệt XPIDER",
         back: "Quay lại",
         forward: "Tiếp tục",
@@ -573,6 +595,8 @@ const translations = {
         ob_ext7_desc: "Công cụ tiếp thị chuyên nghiệp giúp gửi khối lượng lớn email an toàn."
     },
     th: {
+        restore_session: "กู้คืนเซสชัน",
+        restore_session_desc: "เปิดแท็บอีกครั้งเมื่อเริ่มต้นใหม่",
         app_title: "เบราว์เซอร์ XPIDER",
         back: "ย้อนกลับ",
         forward: "ถัดไป",
