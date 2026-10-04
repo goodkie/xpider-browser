@@ -1,16 +1,16 @@
 {
   "project_name": "Lite Chromium Portable",
-  "version": "0.1.0-p1a-r3",
+  "version": "0.1.0-p1a-r4",
   "git_branch": "feature/lcw-portable-chromium",
-  "git_commit": "cebd5764f6fe20cb39bcaecad1c6f49704e673a5",
-  "build_timestamp": "2026-10-04T09:45:00Z",
+  "git_commit": "354f30d62c044576c309db2f529261a2f85e8db1",
+  "build_timestamp": "2026-10-04T14:15:00Z",
   "platform": "windows-x64",
   "launcher": {
     "source": "src/launcher/main.go",
     "compiler": "go1.25.7 windows/amd64",
     "binary": "LiteChromiumPortable.exe",
-    "binary_bytes": 2725888,
-    "binary_sha256": "fb9982490153d2e484299740626a15602560aa642f0f5fcfe6c37a09c4a22e71",
+    "binary_bytes": 4069376,
+    "binary_sha256": "1a36d94c6a90d5cb6911ff30d5c451964132168892111924bf24e9e90cd105ca",
     "ldflags": "-s -w"
   },
   "engine": {
@@ -20,7 +20,7 @@
     "runtime_binary": "engine/chrome.exe",
     "package_sha256": "d4b8f53e8100e428a6ccea8070a1a909af3022c21070bfcd7dca102990d95d88"
   },
-  "remediation": "P1A-R3",
+  "remediation": "P1A-R4",
   "remediation_items_implemented": [
     "R3: Permanently disabled --clean-profiles to eliminate any risk of accidental profile destruction",
     "R3: Eliminated destructive os.Remove fallback in atomicReplaceFile",
@@ -28,6 +28,16 @@
     "R3: Fail-safe extensions_config.json handling (corrupted or empty [] strictly loads 0 extensions)",
     "R3: Eliminated legacy taskkill /F /IM chrome.exe and wildcard remote debugging from all test scripts",
     "R3: Separated internal build receipt from external release artifact manifest to eliminate circular hash dependency",
-    "R3: Verbatim BSD 3-Clause licenses for Chromium and Go components"
+    "R3: Verbatim BSD 3-Clause licenses for Chromium and Go components",
+    "R4: Exact profile identity extraction defends against prefix collision, quoted spaces, and URL query strings",
+    "R4: Explicit --new-window handoff verified via Win32 top-level window counting",
+    "R4: Root-relative recovery journal with phase transitions (backed_up -> promoted -> verified)",
+    "R4: Fail-closed import blocking on malformed or unreadable recovery journals",
+    "R4: Preservation of referenced staging directories during orphaned staging cleanup",
+    "R4: Reparse point inspection and rejection of foreign absolute paths in safeResolveExtPath",
+    "R4: Distinct write-once (seed) and strictly read-only (read) persistence verification across 3 and 5 instance sets",
+    "R4: Selective negative control requiring explicit extension error reporting and canonical assertion failure",
+    "R4: On-disk download verification with payload hash and size assertions",
+    "R4: Complete portable directory relocation testing with Korean characters and spaces"
   ]
 }
