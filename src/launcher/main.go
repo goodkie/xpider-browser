@@ -306,10 +306,36 @@ func unzipIncomingExtensions(extsDir string) []error {
 
 	var errs []error
 	lockErr := withFileLock(filepath.Join(extsDir, ".import.lock"), func() error {
+		// Collect active staging dirs referenced by any journal to avoid purging in-flight/unresolved staging bytes
+		activeStaging := make(map[string]bool)
+		if backups, err := os.ReadDir(filepath.Join(extsDir, ".backups")); err == nil {
+			for _, b := range backups {
+				if strings.HasSuffix(b.Name(), ".journal.json") {
+					if data, err := os.ReadFile(filepath.Join(extsDir, ".backups", b.Name())); err == nil {
+						var j importJournal
+						if err := json.Unmarshal(data, &j); err == nil && j.StagingRel != "" {
+							if stg, err := safeResolveExtPath(extsDir, j.StagingRel); err == nil {
+								activeStaging[strings.ToLower(filepath.Clean(stg))] = true
+							}
+						}
+					}
+				}
+			}
+		}
+
 		unresolved, recErrs := recoverImportJournals(extsDir)
 		errs = append(errs, recErrs...)
-		// Under the import lock no other importer is active; clear orphaned staging dirs that are not part of an active recovery
-		_ = os.RemoveAll(filepath.Join(extsDir, ".staging"))
+
+		// Clear only orphaned staging dirs that are not part of an active recovery
+		stagingRoot := filepath.Join(extsDir, ".staging")
+		if sEntries, err := os.ReadDir(stagingRoot); err == nil {
+			for _, se := range sEntries {
+				sPath := filepath.Join(stagingRoot, se.Name())
+				if !activeStaging[strings.ToLower(filepath.Clean(sPath))] {
+					_ = os.RemoveAll(sPath)
+				}
+			}
+		}
 
 		entries, err := os.ReadDir(incomingDir)
 		if err != nil {
@@ -318,13 +344,17 @@ func unzipIncomingExtensions(extsDir string) []error {
 			}
 			return fmt.Errorf("cannot read %s: %w", incomingDir, err)
 		}
+		if unresolved["*"] {
+			errs = append(errs, fmt.Errorf("cannot import any extensions: unreadable backup state or unresolvable journal in %s", extsDir))
+			return nil
+		}
 		for _, entry := range entries {
 			if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".zip") {
 				continue
 			}
 			zipPath := filepath.Join(incomingDir, entry.Name())
 			destName := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
-			if unresolved[destName] {
+			if unresolved[strings.ToLower(destName)] {
 				errs = append(errs, fmt.Errorf("%s: destination %s has unresolved recovery journal, skipping import to prevent overwrite", entry.Name(), destName))
 				continue
 			}
@@ -477,27 +507,71 @@ func safeRelPath(baseDir, targetPath string) (string, error) {
 	return rel, nil
 }
 
+// updateJournalPhase updates the phase field in a recovery journal file.
+func updateJournalPhase(journalPath, phase string) error {
+	if journalPath == "" {
+		return nil
+	}
+	data, err := os.ReadFile(journalPath)
+	if err != nil {
+		return err
+	}
+	var j importJournal
+	if err := json.Unmarshal(data, &j); err != nil {
+		return err
+	}
+	j.Phase = phase
+	jd, err := json.Marshal(j)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(journalPath, jd, 0644)
+}
+
 // safeResolveExtPath resolves a path (relative or absolute) strictly within extsDir.
 // It defends against directory traversal, reparse escape, and foreign absolute paths.
 func safeResolveExtPath(extsDir, relOrAbs string) (string, error) {
 	cleanExts := filepath.Clean(extsDir)
 	var candidate string
 	if filepath.IsAbs(relOrAbs) {
-		// If it's an absolute path, check if it's already within extsDir
-		if strings.HasPrefix(strings.ToLower(relOrAbs), strings.ToLower(cleanExts)+string(filepath.Separator)) {
-			candidate = relOrAbs
+		cleanAbs := filepath.Clean(relOrAbs)
+		// If it's an absolute path, check if it's already within cleanExts
+		if strings.HasPrefix(strings.ToLower(cleanAbs), strings.ToLower(cleanExts)+string(filepath.Separator)) {
+			candidate = cleanAbs
 		} else {
-			// Path was written on a different root/machine; extract base name safely
-			candidate = filepath.Join(cleanExts, filepath.Base(relOrAbs))
+			// Reject ambiguous foreign absolute paths; do not silently remap by basename!
+			return "", fmt.Errorf("foreign absolute path %q cannot be safely mapped into extension root %q", relOrAbs, cleanExts)
 		}
 	} else {
 		candidate = filepath.Join(cleanExts, relOrAbs)
 	}
 	candidate = filepath.Clean(candidate)
-	if !strings.HasPrefix(strings.ToLower(candidate), strings.ToLower(cleanExts)+string(filepath.Separator)) &&
-		!strings.EqualFold(candidate, cleanExts) {
+	rel, err := filepath.Rel(cleanExts, candidate)
+	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
 		return "", fmt.Errorf("resolved path %q escapes extension root %q", candidate, cleanExts)
 	}
+
+	// Validate canonical ancestors against cleanExts to ensure no reparse point / symlink escapes
+	if realExts, err := filepath.EvalSymlinks(cleanExts); err == nil {
+		curr := candidate
+		for {
+			if _, err := os.Lstat(curr); err == nil {
+				if realCurr, err := filepath.EvalSymlinks(curr); err == nil {
+					relReal, err := filepath.Rel(realExts, realCurr)
+					if err != nil || strings.HasPrefix(relReal, "..") || filepath.IsAbs(relReal) {
+						return "", fmt.Errorf("reparse/symlink %q escapes real extension root %q", curr, realExts)
+					}
+				}
+				break
+			}
+			parent := filepath.Dir(curr)
+			if parent == curr || len(parent) < len(cleanExts) {
+				break
+			}
+			curr = parent
+		}
+	}
+
 	return candidate, nil
 }
 
@@ -578,9 +652,14 @@ func promoteStaged(extsDir, stagingDir, destDir string) error {
 		return fmt.Errorf("failed to promote staged extension to %s; previous version restored and verified: %w", destDir, promotionErr)
 	}
 
+	_ = updateJournalPhase(journalPath, "promoted")
+
 	if !hasManifest(destDir) {
 		return fmt.Errorf("promotion verification failed: %s has no manifest.json (backup kept at %s)", destDir, backupDir)
 	}
+
+	_ = updateJournalPhase(journalPath, "verified")
+
 	if backupDir != "" {
 		if err := os.RemoveAll(backupDir); err != nil {
 			fmt.Fprintf(os.Stderr, "[LiteChromiumPortable] Warning: could not remove verified-obsolete backup %s: %v (journal kept for cleanup)\n", backupDir, err)
@@ -602,21 +681,33 @@ func recoverImportJournals(extsDir string) (map[string]bool, []error) {
 		if os.IsNotExist(err) {
 			return unresolved, nil
 		}
-		return unresolved, []error{fmt.Errorf("cannot read %s: %w", backupsRoot, err)}
+		unresolved["*"] = true
+		return unresolved, []error{fmt.Errorf("cannot read %s: %w (blocking all imports for safety)", backupsRoot, err)}
 	}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".journal.json") {
 			continue
 		}
 		jp := filepath.Join(backupsRoot, e.Name())
+
+		// Extract candidate destination name from filename in case journal JSON is unreadable or malformed
+		base := strings.TrimSuffix(e.Name(), ".journal.json")
+		destCandidate := base
+		if idx := strings.LastIndex(base, "_"); idx != -1 {
+			destCandidate = base[:idx]
+		}
+		destKey := strings.ToLower(destCandidate)
+
 		data, err := os.ReadFile(jp)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("cannot read import journal %s (preserved): %w", jp, err))
+			unresolved[destKey] = true
+			errs = append(errs, fmt.Errorf("cannot read import journal %s (preserved, destination %s blocked): %w", jp, destCandidate, err))
 			continue
 		}
 		var j importJournal
 		if err := json.Unmarshal(data, &j); err != nil {
-			errs = append(errs, fmt.Errorf("malformed import journal %s (preserved): %w", jp, err))
+			unresolved[destKey] = true
+			errs = append(errs, fmt.Errorf("malformed import journal %s (preserved, destination %s blocked): %w", jp, destCandidate, err))
 			continue
 		}
 		destField := j.DestRel
@@ -628,22 +719,25 @@ func recoverImportJournals(extsDir string) (map[string]bool, []error) {
 			backupField = j.Backup
 		}
 		if destField == "" || backupField == "" {
-			errs = append(errs, fmt.Errorf("journal %s missing destination or backup fields (preserved)", jp))
+			unresolved[destKey] = true
+			errs = append(errs, fmt.Errorf("journal %s missing destination or backup fields (preserved, destination %s blocked)", jp, destCandidate))
 			continue
 		}
 
 		resolvedDest, err := safeResolveExtPath(extsDir, destField)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("journal %s dest invalid: %w (preserved)", jp, err))
+			unresolved[destKey] = true
+			errs = append(errs, fmt.Errorf("journal %s dest invalid: %w (preserved, destination %s blocked)", jp, err, destCandidate))
 			continue
 		}
 		resolvedBackup, err := safeResolveExtPath(extsDir, backupField)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("journal %s backup invalid: %w (preserved)", jp, err))
+			unresolved[destKey] = true
+			errs = append(errs, fmt.Errorf("journal %s backup invalid: %w (preserved, destination %s blocked)", jp, err, destCandidate))
 			continue
 		}
 
-		destName := filepath.Base(resolvedDest)
+		canonicalDestKey := strings.ToLower(filepath.Base(resolvedDest))
 
 		_, backupErr := os.Stat(resolvedBackup)
 		if backupErr != nil {
@@ -653,25 +747,25 @@ func recoverImportJournals(extsDir string) (map[string]bool, []error) {
 				continue
 			}
 			// Unknown error (permission/IO): preserve journal and backup!
-			unresolved[destName] = true
+			unresolved[canonicalDestKey] = true
 			errs = append(errs, fmt.Errorf("unknown error inspecting backup %s: %w (journal and backup preserved)", resolvedBackup, backupErr))
 			continue
 		}
 
-		// Backup exists
-		if hasManifest(resolvedDest) {
+		// Backup exists. Check journal phase and manifest verification
+		if j.Phase == "verified" || (j.Phase == "promoted" && hasManifest(resolvedDest)) {
 			// New version is in place and verified; obsolete backup can be removed
 			if err := os.RemoveAll(resolvedBackup); err != nil {
-				unresolved[destName] = true
+				unresolved[canonicalDestKey] = true
 				errs = append(errs, fmt.Errorf("cannot remove obsolete backup %s: %w (journal preserved)", resolvedBackup, err))
 				continue
 			}
 			_ = os.Remove(jp)
 		} else {
-			// Promotion never completed: restore the previous version
+			// Promotion never completed cleanly or phase was backed_up: restore the previous version
 			_ = os.RemoveAll(resolvedDest)
 			if err := renameFn(resolvedBackup, resolvedDest); err != nil || !hasManifest(resolvedDest) {
-				unresolved[destName] = true
+				unresolved[canonicalDestKey] = true
 				errs = append(errs, fmt.Errorf("recovery of %s failed (backup preserved at %s): %v", resolvedDest, resolvedBackup, err))
 				continue
 			}

@@ -595,3 +595,95 @@ func TestDiscover_BackupDirsNeverLoaded_ConfigReadFailureLoadsNone(t *testing.T)
 		t.Fatalf("config read failure must load zero extensions, got %v", got)
 	}
 }
+
+func TestRecoveryJournal_MalformedBlocksImport(t *testing.T) {
+	tmp := t.TempDir()
+	exts := filepath.Join(tmp, "extensions")
+	incoming := filepath.Join(exts, "incoming")
+	backups := filepath.Join(exts, ".backups")
+	_ = os.MkdirAll(incoming, 0755)
+	_ = os.MkdirAll(backups, 0755)
+
+	// Write a malformed journal for "myext"
+	_ = os.WriteFile(filepath.Join(backups, "myext_12345.journal.json"), []byte("{malformed json"), 0644)
+
+	// An incoming archive for "myext" must be blocked from overwriting
+	createTestZip(t, filepath.Join(incoming, "myext.zip"), map[string]string{
+		"manifest.json": `{"manifest_version":3,"name":"myext","version":"2.0"}`,
+	})
+
+	errs := unzipIncomingExtensions(exts)
+	if len(errs) == 0 {
+		t.Fatalf("expected error from malformed journal or blocked destination, got none")
+	}
+
+	// Incoming archive must be preserved
+	if _, err := os.Stat(filepath.Join(incoming, "myext.zip")); err != nil {
+		t.Fatalf("incoming archive must be retained when blocked: %v", err)
+	}
+}
+
+func TestRecoveryJournal_PreservesReferencedStaging(t *testing.T) {
+	tmp := t.TempDir()
+	exts := filepath.Join(tmp, "extensions")
+	backups := filepath.Join(exts, ".backups")
+	staging := filepath.Join(exts, ".staging")
+	_ = os.MkdirAll(backups, 0755)
+	_ = os.MkdirAll(staging, 0755)
+
+	// Staging dir referenced by journal
+	refStaging := filepath.Join(staging, "active_123")
+	_ = os.MkdirAll(refStaging, 0755)
+	_ = os.WriteFile(filepath.Join(refStaging, "bytes.bin"), []byte("important_bytes"), 0644)
+
+	// Orphaned staging dir not referenced by any journal
+	orphanStaging := filepath.Join(staging, "orphan_456")
+	_ = os.MkdirAll(orphanStaging, 0755)
+
+	// Write journal referencing active_123 and create a backup dir that leaves transaction unresolved
+	_ = os.MkdirAll(filepath.Join(backups, "ext_123"), 0755)
+	j := importJournal{
+		DestRel:    "ext",
+		BackupRel:  filepath.Join(".backups", "ext_123"),
+		StagingRel: filepath.Join(".staging", "active_123"),
+		Phase:      "backed_up",
+	}
+	jd, _ := json.Marshal(j)
+	_ = os.WriteFile(filepath.Join(backups, "ext_123.journal.json"), jd, 0644)
+
+	// Run unzipIncomingExtensions
+	_ = unzipIncomingExtensions(exts)
+
+	// Referenced staging directory must still exist!
+	if _, err := os.Stat(filepath.Join(refStaging, "bytes.bin")); err != nil {
+		t.Fatalf("referenced staging bytes must be preserved: %v", err)
+	}
+
+	// Orphaned staging directory should have been cleaned
+	if _, err := os.Stat(orphanStaging); !os.IsNotExist(err) {
+		t.Fatalf("orphaned staging dir should be cleaned: %v", err)
+	}
+}
+
+func TestSafeResolveExtPath_RejectsForeignAbsoluteAndEscapes(t *testing.T) {
+	tmp := t.TempDir()
+	exts := filepath.Join(tmp, "extensions")
+	_ = os.MkdirAll(exts, 0755)
+
+	// Foreign absolute path must be rejected
+	if _, err := safeResolveExtPath(exts, `C:\Windows\System32\malicious`); err == nil {
+		t.Fatalf("foreign absolute path must be rejected")
+	}
+
+	// Traversal escape must be rejected
+	if _, err := safeResolveExtPath(exts, `..\..\other`); err == nil {
+		t.Fatalf("traversal escape must be rejected")
+	}
+
+	// Valid relative path must succeed
+	resolved, err := safeResolveExtPath(exts, "valid_ext")
+	if err != nil || resolved != filepath.Join(exts, "valid_ext") {
+		t.Fatalf("valid relative path resolution failed: %v, %s", err, resolved)
+	}
+}
+

@@ -1,23 +1,39 @@
 {
-  "timestamp": 1791118719.78429,
-  "total": 7,
-  "passed": 7,
+  "timestamp": 1791123474.9804974,
+  "launcher_sha256": "1a36d94c6a90d5cb6911ff30d5c451964132168892111924bf24e9e90cd105ca",
+  "total": 11,
+  "passed": 11,
   "failed": 0,
   "results": [
     {
-      "name": "T1: Single Instance MV3 Worker PONG, Scripting & Download",
+      "name": "T0: Wrong-Target & Cookie Substring Rejection Control",
       "status": "PASS",
-      "detail": "All MV3 Worker, Scripting, Cookie, and Storage assertions PASSED, download_triggered=True"
+      "detail": "collision_rejected=True ('Exact cookie sentinel mismatch: 10 != 1'), wrong_target_rejected=True ('Seed instance_marker mismatch: inst_1 vs inst_2')"
+    },
+    {
+      "name": "T1-A: Same-Instance Handoff Window Count",
+      "status": "PASS",
+      "detail": "windows_before=0, windows_after=2, stdout=[LiteChromiumPortable] Instance #1 already running [PID: 32324]; opened a new window in the existing owner"
+    },
+    {
+      "name": "T1: Single Instance MV3 Worker Probe, Scripting & Completed Download",
+      "status": "PASS",
+      "detail": "All MV3 Worker, Scripting, Cookie, and Storage assertions PASSED, file_downloaded=True, payload_verified=True"
+    },
+    {
+      "name": "T1-B: Verified Owner Closure & Exit",
+      "status": "PASS",
+      "detail": "PID 32324 verified dead: True"
     },
     {
       "name": "T2: Negative Control (SAME Assertion Fails on Disabled Extension)",
       "status": "PASS",
-      "detail": "Negative Control Confirmed: SAME assertion correctly failed when fixture disabled (reason: 'Invalid or missing PONG: {}')"
+      "detail": "fixture_reached=True, reported_error='chrome.runtime API not available in window context', SAME_assertion_failed=True ('Extension error reported: chrome.runtime API not available in window context')"
     },
     {
       "name": "T3-A: Batch 3 Concurrent Creation",
       "status": "PASS",
-      "detail": "instances_registered=3/3"
+      "detail": "verified_owners=3/3 (PIDs: [19512, 1088, 15196])"
     },
     {
       "name": "T3-B: Batch 3 Disk Profile Directory Isolation",
@@ -25,19 +41,24 @@
       "detail": "p1=True, p2=True, p3=True"
     },
     {
-      "name": "T3-C: Instance Restart Persistence & Zero Leakage",
+      "name": "T3-C: Instance Restart Read-Only Persistence & Zero Contamination",
       "status": "PASS",
-      "detail": "ping_count=2 (>=2 preserved), cookie=True, storage=True, no_leak=True"
+      "detail": "verified_instances=[1, 2, 3]/[1, 2, 3]"
     },
     {
-      "name": "T4: Batch 5 Multi-Instance Scaling",
+      "name": "T4-A: Batch 5 Scaling Creation",
       "status": "PASS",
-      "detail": "active_instances_count=5/5"
+      "detail": "active_instances_count=5/5 (PIDs: [30228, 26084, 8332, 32160, 30208])"
     },
     {
-      "name": "T5: Same-PC Relocation (Korean/Spaces) & Stable Extension ID",
+      "name": "T4-B: Batch 5 Distinct Nonce Read Persistence & Zero Contamination",
       "status": "PASS",
-      "detail": "relocated_path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_reloc_1791118646589_\ud55c\uae00 \uacf5\ubc31, stable_ext_id=True (mpmmjhlclnpalhaeilhkfkacdjkkhkli), alive=True"
+      "detail": "verified=[1, 2, 3, 4, 5]/[1, 2, 3, 4, 5]"
+    },
+    {
+      "name": "T5: Complete Directory Relocation (Korean/Spaces) & Read-Only Retention",
+      "status": "PASS",
+      "detail": "reloc_path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_reloc_1791123378150_\ud55c\uae00 \uacf5\ubc31, All MV3 Worker, Scripting, Cookie, and Storage assertions PASSED"
     }
   ]
 }

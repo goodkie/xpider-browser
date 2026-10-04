@@ -1,0 +1,834 @@
+{
+  "summary": {
+    "timestamp": 1791123474.9804974,
+    "launcher_sha256": "1a36d94c6a90d5cb6911ff30d5c451964132168892111924bf24e9e90cd105ca",
+    "total": 11,
+    "passed": 11,
+    "failed": 0,
+    "results": [
+      {
+        "name": "T0: Wrong-Target & Cookie Substring Rejection Control",
+        "status": "PASS",
+        "detail": "collision_rejected=True ('Exact cookie sentinel mismatch: 10 != 1'), wrong_target_rejected=True ('Seed instance_marker mismatch: inst_1 vs inst_2')"
+      },
+      {
+        "name": "T1-A: Same-Instance Handoff Window Count",
+        "status": "PASS",
+        "detail": "windows_before=0, windows_after=2, stdout=[LiteChromiumPortable] Instance #1 already running [PID: 32324]; opened a new window in the existing owner"
+      },
+      {
+        "name": "T1: Single Instance MV3 Worker Probe, Scripting & Completed Download",
+        "status": "PASS",
+        "detail": "All MV3 Worker, Scripting, Cookie, and Storage assertions PASSED, file_downloaded=True, payload_verified=True"
+      },
+      {
+        "name": "T1-B: Verified Owner Closure & Exit",
+        "status": "PASS",
+        "detail": "PID 32324 verified dead: True"
+      },
+      {
+        "name": "T2: Negative Control (SAME Assertion Fails on Disabled Extension)",
+        "status": "PASS",
+        "detail": "fixture_reached=True, reported_error='chrome.runtime API not available in window context', SAME_assertion_failed=True ('Extension error reported: chrome.runtime API not available in window context')"
+      },
+      {
+        "name": "T3-A: Batch 3 Concurrent Creation",
+        "status": "PASS",
+        "detail": "verified_owners=3/3 (PIDs: [19512, 1088, 15196])"
+      },
+      {
+        "name": "T3-B: Batch 3 Disk Profile Directory Isolation",
+        "status": "PASS",
+        "detail": "p1=True, p2=True, p3=True"
+      },
+      {
+        "name": "T3-C: Instance Restart Read-Only Persistence & Zero Contamination",
+        "status": "PASS",
+        "detail": "verified_instances=[1, 2, 3]/[1, 2, 3]"
+      },
+      {
+        "name": "T4-A: Batch 5 Scaling Creation",
+        "status": "PASS",
+        "detail": "active_instances_count=5/5 (PIDs: [30228, 26084, 8332, 32160, 30208])"
+      },
+      {
+        "name": "T4-B: Batch 5 Distinct Nonce Read Persistence & Zero Contamination",
+        "status": "PASS",
+        "detail": "verified=[1, 2, 3, 4, 5]/[1, 2, 3, 4, 5]"
+      },
+      {
+        "name": "T5: Complete Directory Relocation (Korean/Spaces) & Read-Only Retention",
+        "status": "PASS",
+        "detail": "reloc_path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_reloc_1791123378150_\ud55c\uae00 \uacf5\ubc31, All MV3 Worker, Scripting, Cookie, and Storage assertions PASSED"
+      }
+    ]
+  },
+  "raw_reports": {
+    "1": {
+      "instance_id": "1",
+      "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
+      "mode": "read",
+      "nonce": "nonce_1791123327326_b5_inst1",
+      "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1791123327326_b5_inst1",
+      "local_storage": "marker_val_1",
+      "storage_nonce": "nonce_1791123327326_b5_inst1",
+      "ext_data": {
+        "type": "STORAGE_DATA",
+        "alive": true,
+        "data": {
+          "install_reason": "install",
+          "installed_at": 1791123447993,
+          "instance_marker": "inst_1",
+          "ping_count": 0,
+          "seed_nonce": "nonce_1791123327326_b5_inst1",
+          "seeded_at": 1791123329697
+        },
+        "instance_marker": "inst_1",
+        "seed_nonce": "nonce_1791123327326_b5_inst1",
+        "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
+        "context_type": "SERVICE_WORKER"
+      },
+      "script_result": {
+        "type": "SCRIPT_RESULT",
+        "tab_id": 1665351317,
+        "result": {
+          "evaluated_at": 1791123449121,
+          "title": "LCW R4 Fixture Tab 1",
+          "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791123327326_b5_inst1"
+        }
+      },
+      "error": null,
+      "reported_at": 1791123449122
+    }
+  },
+  "lifecycle_events": [
+    {
+      "timestamp": 1791123131.6236045,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 1,
+        "pid": 32324,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-1",
+        "create_time": 1791123123.7112417,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123156.7830381,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 1,
+        "pid": 32324
+      }
+    },
+    {
+      "timestamp": 1791123163.1224594,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 1,
+        "pid": 32324,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123168.3283684,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 1,
+        "pid": 20800,
+        "profile_dir": "",
+        "create_time": 1791123165.1486883,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123168.3283684,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 1,
+        "pid": 20800
+      }
+    },
+    {
+      "timestamp": 1791123170.4686184,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 1,
+        "pid": 20800,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123188.1682777,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 1,
+        "pid": 19512,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-1",
+        "create_time": 1791123172.495094,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123188.3589187,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 2,
+        "pid": 1088,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-2",
+        "create_time": 1791123173.7308414,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123188.9370172,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 3,
+        "pid": 15196,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-3",
+        "create_time": 1791123176.5262568,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123188.9370172,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 1,
+        "pid": 19512
+      }
+    },
+    {
+      "timestamp": 1791123200.7797482,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 1,
+        "pid": 19512,
+        "clean_exit": false
+      }
+    },
+    {
+      "timestamp": 1791123200.7797482,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 2,
+        "pid": 1088
+      }
+    },
+    {
+      "timestamp": 1791123212.8550837,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 2,
+        "pid": 1088,
+        "clean_exit": false
+      }
+    },
+    {
+      "timestamp": 1791123212.8550837,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 3,
+        "pid": 15196
+      }
+    },
+    {
+      "timestamp": 1791123224.0989106,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 3,
+        "pid": 15196,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123228.2423494,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 1,
+        "pid": 27652,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-1",
+        "create_time": 1791123226.1225367,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123228.2423494,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 1,
+        "pid": 27652
+      }
+    },
+    {
+      "timestamp": 1791123229.7904897,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 1,
+        "pid": 27652,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123233.0157485,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 2,
+        "pid": 12548,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-2",
+        "create_time": 1791123230.8072991,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123233.0157485,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 2,
+        "pid": 12548
+      }
+    },
+    {
+      "timestamp": 1791123234.8292468,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 2,
+        "pid": 12548,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123238.2383976,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 3,
+        "pid": 27312,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-3",
+        "create_time": 1791123235.846566,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123239.2400358,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 3,
+        "pid": 27312
+      }
+    },
+    {
+      "timestamp": 1791123241.3578067,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 3,
+        "pid": 27312,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123244.5502641,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 1,
+        "pid": 18096,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-1",
+        "create_time": 1791123242.3780434,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123244.5502641,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 1,
+        "pid": 18096
+      }
+    },
+    {
+      "timestamp": 1791123246.0724635,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 1,
+        "pid": 18096,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123249.3179874,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 2,
+        "pid": 29728,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-2",
+        "create_time": 1791123247.0901957,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123249.3179874,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 2,
+        "pid": 29728
+      }
+    },
+    {
+      "timestamp": 1791123250.8364217,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 2,
+        "pid": 29728,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123253.9808536,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 3,
+        "pid": 12780,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-3",
+        "create_time": 1791123251.8615797,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123253.9808536,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 3,
+        "pid": 12780
+      }
+    },
+    {
+      "timestamp": 1791123255.492731,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 3,
+        "pid": 12780,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123279.8195221,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 1,
+        "pid": 30228,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-1",
+        "create_time": 1791123256.5197437,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123279.9897425,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 2,
+        "pid": 26084,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-2",
+        "create_time": 1791123257.77458,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123280.0460632,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 3,
+        "pid": 8332,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-3",
+        "create_time": 1791123259.16896,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123280.2205284,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 4,
+        "pid": 32160,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-4",
+        "create_time": 1791123260.6675608,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123280.2747068,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 5,
+        "pid": 30208,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-5",
+        "create_time": 1791123265.509138,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123280.2747068,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 1,
+        "pid": 30228
+      }
+    },
+    {
+      "timestamp": 1791123292.7858338,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 1,
+        "pid": 30228,
+        "clean_exit": false
+      }
+    },
+    {
+      "timestamp": 1791123292.7858338,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 2,
+        "pid": 26084
+      }
+    },
+    {
+      "timestamp": 1791123304.7770813,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 2,
+        "pid": 26084,
+        "clean_exit": false
+      }
+    },
+    {
+      "timestamp": 1791123304.7780812,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 3,
+        "pid": 8332
+      }
+    },
+    {
+      "timestamp": 1791123316.8698986,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 3,
+        "pid": 8332,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123316.8698986,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 4,
+        "pid": 32160
+      }
+    },
+    {
+      "timestamp": 1791123322.6095285,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 4,
+        "pid": 32160,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123322.6095285,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 5,
+        "pid": 30208
+      }
+    },
+    {
+      "timestamp": 1791123325.3255324,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 5,
+        "pid": 30208,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123329.911278,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 1,
+        "pid": 32148,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-1",
+        "create_time": 1791123327.344588,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123329.911278,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 1,
+        "pid": 32148
+      }
+    },
+    {
+      "timestamp": 1791123331.7457862,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 1,
+        "pid": 32148,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123335.0900383,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 2,
+        "pid": 24652,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-2",
+        "create_time": 1791123332.767426,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123335.0900383,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 2,
+        "pid": 24652
+      }
+    },
+    {
+      "timestamp": 1791123336.6041226,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 2,
+        "pid": 24652,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123339.8760862,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 3,
+        "pid": 27840,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-3",
+        "create_time": 1791123337.621358,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123339.8760862,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 3,
+        "pid": 27840
+      }
+    },
+    {
+      "timestamp": 1791123341.392847,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 3,
+        "pid": 27840,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123344.5466733,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 4,
+        "pid": 1044,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-4",
+        "create_time": 1791123342.41,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123344.5466733,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 4,
+        "pid": 1044
+      }
+    },
+    {
+      "timestamp": 1791123346.0604546,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 4,
+        "pid": 1044,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123349.1982903,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 5,
+        "pid": 9656,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-5",
+        "create_time": 1791123347.0784993,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123349.1982903,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 5,
+        "pid": 9656
+      }
+    },
+    {
+      "timestamp": 1791123351.3194067,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 5,
+        "pid": 9656,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123354.5206032,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 1,
+        "pid": 26560,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-1",
+        "create_time": 1791123352.338004,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123354.5206032,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 1,
+        "pid": 26560
+      }
+    },
+    {
+      "timestamp": 1791123356.034121,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 1,
+        "pid": 26560,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123359.3015037,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 2,
+        "pid": 31756,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-2",
+        "create_time": 1791123357.0628614,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123359.3015037,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 2,
+        "pid": 31756
+      }
+    },
+    {
+      "timestamp": 1791123360.8190835,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 2,
+        "pid": 31756,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123364.049621,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 3,
+        "pid": 18792,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-3",
+        "create_time": 1791123361.8397772,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123364.049621,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 3,
+        "pid": 18792
+      }
+    },
+    {
+      "timestamp": 1791123365.5647597,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 3,
+        "pid": 18792,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123368.8389654,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 4,
+        "pid": 30988,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-4",
+        "create_time": 1791123366.5896063,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123368.8389654,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 4,
+        "pid": 30988
+      }
+    },
+    {
+      "timestamp": 1791123370.3557699,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 4,
+        "pid": 30988,
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1791123373.6352606,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 5,
+        "pid": 32036,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\data\\profiles\\instance-5",
+        "create_time": 1791123371.3759437,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791123108394\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1791123373.6352606,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 5,
+        "pid": 32036
+      }
+    },
+    {
+      "timestamp": 1791123375.1492174,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 5,
+        "pid": 32036,
+        "clean_exit": true
+      }
+    }
+  ]
+}

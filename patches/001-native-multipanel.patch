@@ -1,0 +1,104 @@
+diff --git a/chrome/browser/ui/views/side_panel/side_panel_entry_key.h b/chrome/browser/ui/views/side_panel/side_panel_entry_key.h
+index 4b1c8f2..9a3e210 100644
+--- a/chrome/browser/ui/views/side_panel/side_panel_entry_key.h
++++ b/chrome/browser/ui/views/side_panel/side_panel_entry_key.h
+@@ -14,6 +14,8 @@
+ #include "chrome/browser/ui/views/side_panel/side_panel_entry_id.h"
+ #include "extensions/common/extension_id.h"
+ 
++using PanelInstanceId = uint32_t;
++
+ // Key that uniquely identifies a side panel entry across standard and
+ // extension-backed entries.
+ class SidePanelEntryKey {
+@@ -21,11 +23,14 @@ class SidePanelEntryKey {
+   explicit SidePanelEntryKey(SidePanelEntryId id);
+   SidePanelEntryKey(SidePanelEntryId id,
+                     const extensions::ExtensionId& extension_id);
++  SidePanelEntryKey(SidePanelEntryId id,
++                    const extensions::ExtensionId& extension_id,
++                    PanelInstanceId instance_id);
+   SidePanelEntryKey(const SidePanelEntryKey& other);
+   SidePanelEntryKey& operator=(const SidePanelEntryKey& other);
+   ~SidePanelEntryKey();
+ 
+-  bool operator==(const SidePanelEntryKey& other) const;
+-  bool operator<(const SidePanelEntryKey& other) const;
++  bool operator==(const SidePanelEntryKey& other) const;
++  bool operator<(const SidePanelEntryKey& other) const;
+ 
+   SidePanelEntryId id() const { return id_; }
+   const std::optional<extensions::ExtensionId>& extension_id() const {
+@@ -33,6 +38,8 @@ class SidePanelEntryKey {
+   }
++  PanelInstanceId instance_id() const { return instance_id_; }
+ 
+  private:
+   SidePanelEntryId id_;
+   std::optional<extensions::ExtensionId> extension_id_;
++  PanelInstanceId instance_id_ = 0;
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_SIDE_PANEL_ENTRY_KEY_H_
+diff --git a/chrome/browser/ui/views/side_panel/side_panel_entry_key.cc b/chrome/browser/ui/views/side_panel/side_panel_entry_key.cc
+index 7a82910..3f109bc 100644
+--- a/chrome/browser/ui/views/side_panel/side_panel_entry_key.cc
++++ b/chrome/browser/ui/views/side_panel/side_panel_entry_key.cc
+@@ -14,6 +14,12 @@ SidePanelEntryKey::SidePanelEntryKey(
+     const extensions::ExtensionId& extension_id)
+     : id_(id), extension_id_(extension_id) {}
+ 
++SidePanelEntryKey::SidePanelEntryKey(
++    SidePanelEntryId id,
++    const extensions::ExtensionId& extension_id,
++    PanelInstanceId instance_id)
++    : id_(id), extension_id_(extension_id), instance_id_(instance_id) {}
++
+ SidePanelEntryKey::SidePanelEntryKey(const SidePanelEntryKey& other) = default;
+ 
+ SidePanelEntryKey& SidePanelEntryKey::operator=(
+@@ -23,9 +29,14 @@ SidePanelEntryKey::~SidePanelEntryKey() = default;
+ 
+ bool SidePanelEntryKey::operator==(const SidePanelEntryKey& other) const {
+-  return id_ == other.id_ && extension_id_ == other.extension_id_;
++  return id_ == other.id_ && extension_id_ == other.extension_id_ &&
++         instance_id_ == other.instance_id_;
+ }
+ 
+ bool SidePanelEntryKey::operator<(const SidePanelEntryKey& other) const {
++  if (id_ != other.id_) {
++    return id_ < other.id_;
++  }
++  if (extension_id_ != other.extension_id_) {
++    return extension_id_ < other.extension_id_;
++  }
++  return instance_id_ < other.instance_id_;
+ }
+diff --git a/chrome/browser/ui/views/side_panel/side_panel_coordinator.h b/chrome/browser/ui/views/side_panel/side_panel_coordinator.h
+index e1129aa..883c012 100644
+--- a/chrome/browser/ui/views/side_panel/side_panel_coordinator.h
++++ b/chrome/browser/ui/views/side_panel/side_panel_coordinator.h
+@@ -28,6 +28,15 @@ class SidePanelCoordinator final : public SidePanelUIBase,
+                                    public views::ViewObserver {
+  public:
+   explicit SidePanelCoordinator(BrowserView* browser_view);
+   ~SidePanelCoordinator() override;
+ 
++  // Multi-panel slot management API
++  void ShowSlot(SidePanelEntryKey key, PanelInstanceId slot_id);
++  void CloseSlot(PanelInstanceId slot_id);
++  views::View* GetSlotContainer(PanelInstanceId slot_id);
++
++ struct PanelSlot {
++   PanelInstanceId slot_id;
++   std::optional<SidePanelUIBase::UniqueKey> current_key;
++   std::unique_ptr<views::View> host_view;
++ };
++
+  private:
+-  struct PanelData {
+-    std::optional<SidePanelUIBase::UniqueKey> current_key;
+-  };
+-  PanelData panel_data_;
++  std::map<PanelInstanceId, PanelSlot> active_slots_;
+ };
