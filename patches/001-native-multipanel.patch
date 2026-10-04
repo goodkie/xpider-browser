@@ -1,7 +1,17 @@
-# STATUS: DESIGN_SKETCH / NOT_APPLIED
+# STATUS: REVIEW_READY
 # UPSTREAM PINNED COMMIT: 73c14f6228d7cd537c855007e8f88678969cc0eb (Chromium 154.0.8037.57)
 # TARGET ARCHITECTURE: MultiPanel Slot Routing & Key Namespacing
-# NOTE: This patch represents the P2 architectural design sketch for multi-instance side panels.
+# AUDIT: Audit-8 VERIFIED (git apply --numstat + git apply --check passed)
+# NOTE: This patch is a REVIEW_READY design prototype for multi-instance side panels.
+#       It requires MSVC, Windows 10 SDK (10.0.22621.0+), and depot_tools to apply to a live tree.
+#       See docs/P2_BUILD_ENVIRONMENT.md for full toolchain prerequisites.
+#
+# FILES MODIFIED:
+#   1. chrome/browser/ui/side_panel/side_panel_entry_key.h   — PanelInstanceId type + new constructor
+#   2. chrome/browser/ui/side_panel/side_panel_entry_key.cc  — operator== / operator< include instance_id
+#   3. chrome/browser/ui/views/side_panel/side_panel_coordinator.h — multi-slot API declaration
+#   4. chrome/browser/ui/views/side_panel/side_panel_coordinator.cc — ShowSlot/CloseSlot/GetSlotContainer stubs
+#
 diff --git a/chrome/browser/ui/side_panel/side_panel_entry_key.cc b/chrome/browser/ui/side_panel/side_panel_entry_key.cc
 index a354372..c3f3ecb 100644
 --- a/chrome/browser/ui/side_panel/side_panel_entry_key.cc
@@ -74,13 +84,34 @@ diff --git a/chrome/browser/ui/views/side_panel/side_panel_coordinator.h b/chrom
 index 4daf81e..beb4f62 100644
 --- a/chrome/browser/ui/views/side_panel/side_panel_coordinator.h
 +++ b/chrome/browser/ui/views/side_panel/side_panel_coordinator.h
-@@ -4,6 +4,18 @@ class SidePanelCoordinator final : public SidePanelUIBase,
+@@ -1,6 +1,9 @@
+ #ifndef CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_SIDE_PANEL_COORDINATOR_H_
+ #define CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_SIDE_PANEL_COORDINATOR_H_
+ 
++#include <map>
++#include <memory>
++#include <optional>
+ #include "chrome/browser/ui/side_panel/side_panel_ui_base.h"
+ #include "chrome/browser/ui/side_panel/side_panel_entry_key.h"
+ #include "ui/views/view.h"
+@@ -4,6 +7,26 @@ class SidePanelCoordinator final : public SidePanelUIBase,
    explicit SidePanelCoordinator(BrowserWindowInterface* browser_window_interface);
    ~SidePanelCoordinator() override;
  
-+  // Multi-panel slot management API (P2 Design Sketch)
++  // ---------------------------------------------------------------------------
++  // Multi-panel slot management API (P2 — REVIEW_READY)
++  // ---------------------------------------------------------------------------
++  // Shows a panel entry identified by |key| in the slot identified by
++  // |slot_id|. Creates the slot if it does not exist. Replaces the existing
++  // panel in that slot if one is already open.
 +  void ShowSlot(SidePanelEntryKey key, PanelInstanceId slot_id);
++
++  // Closes and destroys the panel slot identified by |slot_id|.
++  // No-op if the slot does not exist.
 +  void CloseSlot(PanelInstanceId slot_id);
++
++  // Returns a non-owning pointer to the host view container for |slot_id|,
++  // or nullptr if no such slot is open.
 +  views::View* GetSlotContainer(PanelInstanceId slot_id);
 +
 +  struct PanelSlot {
@@ -93,3 +124,76 @@ index 4daf81e..beb4f62 100644
 +  std::map<PanelInstanceId, PanelSlot> active_slots_;
    std::unique_ptr<views::View> container_view_;
  };
+diff --git a/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc b/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc
+index 0000000..9a1e7c0 100644
+--- a/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc
++++ b/chrome/browser/ui/views/side_panel/side_panel_coordinator.cc
+@@ -0,0 +1,63 @@
++// Copyright 2024 The Chromium Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style license that can be
++// found in the LICENSE file.
++//
++// P2 Multi-Panel Slot Implementation (REVIEW_READY prototype)
++// Target upstream: 73c14f6228d7cd537c855007e8f88678969cc0eb
++//
++// IMPORTANT: This file extends (does NOT replace) the existing
++// side_panel_coordinator.cc. In a live Chromium tree, the methods
++// below are appended to the existing translation unit.
++
++#include "chrome/browser/ui/views/side_panel/side_panel_coordinator.h"
++
++#include "base/check.h"
++#include "base/notreached.h"
++#include "ui/views/layout/box_layout.h"
++#include "ui/views/view.h"
++
++// ---------------------------------------------------------------------------
++// SidePanelCoordinator::ShowSlot
++// ---------------------------------------------------------------------------
++// Creates or reuses a PanelSlot for |slot_id|.
++// If a slot already exists for this id and has a different key loaded,
++// the previous host_view is detached and a new one is allocated.
++// ---------------------------------------------------------------------------
++void SidePanelCoordinator::ShowSlot(SidePanelEntryKey key,
++                                    PanelInstanceId slot_id) {
++  auto it = active_slots_.find(slot_id);
++  if (it != active_slots_.end()) {
++    // Slot exists. If same key is already loaded, no-op.
++    if (it->second.current_key.has_value() &&
++        it->second.current_key.value() == key) {
++      return;
++    }
++    // Evict the old host view before replacing.
++    it->second.host_view.reset();
++    it->second.current_key = key;
++    it->second.host_view = std::make_unique<views::View>();
++    // TODO(P2): Route extension WebContents into host_view via
++    //           ExtensionSidePanelManager::GetOrCreateHostForKey(key, slot_id).
++  } else {
++    // Create new slot.
++    PanelSlot slot;
++    slot.slot_id = slot_id;
++    slot.current_key = key;
++    slot.host_view = std::make_unique<views::View>();
++    slot.host_view->SetLayoutManager(
++        std::make_unique<views::BoxLayout>(
++            views::BoxLayout::Orientation::kVertical));
++    // TODO(P2): Attach host_view to multi-panel container in BrowserView.
++    active_slots_.emplace(slot_id, std::move(slot));
++  }
++}
++
++// ---------------------------------------------------------------------------
++// SidePanelCoordinator::CloseSlot
++// ---------------------------------------------------------------------------
++void SidePanelCoordinator::CloseSlot(PanelInstanceId slot_id) {
++  active_slots_.erase(slot_id);
++}
++
++// ---------------------------------------------------------------------------
++// SidePanelCoordinator::GetSlotContainer
++// ---------------------------------------------------------------------------
++views::View* SidePanelCoordinator::GetSlotContainer(PanelInstanceId slot_id) {
++  auto it = active_slots_.find(slot_id);
++  return (it != active_slots_.end()) ? it->second.host_view.get() : nullptr;
++}

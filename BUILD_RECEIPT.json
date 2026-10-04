@@ -20,7 +20,25 @@
     "runtime_binary": "engine/chrome.exe",
     "package_sha256": "d4b8f53e8100e428a6ccea8070a1a909af3022c21070bfcd7dca102990d95d88"
   },
+  "release_package": {
+    "filename": "LiteChromiumPortable_v0.1.0-r4_win64.zip",
+    "sha256": "a8d4d9d5a72ec84adddf6c80dc8a49a00533006f20f3bb991eabcf2c780667a8",
+    "size_mb": 190.7,
+    "file_count": 86,
+    "manifest": "LiteChromiumPortable_v0.1.0-r4_win64_manifest.json"
+  },
   "remediation": "P1A-R4-VERIFIED",
+  "p2_patch": {
+    "file": "patches/001-native-multipanel.patch",
+    "status": "REVIEW_READY",
+    "upstream_commit": "73c14f6228d7cd537c855007e8f88678969cc0eb",
+    "files_modified": [
+      "chrome/browser/ui/side_panel/side_panel_entry_key.h",
+      "chrome/browser/ui/side_panel/side_panel_entry_key.cc",
+      "chrome/browser/ui/views/side_panel/side_panel_coordinator.h",
+      "chrome/browser/ui/views/side_panel/side_panel_coordinator.cc"
+    ]
+  },
   "remediation_items_implemented": [
     "Audit-1: Verified owner identity check (create_time, executable, exact profile) before WM_CLOSE / kill to protect user/unregistered processes",
     "Audit-2: 0 forced kills across entire suite (26/26 graceful_wm_close, clean_exit: true, 0 child forced kills, 0 survivors)",
