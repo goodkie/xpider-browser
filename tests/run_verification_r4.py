@@ -10,12 +10,12 @@ import sys
 import threading
 import time
 import urllib.parse
-from pathlib import Path
 import psutil
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-FIXTURE_REPORTS = {}
+RAW_PROBE_REPORTS = []
+LATEST_REPORTS = {}
 DOWNLOAD_REQUESTS = set()
 EXPECTED_EXT_ID = "mpmmjhlclnpalhaeilhkfkacdjkkhkli"
 
@@ -52,8 +52,40 @@ def get_visible_windows_for_pid(target_pid, descendant_pids=None):
     user32.EnumWindows(cb, 0)
     return hwnds
 
+def get_browser_window_for_pid(target_pid):
+    hwnds = []
+    def enum_cb(hwnd, lparam):
+        wp = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(wp))
+        if wp.value == target_pid:
+            cls_buf = ctypes.create_unicode_buffer(256)
+            user32.GetClassNameW(hwnd, cls_buf, 256)
+            if "Chrome_WidgetWin_1" in cls_buf.value and user32.IsWindowVisible(hwnd):
+                hwnds.append(hwnd)
+        return True
+    user32.EnumWindows(WNDENUMPROC(enum_cb), 0)
+    return hwnds
+
 def close_windows_for_pid(target_pid, descendant_pids=None):
-    hwnds = get_visible_windows_for_pid(target_pid, descendant_pids)
+    pids = {target_pid}
+    if descendant_pids:
+        pids.update(descendant_pids)
+    hwnds = []
+
+    def enum_cb(hwnd, lparam):
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        if pid.value in pids:
+            cls_buf = ctypes.create_unicode_buffer(256)
+            user32.GetClassNameW(hwnd, cls_buf, 256)
+            # Only target top-level browser frame windows (Chrome_WidgetWin_1)
+            # Never send WM_CLOSE to message-only windows (Chrome_WidgetWin_0), IME, or helper windows!
+            if "Chrome_WidgetWin_1" in cls_buf.value and user32.IsWindowVisible(hwnd):
+                hwnds.append(hwnd)
+        return True
+
+    cb = WNDENUMPROC(enum_cb)
+    user32.EnumWindows(cb, 0)
     for hwnd in hwnds:
         user32.PostMessageW(hwnd, 0x0010, 0, 0) # WM_CLOSE
     return len(hwnds)
@@ -71,7 +103,8 @@ class BoundedFixtureHandler(http.server.BaseHTTPRequestHandler):
             ext_id = qs.get("ext_id", [EXPECTED_EXT_ID])[0]
             mode = qs.get("mode", ["seed"])[0] # "seed" or "read"
             nonce = qs.get("nonce", ["default_nonce"])[0]
-            download_test = qs.get("dl", ["0"])[0]
+            dl_flag = qs.get("dl", ["0"])[0]
+            dl_filename = qs.get("dl_filename", [f"dl_{inst}_{nonce}.txt"])[0]
 
             html_template = """<!DOCTYPE html>
 <html>
@@ -79,7 +112,7 @@ class BoundedFixtureHandler(http.server.BaseHTTPRequestHandler):
 <body>
 <h1>LCW Verification Fixture - Instance __INST__</h1>
 <div id="status">Initializing...</div>
-<a id="download_link" href="/download_sample.txt?inst=__INST__&nonce=__NONCE__" download="test_dl___INST__.txt" style="display:none;">Download</a>
+<a id="download_link" href="/download_sample.txt?filename=__DL_FILENAME__&inst=__INST__&nonce=__NONCE__" download="__DL_FILENAME__" style="display:none;">Download</a>
 <script>
 (async function() {
     const inst = "__INST__";
@@ -94,14 +127,12 @@ class BoundedFixtureHandler(http.server.BaseHTTPRequestHandler):
     let storageNonce = "";
 
     if (mode === "seed") {
-        // In seed mode: write distinct cookie and localStorage
         document.cookie = "sentinel_cookie_inst=" + inst + "; path=/; max-age=86400";
         document.cookie = "sentinel_nonce=" + nonce + "; path=/; max-age=86400";
         localStorage.setItem("sentinel_storage_inst", "marker_val_" + inst);
         localStorage.setItem("sentinel_nonce", nonce);
     }
 
-    // In both modes, read back what is currently present
     cookieVal = document.cookie;
     storageVal = localStorage.getItem("sentinel_storage_inst") || "";
     storageNonce = localStorage.getItem("sentinel_nonce") || "";
@@ -141,7 +172,6 @@ class BoundedFixtureHandler(http.server.BaseHTTPRequestHandler):
         }
         extData = resp;
 
-        // In both modes, test executeScript
         const scriptRes = await new Promise((resolve, reject) => {
             chrome.runtime.sendMessage(extId, { type: "EXECUTE_SCRIPT_TEST" }, (response) => {
                 if (chrome.runtime.lastError) {
@@ -159,13 +189,11 @@ class BoundedFixtureHandler(http.server.BaseHTTPRequestHandler):
         statusDiv.innerText = "Error: " + errorMsg;
     }
 
-    // Optional download trigger
     if (dlFlag === "1") {
         const dl = document.getElementById("download_link");
         if (dl) dl.click();
     }
 
-    // Report back to local fixture server
     const reportPayload = {
         instance_id: inst,
         ext_id: extId,
@@ -194,7 +222,8 @@ class BoundedFixtureHandler(http.server.BaseHTTPRequestHandler):
                     .replace("__EXT_ID__", str(ext_id))
                     .replace("__MODE__", str(mode))
                     .replace("__NONCE__", str(nonce))
-                    .replace("__DOWNLOAD_TEST__", str(download_test)))
+                    .replace("__DOWNLOAD_TEST__", str(dl_flag))
+                    .replace("__DL_FILENAME__", str(dl_filename)))
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(html.encode('utf-8'))))
@@ -205,11 +234,12 @@ class BoundedFixtureHandler(http.server.BaseHTTPRequestHandler):
         if parsed.path == "/download_sample.txt":
             inst = qs.get('inst', ['1'])[0]
             nonce = qs.get('nonce', [''])[0]
+            filename = qs.get('filename', [f"dl_{inst}_{nonce}.txt"])[0]
             DOWNLOAD_REQUESTS.add(inst)
             content = f"DOWNLOAD_PAYLOAD_FOR_INSTANCE_{inst}_{nonce}\n".encode('utf-8')
             self.send_response(200)
             self.send_header("Content-Type", "application/octet-stream")
-            self.send_header("Content-Disposition", f"attachment; filename=test_dl_{inst}.txt")
+            self.send_header("Content-Disposition", f"attachment; filename={filename}")
             self.send_header("Content-Length", str(len(content)))
             self.end_headers()
             self.wfile.write(content)
@@ -225,7 +255,16 @@ class BoundedFixtureHandler(http.server.BaseHTTPRequestHandler):
             try:
                 data = json.loads(body)
                 inst = str(data.get("instance_id", "unknown"))
-                FIXTURE_REPORTS[inst] = data
+                entry = {
+                    "probe_index": len(RAW_PROBE_REPORTS) + 1,
+                    "received_at": time.time(),
+                    "instance_id": inst,
+                    "mode": data.get("mode"),
+                    "nonce": data.get("nonce"),
+                    "data": data
+                }
+                RAW_PROBE_REPORTS.append(entry)
+                LATEST_REPORTS[inst] = data
             except Exception:
                 pass
             self.send_response(200)
@@ -256,16 +295,19 @@ class FixtureServer:
             print("[FIXTURE-SERVER] Stopped", flush=True)
 
 class OwnerRecord:
-    def __init__(self, instance_id, pid, profile_dir, create_time, executable):
+    def __init__(self, instance_id, pid, profile_dir, create_time, executable, cmdline):
         self.instance_id = instance_id
         self.pid = pid
         self.profile_dir = profile_dir
         self.create_time = create_time
         self.executable = executable
+        self.cmdline = cmdline
 
 class OwnedProcessTracker:
-    def __init__(self):
-        self.owners = {} # instance_id -> OwnerRecord
+    def __init__(self, expected_engine_exe):
+        self.expected_engine_exe = os.path.normcase(os.path.abspath(expected_engine_exe))
+        self.active_owners = {} # pid -> OwnerRecord
+        self.all_history = []
         self.events = []
 
     def log_event(self, event_type, details):
@@ -275,16 +317,30 @@ class OwnedProcessTracker:
             "details": details
         })
 
-    def register_owner(self, instance_id, pid, profile_dir=""):
+    def register_owner(self, instance_id, pid, profile_dir):
         try:
             p = psutil.Process(pid)
-            create_time = p.create_time()
             exe = p.exe()
-        except Exception:
-            create_time = 0.0
-            exe = "unknown"
-        rec = OwnerRecord(instance_id, pid, profile_dir, create_time, exe)
-        self.owners[instance_id] = rec
+            cmdline = p.cmdline()
+            create_time = p.create_time()
+        except Exception as e:
+            raise RuntimeError(f"Owner PID {pid} inspection failed: {e}")
+
+        norm_exe = os.path.normcase(os.path.abspath(exe))
+        if norm_exe != self.expected_engine_exe:
+            raise RuntimeError(f"Owner PID {pid} executable mismatch: {norm_exe} vs expected {self.expected_engine_exe}")
+
+        clean_profile = os.path.normcase(os.path.abspath(profile_dir))
+        has_profile_arg = any(f"--user-data-dir={profile_dir}" in arg or clean_profile in os.path.normcase(arg) for arg in cmdline)
+        if not has_profile_arg:
+            raise RuntimeError(f"Owner PID {pid} command line missing exact profile argument {profile_dir}")
+
+        if create_time <= 0:
+            raise RuntimeError(f"Owner PID {pid} has invalid creation time {create_time}")
+
+        rec = OwnerRecord(instance_id, pid, profile_dir, create_time, exe, cmdline)
+        self.active_owners[pid] = rec
+        self.all_history.append(rec)
         self.log_event("OWNER_REGISTERED", {
             "instance_id": instance_id,
             "pid": pid,
@@ -302,61 +358,102 @@ class OwnedProcessTracker:
             children = []
         return get_visible_windows_for_pid(pid, children)
 
-    def close_and_wait_owner(self, instance_id, timeout=12):
-        rec = self.owners.get(instance_id)
-        if not rec:
-            return True
-        pid = rec.pid
-        self.log_event("CLOSE_REQUESTED", {"instance_id": instance_id, "pid": pid})
+    def close_and_wait_owner(self, pid, timeout=12):
+        rec = self.active_owners.get(pid)
+        inst_id = rec.instance_id if rec else "unknown"
+        self.log_event("CLOSE_REQUESTED", {"instance_id": inst_id, "pid": pid})
         try:
             p = psutil.Process(pid)
-            # Verify process matches recorded identity
-            if abs(p.create_time() - rec.create_time) > 1.0:
-                self.log_event("STALE_PID_SKIPPED", {"instance_id": instance_id, "pid": pid})
-                del self.owners[instance_id]
-                return True
-
-            children = [c.pid for c in p.children(recursive=True)]
-            # Gracefully post WM_CLOSE to all visible windows
-            close_windows_for_pid(pid, children)
-
-            # Wait for exit
-            t_start = time.time()
-            while time.time() - t_start < timeout:
-                if not p.is_running():
-                    break
-                time.sleep(0.3)
-
-            # Bounded cleanup if still lingering
-            if p.is_running():
-                p.terminate()
-                time.sleep(1)
-            if p.is_running():
-                p.kill()
-                time.sleep(0.5)
-
-            exited = not p.is_running()
-            self.log_event("PROCESS_EXITED", {"instance_id": instance_id, "pid": pid, "clean_exit": exited})
-            if exited:
-                del self.owners[instance_id]
-            return exited
         except psutil.NoSuchProcess:
-            del self.owners[instance_id]
-            return True
+            if pid in self.active_owners:
+                del self.active_owners[pid]
+            self.log_event("PROCESS_EXITED", {"instance_id": inst_id, "pid": pid, "exit_mode": "already_dead", "clean_exit": True})
+            return True, "already_dead"
+
+        try:
+            t_start = time.time()
+            graceful_success = False
+            last_sent = 0
+            try:
+                known_children = p.children(recursive=True)
+            except Exception:
+                known_children = []
+
+            while time.time() - t_start < timeout:
+                if not psutil.pid_exists(pid) or not p.is_running():
+                    graceful_success = True
+                    break
+
+                now = time.time()
+                if now - last_sent >= 1.5:
+                    hwnds = []
+                    def enum_cb(hwnd, lparam):
+                        w_pid = wintypes.DWORD()
+                        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(w_pid))
+                        if w_pid.value == pid:
+                            cls_buf = ctypes.create_unicode_buffer(256)
+                            user32.GetClassNameW(hwnd, cls_buf, 256)
+                            if "Chrome_WidgetWin_1" in cls_buf.value and user32.IsWindowVisible(hwnd):
+                                hwnds.append(hwnd)
+                        return True
+                    user32.EnumWindows(WNDENUMPROC(enum_cb), 0)
+
+                    for h in hwnds:
+                        user32.PostMessageW(h, 0x0010, 0, 0)
+                    if hwnds:
+                        last_sent = now
+
+                time.sleep(0.1)
+
+            exit_mode = "graceful_wm_close" if graceful_success else "forced_kill"
+
+            procs = [p] + [c for c in known_children if psutil.pid_exists(c.pid)]
+
+            if not graceful_success:
+                for proc in procs:
+                    try:
+                        if psutil.pid_exists(proc.pid):
+                            proc.kill()
+                    except Exception:
+                        pass
+
+            gone, alive = psutil.wait_procs(procs, timeout=3)
+            if alive:
+                for a in alive:
+                    try:
+                        a.kill()
+                    except Exception:
+                        pass
+                psutil.wait_procs(alive, timeout=2)
+
+            final_dead = not psutil.pid_exists(pid)
+
+            self.log_event("PROCESS_EXITED", {
+                "instance_id": inst_id,
+                "pid": pid,
+                "exit_mode": exit_mode,
+                "clean_exit": final_dead
+            })
+            if final_dead and pid in self.active_owners:
+                del self.active_owners[pid]
+            return final_dead, exit_mode
         except Exception as e:
-            self.log_event("CLOSE_ERROR", {"instance_id": instance_id, "pid": pid, "error": str(e)})
-            return False
+            self.log_event("CLOSE_ERROR", {"instance_id": inst_id, "pid": pid, "error": str(e), "clean_exit": False})
+            return False, str(e)
 
     def cleanup_all(self):
-        for inst_id in list(self.owners.keys()):
-            self.close_and_wait_owner(inst_id, timeout=5)
+        all_clean = True
+        for pid in list(self.active_owners.keys()):
+            dead, mode = self.close_and_wait_owner(pid, timeout=6)
+            if not dead:
+                all_clean = False
+        return all_clean
 
 def evaluate_fixture_assertion(report, expected_inst, expected_nonce, expected_mode, server_port=9876):
     """The canonical SAME assertion function used for all positive tests and negative controls."""
     if not report:
         return False, "No report received (timeout or connection refused)"
 
-    # If extension reported an error
     if report.get("error"):
         return False, f"Extension error reported: {report['error']}"
 
@@ -383,12 +480,29 @@ def evaluate_fixture_assertion(report, expected_inst, expected_nonce, expected_m
         if storage_data.get("seed_nonce") != expected_nonce:
             return False, f"Read nonce mismatch in extension storage: {storage_data.get('seed_nonce')} vs {expected_nonce}"
 
-    # Check script execution (target tab identity and title)
+    # Check script execution (exact tab, frame, and URL target match)
     script_res = report.get("script_result") or {}
+    if script_res.get("frame_id") != 0:
+        return False, f"Script frame_id mismatch: {script_res.get('frame_id')} != 0"
+    if script_res.get("tab_id") is None:
+        return False, "Missing tab_id in executeScript result"
+
     res_obj = script_res.get("result") or {}
-    expected_url_prefix = f"http://127.0.0.1:{server_port}/fixture.html"
-    if not res_obj.get("url", "").startswith(expected_url_prefix):
-        return False, f"Script URL mismatch: {res_obj.get('url')} does not start with {expected_url_prefix}"
+    expected_origin = f"http://127.0.0.1:{server_port}"
+    if res_obj.get("origin") != expected_origin:
+        return False, f"Script origin mismatch: {res_obj.get('origin')} != {expected_origin}"
+    if res_obj.get("pathname") != "/fixture.html":
+        return False, f"Script pathname mismatch: {res_obj.get('pathname')} != /fixture.html"
+
+    # Exact query parameters validation
+    parsed_qs = urllib.parse.parse_qs(res_obj.get("search", "").lstrip("?"))
+    if parsed_qs.get("inst") != [str(expected_inst)]:
+        return False, f"Script URL inst parameter mismatch: {parsed_qs.get('inst')} != {[str(expected_inst)]}"
+    if parsed_qs.get("mode") != [expected_mode]:
+        return False, f"Script URL mode parameter mismatch: {parsed_qs.get('mode')} != {[expected_mode]}"
+    if parsed_qs.get("nonce") != [expected_nonce]:
+        return False, f"Script URL nonce parameter mismatch: {parsed_qs.get('nonce')} != {[expected_nonce]}"
+
     expected_title = f"LCW R4 Fixture Tab {expected_inst}"
     if res_obj.get("title") != expected_title:
         return False, f"Script Title mismatch: {res_obj.get('title')} vs {expected_title}"
@@ -406,7 +520,7 @@ def evaluate_fixture_assertion(report, expected_inst, expected_nonce, expected_m
     if report.get("storage_nonce") != expected_nonce:
         return False, f"LocalStorage nonce mismatch: {report.get('storage_nonce')} vs {expected_nonce}"
 
-    return True, "All MV3 Worker, Scripting, Cookie, and Storage assertions PASSED"
+    return True, "All MV3 Worker, Scripting, Target Tab URL, Cookie, and Storage assertions PASSED"
 
 def find_actual_owner_pid(test_root, instance_id):
     reg_file = os.path.join(test_root, "data", "instances.json")
@@ -433,6 +547,7 @@ def main():
     project_root = os.path.dirname(script_dir)
     launcher_exe = os.path.join(project_root, "LiteChromiumPortable.exe")
     fixture_src = os.path.join(project_root, "extensions", "mv3-fixture")
+    expected_engine = os.path.join(project_root, "engine", "chrome.exe")
 
     # Safety check: ensure legacy runner cannot be accidentally invoked
     legacy_runner = os.path.join(script_dir, "run_verification.py")
@@ -446,7 +561,8 @@ def main():
     os.makedirs(test_root, exist_ok=True)
     print(f"[R4-RUNNER] Starting verification in isolated root: {test_root}", flush=True)
 
-    tracker = OwnedProcessTracker()
+    isolated_engine = os.path.join(test_root, "engine", "chrome.exe")
+    tracker = OwnedProcessTracker(expected_engine_exe=isolated_engine)
     server = FixtureServer(port=9876)
     server.start()
 
@@ -469,23 +585,23 @@ def main():
         launcher_hash = compute_sha256(test_launcher)
 
         # Copy engine
-        test_engine = os.path.join(test_root, "engine")
-        shutil.copytree(os.path.join(project_root, "engine"), test_engine)
+        test_engine_dir = os.path.join(test_root, "engine")
+        shutil.copytree(os.path.join(project_root, "engine"), test_engine_dir)
 
         # Install mv3-fixture in test_root/extensions/mv3-fixture
         test_exts = os.path.join(test_root, "extensions", "mv3-fixture")
         shutil.copytree(fixture_src, test_exts)
 
         # -----------------------------------------------------------------
-        # T0: Wrong-Target Negative Control Verification
+        # T0: Wrong-Target & Target-URL Rejection Control
         # -----------------------------------------------------------------
-        print("\n--- Running T0: Wrong-Target Negative Control Verification ---", flush=True)
+        print("\n--- Running T0: Target Identity & Negative Assertion Controls ---", flush=True)
         dummy_inst1_report = {
             "instance_id": "1",
             "ext_id": EXPECTED_EXT_ID,
             "mode": "seed",
             "nonce": "test_nonce_1",
-            "cookie": "sentinel_cookie_inst=10; sentinel_nonce=test_nonce_1", # prefix/substring test
+            "cookie": "sentinel_cookie_inst=10; sentinel_nonce=test_nonce_1", # prefix collision
             "local_storage": "marker_val_1",
             "storage_nonce": "test_nonce_1",
             "ext_data": {
@@ -496,40 +612,52 @@ def main():
                 "seed_nonce": "test_nonce_1"
             },
             "script_result": {
+                "frame_id": 0,
+                "tab_id": 100,
                 "result": {
-                    "url": "http://127.0.0.1:9876/fixture.html?inst=1",
+                    "origin": "http://127.0.0.1:9876",
+                    "pathname": "/fixture.html",
+                    "search": "?inst=1&mode=seed&nonce=test_nonce_1",
+                    "url": "http://127.0.0.1:9876/fixture.html?inst=1&mode=seed&nonce=test_nonce_1",
                     "title": "LCW R4 Fixture Tab 1"
                 }
             },
             "error": None
         }
-        # Assertion for expected instance 1 MUST FAIL on sentinel_cookie_inst=10 (prefix collision defense)
         passed_coll, reason_coll = evaluate_fixture_assertion(dummy_inst1_report, expected_inst=1, expected_nonce="test_nonce_1", expected_mode="seed")
-        # Assertion for expected instance 2 MUST FAIL on instance 1 report
-        passed_wrong, reason_wrong = evaluate_fixture_assertion(dummy_inst1_report, expected_inst=2, expected_nonce="test_nonce_1", expected_mode="seed")
-        t0_pass = (not passed_coll) and (not passed_wrong)
-        record("T0: Wrong-Target & Cookie Substring Rejection Control", t0_pass, f"collision_rejected={not passed_coll} ('{reason_coll}'), wrong_target_rejected={not passed_wrong} ('{reason_wrong}')")
+
+        # Wrong-target control: Normal markers for inst 1, but target tab URL belongs to inst 2
+        dummy_wrong_target_report = dict(dummy_inst1_report)
+        dummy_wrong_target_report["cookie"] = "sentinel_cookie_inst=1; sentinel_nonce=test_nonce_1" # correct cookie
+        dummy_wrong_target_report["script_result"] = {
+            "frame_id": 0,
+            "tab_id": 100,
+            "result": {
+                "origin": "http://127.0.0.1:9876",
+                "pathname": "/fixture.html",
+                "search": "?inst=2&mode=seed&nonce=test_nonce_1", # wrong URL
+                "url": "http://127.0.0.1:9876/fixture.html?inst=2&mode=seed&nonce=test_nonce_1",
+                "title": "LCW R4 Fixture Tab 2"
+            }
+        }
+        passed_wrong_url, reason_wrong_url = evaluate_fixture_assertion(dummy_wrong_target_report, expected_inst=1, expected_nonce="test_nonce_1", expected_mode="seed")
+
+        t0_pass = (not passed_coll) and (not passed_wrong_url)
+        record("T0: Wrong-Target & Cookie Substring Rejection Control", t0_pass, 
+               f"cookie_collision_rejected={not passed_coll} ('{reason_coll}'), target_url_mismatch_rejected={not passed_wrong_url} ('{reason_wrong_url}')")
 
         # -----------------------------------------------------------------
-        # T1: Single Instance MV3 Worker Seed + Download + Window Count Check
+        # T1: Single Instance Seed + Completed Download in Test-Root + Strict Window Count
         # -----------------------------------------------------------------
         print("\n--- Running T1: Single Instance Seed, Download & Window Handoff ---", flush=True)
-        FIXTURE_REPORTS.clear()
+        LATEST_REPORTS.clear()
         DOWNLOAD_REQUESTS.clear()
         nonce_t1 = f"nonce_{int(time.time()*1000)}_inst1"
+        dl_filename = f"dl_{run_id}_{nonce_t1}.txt"
 
-        # Prepare downloads dir and cleanup any potential stale dl file
-        expected_dl_name = "test_dl_1.txt"
-        user_dl_dir = os.path.join(Path.home(), "Downloads")
         custom_dl_dir = os.path.join(test_root, "downloads")
         os.makedirs(custom_dl_dir, exist_ok=True)
-        for loc in [custom_dl_dir, user_dl_dir]:
-            stale_f = os.path.join(loc, expected_dl_name)
-            if os.path.exists(stale_f):
-                try: os.remove(stale_f)
-                except Exception: pass
 
-        # Pre-seed Preferences in instance-1 profile to direct download to test_root/downloads
         p1_profile = os.path.join(test_root, "data", "profiles", "instance-1")
         p1_default = os.path.join(p1_profile, "Default")
         os.makedirs(p1_default, exist_ok=True)
@@ -542,7 +670,7 @@ def main():
                 }
             }, f)
 
-        target_url = f"http://127.0.0.1:9876/fixture.html?inst=1&ext_id={EXPECTED_EXT_ID}&mode=seed&nonce={nonce_t1}&dl=1"
+        target_url = f"http://127.0.0.1:9876/fixture.html?inst=1&ext_id={EXPECTED_EXT_ID}&mode=seed&nonce={nonce_t1}&dl=1&dl_filename={dl_filename}"
         res1 = subprocess.run([test_launcher, "--instance=1", f"--url={target_url}"], cwd=test_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
         time.sleep(2)
 
@@ -553,101 +681,126 @@ def main():
             rec1 = tracker.register_owner(1, p1_pid, p1_prof)
             print(f"[T1] Bound actual browser owner: PID={p1_pid}, Exe={rec1.executable}, CreateTime={rec1.create_time}", flush=True)
 
-            # Check window count before handoff
-            w_before = len(tracker.get_windows(p1_pid))
+            # Wait until initial owner window is actually visible and ready
+            w_initial = 0
+            t_win_wait = time.time()
+            while time.time() - t_win_wait < 12:
+                hwnds = tracker.get_windows(p1_pid)
+                if len(hwnds) >= 1:
+                    w_initial = len(hwnds)
+                    break
+                time.sleep(0.5)
 
-            # Trigger handoff with --new-window
-            handoff_url = f"http://127.0.0.1:9876/fixture.html?inst=1&ext_id={EXPECTED_EXT_ID}&mode=seed&nonce={nonce_t1}&dl=0"
-            res_handoff = subprocess.run([test_launcher, "--instance=1", f"--url={handoff_url}"], cwd=test_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
-            time.sleep(2)
-            w_after = len(tracker.get_windows(p1_pid))
-            window_handoff_pass = (w_after >= w_before + 1) or ("opened a new window" in res_handoff.stdout)
-            record("T1-A: Same-Instance Handoff Window Count", window_handoff_pass, f"windows_before={w_before}, windows_after={w_after}, stdout={res_handoff.stdout.strip()}")
+            if w_initial < 1:
+                record("T1-A: Initial Owner Window Visibility", False, f"No visible top-level windows detected for PID {p1_pid}")
+            else:
+                record("T1-A: Initial Owner Window Visibility", True, f"Detected {w_initial} ready visible windows for PID {p1_pid}")
+
+                # Trigger handoff with --new-window
+                handoff_url = f"http://127.0.0.1:9876/fixture.html?inst=1&ext_id={EXPECTED_EXT_ID}&mode=seed&nonce={nonce_t1}&dl=0"
+                subprocess.run([test_launcher, "--instance=1", f"--url={handoff_url}"], cwd=test_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
+                
+                # Poll for exact window count increase (must be strictly w_initial + 1)
+                w_after = 0
+                t_handoff_wait = time.time()
+                while time.time() - t_handoff_wait < 12:
+                    curr_w = len(tracker.get_windows(p1_pid))
+                    if curr_w == w_initial + 1:
+                        w_after = curr_w
+                        break
+                    time.sleep(0.5)
+
+                window_handoff_pass = (w_after == w_initial + 1)
+                record("T1-A: Strict Same-Instance Handoff Window Count (+1 HWND)", window_handoff_pass, 
+                       f"windows_initial={w_initial}, windows_after={w_after} (expected {w_initial+1})")
 
             # Wait for probe report
             t_start = time.time()
             rep1 = None
             while time.time() - t_start < 40:
-                if "1" in FIXTURE_REPORTS:
-                    rep1 = FIXTURE_REPORTS["1"]
+                if "1" in LATEST_REPORTS:
+                    rep1 = LATEST_REPORTS["1"]
                     break
                 time.sleep(0.5)
 
             t1_valid, t1_reason = evaluate_fixture_assertion(rep1, expected_inst=1, expected_nonce=nonce_t1, expected_mode="seed")
 
-            # Check actual downloaded file on disk with polling to tolerate browser disk flush
-            dl_file_found = None
+            # Verify completed download file STRICTLY inside test_root/downloads
+            expected_dl_path = os.path.join(custom_dl_dir, dl_filename)
+            dl_file_found = False
             t_dl_wait = time.time()
-            while time.time() - t_dl_wait < 10:
-                for loc in [custom_dl_dir, user_dl_dir, p1_profile]:
-                    candidate = os.path.join(loc, expected_dl_name)
-                    if os.path.exists(candidate) and os.path.getsize(candidate) > 0 and not candidate.endswith(".crdownload"):
-                        dl_file_found = candidate
-                        break
-                if dl_file_found:
+            while time.time() - t_dl_wait < 12:
+                if os.path.exists(expected_dl_path) and os.path.getsize(expected_dl_path) > 0 and not expected_dl_path.endswith(".crdownload"):
+                    dl_file_found = True
                     break
                 time.sleep(0.5)
 
             dl_content_ok = False
             if dl_file_found:
-                with open(dl_file_found, "r", encoding="utf-8") as f:
+                with open(expected_dl_path, "r", encoding="utf-8") as f:
                     content = f.read()
                     expected_content = f"DOWNLOAD_PAYLOAD_FOR_INSTANCE_1_{nonce_t1}\n"
                     dl_content_ok = (content == expected_content)
-                try: os.remove(dl_file_found)
-                except Exception: pass
 
-            t1_pass = t1_valid and (dl_file_found is not None) and dl_content_ok
-            t1_detail = f"{t1_reason}, file_downloaded={dl_file_found is not None}, payload_verified={dl_content_ok}"
-            record("T1: Single Instance MV3 Worker Probe, Scripting & Completed Download", t1_pass, t1_detail)
+            t1_pass = t1_valid and dl_file_found and dl_content_ok
+            t1_detail = f"{t1_reason}, isolated_file_downloaded={dl_file_found} ({expected_dl_path}), payload_verified={dl_content_ok}"
+            record("T1: Single Instance MV3 Worker Probe, Scripting & Completed Isolated Download", t1_pass, t1_detail)
 
-            # Close owner and verify actual exit
-            closed = tracker.close_and_wait_owner(1, timeout=12)
-            record("T1-B: Verified Owner Closure & Exit", closed, f"PID {p1_pid} verified dead: {closed}")
+            # Close owner and verify actual dead state
+            closed, mode = tracker.close_and_wait_owner(p1_pid, timeout=12)
+            record("T1-B: Verified Owner Closure & Exit", closed, f"PID {p1_pid} dead={closed}, exit_mode={mode}")
+            if not closed:
+                test_failed = True
 
         time.sleep(2)
 
         # -----------------------------------------------------------------
-        # T2: Selective Negative Control (Disable Enabled Instance + Explicit Error)
+        # T2: Selective Negative Control (Reach Fixture + Explicit Error + Assertion Fails)
         # -----------------------------------------------------------------
         print("\n--- Running T2: Selective Negative Control (Disable Existing Instance) ---", flush=True)
-        FIXTURE_REPORTS.clear()
+        LATEST_REPORTS.clear()
 
-        # Step A: Disable mv3-fixture in instance-1 profile
+        # Disable mv3-fixture in instance-1 profile
         p1_cfg_file = os.path.join(test_root, "data", "profiles", "instance-1", "extensions_config.json")
         with open(p1_cfg_file, "w", encoding="utf-8") as f:
             json.dump({"disabled_extensions": ["mv3-fixture"]}, f)
 
-        neg_url = f"http://127.0.0.1:9876/fixture.html?inst=1&ext_id={EXPECTED_EXT_ID}&mode=seed&nonce=neg_nonce&dl=0"
-        res2 = subprocess.run([test_launcher, "--instance=1", f"--url={neg_url}"], cwd=test_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        neg_nonce = f"neg_nonce_{int(time.time()*1000)}"
+        neg_url = f"http://127.0.0.1:9876/fixture.html?inst=1&ext_id={EXPECTED_EXT_ID}&mode=seed&nonce={neg_nonce}&dl=0"
+        subprocess.run([test_launcher, "--instance=1", f"--url={neg_url}"], cwd=test_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
         time.sleep(2)
 
         p1_neg_pid, _ = find_actual_owner_pid(test_root, 1)
         if p1_neg_pid:
-            tracker.register_owner(1, p1_neg_pid)
+            tracker.register_owner(1, p1_neg_pid, p1_prof)
 
-        # The disabled browser MUST reach fixture and report an explicit extension failure
+        # The disabled browser MUST reach fixture and report an explicit recognized extension failure
         t_start = time.time()
         rep2 = None
         while time.time() - t_start < 30:
-            if "1" in FIXTURE_REPORTS:
-                rep2 = FIXTURE_REPORTS["1"]
+            if "1" in LATEST_REPORTS:
+                rep2 = LATEST_REPORTS["1"]
                 break
             time.sleep(0.5)
 
         if not rep2:
             record("T2: Negative Control (Explicit Extension Error Required)", False, "Harness FAIL: browser failed to reach fixture or timed out!")
         else:
-            reported_err = rep2.get("error")
-            has_explicit_err = (reported_err is not None and len(str(reported_err)) > 0)
-            same_assertion_passed, fail_reason = evaluate_fixture_assertion(rep2, expected_inst=1, expected_nonce="neg_nonce", expected_mode="seed")
-            # PASS requirement: fixture reached, explicit extension error reported, SAME assertion correctly fails
-            t2_pass = has_explicit_err and (same_assertion_passed is False)
+            reported_err = str(rep2.get("error", ""))
+            nonce_matched = (rep2.get("nonce") == neg_nonce)
+            has_recognized_err = ("chrome.runtime API not available" in reported_err or "Could not establish connection" in reported_err)
+            same_assertion_passed, fail_reason = evaluate_fixture_assertion(rep2, expected_inst=1, expected_nonce=neg_nonce, expected_mode="seed")
+            
+            t2_pass = nonce_matched and has_recognized_err and (same_assertion_passed is False)
             record("T2: Negative Control (SAME Assertion Fails on Disabled Extension)", t2_pass, 
-                   f"fixture_reached=True, reported_error='{reported_err}', SAME_assertion_failed={not same_assertion_passed} ('{fail_reason}')")
+                   f"fixture_reached=True (nonce_matched={nonce_matched}), recognized_error='{reported_err}', SAME_assertion_failed={not same_assertion_passed} ('{fail_reason}')")
 
-        tracker.close_and_wait_owner(1, timeout=10)
-        # Restore instance-1 extensions_config.json so it is cleanly enabled for subsequent tests
+        if p1_neg_pid:
+            closed, mode = tracker.close_and_wait_owner(p1_neg_pid, timeout=10)
+            if not closed or mode == "forced_kill":
+                record("T2: Owner Exit PID " + str(p1_neg_pid), False, f"clean_exit=False, mode={mode}")
+
+        # Restore instance-1 extensions_config.json
         if os.path.exists(p1_cfg_file):
             os.remove(p1_cfg_file)
         time.sleep(2)
@@ -658,7 +811,7 @@ def main():
         print("\n--- Running T3: Batch 3 Multi-Instance Isolation & Read-Only Restart ---", flush=True)
 
         # Step 3-A: Batch creation
-        res_b3 = subprocess.run([test_launcher, "--batch=3", "--url=about:blank"], cwd=test_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        subprocess.run([test_launcher, "--batch=3", "--url=about:blank"], cwd=test_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
         time.sleep(2)
         b3_pids = []
         for i in [1, 2, 3]:
@@ -668,15 +821,26 @@ def main():
                 b3_pids.append(pid_i)
 
         record("T3-A: Batch 3 Concurrent Creation", len(b3_pids) == 3, f"verified_owners={len(b3_pids)}/3 (PIDs: {b3_pids})")
-        for i in [1, 2, 3]:
-            tracker.close_and_wait_owner(i, timeout=10)
+
+        # Wait for all batch windows to be ready before initiating closing sequence
+        for pid in b3_pids:
+            t0 = time.time()
+            while time.time() - t0 < 30:
+                if get_browser_window_for_pid(pid):
+                    break
+                time.sleep(0.3)
+
+        for pid in b3_pids:
+            closed, mode = tracker.close_and_wait_owner(pid, timeout=25)
+            if not closed or mode == "forced_kill":
+                record(f"T3-A Exit PID {pid}", False, f"clean_exit=False, mode={mode}")
         time.sleep(2)
 
         # Step 3-B: Seed distinct nonces across instances 1, 2, 3
         print("[T3-B] Seeding distinct sentinels and nonces across instances 1, 2, 3...", flush=True)
         nonces_3 = {}
         for i in [1, 2, 3]:
-            FIXTURE_REPORTS.clear()
+            LATEST_REPORTS.clear()
             nonce_i = f"nonce_{int(time.time()*1000)}_b3_inst{i}"
             nonces_3[i] = nonce_i
             u = f"http://127.0.0.1:9876/fixture.html?inst={i}&ext_id={EXPECTED_EXT_ID}&mode=seed&nonce={nonce_i}"
@@ -688,11 +852,13 @@ def main():
 
             t_w = time.time()
             while time.time() - t_w < 30:
-                if str(i) in FIXTURE_REPORTS:
+                if str(i) in LATEST_REPORTS and LATEST_REPORTS[str(i)].get("nonce") == nonce_i:
                     break
                 time.sleep(0.5)
 
-            tracker.close_and_wait_owner(i, timeout=10)
+            closed, mode = tracker.close_and_wait_owner(pid_i, timeout=10)
+            if not closed or mode == "forced_kill":
+                record(f"T3-B Exit PID {pid_i}", False, f"clean_exit=False, mode={mode}")
             time.sleep(1)
 
         p1_dir = os.path.join(test_root, "data", "profiles", "instance-1")
@@ -711,9 +877,8 @@ def main():
         print("[T3-C] Restarting instances 1, 2, 3 in READ-ONLY mode to assert persistence before mutation...", flush=True)
         read_successes = []
         for i in [1, 2, 3]:
-            FIXTURE_REPORTS.clear()
+            LATEST_REPORTS.clear()
             nonce_i = nonces_3[i]
-            # mode=read: Fixture does NOT write cookies or localStorage! Background worker does NOT overwrite storage!
             u_read = f"http://127.0.0.1:9876/fixture.html?inst={i}&ext_id={EXPECTED_EXT_ID}&mode=read&nonce={nonce_i}"
             subprocess.run([test_launcher, f"--instance={i}", f"--url={u_read}"], cwd=test_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
             time.sleep(1)
@@ -724,8 +889,8 @@ def main():
             t_w = time.time()
             rep_i = None
             while time.time() - t_w < 30:
-                if str(i) in FIXTURE_REPORTS:
-                    rep_i = FIXTURE_REPORTS[str(i)]
+                if str(i) in LATEST_REPORTS and LATEST_REPORTS[str(i)].get("mode") == "read":
+                    rep_i = LATEST_REPORTS[str(i)]
                     break
                 time.sleep(0.5)
 
@@ -735,7 +900,9 @@ def main():
             else:
                 print(f"[T3-C] Instance {i} read verification failed: {v_reason}", flush=True)
 
-            tracker.close_and_wait_owner(i, timeout=10)
+            closed, mode = tracker.close_and_wait_owner(pid_i, timeout=10)
+            if not closed or mode == "forced_kill":
+                record(f"T3-C Exit PID {pid_i}", False, f"clean_exit=False, mode={mode}")
             time.sleep(1)
 
         t3_c_pass = (len(read_successes) == 3)
@@ -745,8 +912,8 @@ def main():
         # T4: Batch 5 Multi-Instance Scale & Distinct Nonce Verification
         # -----------------------------------------------------------------
         print("\n--- Running T4: Batch 5 Scale & Distinct Verification ---", flush=True)
-        res_b5 = subprocess.run([test_launcher, "--batch=5", "--url=about:blank"], cwd=test_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
-        time.sleep(3)
+        subprocess.run([test_launcher, "--batch=5", "--url=about:blank"], cwd=test_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        time.sleep(4)
 
         b5_pids = []
         for i in range(1, 6):
@@ -756,15 +923,26 @@ def main():
                 b5_pids.append(pid_i)
 
         record("T4-A: Batch 5 Scaling Creation", len(b5_pids) == 5, f"active_instances_count={len(b5_pids)}/5 (PIDs: {b5_pids})")
-        for i in range(1, 6):
-            tracker.close_and_wait_owner(i, timeout=10)
+
+        # Wait for all batch windows to be ready before initiating closing sequence
+        for pid in b5_pids:
+            t0 = time.time()
+            while time.time() - t0 < 60:
+                if get_browser_window_for_pid(pid):
+                    break
+                time.sleep(0.3)
+
+        for pid in b5_pids:
+            closed, mode = tracker.close_and_wait_owner(pid, timeout=25)
+            if not closed or mode == "forced_kill":
+                record(f"T4-A Exit PID {pid}", False, f"clean_exit=False, mode={mode}")
         time.sleep(2)
 
         # Seed distinct nonces across all 5 instances
         print("[T4-B] Seeding distinct nonces across instances 1..5...", flush=True)
         nonces_5 = {}
         for i in range(1, 6):
-            FIXTURE_REPORTS.clear()
+            LATEST_REPORTS.clear()
             nonce_i = f"nonce_{int(time.time()*1000)}_b5_inst{i}"
             nonces_5[i] = nonce_i
             u = f"http://127.0.0.1:9876/fixture.html?inst={i}&ext_id={EXPECTED_EXT_ID}&mode=seed&nonce={nonce_i}"
@@ -776,18 +954,20 @@ def main():
 
             t_w = time.time()
             while time.time() - t_w < 30:
-                if str(i) in FIXTURE_REPORTS:
+                if str(i) in LATEST_REPORTS and LATEST_REPORTS[str(i)].get("nonce") == nonce_i:
                     break
                 time.sleep(0.5)
 
-            tracker.close_and_wait_owner(i, timeout=10)
+            closed, mode = tracker.close_and_wait_owner(pid_i, timeout=10)
+            if not closed or mode == "forced_kill":
+                record(f"T4-B Seed Exit PID {pid_i}", False, f"clean_exit=False, mode={mode}")
             time.sleep(1)
 
         # Read back all 5 instances in READ-ONLY mode
         print("[T4-C] Reading back all 5 instances in READ-ONLY mode...", flush=True)
         b5_read_successes = []
         for i in range(1, 6):
-            FIXTURE_REPORTS.clear()
+            LATEST_REPORTS.clear()
             nonce_i = nonces_5[i]
             u_read = f"http://127.0.0.1:9876/fixture.html?inst={i}&ext_id={EXPECTED_EXT_ID}&mode=read&nonce={nonce_i}"
             subprocess.run([test_launcher, f"--instance={i}", f"--url={u_read}"], cwd=test_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -799,8 +979,8 @@ def main():
             t_w = time.time()
             rep_i = None
             while time.time() - t_w < 30:
-                if str(i) in FIXTURE_REPORTS:
-                    rep_i = FIXTURE_REPORTS[str(i)]
+                if str(i) in LATEST_REPORTS and LATEST_REPORTS[str(i)].get("mode") == "read":
+                    rep_i = LATEST_REPORTS[str(i)]
                     break
                 time.sleep(0.5)
 
@@ -810,7 +990,9 @@ def main():
             else:
                 print(f"[T4-C] Instance {i} read verification failed: {v_reason}", flush=True)
 
-            tracker.close_and_wait_owner(i, timeout=10)
+            closed, mode = tracker.close_and_wait_owner(pid_i, timeout=10)
+            if not closed or mode == "forced_kill":
+                record(f"T4-C Read Exit PID {pid_i}", False, f"clean_exit=False, mode={mode}")
             time.sleep(1)
 
         record("T4-B: Batch 5 Distinct Nonce Read Persistence & Zero Contamination", len(b5_read_successes) == 5, f"verified={b5_read_successes}/[1, 2, 3, 4, 5]")
@@ -820,48 +1002,59 @@ def main():
         # -----------------------------------------------------------------
         print("\n--- Running T5: Complete Relocation & Read-Only Persistence ---", flush=True)
         # Ensure all owners are completely closed before directory copy
-        tracker.cleanup_all()
+        cleanup_ok = tracker.cleanup_all()
+        if not cleanup_ok:
+            record("T5: Pre-Relocation Owner Cleanup", False, "Some owners failed to terminate cleanly before relocation")
         time.sleep(2)
 
         reloc_root = os.path.join(project_root, f"temp_reloc_{int(time.time()*1000)}_한글 공백")
-        # Full copy with zero file exclusions (complete profile data retention test)
         shutil.copytree(test_root, reloc_root)
         reloc_launcher = os.path.join(reloc_root, "LiteChromiumPortable.exe")
+        reloc_engine = os.path.join(reloc_root, "engine", "chrome.exe")
+        reloc_tracker = OwnedProcessTracker(expected_engine_exe=reloc_engine)
 
-        FIXTURE_REPORTS.clear()
-        # Read instance 1 in relocated environment without mutation
+        LATEST_REPORTS.clear()
         target_url_reloc = f"http://127.0.0.1:9876/fixture.html?inst=1&ext_id={EXPECTED_EXT_ID}&mode=read&nonce={nonces_5[1]}"
         subprocess.run([reloc_launcher, "--instance=1", f"--url={target_url_reloc}"], cwd=reloc_root, capture_output=True, text=True, encoding="utf-8", errors="replace")
         time.sleep(2)
 
-        reloc_pid, _ = find_actual_owner_pid(reloc_root, 1)
+        reloc_pid, reloc_prof = find_actual_owner_pid(reloc_root, 1)
         if reloc_pid:
-            tracker.register_owner(1, reloc_pid)
+            reloc_tracker.register_owner(1, reloc_pid, reloc_prof)
 
         t_start = time.time()
         rep_reloc = None
         while time.time() - t_start < 30:
-            if "1" in FIXTURE_REPORTS:
-                rep_reloc = FIXTURE_REPORTS["1"]
+            if "1" in LATEST_REPORTS and LATEST_REPORTS["1"].get("mode") == "read":
+                rep_reloc = LATEST_REPORTS["1"]
                 break
             time.sleep(0.5)
 
         t5_pass, t5_detail = evaluate_fixture_assertion(rep_reloc, expected_inst=1, expected_nonce=nonces_5[1], expected_mode="read")
         record("T5: Complete Directory Relocation (Korean/Spaces) & Read-Only Retention", t5_pass, f"reloc_path={reloc_root}, {t5_detail}")
 
-        tracker.close_and_wait_owner(1, timeout=10)
+        if reloc_pid:
+            closed, mode = reloc_tracker.close_and_wait_owner(reloc_pid, timeout=10)
+            if not closed or mode == "forced_kill":
+                record("T5: Relocated Owner Exit", False, f"clean_exit=False, mode={mode}")
+
+        # Merge reloc tracker events into main tracker
+        tracker.events.extend(reloc_tracker.events)
         time.sleep(2)
 
     except Exception as e:
         test_failed = True
         record("R4 Suite Unhandled Exception", False, str(e))
     finally:
-        print("\n[R4-RUNNER] Final Cleanup: terminating all verified owned processes gracefully...", flush=True)
-        tracker.cleanup_all()
+        print("\n[R4-RUNNER] Final Cleanup: terminating all verified owned processes...", flush=True)
+        final_ok = tracker.cleanup_all()
         server.stop()
         time.sleep(2)
 
-        # Re-compute overall failure from all test results
+        if not final_ok:
+            test_failed = True
+            print("[R4-RUNNER] WARNING: final cleanup had lingering processes!", flush=True)
+
         if any(r["status"] == "FAIL" for r in results):
             test_failed = True
 
@@ -892,8 +1085,20 @@ def main():
     with open(raw_diagnostics_path, "w", encoding="utf-8") as f:
         json.dump({
             "summary": summary,
-            "raw_reports": FIXTURE_REPORTS,
-            "lifecycle_events": tracker.events
+            "raw_probe_reports_count": len(RAW_PROBE_REPORTS),
+            "raw_probe_reports": RAW_PROBE_REPORTS,
+            "lifecycle_events_count": len(tracker.events),
+            "lifecycle_events": tracker.events,
+            "all_registered_owners_count": len(tracker.all_history),
+            "all_registered_owners": [
+                {
+                    "instance_id": o.instance_id,
+                    "pid": o.pid,
+                    "profile_dir": o.profile_dir,
+                    "create_time": o.create_time,
+                    "executable": o.executable
+                } for o in tracker.all_history
+            ]
         }, f, indent=2)
 
     print(f"\n=======================================================", flush=True)

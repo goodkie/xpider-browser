@@ -11,9 +11,9 @@
 | **Git** | INSTALLED | `C:\Program Files\Git\cmd\git.exe` (v2.44+) | PATH verified |
 | **Python** | INSTALLED | `C:\Users\oPus\AppData\Local\Programs\Python\Python312` (v3.12.3) | PATH verified |
 | **Go** | INSTALLED | `C:\Program Files\Go\bin\go.exe` (go1.22+) | PATH verified |
-| **MSVC / VS** | NOT_IN_PATH | Needs Visual Studio 2022 Community (17.8+) C++ workload | Pending setup |
-| **Windows 10/11 SDK** | NOT_IN_PATH | Requires 10.0.22621.0+ with Debugging Tools | Pending setup |
-| **depot_tools / GN / Ninja** | NOT_INSTALLED | Required for Chromium checkout & build graph | Pending bootstrap on `E:\` |
+| **MSVC / VS (cl.exe)** | NOT_INSTALLED | Verified absent via `vswhere.exe` and `where.exe cl` | Blocked: No VS installation found in Program Files |
+| **Windows 10/11 SDK** | NOT_INSTALLED | Verified absent via `C:\Program Files (x86)\Windows Kits` | Blocked: Requires 10.0.22621.0+ |
+| **depot_tools / GN / Ninja** | NOT_INSTALLED | Verified absent via `where.exe ninja gn` | Blocked: depot_tools not installed in PATH |
 
 ---
 
@@ -21,9 +21,10 @@
 
 - **Engine Version**: Chromium `154.0.8037.57` (ungoogled-chromium packaging)
 - **Pinned Chromium Source Commit**: `73c14f6228d7cd537c855007e8f88678969cc0eb`
+- **Patch Status**: `DESIGN_SKETCH / NOT_APPLIED` (`patches/001-native-multipanel.patch`)
 - **Source Inspection Targets**:
-  - `chrome/browser/ui/views/side_panel/side_panel_coordinator.h` / `.cc`
-  - `chrome/browser/ui/views/side_panel/side_panel_entry_key.h` / `.cc`
+  - `chrome/browser/ui/side_panel/side_panel_entry_key.h` / `.cc` (Pinned upstream key location)
+  - `chrome/browser/ui/views/side_panel/side_panel_coordinator.h` / `.cc` (Constructor: `BrowserWindowInterface*`)
   - `chrome/browser/ui/views/side_panel/side_panel_ui_base.h` (`SidePanelUIBase::UniqueKey`)
   - `chrome/browser/ui/views/side_panel/extensions/extension_side_panel_coordinator.h` / `.cc`
 

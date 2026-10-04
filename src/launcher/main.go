@@ -326,13 +326,19 @@ func unzipIncomingExtensions(extsDir string) []error {
 		unresolved, recErrs := recoverImportJournals(extsDir)
 		errs = append(errs, recErrs...)
 
-		// Clear only orphaned staging dirs that are not part of an active recovery
-		stagingRoot := filepath.Join(extsDir, ".staging")
-		if sEntries, err := os.ReadDir(stagingRoot); err == nil {
-			for _, se := range sEntries {
-				sPath := filepath.Join(stagingRoot, se.Name())
-				if !activeStaging[strings.ToLower(filepath.Clean(sPath))] {
-					_ = os.RemoveAll(sPath)
+		// If ANY journal was malformed/unreadable, or if any transaction remains unresolved,
+		// we cannot safely determine staging ownership -> PRESERVE ALL staging directories!
+		hasUnresolved := len(unresolved) > 0 || len(recErrs) > 0
+
+		if !hasUnresolved {
+			// Clear only orphaned staging dirs when all journals were cleanly inspected and resolved
+			stagingRoot := filepath.Join(extsDir, ".staging")
+			if sEntries, err := os.ReadDir(stagingRoot); err == nil {
+				for _, se := range sEntries {
+					sPath := filepath.Join(stagingRoot, se.Name())
+					if !activeStaging[strings.ToLower(filepath.Clean(sPath))] {
+						_ = os.RemoveAll(sPath)
+					}
 				}
 			}
 		}
@@ -507,25 +513,33 @@ func safeRelPath(baseDir, targetPath string) (string, error) {
 	return rel, nil
 }
 
-// updateJournalPhase updates the phase field in a recovery journal file.
+// updateJournalPhase updates the phase field in a recovery journal file atomically.
 func updateJournalPhase(journalPath, phase string) error {
 	if journalPath == "" {
 		return nil
 	}
 	data, err := os.ReadFile(journalPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("read journal for phase update: %w", err)
 	}
 	var j importJournal
 	if err := json.Unmarshal(data, &j); err != nil {
-		return err
+		return fmt.Errorf("unmarshal journal for phase update: %w", err)
 	}
 	j.Phase = phase
 	jd, err := json.Marshal(j)
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal journal for phase update: %w", err)
 	}
-	return os.WriteFile(journalPath, jd, 0644)
+	tmp := journalPath + ".tmp"
+	if err := os.WriteFile(tmp, jd, 0644); err != nil {
+		return fmt.Errorf("write journal tmp: %w", err)
+	}
+	if err := renameFn(tmp, journalPath); err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("atomic rename journal: %w", err)
+	}
+	return nil
 }
 
 // safeResolveExtPath resolves a path (relative or absolute) strictly within extsDir.
@@ -652,15 +666,22 @@ func promoteStaged(extsDir, stagingDir, destDir string) error {
 		return fmt.Errorf("failed to promote staged extension to %s; previous version restored and verified: %w", destDir, promotionErr)
 	}
 
-	_ = updateJournalPhase(journalPath, "promoted")
+	if err := updateJournalPhase(journalPath, "promoted"); err != nil {
+		return fmt.Errorf("failed to record promoted phase in journal: %w", err)
+	}
 
 	if !hasManifest(destDir) {
 		return fmt.Errorf("promotion verification failed: %s has no manifest.json (backup kept at %s)", destDir, backupDir)
 	}
 
-	_ = updateJournalPhase(journalPath, "verified")
+	if err := updateJournalPhase(journalPath, "verified"); err != nil {
+		return fmt.Errorf("failed to record verified phase in journal: %w", err)
+	}
 
 	if backupDir != "" {
+		if !hasManifest(destDir) {
+			return fmt.Errorf("destination verification failed before backup deletion: %s has no manifest.json (backup kept at %s)", destDir, backupDir)
+		}
 		if err := os.RemoveAll(backupDir); err != nil {
 			fmt.Fprintf(os.Stderr, "[LiteChromiumPortable] Warning: could not remove verified-obsolete backup %s: %v (journal kept for cleanup)\n", backupDir, err)
 			return nil
@@ -794,6 +815,8 @@ func buildEngineArgs(profileDir string, extensions []string, initialURL string) 
 		"--disable-component-update",
 		"--disable-background-networking",
 		"--disable-breakpad",
+		"--disable-session-crashed-bubble",
+		"--hide-crash-restore-bubble",
 		"--disable-features=Translate,OptimizationHints,MediaRouter",
 	}
 	if len(extensions) > 0 {

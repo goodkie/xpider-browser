@@ -88,6 +88,9 @@ async function handleMessage(message, sender) {
           return {
             title: document.title,
             url: window.location.href,
+            origin: window.location.origin,
+            pathname: window.location.pathname,
+            search: window.location.search,
             evaluated_at: Date.now()
           };
         }
@@ -95,6 +98,7 @@ async function handleMessage(message, sender) {
       return {
         type: "SCRIPT_RESULT",
         tab_id: tabId,
+        frame_id: 0,
         result: scriptResult[0]?.result || null
       };
     } catch (e) {

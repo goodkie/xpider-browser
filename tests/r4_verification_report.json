@@ -1,39 +1,44 @@
 {
-  "timestamp": 1791123474.9804974,
-  "launcher_sha256": "1a36d94c6a90d5cb6911ff30d5c451964132168892111924bf24e9e90cd105ca",
-  "total": 11,
-  "passed": 11,
+  "timestamp": 1791129426.6762447,
+  "launcher_sha256": "7031c6aad5b7548378035b6a15e25768f3ecc32a66c8409444bce0266a12e0ec",
+  "total": 12,
+  "passed": 12,
   "failed": 0,
   "results": [
     {
       "name": "T0: Wrong-Target & Cookie Substring Rejection Control",
       "status": "PASS",
-      "detail": "collision_rejected=True ('Exact cookie sentinel mismatch: 10 != 1'), wrong_target_rejected=True ('Seed instance_marker mismatch: inst_1 vs inst_2')"
+      "detail": "cookie_collision_rejected=True ('Exact cookie sentinel mismatch: 10 != 1'), target_url_mismatch_rejected=True ('Script URL inst parameter mismatch: ['2'] != ['1']')"
     },
     {
-      "name": "T1-A: Same-Instance Handoff Window Count",
+      "name": "T1-A: Initial Owner Window Visibility",
       "status": "PASS",
-      "detail": "windows_before=0, windows_after=2, stdout=[LiteChromiumPortable] Instance #1 already running [PID: 32324]; opened a new window in the existing owner"
+      "detail": "Detected 1 ready visible windows for PID 31132"
     },
     {
-      "name": "T1: Single Instance MV3 Worker Probe, Scripting & Completed Download",
+      "name": "T1-A: Strict Same-Instance Handoff Window Count (+1 HWND)",
       "status": "PASS",
-      "detail": "All MV3 Worker, Scripting, Cookie, and Storage assertions PASSED, file_downloaded=True, payload_verified=True"
+      "detail": "windows_initial=1, windows_after=2 (expected 2)"
+    },
+    {
+      "name": "T1: Single Instance MV3 Worker Probe, Scripting & Completed Isolated Download",
+      "status": "PASS",
+      "detail": "All MV3 Worker, Scripting, Target Tab URL, Cookie, and Storage assertions PASSED, isolated_file_downloaded=True (E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791129032481\\downloads\\dl_r4_1791129032481_nonce_1791129047325_inst1.txt), payload_verified=True"
     },
     {
       "name": "T1-B: Verified Owner Closure & Exit",
       "status": "PASS",
-      "detail": "PID 32324 verified dead: True"
+      "detail": "PID 31132 dead=True, exit_mode=graceful_wm_close"
     },
     {
       "name": "T2: Negative Control (SAME Assertion Fails on Disabled Extension)",
       "status": "PASS",
-      "detail": "fixture_reached=True, reported_error='chrome.runtime API not available in window context', SAME_assertion_failed=True ('Extension error reported: chrome.runtime API not available in window context')"
+      "detail": "fixture_reached=True (nonce_matched=True), recognized_error='chrome.runtime API not available in window context', SAME_assertion_failed=True ('Extension error reported: chrome.runtime API not available in window context')"
     },
     {
       "name": "T3-A: Batch 3 Concurrent Creation",
       "status": "PASS",
-      "detail": "verified_owners=3/3 (PIDs: [19512, 1088, 15196])"
+      "detail": "verified_owners=3/3 (PIDs: [33640, 17472, 4552])"
     },
     {
       "name": "T3-B: Batch 3 Disk Profile Directory Isolation",
@@ -48,7 +53,7 @@
     {
       "name": "T4-A: Batch 5 Scaling Creation",
       "status": "PASS",
-      "detail": "active_instances_count=5/5 (PIDs: [30228, 26084, 8332, 32160, 30208])"
+      "detail": "active_instances_count=5/5 (PIDs: [33456, 27744, 28512, 35816, 34416])"
     },
     {
       "name": "T4-B: Batch 5 Distinct Nonce Read Persistence & Zero Contamination",
@@ -58,7 +63,7 @@
     {
       "name": "T5: Complete Directory Relocation (Korean/Spaces) & Read-Only Retention",
       "status": "PASS",
-      "detail": "reloc_path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_reloc_1791123378150_\ud55c\uae00 \uacf5\ubc31, All MV3 Worker, Scripting, Cookie, and Storage assertions PASSED"
+      "detail": "reloc_path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_reloc_1791129330609_\ud55c\uae00 \uacf5\ubc31, All MV3 Worker, Scripting, Target Tab URL, Cookie, and Storage assertions PASSED"
     }
   ]
 }

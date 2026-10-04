@@ -651,17 +651,25 @@ func TestRecoveryJournal_PreservesReferencedStaging(t *testing.T) {
 	jd, _ := json.Marshal(j)
 	_ = os.WriteFile(filepath.Join(backups, "ext_123.journal.json"), jd, 0644)
 
-	// Run unzipIncomingExtensions
+	// Run unzipIncomingExtensions while transaction is unresolved
 	_ = unzipIncomingExtensions(exts)
 
-	// Referenced staging directory must still exist!
+	// When a transaction is unresolved, all staging directories must be preserved
 	if _, err := os.Stat(filepath.Join(refStaging, "bytes.bin")); err != nil {
 		t.Fatalf("referenced staging bytes must be preserved: %v", err)
 	}
+	if _, err := os.Stat(orphanStaging); err != nil {
+		t.Fatalf("staging directories must be preserved when recovery state is unresolved: %v", err)
+	}
 
-	// Orphaned staging directory should have been cleaned
+	// Now resolve the journal (simulate clean state)
+	_ = os.Remove(filepath.Join(backups, "ext_123.journal.json"))
+	_ = os.RemoveAll(filepath.Join(backups, "ext_123"))
+
+	// Run unzipIncomingExtensions again: with all journals resolved, orphaned staging is cleaned
+	_ = unzipIncomingExtensions(exts)
 	if _, err := os.Stat(orphanStaging); !os.IsNotExist(err) {
-		t.Fatalf("orphaned staging dir should be cleaned: %v", err)
+		t.Fatalf("orphaned staging dir should be cleaned once all journals resolved: %v", err)
 	}
 }
 
