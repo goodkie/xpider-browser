@@ -36,14 +36,16 @@ type InstanceRegistry struct {
 
 // InstanceExtensionConfig defines per-instance extension configuration
 type InstanceExtensionConfig struct {
-	DisabledExtensions []string `json:"disabled_extensions"`
+	EnabledExtensions  []string `json:"enabled_extensions,omitempty"`
+	DisabledExtensions []string `json:"disabled_extensions,omitempty"`
 }
 
 func main() {
 	instanceFlag := flag.Int("instance", 1, "Instance number to launch (1-100)")
 	batchFlag := flag.Int("batch", 0, "Batch launch multiple instances concurrently (1-20)")
 	statusFlag := flag.Bool("status", false, "Display status of all active browser instances")
-	cleanFlag := flag.Bool("clean-profiles", false, "Clean all instance profiles in data/profiles/")
+	cleanFlag := flag.Bool("clean-profiles", false, "Clean all instance profiles in data/profiles/ (requires --confirm-destructive)")
+	confirmFlag := flag.Bool("confirm-destructive", false, "Confirmation required for destructive operations like --clean-profiles")
 	urlFlag := flag.String("url", "", "Optional initial URL to navigate to")
 	flag.Parse()
 
@@ -90,6 +92,10 @@ func main() {
 	}
 
 	if *cleanFlag {
+		if !*confirmFlag {
+			fmt.Fprintf(os.Stderr, "Security Refusal: --clean-profiles requires explicit --confirm-destructive flag\n")
+			os.Exit(1)
+		}
 		cleanProfiles(profilesBase, registryFile, lockFile)
 		return
 	}
@@ -170,7 +176,7 @@ func findEngine(appRoot string) (string, error) {
 	return "", fmt.Errorf("Chromium engine binary not found in %s/engine/", appRoot)
 }
 
-// discoverInstanceExtensions finds all valid extensions, filtered by instance disabled list (R4)
+// discoverInstanceExtensions finds all valid extensions, filtered by instance configuration (R2/R4)
 func discoverInstanceExtensions(extsDir, profileDir string) []string {
 	var validExts []string
 	if _, err := os.Stat(extsDir); os.IsNotExist(err) {
@@ -178,15 +184,23 @@ func discoverInstanceExtensions(extsDir, profileDir string) []string {
 		return validExts
 	}
 
-	disabledMap := make(map[string]bool)
+	var cfg InstanceExtensionConfig
+	hasConfig := false
 	cfgFile := filepath.Join(profileDir, "extensions_config.json")
 	if data, err := os.ReadFile(cfgFile); err == nil {
-		var cfg InstanceExtensionConfig
 		if err := json.Unmarshal(data, &cfg); err == nil {
-			for _, d := range cfg.DisabledExtensions {
-				disabledMap[strings.ToLower(d)] = true
-			}
+			hasConfig = true
 		}
+	}
+
+	disabledMap := make(map[string]bool)
+	for _, d := range cfg.DisabledExtensions {
+		disabledMap[strings.ToLower(d)] = true
+	}
+
+	enabledMap := make(map[string]bool)
+	for _, e := range cfg.EnabledExtensions {
+		enabledMap[strings.ToLower(e)] = true
 	}
 
 	entries, err := os.ReadDir(extsDir)
@@ -195,11 +209,22 @@ func discoverInstanceExtensions(extsDir, profileDir string) []string {
 	}
 
 	for _, entry := range entries {
-		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && entry.Name() != "incoming" {
+		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && entry.Name() != "incoming" && entry.Name() != ".staging" {
 			extName := entry.Name()
-			if disabledMap[strings.ToLower(extName)] {
-				continue // disabled for this instance
+			lowerName := strings.ToLower(extName)
+
+			// If explicit enabled list is provided, only include those
+			if hasConfig && len(cfg.EnabledExtensions) > 0 {
+				if !enabledMap[lowerName] {
+					continue
+				}
 			}
+
+			// Exclude if disabled
+			if disabledMap[lowerName] {
+				continue
+			}
+
 			manifestPath := filepath.Join(extsDir, extName, "manifest.json")
 			if _, err := os.Stat(manifestPath); err == nil {
 				validExts = append(validExts, filepath.Join(extsDir, extName))
@@ -305,11 +330,32 @@ func transactionalUnzip(zipPath, stagingDir, destDir string) error {
 		return fmt.Errorf("manifest.json is malformed JSON: %w", err)
 	}
 
-	// Promote staging to destDir
-	_ = os.RemoveAll(destDir)
-	if err := os.Rename(stagingDir, destDir); err != nil {
+	// Promote staging to destDir with safe backup and rollback (R2/R4)
+	var backupDir string
+	if _, err := os.Stat(destDir); err == nil {
+		backupDir = destDir + fmt.Sprintf(".backup_%d", time.Now().UnixNano())
+		if err := os.Rename(destDir, backupDir); err != nil {
+			return fmt.Errorf("failed to backup existing extension before promotion: %w", err)
+		}
+	}
+
+	promotionErr := os.Rename(stagingDir, destDir)
+	if promotionErr != nil {
 		// Fallback for cross-device or permission rename failure
-		return copyDir(stagingDir, destDir)
+		promotionErr = copyDir(stagingDir, destDir)
+	}
+
+	if promotionErr != nil {
+		// Rollback previous extension if backup was created
+		if backupDir != "" {
+			_ = os.Rename(backupDir, destDir)
+		}
+		return fmt.Errorf("failed to promote staged extension to %s (rollback executed): %w", destDir, promotionErr)
+	}
+
+	// Promotion succeeded: remove backup directory
+	if backupDir != "" {
+		_ = os.RemoveAll(backupDir)
 	}
 	return nil
 }
@@ -455,14 +501,45 @@ func updateRegistryLocked(regPath, lockPath string, rec InstanceRecord) error {
 			return err
 		}
 
-		// Atomic file write via temp file
+		// Atomic file write via temp file and Windows MoveFileExW (R2)
 		tmpFile := regPath + ".tmp"
 		if err := os.WriteFile(tmpFile, bytes, 0644); err != nil {
 			return err
 		}
-		_ = os.Remove(regPath)
-		return os.Rename(tmpFile, regPath)
+		return atomicReplaceFile(tmpFile, regPath)
 	})
+}
+
+// Windows-safe atomic file replacement without deleting target beforehand (R2)
+func atomicReplaceFile(sourcePath, destPath string) error {
+	if runtime.GOOS == "windows" {
+		modkernel32 := syscall.NewLazyDLL("kernel32.dll")
+		procMoveFileExW := modkernel32.NewProc("MoveFileExW")
+		srcPtr, err := syscall.UTF16PtrFromString(sourcePath)
+		if err != nil {
+			return err
+		}
+		dstPtr, err := syscall.UTF16PtrFromString(destPath)
+		if err != nil {
+			return err
+		}
+		const MOVEFILE_REPLACE_EXISTING = 0x1
+		const MOVEFILE_WRITE_THROUGH = 0x8
+		r1, _, errSys := procMoveFileExW.Call(
+			uintptr(unsafe.Pointer(srcPtr)),
+			uintptr(unsafe.Pointer(dstPtr)),
+			uintptr(MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH),
+		)
+		if r1 == 0 {
+			// Fallback if MoveFileExW fails
+			_ = os.Remove(destPath)
+			return os.Rename(sourcePath, destPath)
+		}
+		_ = errSys
+		return nil
+	}
+	_ = os.Remove(destPath)
+	return os.Rename(sourcePath, destPath)
 }
 
 func printStatus(regPath, lockPath string) {
@@ -502,7 +579,7 @@ func printStatus(regPath, lockPath string) {
 	})
 }
 
-// Safe profile cleanup (R3)
+// Safe profile cleanup (R2/R3)
 func cleanProfiles(profilesBase, regPath, lockPath string) {
 	err := withFileLock(lockPath, func() error {
 		data, err := os.ReadFile(regPath)
@@ -522,10 +599,11 @@ func cleanProfiles(profilesBase, regPath, lockPath string) {
 			return errors.New("aborted: profiles path does not end with 'profiles'")
 		}
 
-		_ = os.Remove(regPath)
+		// Remove profile directories first; only if successful, clear the registry
 		if err := os.RemoveAll(profilesBase); err != nil {
 			return fmt.Errorf("failed to remove profiles: %w", err)
 		}
+		_ = os.Remove(regPath)
 		fmt.Printf("Successfully cleaned profiles directory: %s\n", profilesBase)
 		return nil
 	})

@@ -1,40 +1,40 @@
 {
   "project_name": "Lite Chromium Portable",
-  "version": "0.1.0-p1a-r1",
+  "version": "0.1.0-p1a-r2",
   "git_branch": "feature/lcw-portable-chromium",
-  "git_commit": "bee59d7441ad0a143fa6fdcbf85bd7523e176c71",
-  "build_timestamp": "2026-10-04T08:40:00Z",
+  "git_commit": "fc8e372d3c3c7c4f2351767751ce5bcda5a0425b",
+  "build_timestamp": "2026-10-04T09:25:00Z",
   "platform": "windows-x64",
   "launcher": {
     "source": "src/launcher/main.go",
     "compiler": "go1.25.7 windows/amd64",
     "binary": "LiteChromiumPortable.exe",
-    "binary_bytes": 2743808,
-    "binary_sha256": "ffa97680fddf94cffe49337aa6e7c746790cf9ab50fde6b006304add24073eb8",
+    "binary_bytes": 2746368,
+    "binary_sha256": "6ef1247009dc226d4ac42724706fe03739080b33eb1933707e79f92f574bd66f",
     "ldflags": "-s -w"
   },
   "engine": {
     "version": "154.0.8037.57",
     "upstream_tag": "154.0.8037.57-1.1",
-    "chromium_upstream_commit": "b859317bf11f6be47f9b7799ec690a0a42a1fb33",
+    "chromium_upstream_commit": "73c14f6228d7cd537c855007e8f88678969cc0eb",
     "runtime_binary": "engine/chrome.exe",
     "package_sha256": "d4b8f53e8100e428a6ccea8070a1a909af3022c21070bfcd7dca102990d95d88"
   },
   "release_artifact": {
     "file": "LiteChromiumPortable_v0.1.0_win64.zip",
-    "bytes": 264685048,
-    "mb": 252.42,
-    "sha256": "e5dd6b1d21b554e16c98d037790c9feb238bb28b205834cf6c03652db59da348"
+    "bytes": 199954803,
+    "mb": 190.69,
+    "sha256": "e97c555d37e7b0a260363cea314e409aa3bfd3812a2b338713b6735644231939"
   },
-  "remediation": "P1A-R1",
+  "remediation": "P1A-R2",
   "remediation_items_implemented": [
-    "R1: Eliminated global taskkill; targeted process lifecycle management",
-    "R2: Windows cross-process file lock and atomic registry update",
-    "R3: Protected real user profiles; restricted cleanup and checks",
-    "R4: Transactional extension import and per-instance extension configuration",
-    "R5: Real runtime assertions, 5-instance concurrency and profile segregation",
-    "R6: Monotonic readiness-based startup latency and owned-process memory measurement",
-    "R7: Panel spike static analysis clarity",
-    "R8: Chromium source commit SHA mapping"
+    "R2: Windows MoveFileExW atomic registry replace and --confirm-destructive safety flag",
+    "R2: Staging backup and rollback protection on extension upgrade",
+    "R2: Per-instance EnabledExtensions whitelist and DisabledExtensions isolation",
+    "R2: Corrected upstream Chromium source commit SHA (73c14f6228d7cd537c855007e8f88678969cc0eb)",
+    "R2: Clean minimal packaging excluding 650+ legacy XPIDER extension bulk (reduced to 190.69MB)",
+    "R2: Verified browser window rendered milestone latency measurement (median: 11.609s)",
+    "R2: Full recursive process tree memory accounting (4 processes, WorkingSet: 118.83MB)",
+    "R2: Sentinel process survival verification across all lifecycle and shutdown tests"
   ]
 }

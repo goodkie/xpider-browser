@@ -3,6 +3,7 @@
   "engine_name": "Chromium (ungoogled-chromium binary distribution)",
   "browser_version": "154.0.8037.57",
   "upstream_tag": "154.0.8037.57-1.1",
+  "upstream_chromium_source_commit": "73c14f6228d7cd537c855007e8f88678969cc0eb",
   "platform": "windows-x64",
   "acquisition": {
     "provider": "github.com/ungoogled-software/ungoogled-chromium-windows",

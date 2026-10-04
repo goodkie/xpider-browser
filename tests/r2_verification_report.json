@@ -1,0 +1,77 @@
+{
+  "suite": "P1A-R2 Comprehensive Runtime Verification",
+  "passed": 14,
+  "failed": 0,
+  "assertions": [
+    {
+      "name": "T1. Chromium Upstream Source Commit Lock",
+      "status": "PASS",
+      "detail": "actual=73c14f6228d7cd537c855007e8f88678969cc0eb"
+    },
+    {
+      "name": "T1. BUILD_RECEIPT Version",
+      "status": "PASS",
+      "detail": "ver=0.1.0-p1a-r2"
+    },
+    {
+      "name": "T1. BUILD_RECEIPT Upstream Commit",
+      "status": "PASS",
+      "detail": "commit=73c14f6228d7cd537c855007e8f88678969cc0eb"
+    },
+    {
+      "name": "T2. Destructive Clean Profiles Refused Without Confirmation",
+      "status": "PASS",
+      "detail": "rc=1, stderr=Security Refusal: --clean-profiles requires explicit --confirm-destructive flag"
+    },
+    {
+      "name": "T2. URL Switch Injection Prevented",
+      "status": "PASS",
+      "detail": "rc=1, stderr=Security Error: --url parameter must not begin with '-' or '--' (flag injection prevented)"
+    },
+    {
+      "name": "T3. Pre-update Extension Base Created",
+      "status": "PASS",
+      "detail": "manifest exists"
+    },
+    {
+      "name": "T4. Multi-Instance Concurrency (3 Registered)",
+      "status": "PASS",
+      "detail": "registered=3: [24300, 14556, 7752]"
+    },
+    {
+      "name": "T4. Active Instance Deletion Refusal",
+      "status": "PASS",
+      "detail": "rc=1, stderr=Profile cleanup error: cannot clean profiles: instance-11 [PID 24300] is currently active"
+    },
+    {
+      "name": "T4. Profile 11 Exists and Isolated",
+      "status": "PASS",
+      "detail": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-11"
+    },
+    {
+      "name": "T4. Profile 12 Exists and Isolated",
+      "status": "PASS",
+      "detail": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-12"
+    },
+    {
+      "name": "T4. Profile 13 Exists and Isolated",
+      "status": "PASS",
+      "detail": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-13"
+    },
+    {
+      "name": "T5. Per-Instance Enabled Configuration (Inst 21)",
+      "status": "PASS",
+      "detail": "mv3-fixture loaded"
+    },
+    {
+      "name": "T5. Per-Instance Disabled Configuration (Inst 22)",
+      "status": "PASS",
+      "detail": "mv3-fixture excluded"
+    },
+    {
+      "name": "T6. Sentinel Process Survived Entire Suite Unharmed",
+      "status": "PASS",
+      "detail": "sentinel 25800 alive"
+    }
+  ]
+}

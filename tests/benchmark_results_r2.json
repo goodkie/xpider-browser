@@ -1,0 +1,29 @@
+{
+  "engine_version": "154.0.8037.57",
+  "upstream_chromium_source_commit": "73c14f6228d7cd537c855007e8f88678969cc0eb",
+  "previous_invalid_startup_result": "1.008s (MARKED INVALID: was fixed sleep delay artifact)",
+  "previous_r1_startup_timings": "0.078s (MARKED INVALID / REGISTRY_VISIBILITY_ONLY: was registry timestamp, not UI readiness)",
+  "verified_window_rendered_timings_sec": [
+    0.64,
+    9.031,
+    11.609,
+    11.609,
+    14.375
+  ],
+  "median_startup_sec": 11.609,
+  "owned_process_memory_recursive": {
+    "process_tree_count": 4,
+    "working_set_bytes": 124604416,
+    "working_set_mb": 118.83,
+    "private_bytes": 60305408,
+    "private_bytes_mb": 57.51
+  },
+  "clean_release_artifact": {
+    "file": "LiteChromiumPortable_v0.1.0_win64.zip",
+    "bytes": 199954803,
+    "mb": 190.69,
+    "sha256": "e97c555d37e7b0a260363cea314e409aa3bfd3812a2b338713b6735644231939",
+    "legacy_xpider_extensions_excluded": true,
+    "contents_summary": "Unmodified Chromium 154 engine (76 files) + Native Go Launcher + mv3-fixture + notices/licenses/receipts"
+  }
+}
