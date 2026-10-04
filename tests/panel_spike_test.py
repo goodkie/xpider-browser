@@ -17,13 +17,12 @@ def main():
     log("Starting Panel Capability Spike experiment...")
     os.makedirs(profile_dir, exist_ok=True)
 
-    # 1. Start browser with remote debugging to inspect extension contexts
+    # 1. Bounded local loopback inspection only (no remote-allow-origins wildcard)
     port = 9333
     args = [
         engine_exe,
         f"--user-data-dir={profile_dir}",
         f"--remote-debugging-port={port}",
-        "--remote-allow-origins=*",
         f"--load-extension={fixture_dir}",
         "--no-first-run",
         "--no-default-browser-check",

@@ -91,9 +91,19 @@ def main():
     record_test("7. Profile Directory Isolation", inst1_items > 0 and inst2_items > 0 and inst3_items > 0,
                 f"file_counts: inst1={inst1_items}, inst2={inst2_items}, inst3={inst3_items}")
 
-    # Terminate launched chrome processes for clean shutdown
-    log("Terminating test browser processes...")
-    subprocess.run(["taskkill", "/F", "/IM", "chrome.exe"], capture_output=True)
+    # Terminate launched chrome processes for clean shutdown (targeted by profile/registry only)
+    log("Terminating owned test browser processes...")
+    try:
+        reg_file = os.path.join(data_dir, "instances.json")
+        if os.path.exists(reg_file):
+            with open(reg_file, "r") as f:
+                rdata = json.load(f)
+                for inst in rdata.get("instances", []):
+                    cpid = inst.get("pid")
+                    if cpid:
+                        subprocess.run(["powershell", "-Command", f"Stop-Process -Id {cpid} -Force -ErrorAction SilentlyContinue"], capture_output=True)
+    except:
+        pass
     time.sleep(1)
 
     # Test 8: Extension Fixture Structure & SidePanel Manifest Verification

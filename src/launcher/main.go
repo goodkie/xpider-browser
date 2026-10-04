@@ -44,8 +44,7 @@ func main() {
 	instanceFlag := flag.Int("instance", 1, "Instance number to launch (1-100)")
 	batchFlag := flag.Int("batch", 0, "Batch launch multiple instances concurrently (1-20)")
 	statusFlag := flag.Bool("status", false, "Display status of all active browser instances")
-	cleanFlag := flag.Bool("clean-profiles", false, "Clean all instance profiles in data/profiles/ (requires --confirm-destructive)")
-	confirmFlag := flag.Bool("confirm-destructive", false, "Confirmation required for destructive operations like --clean-profiles")
+	cleanFlag := flag.Bool("clean-profiles", false, "Clean all instance profiles (permanently disabled)")
 	urlFlag := flag.String("url", "", "Optional initial URL to navigate to")
 	flag.Parse()
 
@@ -92,12 +91,8 @@ func main() {
 	}
 
 	if *cleanFlag {
-		if !*confirmFlag {
-			fmt.Fprintf(os.Stderr, "Security Refusal: --clean-profiles requires explicit --confirm-destructive flag\n")
-			os.Exit(1)
-		}
-		cleanProfiles(profilesBase, registryFile, lockFile)
-		return
+		fmt.Fprintf(os.Stderr, "Security Refusal: --clean-profiles is permanently disabled in this release to protect user data\n")
+		os.Exit(1)
 	}
 
 	engineExe, err := findEngine(appRoot)
@@ -176,7 +171,7 @@ func findEngine(appRoot string) (string, error) {
 	return "", fmt.Errorf("Chromium engine binary not found in %s/engine/", appRoot)
 }
 
-// discoverInstanceExtensions finds all valid extensions, filtered by instance configuration (R2/R4)
+// discoverInstanceExtensions finds all valid extensions, strictly controlled by instance configuration (R3)
 func discoverInstanceExtensions(extsDir, profileDir string) []string {
 	var validExts []string
 	if _, err := os.Stat(extsDir); os.IsNotExist(err) {
@@ -188,19 +183,12 @@ func discoverInstanceExtensions(extsDir, profileDir string) []string {
 	hasConfig := false
 	cfgFile := filepath.Join(profileDir, "extensions_config.json")
 	if data, err := os.ReadFile(cfgFile); err == nil {
-		if err := json.Unmarshal(data, &cfg); err == nil {
-			hasConfig = true
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			// Fail safely on corrupted or invalid json
+			fmt.Fprintf(os.Stderr, "Security Warning: corrupted extensions_config.json in %s (loading zero extensions for safety): %v\n", profileDir, err)
+			return validExts
 		}
-	}
-
-	disabledMap := make(map[string]bool)
-	for _, d := range cfg.DisabledExtensions {
-		disabledMap[strings.ToLower(d)] = true
-	}
-
-	enabledMap := make(map[string]bool)
-	for _, e := range cfg.EnabledExtensions {
-		enabledMap[strings.ToLower(e)] = true
+		hasConfig = true
 	}
 
 	entries, err := os.ReadDir(extsDir)
@@ -208,23 +196,39 @@ func discoverInstanceExtensions(extsDir, profileDir string) []string {
 		return validExts
 	}
 
+	// If explicit enabled list is provided (even if empty []), strictly enforce it
+	if hasConfig && cfg.EnabledExtensions != nil {
+		enabledMap := make(map[string]bool)
+		for _, e := range cfg.EnabledExtensions {
+			enabledMap[strings.ToLower(e)] = true
+		}
+		for _, entry := range entries {
+			if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && entry.Name() != "incoming" && entry.Name() != ".staging" {
+				extName := entry.Name()
+				if enabledMap[strings.ToLower(extName)] {
+					manifestPath := filepath.Join(extsDir, extName, "manifest.json")
+					if _, err := os.Stat(manifestPath); err == nil {
+						validExts = append(validExts, filepath.Join(extsDir, extName))
+					}
+				}
+			}
+		}
+		return validExts
+	}
+
+	disabledMap := make(map[string]bool)
+	if hasConfig {
+		for _, d := range cfg.DisabledExtensions {
+			disabledMap[strings.ToLower(d)] = true
+		}
+	}
+
 	for _, entry := range entries {
 		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && entry.Name() != "incoming" && entry.Name() != ".staging" {
 			extName := entry.Name()
-			lowerName := strings.ToLower(extName)
-
-			// If explicit enabled list is provided, only include those
-			if hasConfig && len(cfg.EnabledExtensions) > 0 {
-				if !enabledMap[lowerName] {
-					continue
-				}
-			}
-
-			// Exclude if disabled
-			if disabledMap[lowerName] {
+			if disabledMap[strings.ToLower(extName)] {
 				continue
 			}
-
 			manifestPath := filepath.Join(extsDir, extName, "manifest.json")
 			if _, err := os.Stat(manifestPath); err == nil {
 				validExts = append(validExts, filepath.Join(extsDir, extName))
@@ -531,14 +535,10 @@ func atomicReplaceFile(sourcePath, destPath string) error {
 			uintptr(MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH),
 		)
 		if r1 == 0 {
-			// Fallback if MoveFileExW fails
-			_ = os.Remove(destPath)
-			return os.Rename(sourcePath, destPath)
+			return fmt.Errorf("MoveFileExW atomic replace failed (target preserved): %v", errSys)
 		}
-		_ = errSys
 		return nil
 	}
-	_ = os.Remove(destPath)
 	return os.Rename(sourcePath, destPath)
 }
 
