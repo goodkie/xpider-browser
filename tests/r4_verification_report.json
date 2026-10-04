@@ -1,5 +1,5 @@
 {
-  "timestamp": 1791129426.6762447,
+  "timestamp": 1791132180.8152287,
   "launcher_sha256": "7031c6aad5b7548378035b6a15e25768f3ecc32a66c8409444bce0266a12e0ec",
   "total": 12,
   "passed": 12,
@@ -13,7 +13,7 @@
     {
       "name": "T1-A: Initial Owner Window Visibility",
       "status": "PASS",
-      "detail": "Detected 1 ready visible windows for PID 31132"
+      "detail": "Detected 1 ready visible windows for PID 36780"
     },
     {
       "name": "T1-A: Strict Same-Instance Handoff Window Count (+1 HWND)",
@@ -23,12 +23,12 @@
     {
       "name": "T1: Single Instance MV3 Worker Probe, Scripting & Completed Isolated Download",
       "status": "PASS",
-      "detail": "All MV3 Worker, Scripting, Target Tab URL, Cookie, and Storage assertions PASSED, isolated_file_downloaded=True (E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791129032481\\downloads\\dl_r4_1791129032481_nonce_1791129047325_inst1.txt), payload_verified=True"
+      "detail": "All MV3 Worker, Scripting, Target Tab URL, Cookie, and Storage assertions PASSED, isolated_file_downloaded=True (E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\downloads\\dl_r4_1791131808809_nonce_1791131820557_inst1.txt), payload_verified=True"
     },
     {
       "name": "T1-B: Verified Owner Closure & Exit",
       "status": "PASS",
-      "detail": "PID 31132 dead=True, exit_mode=graceful_wm_close"
+      "detail": "PID 36780 dead=True, exit_mode=graceful_wm_close"
     },
     {
       "name": "T2: Negative Control (SAME Assertion Fails on Disabled Extension)",
@@ -38,7 +38,7 @@
     {
       "name": "T3-A: Batch 3 Concurrent Creation",
       "status": "PASS",
-      "detail": "verified_owners=3/3 (PIDs: [33640, 17472, 4552])"
+      "detail": "verified_owners=3/3 (PIDs: [35084, 24412, 31424])"
     },
     {
       "name": "T3-B: Batch 3 Disk Profile Directory Isolation",
@@ -53,7 +53,7 @@
     {
       "name": "T4-A: Batch 5 Scaling Creation",
       "status": "PASS",
-      "detail": "active_instances_count=5/5 (PIDs: [33456, 27744, 28512, 35816, 34416])"
+      "detail": "active_instances_count=5/5 (PIDs: [35956, 22532, 34372, 17964, 17824])"
     },
     {
       "name": "T4-B: Batch 5 Distinct Nonce Read Persistence & Zero Contamination",
@@ -63,7 +63,7 @@
     {
       "name": "T5: Complete Directory Relocation (Korean/Spaces) & Read-Only Retention",
       "status": "PASS",
-      "detail": "reloc_path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_reloc_1791129330609_\ud55c\uae00 \uacf5\ubc31, All MV3 Worker, Scripting, Target Tab URL, Cookie, and Storage assertions PASSED"
+      "detail": "reloc_path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_reloc_1791132092506_\ud55c\uae00 \uacf5\ubc31, All MV3 Worker, Scripting, Target Tab URL, Cookie, and Storage assertions PASSED"
     }
   ]
 }

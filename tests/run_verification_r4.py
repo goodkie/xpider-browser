@@ -330,8 +330,14 @@ class OwnedProcessTracker:
         if norm_exe != self.expected_engine_exe:
             raise RuntimeError(f"Owner PID {pid} executable mismatch: {norm_exe} vs expected {self.expected_engine_exe}")
 
-        clean_profile = os.path.normcase(os.path.abspath(profile_dir))
-        has_profile_arg = any(f"--user-data-dir={profile_dir}" in arg or clean_profile in os.path.normcase(arg) for arg in cmdline)
+        clean_profile = os.path.normcase(os.path.normpath(profile_dir))
+        has_profile_arg = False
+        for arg in cmdline:
+            if arg.startswith("--user-data-dir="):
+                val = arg.split("=", 1)[1].strip("\"'")
+                if os.path.normcase(os.path.normpath(val)) == clean_profile:
+                    has_profile_arg = True
+                    break
         if not has_profile_arg:
             raise RuntimeError(f"Owner PID {pid} command line missing exact profile argument {profile_dir}")
 
@@ -360,15 +366,76 @@ class OwnedProcessTracker:
 
     def close_and_wait_owner(self, pid, timeout=12):
         rec = self.active_owners.get(pid)
-        inst_id = rec.instance_id if rec else "unknown"
+        if not rec:
+            self.log_event("CLOSE_REFUSED_UNREGISTERED", {
+                "pid": pid,
+                "error": "Refusing to touch unregistered PID",
+                "clean_exit": False
+            })
+            return False, "unregistered_owner"
+
+        inst_id = rec.instance_id
         self.log_event("CLOSE_REQUESTED", {"instance_id": inst_id, "pid": pid})
         try:
             p = psutil.Process(pid)
         except psutil.NoSuchProcess:
             if pid in self.active_owners:
                 del self.active_owners[pid]
-            self.log_event("PROCESS_EXITED", {"instance_id": inst_id, "pid": pid, "exit_mode": "already_dead", "clean_exit": True})
+            self.log_event("PROCESS_EXITED", {
+                "instance_id": inst_id,
+                "pid": pid,
+                "root_exit_mode": "already_dead",
+                "exit_mode": "already_dead",
+                "child_forced_kills": [],
+                "survivors": [],
+                "clean_exit": True
+            })
             return True, "already_dead"
+
+        # Re-verify owner identity before any action
+        try:
+            cur_create_time = p.create_time()
+            cur_exe = os.path.normcase(os.path.abspath(p.exe()))
+            cur_cmdline = p.cmdline()
+
+            if abs(cur_create_time - rec.create_time) > 0.05:
+                self.log_event("CLOSE_REFUSED_IDENTITY_MISMATCH", {
+                    "instance_id": inst_id,
+                    "pid": pid,
+                    "reason": f"create_time mismatch: {cur_create_time} != {rec.create_time}"
+                })
+                return False, "identity_mismatch_createtime"
+
+            if cur_exe != os.path.normcase(os.path.abspath(rec.executable)):
+                self.log_event("CLOSE_REFUSED_IDENTITY_MISMATCH", {
+                    "instance_id": inst_id,
+                    "pid": pid,
+                    "reason": f"exe mismatch: {cur_exe} != {rec.executable}"
+                })
+                return False, "identity_mismatch_exe"
+
+            clean_profile = os.path.normcase(os.path.normpath(rec.profile_dir))
+            has_profile = False
+            for arg in cur_cmdline:
+                if arg.startswith("--user-data-dir="):
+                    val = arg.split("=", 1)[1].strip("\"'")
+                    if os.path.normcase(os.path.normpath(val)) == clean_profile:
+                        has_profile = True
+                        break
+            if not has_profile:
+                self.log_event("CLOSE_REFUSED_IDENTITY_MISMATCH", {
+                    "instance_id": inst_id,
+                    "pid": pid,
+                    "reason": f"cmdline missing profile {clean_profile}"
+                })
+                return False, "identity_mismatch_cmdline"
+        except Exception as e:
+            self.log_event("CLOSE_REFUSED_INSPECTION_ERROR", {
+                "instance_id": inst_id,
+                "pid": pid,
+                "error": str(e)
+            })
+            return False, f"inspection_error_{e}"
 
         try:
             t_start = time.time()
@@ -405,8 +472,8 @@ class OwnedProcessTracker:
 
                 time.sleep(0.1)
 
-            exit_mode = "graceful_wm_close" if graceful_success else "forced_kill"
-
+            root_exit_mode = "graceful_wm_close" if graceful_success else "forced_kill"
+            child_forced_kills = []
             procs = [p] + [c for c in known_children if psutil.pid_exists(c.pid)]
 
             if not graceful_success:
@@ -414,29 +481,47 @@ class OwnedProcessTracker:
                     try:
                         if psutil.pid_exists(proc.pid):
                             proc.kill()
+                            if proc.pid != pid:
+                                child_forced_kills.append(proc.pid)
                     except Exception:
                         pass
 
             gone, alive = psutil.wait_procs(procs, timeout=3)
             if alive:
-                for a in alive:
-                    try:
-                        a.kill()
-                    except Exception:
-                        pass
-                psutil.wait_procs(alive, timeout=2)
+                gone2, alive2 = psutil.wait_procs(alive, timeout=2)
+                if alive2:
+                    for a in alive2:
+                        try:
+                            if psutil.pid_exists(a.pid):
+                                a.kill()
+                                if a.pid != pid and a.pid not in child_forced_kills:
+                                    child_forced_kills.append(a.pid)
+                        except Exception:
+                            pass
+                    psutil.wait_procs(alive2, timeout=2)
 
-            final_dead = not psutil.pid_exists(pid)
+            survivors = [proc.pid for proc in ([p] + known_children) if psutil.pid_exists(proc.pid)]
+            all_dead = (len(survivors) == 0 and not psutil.pid_exists(pid))
+
+            if not graceful_success or len(child_forced_kills) > 0:
+                exit_mode = "forced_kill"
+            else:
+                exit_mode = "graceful_wm_close"
+
+            clean_exit = all_dead
 
             self.log_event("PROCESS_EXITED", {
                 "instance_id": inst_id,
                 "pid": pid,
+                "root_exit_mode": root_exit_mode,
                 "exit_mode": exit_mode,
-                "clean_exit": final_dead
+                "child_forced_kills": child_forced_kills,
+                "survivors": survivors,
+                "clean_exit": clean_exit
             })
-            if final_dead and pid in self.active_owners:
+            if clean_exit and pid in self.active_owners:
                 del self.active_owners[pid]
-            return final_dead, exit_mode
+            return clean_exit, exit_mode
         except Exception as e:
             self.log_event("CLOSE_ERROR", {"instance_id": inst_id, "pid": pid, "error": str(e), "clean_exit": False})
             return False, str(e)
@@ -482,10 +567,15 @@ def evaluate_fixture_assertion(report, expected_inst, expected_nonce, expected_m
 
     # Check script execution (exact tab, frame, and URL target match)
     script_res = report.get("script_result") or {}
-    if script_res.get("frame_id") != 0:
-        return False, f"Script frame_id mismatch: {script_res.get('frame_id')} != 0"
-    if script_res.get("tab_id") is None:
+    frame_id = script_res.get("frame_id")
+    if frame_id is None or not isinstance(frame_id, int):
+        return False, f"Script frame_id invalid or missing: {frame_id} (expected integer frameId)"
+    tab_id = script_res.get("tab_id")
+    if tab_id is None:
         return False, "Missing tab_id in executeScript result"
+    sender_tab_id = script_res.get("sender_tab_id")
+    if sender_tab_id is not None and sender_tab_id != tab_id:
+        return False, f"Tab ID mismatch between sender ({sender_tab_id}) and target ({tab_id})"
 
     res_obj = script_res.get("result") or {}
     expected_origin = f"http://127.0.0.1:{server_port}"
@@ -569,6 +659,7 @@ def main():
     results = []
     test_failed = False
     reloc_root = None
+    reloc_tracker = None
 
     def record(name, passed, detail):
         nonlocal test_failed
@@ -1005,6 +1096,7 @@ def main():
         cleanup_ok = tracker.cleanup_all()
         if not cleanup_ok:
             record("T5: Pre-Relocation Owner Cleanup", False, "Some owners failed to terminate cleanly before relocation")
+            raise RuntimeError("Aborting T5 relocation: pre-relocation owners failed to terminate cleanly!")
         time.sleep(2)
 
         reloc_root = os.path.join(project_root, f"temp_reloc_{int(time.time()*1000)}_한글 공백")
@@ -1048,17 +1140,22 @@ def main():
     finally:
         print("\n[R4-RUNNER] Final Cleanup: terminating all verified owned processes...", flush=True)
         final_ok = tracker.cleanup_all()
+        reloc_ok = True
+        if reloc_tracker:
+            reloc_ok = reloc_tracker.cleanup_all()
         server.stop()
         time.sleep(2)
 
-        if not final_ok:
+        if not final_ok or not reloc_ok:
             test_failed = True
+            record("Final Cleanup Verification", False, f"Lingering processes detected! tracker_ok={final_ok}, reloc_ok={reloc_ok}")
             print("[R4-RUNNER] WARNING: final cleanup had lingering processes!", flush=True)
 
         if any(r["status"] == "FAIL" for r in results):
             test_failed = True
 
-        if not test_failed:
+        cleanup_all_dead = (final_ok and reloc_ok)
+        if not test_failed and cleanup_all_dead and (sum(1 for r in results if r["status"] == "FAIL") == 0):
             shutil.rmtree(test_root, ignore_errors=True)
             if reloc_root and os.path.exists(reloc_root):
                 shutil.rmtree(reloc_root, ignore_errors=True)
@@ -1107,7 +1204,7 @@ def main():
     print(f"Raw diagnostics written to: {raw_diagnostics_path}", flush=True)
     print(f"=======================================================", flush=True)
 
-    return 0 if summary["failed"] == 0 else 1
+    return 0 if (summary["failed"] == 0 and not test_failed) else 1
 
 if __name__ == "__main__":
     sys.exit(main())

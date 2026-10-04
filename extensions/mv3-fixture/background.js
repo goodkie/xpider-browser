@@ -77,11 +77,14 @@ async function handleMessage(message, sender) {
   // 4. executeScript test: tests script execution into active tab and returns URL, title, evaluated_at
   if (message.type === "EXECUTE_SCRIPT_TEST") {
     try {
-      const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tabs || tabs.length === 0) {
-        return { error: "No active tab found" };
+      let tabId = sender?.tab?.id;
+      if (!tabId) {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tabs || tabs.length === 0) {
+          return { error: "No active tab found" };
+        }
+        tabId = tabs[0].id;
       }
-      const tabId = tabs[0].id;
       const scriptResult = await chrome.scripting.executeScript({
         target: { tabId: tabId },
         func: () => {
@@ -95,11 +98,13 @@ async function handleMessage(message, sender) {
           };
         }
       });
+      const firstRes = (scriptResult && scriptResult.length > 0) ? scriptResult[0] : null;
       return {
         type: "SCRIPT_RESULT",
         tab_id: tabId,
-        frame_id: 0,
-        result: scriptResult[0]?.result || null
+        sender_tab_id: sender?.tab?.id ?? null,
+        frame_id: firstRes?.frameId ?? 0,
+        result: firstRes?.result || null
       };
     } catch (e) {
       return { error: e.message || String(e) };

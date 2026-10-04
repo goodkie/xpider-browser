@@ -2,10 +2,10 @@
 # UPSTREAM PINNED COMMIT: 73c14f6228d7cd537c855007e8f88678969cc0eb (Chromium 154.0.8037.57)
 # TARGET ARCHITECTURE: MultiPanel Slot Routing & Key Namespacing
 # NOTE: This patch represents the P2 architectural design sketch for multi-instance side panels.
-diff --git a/a/chrome/browser/ui/side_panel/side_panel_entry_key.cc b/b/chrome/browser/ui/side_panel/side_panel_entry_key.cc
+diff --git a/chrome/browser/ui/side_panel/side_panel_entry_key.cc b/chrome/browser/ui/side_panel/side_panel_entry_key.cc
 index a354372..c3f3ecb 100644
---- a/a/chrome/browser/ui/side_panel/side_panel_entry_key.cc
-+++ b/b/chrome/browser/ui/side_panel/side_panel_entry_key.cc
+--- a/chrome/browser/ui/side_panel/side_panel_entry_key.cc
++++ b/chrome/browser/ui/side_panel/side_panel_entry_key.cc
 @@ -2,6 +2,12 @@ SidePanelEntryKey::SidePanelEntryKey(
      const extensions::ExtensionId& extension_id)
      : id_(id), extension_id_(extension_id) {}
@@ -38,10 +38,10 @@ index a354372..c3f3ecb 100644
 +  }
 +  return instance_id_ < other.instance_id_;
  }
-diff --git a/a/chrome/browser/ui/side_panel/side_panel_entry_key.h b/b/chrome/browser/ui/side_panel/side_panel_entry_key.h
+diff --git a/chrome/browser/ui/side_panel/side_panel_entry_key.h b/chrome/browser/ui/side_panel/side_panel_entry_key.h
 index a73cbd5..40d13b9 100644
---- a/a/chrome/browser/ui/side_panel/side_panel_entry_key.h
-+++ b/b/chrome/browser/ui/side_panel/side_panel_entry_key.h
+--- a/chrome/browser/ui/side_panel/side_panel_entry_key.h
++++ b/chrome/browser/ui/side_panel/side_panel_entry_key.h
 @@ -1,11 +1,16 @@
  #include "chrome/browser/ui/side_panel/side_panel_entry_id.h"
  #include "extensions/common/extension_id.h"
@@ -70,10 +70,10 @@ index a73cbd5..40d13b9 100644
    std::optional<extensions::ExtensionId> extension_id_;
 +  PanelInstanceId instance_id_ = 0;
  };
-diff --git a/a/chrome/browser/ui/views/side_panel/side_panel_coordinator.h b/b/chrome/browser/ui/views/side_panel/side_panel_coordinator.h
+diff --git a/chrome/browser/ui/views/side_panel/side_panel_coordinator.h b/chrome/browser/ui/views/side_panel/side_panel_coordinator.h
 index 4daf81e..beb4f62 100644
---- a/a/chrome/browser/ui/views/side_panel/side_panel_coordinator.h
-+++ b/b/chrome/browser/ui/views/side_panel/side_panel_coordinator.h
+--- a/chrome/browser/ui/views/side_panel/side_panel_coordinator.h
++++ b/chrome/browser/ui/views/side_panel/side_panel_coordinator.h
 @@ -4,6 +4,18 @@ class SidePanelCoordinator final : public SidePanelUIBase,
    explicit SidePanelCoordinator(BrowserWindowInterface* browser_window_interface);
    ~SidePanelCoordinator() override;

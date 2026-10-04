@@ -25,7 +25,7 @@
 - **Source Inspection Targets**:
   - `chrome/browser/ui/side_panel/side_panel_entry_key.h` / `.cc` (Pinned upstream key location)
   - `chrome/browser/ui/views/side_panel/side_panel_coordinator.h` / `.cc` (Constructor: `BrowserWindowInterface*`)
-  - `chrome/browser/ui/views/side_panel/side_panel_ui_base.h` (`SidePanelUIBase::UniqueKey`)
+  - `chrome/browser/ui/side_panel/side_panel_ui_base.h` (`SidePanelUIBase::UniqueKey`)
   - `chrome/browser/ui/views/side_panel/extensions/extension_side_panel_coordinator.h` / `.cc`
 
 ---
