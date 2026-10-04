@@ -1,0 +1,11 @@
+{
+  "timestamp": 1791101900.9720154,
+  "engine_version": "154.0.8037.57",
+  "findings": {
+    "unmodified_engine_docking_contextType": "POPUP / TAB (NOT SIDE_PANEL)",
+    "active_tab_cross_window_targeting": "FAILS native currentWindow contract without CDP relay or in-tree patch",
+    "duplicate_native_side_panel": "FAILS (Upstream SidePanelCoordinator strictly allows only 1 active panel per window)",
+    "detailed_missing_capability": "Upstream Chromium SidePanelCoordinator::current_entry_ is mutually exclusive and keyed solely by ExtensionId. Multi-panel (A+B+C) and duplicate (A1+A2) with true chrome.runtime.getContexts({contextTypes: ['SIDE_PANEL']}) require native C++ patch to chrome/browser/ui/views/side_panel/."
+  },
+  "verdict": "FAIL_UNMODIFIED_DOCKING"
+}

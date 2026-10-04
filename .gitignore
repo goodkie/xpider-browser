@@ -56,3 +56,6 @@ extension_logs*.txt
 
 # 빌드 임시 결과물
 dist-admin/
+dist/
+engine/
+downloads/

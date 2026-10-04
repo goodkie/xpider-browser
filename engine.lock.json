@@ -1,0 +1,332 @@
+{
+  "schema_version": "1.0.0",
+  "engine_name": "Chromium (ungoogled-chromium binary distribution)",
+  "browser_version": "154.0.8037.57",
+  "upstream_tag": "154.0.8037.57-1.1",
+  "platform": "windows-x64",
+  "acquisition": {
+    "provider": "github.com/ungoogled-software/ungoogled-chromium-windows",
+    "url": "https://github.com/ungoogled-software/ungoogled-chromium-windows/releases/download/154.0.8037.57-1.1/ungoogled-chromium_154.0.8037.57-1.1_windows_x64.zip",
+    "archive_filename": "ungoogled-chromium_154.0.8037.57-1.1_windows_x64.zip",
+    "archive_bytes": 198766792,
+    "archive_sha256": "d4b8f53e8100e428a6ccea8070a1a909af3022c21070bfcd7dca102990d95d88"
+  },
+  "runtime_verification": {
+    "executable_relpath": "engine/chrome.exe",
+    "verified_file_version": "154.0.8037.57",
+    "verified_product_version": "154.0.8037.57",
+    "company_name": "The Chromium Authors",
+    "subsystem": "IMAGE_SUBSYSTEM_WINDOWS_GUI",
+    "architecture": "x64"
+  },
+  "archive_inventory": {
+    "total_files": 76,
+    "total_uncompressed_bytes": 438471646,
+    "files": [
+      {
+        "path": "chrome.exe",
+        "bytes": 4437504
+      },
+      {
+        "path": "chrome.dll",
+        "bytes": 298344448
+      },
+      {
+        "path": "chrome_elf.dll",
+        "bytes": 2761216
+      },
+      {
+        "path": "chrome_wer.dll",
+        "bytes": 110592
+      },
+      {
+        "path": "154.0.8037.57.manifest",
+        "bytes": 226
+      },
+      {
+        "path": "chrome_100_percent.pak",
+        "bytes": 566055
+      },
+      {
+        "path": "chrome_200_percent.pak",
+        "bytes": 915107
+      },
+      {
+        "path": "First Run",
+        "bytes": 8
+      },
+      {
+        "path": "icudtl.dat",
+        "bytes": 10819840
+      },
+      {
+        "path": "v8_context_snapshot.bin",
+        "bytes": 758592
+      },
+      {
+        "path": "resources.pak",
+        "bytes": 23421473
+      },
+      {
+        "path": "d3dcompiler_47.dll",
+        "bytes": 4753904
+      },
+      {
+        "path": "libEGL.dll",
+        "bytes": 450560
+      },
+      {
+        "path": "libGLESv2.dll",
+        "bytes": 450560
+      },
+      {
+        "path": "vulkan-1.dll",
+        "bytes": 984576
+      },
+      {
+        "path": "dxcompiler.dll",
+        "bytes": 25861120
+      },
+      {
+        "path": "dxil.dll",
+        "bytes": 1503688
+      },
+      {
+        "path": "vk_swiftshader.dll",
+        "bytes": 5412352
+      },
+      {
+        "path": "vk_swiftshader_icd.json",
+        "bytes": 106
+      },
+      {
+        "path": "notification_helper.exe",
+        "bytes": 2709504
+      },
+      {
+        "path": "elevation_service.exe",
+        "bytes": 4007936
+      },
+      {
+        "path": "chrome_proxy.exe",
+        "bytes": 2654208
+      },
+      {
+        "path": "chrome_pwa_launcher.exe",
+        "bytes": 3299840
+      },
+      {
+        "path": "elevated_tracing_service.exe",
+        "bytes": 4653568
+      },
+      {
+        "path": "locales/ar.pak",
+        "bytes": 978475
+      },
+      {
+        "path": "locales/bg.pak",
+        "bytes": 1010432
+      },
+      {
+        "path": "locales/bn.pak",
+        "bytes": 1283335
+      },
+      {
+        "path": "locales/ca.pak",
+        "bytes": 622553
+      },
+      {
+        "path": "locales/cs.pak",
+        "bytes": 637683
+      },
+      {
+        "path": "locales/da.pak",
+        "bytes": 575900
+      },
+      {
+        "path": "locales/de.pak",
+        "bytes": 624779
+      },
+      {
+        "path": "locales/el.pak",
+        "bytes": 1109007
+      },
+      {
+        "path": "locales/en-GB.pak",
+        "bytes": 497312
+      },
+      {
+        "path": "locales/en-US.pak",
+        "bytes": 503162
+      },
+      {
+        "path": "locales/es-419.pak",
+        "bytes": 609406
+      },
+      {
+        "path": "locales/es.pak",
+        "bytes": 604853
+      },
+      {
+        "path": "locales/et.pak",
+        "bytes": 554329
+      },
+      {
+        "path": "locales/fi.pak",
+        "bytes": 563193
+      },
+      {
+        "path": "locales/fil.pak",
+        "bytes": 636383
+      },
+      {
+        "path": "locales/fr.pak",
+        "bytes": 661397
+      },
+      {
+        "path": "locales/gu.pak",
+        "bytes": 1276723
+      },
+      {
+        "path": "locales/he.pak",
+        "bytes": 799133
+      },
+      {
+        "path": "locales/hi.pak",
+        "bytes": 1359402
+      },
+      {
+        "path": "locales/hr.pak",
+        "bytes": 614428
+      },
+      {
+        "path": "locales/hu.pak",
+        "bytes": 658523
+      },
+      {
+        "path": "locales/id.pak",
+        "bytes": 545374
+      },
+      {
+        "path": "locales/it.pak",
+        "bytes": 603599
+      },
+      {
+        "path": "locales/ja.pak",
+        "bytes": 728243
+      },
+      {
+        "path": "locales/kn.pak",
+        "bytes": 1461392
+      },
+      {
+        "path": "locales/ko.pak",
+        "bytes": 620613
+      },
+      {
+        "path": "locales/lt.pak",
+        "bytes": 667842
+      },
+      {
+        "path": "locales/lv.pak",
+        "bytes": 663907
+      },
+      {
+        "path": "locales/ml.pak",
+        "bytes": 1503984
+      },
+      {
+        "path": "locales/mr.pak",
+        "bytes": 1247058
+      },
+      {
+        "path": "locales/ms.pak",
+        "bytes": 574019
+      },
+      {
+        "path": "locales/nb.pak",
+        "bytes": 548709
+      },
+      {
+        "path": "locales/nl.pak",
+        "bytes": 572028
+      },
+      {
+        "path": "locales/pl.pak",
+        "bytes": 638368
+      },
+      {
+        "path": "locales/pt-BR.pak",
+        "bytes": 598568
+      },
+      {
+        "path": "locales/pt-PT.pak",
+        "bytes": 602701
+      },
+      {
+        "path": "locales/ro.pak",
+        "bytes": 624051
+      },
+      {
+        "path": "locales/ru.pak",
+        "bytes": 1027130
+      },
+      {
+        "path": "locales/sk.pak",
+        "bytes": 648365
+      },
+      {
+        "path": "locales/sl.pak",
+        "bytes": 618729
+      },
+      {
+        "path": "locales/sr.pak",
+        "bytes": 949896
+      },
+      {
+        "path": "locales/sv.pak",
+        "bytes": 555993
+      },
+      {
+        "path": "locales/ta.pak",
+        "bytes": 1497623
+      },
+      {
+        "path": "locales/te.pak",
+        "bytes": 1388523
+      },
+      {
+        "path": "locales/th.pak",
+        "bytes": 1164494
+      },
+      {
+        "path": "locales/tr.pak",
+        "bytes": 598332
+      },
+      {
+        "path": "locales/uk.pak",
+        "bytes": 1034285
+      },
+      {
+        "path": "locales/vi.pak",
+        "bytes": 710737
+      },
+      {
+        "path": "locales/zh-CN.pak",
+        "bytes": 511174
+      },
+      {
+        "path": "locales/zh-TW.pak",
+        "bytes": 504761
+      },
+      {
+        "path": "IwaKeyDistribution/iwa-key-distribution.pb",
+        "bytes": 3643
+      },
+      {
+        "path": "IwaKeyDistribution/manifest.json",
+        "bytes": 114
+      }
+    ]
+  }
+}

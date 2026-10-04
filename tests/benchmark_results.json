@@ -1,0 +1,17 @@
+{
+  "engine_version": "154.0.8037.57",
+  "startup_timings_sec": [
+    1.007,
+    1.008,
+    1.008,
+    1.008,
+    1.014
+  ],
+  "median_startup_sec": 1.008,
+  "working_set_bytes": 131772416,
+  "working_set_mb": 125.67,
+  "zip_path": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\dist\\LiteChromiumPortable_v0.1.0_win64.zip",
+  "zip_bytes": 264608216,
+  "zip_mb": 252.35,
+  "zip_sha256": "686426b2ad3c59e412cd88663558842c00d6d7470553354718622692a79db903"
+}
