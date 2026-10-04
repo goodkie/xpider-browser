@@ -8,8 +8,7 @@ def log(msg):
     print(f"[TEST-RUNNER] {msg}", flush=True)
 
 def main():
-    test_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(test_dir)
+    sys.exit("[SAFETY REFUSAL] Legacy test runner tests/run_verification.py is permanently disabled per OCA-DEV-1.0 / R4. It iterates all instances in the product registry and can terminate Owner's active processes. Use verified isolated runners (run_verification_r4.py).")
     launcher_exe = os.path.join(project_root, "LiteChromiumPortable.exe")
     engine_exe = os.path.join(project_root, "engine", "chrome.exe")
     data_dir = os.path.join(project_root, "data")

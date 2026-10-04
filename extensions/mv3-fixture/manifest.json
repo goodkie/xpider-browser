@@ -3,6 +3,7 @@
   "name": "LCW MV3 Fixture Extension",
   "version": "1.0.0",
   "description": "Verification fixture for Lite Chromium Portable P1A/Spike",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2X0zgttU350dtRONITWyAW3L1uJblWImciSzpB8PzGFTEJX7tZEup0JBkptjM+asiC/Q+x8YUH+ahducS6J4xUr8fxGDvk1ConHm8FV4XKaO2zUTVcwAjyDsx/Z0boZbJK+P6Zn1ZLRvmgyeJH22hoaVFZUBTiMDq9zEmHbr2CRJfzDYhYQ7PD3ViQKWictSWepWDNr77598f/N8fO/Nn72HCzp3sfpuNjXoljFu2hP+vo8pU/0Ctej1YrnAv0cHJuUwaMWA+8rCi9ldt5G9XS+4/BMkBi1i8v1gjCmSmizdd3cBzWxNjmX6P6T3hOBWWI8oUHQlueJuM4kJVydlOQIDAQAB",
   "permissions": [
     "tabs",
     "storage",
@@ -12,6 +13,12 @@
   "host_permissions": [
     "<all_urls>"
   ],
+  "externally_connectable": {
+    "matches": [
+      "http://127.0.0.1:*/*",
+      "http://localhost:*/*"
+    ]
+  },
   "background": {
     "service_worker": "background.js"
   },

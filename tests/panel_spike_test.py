@@ -14,31 +14,22 @@ def main():
     fixture_dir = os.path.join(project_root, "extensions", "mv3-fixture")
     profile_dir = os.path.join(project_root, "data", "spike-profile")
 
-    log("Starting Panel Capability Spike experiment...")
-    os.makedirs(profile_dir, exist_ok=True)
-
-    # 1. Bounded local loopback inspection only (no remote-allow-origins wildcard)
-    port = 9333
-    args = [
-        engine_exe,
-        f"--user-data-dir={profile_dir}",
-        f"--remote-debugging-port={port}",
-        f"--load-extension={fixture_dir}",
-        "--no-first-run",
-        "--no-default-browser-check",
-        "about:blank"
-    ]
-
-    proc = subprocess.Popen(args)
-    log(f"Browser launched with debugging on port {port} [PID: {proc.pid}]")
-    time.sleep(3)
-
+    log("PANEL-SPIKE: Relabeled as STATIC_ANALYSIS / NOT_VERIFIED per ChatGPT audit.")
+    log("In unmodified Chromium binary, native duplicate side panels cannot be instantiated without in-tree C++ modification.")
     spike_results = {
         "timestamp": time.time(),
         "engine_version": "154.0.8037.57",
-        "findings": {},
-        "verdict": "FAIL"
+        "status": "STATIC_ANALYSIS / NOT_VERIFIED",
+        "findings": {
+            "side_panel_contract": "Unmodified Chromium SidePanelCoordinator allows only one active SidePanelEntry at a time.",
+            "docking_contract": "Win32 SetParent docks window/popup with contextType TAB/POPUP, not SIDE_PANEL.",
+            "required_solution": "In-tree C++ patch to SidePanelCoordinator (see patches/001-native-multipanel.patch and docs/P2_NATIVE_MULTIPANEL_DESIGN.md)."
+        },
+        "verdict": "FAIL_UNMODIFIED_NATIVE_MULTIPANEL"
     }
+    with open(os.path.join(test_dir, "panel_spike_results.json"), "w") as f:
+        json.dump(spike_results, f, indent=2)
+    return
 
     try:
         # Query CDP targets

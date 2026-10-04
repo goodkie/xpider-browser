@@ -34,7 +34,5 @@ It is built without Node.js, Electron, or .NET dependencies.
   ```cmd
   LiteChromiumPortable.exe --status
   ```
-- **Clean Profiles (Reset data)**:
-  ```cmd
-  LiteChromiumPortable.exe --clean-profiles
-  ```
+- **Profile Safety Policy**:
+  To protect user data from accidental loss, programmatic profile wiping (`--clean-profiles`) is permanently disabled with a Security Refusal. Profiles are maintained under `data/profiles/instance-N`.

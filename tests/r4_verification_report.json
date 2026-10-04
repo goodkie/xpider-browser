@@ -1,0 +1,43 @@
+{
+  "timestamp": 1791118719.78429,
+  "total": 7,
+  "passed": 7,
+  "failed": 0,
+  "results": [
+    {
+      "name": "T1: Single Instance MV3 Worker PONG, Scripting & Download",
+      "status": "PASS",
+      "detail": "All MV3 Worker, Scripting, Cookie, and Storage assertions PASSED, download_triggered=True"
+    },
+    {
+      "name": "T2: Negative Control (SAME Assertion Fails on Disabled Extension)",
+      "status": "PASS",
+      "detail": "Negative Control Confirmed: SAME assertion correctly failed when fixture disabled (reason: 'Invalid or missing PONG: {}')"
+    },
+    {
+      "name": "T3-A: Batch 3 Concurrent Creation",
+      "status": "PASS",
+      "detail": "instances_registered=3/3"
+    },
+    {
+      "name": "T3-B: Batch 3 Disk Profile Directory Isolation",
+      "status": "PASS",
+      "detail": "p1=True, p2=True, p3=True"
+    },
+    {
+      "name": "T3-C: Instance Restart Persistence & Zero Leakage",
+      "status": "PASS",
+      "detail": "ping_count=2 (>=2 preserved), cookie=True, storage=True, no_leak=True"
+    },
+    {
+      "name": "T4: Batch 5 Multi-Instance Scaling",
+      "status": "PASS",
+      "detail": "active_instances_count=5/5"
+    },
+    {
+      "name": "T5: Same-PC Relocation (Korean/Spaces) & Stable Extension ID",
+      "status": "PASS",
+      "detail": "relocated_path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_reloc_1791118646589_\ud55c\uae00 \uacf5\ubc31, stable_ext_id=True (mpmmjhlclnpalhaeilhkfkacdjkkhkli), alive=True"
+    }
+  ]
+}

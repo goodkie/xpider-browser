@@ -9,12 +9,12 @@ import (
 	"unsafe"
 )
 
-// Verified process identity (R4-A).
+// Verified process identity (R4-A & R4-B).
 //
 // A bare PID is not an identity on Windows (PIDs are reused). An instance owner is identified by:
 //   - the process creation time (FILETIME, 100ns ticks) captured at launch,
 //   - the actual image path of the process (QueryFullProcessImageNameW),
-//   - the actual command line of the process (PEB), which must contain the instance profile dir.
+//   - the exact normalized --user-data-dir extracted from parsed Windows command-line arguments.
 //
 // State is tri-valued so that "cannot tell" is never silently treated as "stopped" or "running".
 
@@ -22,7 +22,7 @@ type ProcState int
 
 const (
 	ProcStopped ProcState = iota // verified: no such process / exited / PID reused by something else
-	ProcRunning                  // verified: creation time + image + profile all match the record
+	ProcRunning                  // verified: creation time + image + exact profile all match the record
 	ProcUnknown                  // cannot be verified (e.g. access denied); caller must report an error
 )
 
@@ -76,13 +76,74 @@ func processImagePath(h syscall.Handle) (string, error) {
 	return syscall.UTF16ToString(buf[:size]), nil
 }
 
+// splitCommandLine tokenizes a Windows command-line preserving quoted segments.
+func splitCommandLine(cmdLine string) []string {
+	var args []string
+	var current strings.Builder
+	inQuotes := false
+	for i := 0; i < len(cmdLine); i++ {
+		c := cmdLine[i]
+		if c == '"' {
+			inQuotes = !inQuotes
+			current.WriteByte(c)
+		} else if (c == ' ' || c == '\t') && !inQuotes {
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		} else {
+			current.WriteByte(c)
+		}
+	}
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+	return args
+}
+
+// parseUserDataDir extracts the exact normalized --user-data-dir value from command line arguments.
+// It handles --user-data-dir=path, --user-data-dir="path", and "--user-data-dir=path".
+func parseUserDataDir(cmdLine string) string {
+	args := splitCommandLine(cmdLine)
+	prefix := "--user-data-dir="
+	for _, arg := range args {
+		clean := strings.Trim(arg, "\"")
+		if strings.HasPrefix(strings.ToLower(clean), prefix) {
+			val := clean[len(prefix):]
+			val = strings.Trim(val, "\"")
+			return filepath.Clean(val)
+		}
+	}
+	return ""
+}
+
 // processCommandLine reads the command line out of the target's PEB (x64 layout).
-func processCommandLine(pid uint32) (string, error) {
+func processCommandLine(pid uint32, expectedCT uint64, expectedImg string) (string, error) {
 	h, err := syscall.OpenProcess(processQueryInformation|processVMRead, false, pid)
 	if err != nil {
 		return "", fmt.Errorf("OpenProcess(query+vmread): %w", err)
 	}
 	defer syscall.CloseHandle(h)
+
+	// Recheck process identity on the exact handle used for PEB inspection to prevent race conditions
+	if expectedCT != 0 {
+		ct, err := processCreationTime(h)
+		if err != nil {
+			return "", fmt.Errorf("recheck creation time on PEB handle: %w", err)
+		}
+		if ct != expectedCT {
+			return "", fmt.Errorf("handle race: process creation time changed")
+		}
+	}
+	if expectedImg != "" {
+		img, err := processImagePath(h)
+		if err != nil {
+			return "", fmt.Errorf("recheck image path on PEB handle: %w", err)
+		}
+		if !samePath(img, expectedImg) {
+			return "", fmt.Errorf("handle race: process image path changed")
+		}
+	}
 
 	// PROCESS_BASIC_INFORMATION (x64): Reserved1, PebBaseAddress, Reserved2[2], UniqueProcessId, Reserved3
 	var pbi [6]uintptr
@@ -151,6 +212,39 @@ func captureIdentity(rec *InstanceRecord) error {
 	return nil
 }
 
+// verifyLaunchedProcess rigorously validates that the launched process matches the expected engine executable
+// and has the exact expected profile dir in its parsed --user-data-dir parameter before registering it.
+func verifyLaunchedProcess(pid int, expectedExe, expectedProfile string) (uint64, string, error) {
+	h, err := syscall.OpenProcess(processQueryLimitedInformation, false, uint32(pid))
+	if err != nil {
+		return 0, "", fmt.Errorf("cannot open launched process %d: %w", pid, err)
+	}
+	defer syscall.CloseHandle(h)
+
+	ct, err := processCreationTime(h)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to obtain creation time: %w", err)
+	}
+	img, err := processImagePath(h)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to obtain image path: %w", err)
+	}
+	if !samePath(img, expectedExe) {
+		return 0, "", fmt.Errorf("launched image %q does not match expected engine %q", img, expectedExe)
+	}
+
+	cl, err := processCommandLine(uint32(pid), ct, img)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to inspect PEB command line: %w", err)
+	}
+	actualProfile := parseUserDataDir(cl)
+	if actualProfile == "" || !samePath(actualProfile, expectedProfile) {
+		return 0, "", fmt.Errorf("launched command line profile %q does not match expected profile %q", actualProfile, expectedProfile)
+	}
+
+	return ct, img, nil
+}
+
 // verifyOwner classifies whether the recorded owner process is still the same live process.
 // The returned string explains the classification (for status output and error messages).
 func verifyOwner(rec InstanceRecord) (ProcState, string) {
@@ -190,13 +284,14 @@ func verifyOwner(rec InstanceRecord) (ProcState, string) {
 	if !samePath(img, rec.ImagePath) {
 		return ProcStopped, "pid reused: image path differs from record"
 	}
-	cl, err := processCommandLine(uint32(rec.PID))
+	cl, err := processCommandLine(uint32(rec.PID), ct, img)
 	if err != nil {
 		// Creation time + image path already match; the profile cannot be read back.
 		return ProcUnknown, "creation time and image match but command line unreadable: " + err.Error()
 	}
-	if !strings.Contains(strings.ToLower(cl), strings.ToLower(rec.ProfileDir)) {
-		return ProcStopped, "pid reused: command line does not reference the recorded profile dir"
+	actualProfile := parseUserDataDir(cl)
+	if actualProfile == "" || !samePath(actualProfile, rec.ProfileDir) {
+		return ProcStopped, fmt.Sprintf("pid reused: command line profile %q does not match recorded profile %q", actualProfile, rec.ProfileDir)
 	}
-	return ProcRunning, "creation time, image path and profile dir verified"
+	return ProcRunning, "creation time, image path and exact profile dir verified"
 }

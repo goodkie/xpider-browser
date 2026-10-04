@@ -24,5 +24,5 @@ Node.js, Electron, .NET 등 무거운 부가 런타임을 일체 포함하지 �
   `LiteChromiumPortable.exe --instance=2`
 - **현재 실행 중인 인스턴스 상태 조회**:
   `LiteChromiumPortable.exe --status`
-- **프로필 초기화 (모든 브라우저 종료 후)**:
-  `LiteChromiumPortable.exe --clean-profiles`
+- **프로필 안전 정책**:
+  사용자 데이터 보호를 위해 런처 레벨에서의 강제 프로필 삭제 기능(`--clean-profiles`)은 비활성화(Security Refusal)되어 있습니다. 프로필 관리는 `data/profiles/` 디렉터리에서 사용자가 직접 수동 관리합니다.

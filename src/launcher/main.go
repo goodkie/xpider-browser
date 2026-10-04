@@ -306,8 +306,9 @@ func unzipIncomingExtensions(extsDir string) []error {
 
 	var errs []error
 	lockErr := withFileLock(filepath.Join(extsDir, ".import.lock"), func() error {
-		errs = append(errs, recoverImportJournals(extsDir)...)
-		// Under the import lock no other importer is active, so leftover staging dirs are crash residue.
+		unresolved, recErrs := recoverImportJournals(extsDir)
+		errs = append(errs, recErrs...)
+		// Under the import lock no other importer is active; clear orphaned staging dirs that are not part of an active recovery
 		_ = os.RemoveAll(filepath.Join(extsDir, ".staging"))
 
 		entries, err := os.ReadDir(incomingDir)
@@ -323,6 +324,10 @@ func unzipIncomingExtensions(extsDir string) []error {
 			}
 			zipPath := filepath.Join(incomingDir, entry.Name())
 			destName := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
+			if unresolved[destName] {
+				errs = append(errs, fmt.Errorf("%s: destination %s has unresolved recovery journal, skipping import to prevent overwrite", entry.Name(), destName))
+				continue
+			}
 			if err := validateExtensionDirName(destName); err != nil {
 				errs = append(errs, fmt.Errorf("%s: %w (incoming archive retained)", entry.Name(), err))
 				continue
@@ -330,7 +335,7 @@ func unzipIncomingExtensions(extsDir string) []error {
 			destDir := filepath.Join(extsDir, destName)
 			stagingDir := filepath.Join(extsDir, ".staging", fmt.Sprintf("%s_%d", destName, time.Now().UnixNano()))
 
-			if err := transactionalUnzip(zipPath, stagingDir, destDir); err != nil {
+			if err := transactionalUnzip(extsDir, zipPath, stagingDir, destDir); err != nil {
 				errs = append(errs, fmt.Errorf("%s: %w (incoming archive retained)", entry.Name(), err))
 				continue
 			}
@@ -349,7 +354,10 @@ func unzipIncomingExtensions(extsDir string) []error {
 	return errs
 }
 
-func transactionalUnzip(zipPath, stagingDir, destDir string) error {
+func transactionalUnzip(extsDir, zipPath, stagingDir, destDir string) error {
+	if extsDir == "" {
+		extsDir = filepath.Dir(destDir)
+	}
 	const MaxFiles = 1000
 	const MaxBytes = 100 * 1024 * 1024 // 100MB limit
 
@@ -452,18 +460,57 @@ func transactionalUnzip(zipPath, stagingDir, destDir string) error {
 		}
 	}
 
-	return promoteStaged(stagingDir, destDir)
+	return promoteStaged(extsDir, stagingDir, destDir)
 }
 
 // renameFn is the directory rename primitive used for promotion/rollback; tests replace it to inject failures.
 var renameFn = renameWithRetry
 
+// safeRelPath ensures that path is within baseDir and returns clean relative path without escape (..).
+func safeRelPath(baseDir, targetPath string) (string, error) {
+	cleanBase := filepath.Clean(baseDir)
+	cleanTarget := filepath.Clean(targetPath)
+	rel, err := filepath.Rel(cleanBase, cleanTarget)
+	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
+		return "", fmt.Errorf("path %q escapes base directory %q", targetPath, baseDir)
+	}
+	return rel, nil
+}
+
+// safeResolveExtPath resolves a path (relative or absolute) strictly within extsDir.
+// It defends against directory traversal, reparse escape, and foreign absolute paths.
+func safeResolveExtPath(extsDir, relOrAbs string) (string, error) {
+	cleanExts := filepath.Clean(extsDir)
+	var candidate string
+	if filepath.IsAbs(relOrAbs) {
+		// If it's an absolute path, check if it's already within extsDir
+		if strings.HasPrefix(strings.ToLower(relOrAbs), strings.ToLower(cleanExts)+string(filepath.Separator)) {
+			candidate = relOrAbs
+		} else {
+			// Path was written on a different root/machine; extract base name safely
+			candidate = filepath.Join(cleanExts, filepath.Base(relOrAbs))
+		}
+	} else {
+		candidate = filepath.Join(cleanExts, relOrAbs)
+	}
+	candidate = filepath.Clean(candidate)
+	if !strings.HasPrefix(strings.ToLower(candidate), strings.ToLower(cleanExts)+string(filepath.Separator)) &&
+		!strings.EqualFold(candidate, cleanExts) {
+		return "", fmt.Errorf("resolved path %q escapes extension root %q", candidate, cleanExts)
+	}
+	return candidate, nil
+}
+
 // importJournal records an in-flight promotion so an interrupted import can be recovered on the next run.
 type importJournal struct {
-	Dest    string `json:"dest"`
-	Backup  string `json:"backup"`
-	Staging string `json:"staging"`
-	Started string `json:"started"`
+	DestRel    string `json:"dest_rel"`
+	BackupRel  string `json:"backup_rel"`
+	StagingRel string `json:"staging_rel"`
+	Phase      string `json:"phase"` // "backed_up", "promoted", "verified"
+	Started    string `json:"started"`
+	// Backward compatibility fields
+	Dest   string `json:"dest,omitempty"`
+	Backup string `json:"backup,omitempty"`
 }
 
 func hasManifest(dir string) bool {
@@ -472,18 +519,37 @@ func hasManifest(dir string) bool {
 }
 
 // promoteStaged moves a fully validated staging directory into place.
-// The previous version (if any) is kept in extensions/.backups with a journal until the new version is verified.
+// The previous version (if any) is kept in extensions/.backups with a root-relative journal until the new version is verified.
 // A failed rollback never discards the backup and is reported together with the promotion error.
-func promoteStaged(stagingDir, destDir string) error {
-	var backupDir, journalPath string
+func promoteStaged(extsDir, stagingDir, destDir string) error {
+	destRel, err := safeRelPath(extsDir, destDir)
+	if err != nil {
+		return err
+	}
+	stagingRel, err := safeRelPath(extsDir, stagingDir)
+	if err != nil {
+		return err
+	}
+
+	var backupDir, backupRel, journalPath string
 	if _, err := os.Stat(destDir); err == nil {
-		backupsRoot := filepath.Join(filepath.Dir(destDir), ".backups")
+		backupsRoot := filepath.Join(extsDir, ".backups")
 		if err := os.MkdirAll(backupsRoot, 0755); err != nil {
 			return fmt.Errorf("cannot create backups dir: %w", err)
 		}
 		backupDir = filepath.Join(backupsRoot, fmt.Sprintf("%s_%d", filepath.Base(destDir), time.Now().UnixNano()))
+		backupRel, _ = safeRelPath(extsDir, backupDir)
 		journalPath = backupDir + ".journal.json"
-		jd, _ := json.Marshal(importJournal{Dest: destDir, Backup: backupDir, Staging: stagingDir, Started: time.Now().UTC().Format(time.RFC3339Nano)})
+		j := importJournal{
+			DestRel:    destRel,
+			BackupRel:  backupRel,
+			StagingRel: stagingRel,
+			Phase:      "backed_up",
+			Started:    time.Now().UTC().Format(time.RFC3339Nano),
+			Dest:       destDir,
+			Backup:     backupDir,
+		}
+		jd, _ := json.Marshal(j)
 		if err := os.WriteFile(journalPath, jd, 0644); err != nil {
 			return fmt.Errorf("cannot write import recovery journal: %w", err)
 		}
@@ -526,15 +592,17 @@ func promoteStaged(stagingDir, destDir string) error {
 }
 
 // recoverImportJournals completes or reverts imports interrupted by a crash. Caller holds the import lock.
-func recoverImportJournals(extsDir string) []error {
+// Returns a map of destination names that remain unresolved (to block destructive overwrites) and errors encountered.
+func recoverImportJournals(extsDir string) (map[string]bool, []error) {
+	unresolved := make(map[string]bool)
 	var errs []error
 	backupsRoot := filepath.Join(extsDir, ".backups")
 	entries, err := os.ReadDir(backupsRoot)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return unresolved, nil
 		}
-		return []error{fmt.Errorf("cannot read %s: %w", backupsRoot, err)}
+		return unresolved, []error{fmt.Errorf("cannot read %s: %w", backupsRoot, err)}
 	}
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".journal.json") {
@@ -542,38 +610,76 @@ func recoverImportJournals(extsDir string) []error {
 		}
 		jp := filepath.Join(backupsRoot, e.Name())
 		data, err := os.ReadFile(jp)
-		var j importJournal
-		if err == nil {
-			err = json.Unmarshal(data, &j)
-		}
-		if err != nil || j.Dest == "" || j.Backup == "" {
-			errs = append(errs, fmt.Errorf("unreadable import journal %s (left in place): %v", jp, err))
+		if err != nil {
+			errs = append(errs, fmt.Errorf("cannot read import journal %s (preserved): %w", jp, err))
 			continue
 		}
-		_, backupErr := os.Stat(j.Backup)
-		backupExists := backupErr == nil
-		switch {
-		case !backupExists:
-			_ = os.Remove(jp) // nothing to recover: backup already consumed
-		case hasManifest(j.Dest):
-			// New version is in place and verified; the backup is obsolete.
-			if err := os.RemoveAll(j.Backup); err != nil {
-				errs = append(errs, fmt.Errorf("cannot remove obsolete backup %s: %w", j.Backup, err))
+		var j importJournal
+		if err := json.Unmarshal(data, &j); err != nil {
+			errs = append(errs, fmt.Errorf("malformed import journal %s (preserved): %w", jp, err))
+			continue
+		}
+		destField := j.DestRel
+		if destField == "" {
+			destField = j.Dest
+		}
+		backupField := j.BackupRel
+		if backupField == "" {
+			backupField = j.Backup
+		}
+		if destField == "" || backupField == "" {
+			errs = append(errs, fmt.Errorf("journal %s missing destination or backup fields (preserved)", jp))
+			continue
+		}
+
+		resolvedDest, err := safeResolveExtPath(extsDir, destField)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("journal %s dest invalid: %w (preserved)", jp, err))
+			continue
+		}
+		resolvedBackup, err := safeResolveExtPath(extsDir, backupField)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("journal %s backup invalid: %w (preserved)", jp, err))
+			continue
+		}
+
+		destName := filepath.Base(resolvedDest)
+
+		_, backupErr := os.Stat(resolvedBackup)
+		if backupErr != nil {
+			if os.IsNotExist(backupErr) {
+				// Backup was already consumed or deleted
+				_ = os.Remove(jp)
+				continue
+			}
+			// Unknown error (permission/IO): preserve journal and backup!
+			unresolved[destName] = true
+			errs = append(errs, fmt.Errorf("unknown error inspecting backup %s: %w (journal and backup preserved)", resolvedBackup, backupErr))
+			continue
+		}
+
+		// Backup exists
+		if hasManifest(resolvedDest) {
+			// New version is in place and verified; obsolete backup can be removed
+			if err := os.RemoveAll(resolvedBackup); err != nil {
+				unresolved[destName] = true
+				errs = append(errs, fmt.Errorf("cannot remove obsolete backup %s: %w (journal preserved)", resolvedBackup, err))
 				continue
 			}
 			_ = os.Remove(jp)
-		default:
-			// Promotion never completed: restore the previous version.
-			_ = os.RemoveAll(j.Dest)
-			if err := renameFn(j.Backup, j.Dest); err != nil || !hasManifest(j.Dest) {
-				errs = append(errs, fmt.Errorf("recovery of %s failed (backup preserved at %s): %v", j.Dest, j.Backup, err))
+		} else {
+			// Promotion never completed: restore the previous version
+			_ = os.RemoveAll(resolvedDest)
+			if err := renameFn(resolvedBackup, resolvedDest); err != nil || !hasManifest(resolvedDest) {
+				unresolved[destName] = true
+				errs = append(errs, fmt.Errorf("recovery of %s failed (backup preserved at %s): %v", resolvedDest, resolvedBackup, err))
 				continue
 			}
 			_ = os.Remove(jp)
-			fmt.Fprintf(os.Stderr, "[LiteChromiumPortable] Recovered previous version of %s from interrupted import\n", j.Dest)
+			fmt.Fprintf(os.Stderr, "[LiteChromiumPortable] Recovered previous version of %s from interrupted import\n", resolvedDest)
 		}
 	}
-	return errs
+	return unresolved, errs
 }
 
 // ---- Instance launch / registry (R4-A) ----
@@ -664,17 +770,21 @@ func launchInstance(engineExe, profileDir string, instanceID int, extensions []s
 		case <-time.After(startupGrace):
 		}
 
+		ct, img, err := verifyLaunchedProcess(cmd.Process.Pid, engineExe, profileDir)
+		if err != nil {
+			_ = cmd.Process.Kill()
+			return fmt.Errorf("could not verify identity/profile of the launched process (terminated it): %w", err)
+		}
+
 		rec := InstanceRecord{
 			InstanceID:   instanceID,
 			PID:          cmd.Process.Pid,
 			ProfileDir:   profileDir,
 			StartedAt:    time.Now().UTC(),
-			Executable:   engineExe,
+			Executable:   img,
 			ActiveParams: args,
-		}
-		if err := captureIdentity(&rec); err != nil {
-			_ = cmd.Process.Kill()
-			return fmt.Errorf("could not verify identity of the launched process (terminated it): %w", err)
+			CreationTime: ct,
+			ImagePath:    img,
 		}
 		if err := mergeRecord(registryFile, reg, rec); err != nil {
 			killErr := cmd.Process.Kill()
@@ -688,7 +798,9 @@ func launchInstance(engineExe, profileDir string, instanceID int, extensions []s
 // handoffToOwner runs the engine with the same profile; Chromium forwards the request to the live owner
 // (opening a new window there) and exits 0. The owner record is not modified.
 func handoffToOwner(engineExe string, args []string, owner InstanceRecord) error {
-	cmd, err := startEngine(engineExe, args)
+	// Explicitly request Chromium to open a new window in the existing owner instance
+	handoffArgs := append([]string{"--new-window"}, args...)
+	cmd, err := startEngine(engineExe, handoffArgs)
 	if err != nil {
 		return err
 	}

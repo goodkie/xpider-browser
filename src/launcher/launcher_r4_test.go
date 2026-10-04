@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -21,20 +22,30 @@ func TestMain(m *testing.M) {
 	if mode := os.Getenv("LCW_FAKE_ENGINE"); mode != "" {
 		var profile string
 		for _, a := range os.Args[1:] {
-			if strings.HasPrefix(a, "--user-data-dir=") {
-				profile = strings.TrimPrefix(a, "--user-data-dir=")
+			clean := strings.Trim(a, "\"")
+			if strings.HasPrefix(clean, "--user-data-dir=") {
+				profile = strings.Trim(clean[len("--user-data-dir="):], "\"")
 			}
 		}
 		switch mode {
 		case "exit1":
 			os.Exit(1)
 		case "owner":
-			f, err := os.OpenFile(filepath.Join(profile, "FAKE_OWNER"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
-			if err != nil {
-				os.Exit(0) // handoff to existing owner
+			if profile != "" {
+				_ = os.MkdirAll(profile, 0755)
+				f, err := os.OpenFile(filepath.Join(profile, "FAKE_OWNER"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+				if err != nil {
+					// Handoff: if --new-window is passed, note it
+					for _, a := range os.Args[1:] {
+						if a == "--new-window" {
+							_ = os.WriteFile(filepath.Join(profile, "HANDOFF_NEW_WINDOW"), []byte("ok"), 0644)
+						}
+					}
+					os.Exit(0) // handoff to existing owner
+				}
+				fmt.Fprintf(f, "%d", os.Getpid())
+				f.Close()
 			}
-			fmt.Fprintf(f, "%d", os.Getpid())
-			f.Close()
 			time.Sleep(60 * time.Second)
 		}
 		os.Exit(0)
@@ -106,7 +117,51 @@ func TestLaunch_RecordsVerifiedIdentity(t *testing.T) {
 	}
 }
 
-func TestLaunch_SameInstanceTwice_PreservesOwner(t *testing.T) {
+func TestExactProfileIdentity_PrefixAndQuotedSpaces(t *testing.T) {
+	// 1. Exact parameter parsing verification
+	cmd1 := `chrome.exe --user-data-dir="C:\Profiles with spaces\instance-1" --no-first-run`
+	parsed1 := parseUserDataDir(cmd1)
+	expected1 := filepath.Clean(`C:\Profiles with spaces\instance-1`)
+	if parsed1 != expected1 {
+		t.Fatalf("parseUserDataDir failed for quoted spaces: got %q, expected %q", parsed1, expected1)
+	}
+
+	cmd2 := `chrome.exe "--user-data-dir=C:\Profiles with spaces\instance-1" --no-first-run`
+	parsed2 := parseUserDataDir(cmd2)
+	if parsed2 != expected1 {
+		t.Fatalf("parseUserDataDir failed for outer-quoted arg: got %q, expected %q", parsed2, expected1)
+	}
+
+	// 2. URL containing substring must NOT match as profile dir
+	cmd3 := `chrome.exe --user-data-dir=C:\profiles\instance-1 --url="https://example.com/?q=--user-data-dir=C:\profiles\instance-10"`
+	parsed3 := parseUserDataDir(cmd3)
+	expected3 := filepath.Clean(`C:\profiles\instance-1`)
+	if parsed3 != expected3 {
+		t.Fatalf("parseUserDataDir failed with embedded URL: got %q, expected %q", parsed3, expected3)
+	}
+
+	// 3. Prefix collision: instance-1 must NOT match instance-10
+	exe := fakeEnv(t, "owner")
+	tmp := t.TempDir()
+	reg, lock := filepath.Join(tmp, "instances.json"), filepath.Join(tmp, "instances.lock")
+	prof1 := filepath.Join(tmp, "profiles", "instance-1")
+	defer killRecorded(t, reg)
+
+	if err := launchInstance(exe, prof1, 1, nil, "", reg, lock); err != nil {
+		t.Fatalf("launch: %v", err)
+	}
+	r, _ := readRegistry(reg)
+	rec := r.Instances[0]
+
+	// Simulate querying with instance-10 profile dir (prefix match would have falsely passed in old contains check)
+	collidingRec := rec
+	collidingRec.ProfileDir = filepath.Join(tmp, "profiles", "instance-10")
+	if st, why := verifyOwner(collidingRec); st != ProcStopped {
+		t.Fatalf("prefix collision (instance-1 vs instance-10) must be STOPPED, got %v (%s)", st, why)
+	}
+}
+
+func TestLaunch_SameInstanceTwice_PreservesOwnerAndPassesNewWindow(t *testing.T) {
 	exe := fakeEnv(t, "owner")
 	tmp := t.TempDir()
 	reg, lock := filepath.Join(tmp, "instances.json"), filepath.Join(tmp, "instances.lock")
@@ -117,6 +172,8 @@ func TestLaunch_SameInstanceTwice_PreservesOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 	first, _ := readRegistry(reg)
+
+	// Second launch performs handoff to existing owner with --new-window
 	if err := launchInstance(exe, prof, 1, nil, "", reg, lock); err != nil {
 		t.Fatalf("second launch (handoff) must succeed: %v", err)
 	}
@@ -124,6 +181,12 @@ func TestLaunch_SameInstanceTwice_PreservesOwner(t *testing.T) {
 	if len(second.Instances) != 1 || second.Instances[0].PID != first.Instances[0].PID ||
 		second.Instances[0].CreationTime != first.Instances[0].CreationTime {
 		t.Fatalf("live owner record was replaced: before=%+v after=%+v", first, second)
+	}
+
+	// Verify handoff process received --new-window flag
+	handoffMarker := filepath.Join(prof, "HANDOFF_NEW_WINDOW")
+	if _, err := os.Stat(handoffMarker); err != nil {
+		t.Fatalf("expected handoff to pass --new-window, marker missing: %v", err)
 	}
 }
 
@@ -289,8 +352,9 @@ func writeExt(t *testing.T, dir, ver string) {
 
 func TestPromote_FailureRollsBackAndVerifies(t *testing.T) {
 	tmp := t.TempDir()
-	dest := filepath.Join(tmp, "ext")
-	staging := filepath.Join(tmp, ".staging", "ext_1")
+	exts := filepath.Join(tmp, "extensions")
+	dest := filepath.Join(exts, "ext")
+	staging := filepath.Join(exts, ".staging", "ext_1")
 	writeExt(t, dest, "1.0")
 	writeExt(t, staging, "2.0")
 
@@ -302,7 +366,7 @@ func TestPromote_FailureRollsBackAndVerifies(t *testing.T) {
 		}
 		return orig(src, dst)
 	}
-	err := promoteStaged(staging, dest)
+	err := promoteStaged(exts, staging, dest)
 	if err == nil || !strings.Contains(err.Error(), "restored and verified") {
 		t.Fatalf("expected verified rollback error, got %v", err)
 	}
@@ -310,15 +374,16 @@ func TestPromote_FailureRollsBackAndVerifies(t *testing.T) {
 	if !strings.Contains(string(b), `"1.0"`) {
 		t.Fatalf("previous version not restored: %s", b)
 	}
-	if left, _ := filepath.Glob(filepath.Join(tmp, ".backups", "*")); len(left) != 0 {
+	if left, _ := filepath.Glob(filepath.Join(exts, ".backups", "*")); len(left) != 0 {
 		t.Fatalf("backup/journal should be gone after verified rollback: %v", left)
 	}
 }
 
 func TestPromote_FailedRollbackPreservesBackupAndReportsBoth(t *testing.T) {
 	tmp := t.TempDir()
-	dest := filepath.Join(tmp, "ext")
-	staging := filepath.Join(tmp, ".staging", "ext_1")
+	exts := filepath.Join(tmp, "extensions")
+	dest := filepath.Join(exts, "ext")
+	staging := filepath.Join(exts, ".staging", "ext_1")
 	writeExt(t, dest, "1.0")
 	writeExt(t, staging, "2.0")
 
@@ -333,11 +398,11 @@ func TestPromote_FailedRollbackPreservesBackupAndReportsBoth(t *testing.T) {
 		}
 		return orig(src, dst)
 	}
-	err := promoteStaged(staging, dest)
+	err := promoteStaged(exts, staging, dest)
 	if err == nil || !strings.Contains(err.Error(), "promotion") || !strings.Contains(err.Error(), "rollback failed") {
 		t.Fatalf("both errors must be reported, got %v", err)
 	}
-	matches, _ := filepath.Glob(filepath.Join(tmp, ".backups", "ext_*"))
+	matches, _ := filepath.Glob(filepath.Join(exts, ".backups", "ext_*"))
 	var haveBackup, haveJournal bool
 	for _, m := range matches {
 		if strings.HasSuffix(m, ".journal.json") {
@@ -352,12 +417,118 @@ func TestPromote_FailedRollbackPreservesBackupAndReportsBoth(t *testing.T) {
 
 	// Recovery on the next run restores the previous version.
 	renameFn = orig
-	if errs := recoverImportJournals(tmp); len(errs) != 0 {
-		t.Fatalf("recovery errors: %v", errs)
+	unresolved, errs := recoverImportJournals(exts)
+	if len(errs) != 0 || len(unresolved) != 0 {
+		t.Fatalf("recovery failed: unresolved=%v errs=%v", unresolved, errs)
 	}
 	b, _ := os.ReadFile(filepath.Join(dest, "manifest.json"))
 	if !strings.Contains(string(b), `"1.0"`) {
 		t.Fatalf("recovery did not restore previous version: %s", b)
+	}
+}
+
+func TestRecoveryJournal_MovedRoot(t *testing.T) {
+	// Create an import journal with root-relative paths in original root
+	tmp1 := t.TempDir()
+	exts1 := filepath.Join(tmp1, "extensions")
+	backups1 := filepath.Join(exts1, ".backups")
+	_ = os.MkdirAll(backups1, 0755)
+
+	backupDir1 := filepath.Join(backups1, "myext_12345")
+	writeExt(t, backupDir1, "1.0")
+
+	journalPath1 := backupDir1 + ".journal.json"
+	j := importJournal{
+		DestRel:    "myext",
+		BackupRel:  filepath.Join(".backups", "myext_12345"),
+		StagingRel: filepath.Join(".staging", "myext_12345"),
+		Phase:      "backed_up",
+		Started:    time.Now().UTC().Format(time.RFC3339Nano),
+		Dest:       `C:\old_location\extensions\myext`,
+		Backup:     `C:\old_location\extensions\.backups\myext_12345`,
+	}
+	jd, _ := json.Marshal(j)
+	_ = os.WriteFile(journalPath1, jd, 0644)
+
+	// Move the entire extensions directory to a new root (simulating portable folder relocation)
+	tmp2 := t.TempDir()
+	exts2 := filepath.Join(tmp2, "relocated_extensions")
+	if err := os.Rename(exts1, exts2); err != nil {
+		t.Fatalf("failed to relocate extensions dir: %v", err)
+	}
+
+	// Run recovery on the new relocated root
+	unresolved, errs := recoverImportJournals(exts2)
+	if len(errs) != 0 || len(unresolved) != 0 {
+		t.Fatalf("recovery on relocated root failed: unresolved=%v errs=%v", unresolved, errs)
+	}
+
+	// Verify myext was recovered to new root and does NOT point to old location
+	recoveredDest := filepath.Join(exts2, "myext")
+	b, err := os.ReadFile(filepath.Join(recoveredDest, "manifest.json"))
+	if err != nil || !strings.Contains(string(b), `"1.0"`) {
+		t.Fatalf("recovery did not properly restore previous version at relocated destination: %v %s", err, b)
+	}
+}
+
+func TestRecoveryJournal_BlocksSubsequentImportOnUnresolved(t *testing.T) {
+	tmp := t.TempDir()
+	exts := filepath.Join(tmp, "extensions")
+	incoming := filepath.Join(exts, "incoming")
+	backups := filepath.Join(exts, ".backups")
+	_ = os.MkdirAll(incoming, 0755)
+	_ = os.MkdirAll(backups, 0755)
+
+	// An existing unresolved backup where recovery fails (simulate locked destination)
+	dest := filepath.Join(exts, "locked_ext")
+	_ = os.MkdirAll(dest, 0755)
+	backupDir := filepath.Join(backups, "locked_ext_999")
+	writeExt(t, backupDir, "1.0")
+
+	journalPath := backupDir + ".journal.json"
+	j := importJournal{
+		DestRel:    "locked_ext",
+		BackupRel:  filepath.Join(".backups", "locked_ext_999"),
+		StagingRel: filepath.Join(".staging", "locked_ext_999"),
+		Phase:      "backed_up",
+	}
+	jd, _ := json.Marshal(j)
+	_ = os.WriteFile(journalPath, jd, 0644)
+
+	// Make restore fail
+	orig := renameFn
+	defer func() { renameFn = orig }()
+	renameFn = func(src, dst string) error {
+		if strings.Contains(src, "locked_ext_999") && strings.Contains(dst, "locked_ext") {
+			return errors.New("simulated destination locked")
+		}
+		return orig(src, dst)
+	}
+
+	// Provide a new incoming ZIP for locked_ext
+	createTestZip(t, filepath.Join(incoming, "locked_ext.zip"), map[string]string{
+		"manifest.json": `{"manifest_version":3,"name":"locked_ext","version":"2.0"}`,
+	})
+
+	errs := unzipIncomingExtensions(exts)
+	if len(errs) == 0 {
+		t.Fatal("expected error blocking import of unresolved destination")
+	}
+
+	var foundBlock bool
+	for _, e := range errs {
+		if strings.Contains(e.Error(), "has unresolved recovery journal") {
+			foundBlock = true
+			break
+		}
+	}
+	if !foundBlock {
+		t.Fatalf("expected blocked import error, got: %v", errs)
+	}
+
+	// Incoming ZIP must be preserved
+	if _, err := os.Stat(filepath.Join(incoming, "locked_ext.zip")); err != nil {
+		t.Fatalf("incoming zip must be retained when import is blocked: %v", err)
 	}
 }
 

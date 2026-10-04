@@ -1,0 +1,48 @@
+{
+  "timestamp": 1791114530.937771,
+  "total": 8,
+  "passed": 8,
+  "failed": 0,
+  "results": [
+    {
+      "case": "Case 1: Reject Invalid Manifest",
+      "passed": true,
+      "detail": "zip_retained=True, dest_not_created=True, stderr=[LiteChromiumPortable] Extension unpack error for invalid_manifest.zip: manifest.json is missing required manifest_version field (incoming archive retained)\nLaunch failed: starting process failed: fork/exec E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_tx_test_1791114528813\\engine\\chrome.exe: %1 is not a valid Win32 application."
+    },
+    {
+      "case": "Case 2: Reject Case-Colliding ZIP Entries",
+      "passed": true,
+      "detail": "zip_retained=True, dest_not_created=True, stderr=[LiteChromiumPortable] Extension unpack error for case_collide.zip: archive contains duplicate or case-colliding path: file.txt (incoming archive retained)\nLaunch failed: starting process failed: fork/exec E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_tx_test_1791114528813\\engine\\chrome.exe: %1 is not a valid Win32 application."
+    },
+    {
+      "case": "Case 3: Reject Reserved Device Name in ZIP",
+      "passed": true,
+      "detail": "zip_retained=True, dest_not_created=True, stderr=[LiteChromiumPortable] Extension unpack error for bad_name.zip: archive contains forbidden Windows reserved device name: AUX.txt (incoming archive retained)\nLaunch failed: starting process failed: fork/exec E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_tx_test_1791114528813\\engine\\chrome.exe: %1 is not a valid Win32 application."
+    },
+    {
+      "case": "Case 4: Valid Extension Promotion",
+      "passed": true,
+      "detail": "zip_removed=True, dest_exists=True"
+    },
+    {
+      "case": "Case 5: .backups Hidden from Discovery",
+      "passed": true,
+      "detail": "backups placed under extensions/.backups/ which starts with dot and is explicitly ignored"
+    },
+    {
+      "case": "Case 6: Corrupt Config Fails Safely",
+      "passed": true,
+      "detail": "detected=True, stderr=Security Warning: corrupted extensions_config.json in E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_tx_test_1791114528813\\data\\profiles\\instance-1 (loading zero extensions for safety): invalid character 'i' looking for beginning of object key string\nLaunch failed: starting process failed: fork/exec E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_tx_test_1791114528813\\engine\\chrome.exe: %1 is not a valid Win32 application."
+    },
+    {
+      "case": "Case 7: Conflict Precedence (Disabled Wins)",
+      "passed": true,
+      "detail": "disabled_wins=True, stderr=Launch failed: starting process failed: fork/exec E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_tx_test_1791114528813\\engine\\chrome.exe: %1 is not a valid Win32 application."
+    },
+    {
+      "case": "Case 8: Concurrent Import Serialization Lock",
+      "passed": true,
+      "detail": "zip_untouched=True, dest_not_created=True"
+    }
+  ]
+}

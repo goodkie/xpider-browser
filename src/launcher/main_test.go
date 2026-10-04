@@ -48,7 +48,7 @@ func TestTransactionalUnzip_Valid(t *testing.T) {
 		"script.js":     `console.log("hello");`,
 	})
 
-	err := transactionalUnzip(zipPath, stagingDir, destDir)
+	err := transactionalUnzip(tmp, zipPath, stagingDir, destDir)
 	if err != nil {
 		t.Fatalf("expected success, got: %v", err)
 	}
@@ -68,7 +68,7 @@ func TestTransactionalUnzip_InvalidManifest(t *testing.T) {
 		"manifest.json": `{"name": "NoVersion"}`,
 	})
 
-	err := transactionalUnzip(zipPath, stagingDir, destDir)
+	err := transactionalUnzip(tmp, zipPath, stagingDir, destDir)
 	if err == nil {
 		t.Fatal("expected failure for missing manifest_version, got nil")
 	}
@@ -89,7 +89,7 @@ func TestTransactionalUnzip_CaseCollision(t *testing.T) {
 		"file.txt":      "bar",
 	})
 
-	err := transactionalUnzip(zipPath, stagingDir, destDir)
+	err := transactionalUnzip(tmp, zipPath, stagingDir, destDir)
 	if err == nil {
 		t.Fatal("expected failure for case collision, got nil")
 	}
@@ -109,7 +109,7 @@ func TestTransactionalUnzip_ReservedDeviceName(t *testing.T) {
 		"NUL.txt":       "bad device",
 	})
 
-	err := transactionalUnzip(zipPath, stagingDir, destDir)
+	err := transactionalUnzip(tmp, zipPath, stagingDir, destDir)
 	if err == nil {
 		t.Fatal("expected failure for reserved device name, got nil")
 	}
