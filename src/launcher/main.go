@@ -334,7 +334,7 @@ func transactionalUnzip(zipPath, stagingDir, destDir string) error {
 		return fmt.Errorf("manifest.json is malformed JSON: %w", err)
 	}
 
-	// Promote staging to destDir with safe backup and rollback (R2/R4)
+	// Promote staging to destDir with safe backup and rollback (R3)
 	var backupDir string
 	if _, err := os.Stat(destDir); err == nil {
 		backupDir = destDir + fmt.Sprintf(".backup_%d", time.Now().UnixNano())
@@ -344,11 +344,6 @@ func transactionalUnzip(zipPath, stagingDir, destDir string) error {
 	}
 
 	promotionErr := os.Rename(stagingDir, destDir)
-	if promotionErr != nil {
-		// Fallback for cross-device or permission rename failure
-		promotionErr = copyDir(stagingDir, destDir)
-	}
-
 	if promotionErr != nil {
 		// Rollback previous extension if backup was created
 		if backupDir != "" {
@@ -364,33 +359,6 @@ func transactionalUnzip(zipPath, stagingDir, destDir string) error {
 	return nil
 }
 
-func copyDir(src, dst string) error {
-	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		rel, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-		target := filepath.Join(dst, rel)
-		if info.IsDir() {
-			return os.MkdirAll(target, info.Mode())
-		}
-		sFile, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer sFile.Close()
-		dFile, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
-		if err != nil {
-			return err
-		}
-		defer dFile.Close()
-		_, err = io.Copy(dFile, sFile)
-		return err
-	})
-}
 
 func launchInstance(engineExe, profileDir string, instanceID int, extensions []string, initialURL, registryFile, lockFile string) error {
 	if err := os.MkdirAll(profileDir, 0755); err != nil {
@@ -529,15 +497,20 @@ func atomicReplaceFile(sourcePath, destPath string) error {
 		}
 		const MOVEFILE_REPLACE_EXISTING = 0x1
 		const MOVEFILE_WRITE_THROUGH = 0x8
-		r1, _, errSys := procMoveFileExW.Call(
-			uintptr(unsafe.Pointer(srcPtr)),
-			uintptr(unsafe.Pointer(dstPtr)),
-			uintptr(MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH),
-		)
-		if r1 == 0 {
-			return fmt.Errorf("MoveFileExW atomic replace failed (target preserved): %v", errSys)
+		var lastErr error
+		for attempt := 0; attempt < 10; attempt++ {
+			r1, _, errSys := procMoveFileExW.Call(
+				uintptr(unsafe.Pointer(srcPtr)),
+				uintptr(unsafe.Pointer(dstPtr)),
+				uintptr(MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH),
+			)
+			if r1 != 0 {
+				return nil
+			}
+			lastErr = errSys
+			time.Sleep(25 * time.Millisecond)
 		}
-		return nil
+		return fmt.Errorf("MoveFileExW atomic replace failed after retries (target preserved): %v", lastErr)
 	}
 	return os.Rename(sourcePath, destPath)
 }

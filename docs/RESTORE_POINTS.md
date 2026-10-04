@@ -49,6 +49,7 @@ All modifications follow the 4-tier restore model:
 
 ### 4. `RESTORE_POINT_P1A_R2_REMEDIATION_20261004_093000`
 - **Creation Timestamp**: 2026-10-04T09:30:00Z
+- **Commit**: `f2c91f632f9f1724361239cc6452380c228a0e67`
 - **Branch**: `feature/lcw-portable-chromium`
 - **Scope**: R2 Remediation in response to ChatGPT Audit (Comment #5978283912).
   - Atomic File Replacement: Applied Windows `MoveFileExW` (`MOVEFILE_REPLACE_EXISTING`) without prior destructive deletion.
@@ -61,6 +62,22 @@ All modifications follow the 4-tier restore model:
   - P2 Native MultiPanel Architecture: Completed in-tree C++ patch design and E: drive local build feasibility (531 GB available).
 - **Artifact**: `dist/LiteChromiumPortable_v0.1.0_win64.zip` (199,954,803 bytes, SHA256: `e97c555d37e7b0a260363cea314e409aa3bfd3812a2b338713b6735644231939`).
 - **Launcher Binary**: `LiteChromiumPortable.exe` (2,746,368 bytes, SHA256: `6ef1247009dc226d4ac42724706fe03739080b33eb1933707e79f92f574bd66f`).
+
+### 5. `RESTORE_POINT_P1A_R3_REMEDIATION_20261004_095500`
+- **Creation Timestamp**: 2026-10-04T09:55:00Z
+- **Branch**: `feature/lcw-portable-chromium`
+- **Scope**: R3 Remediation in response to ChatGPT Audit (Comment #5978550974).
+  - Permanent Profile Reset Disablement: Completely rejected `--clean-profiles` in product launcher (`Security Refusal`).
+  - True Atomic Replace without Destructive Fallback: Applied `MoveFileExW` with 10-attempt retry backoff, 100% eliminated `os.Remove(destPath)` fallback.
+  - Fail-safe Extension Config: Empty `enabled_extensions: []` or corrupted JSON loads zero extensions (fail-safe clean behavior).
+  - Legacy Scripts Cleaned: Eliminated global `taskkill` from `tests/run_verification.py` and wildcard remote debugging from `tests/panel_spike_test.py`.
+  - True Isolated Runtime Verification (`tests/run_verification_r3.py`): Executed on copied temporary root (`temp_test_root_r3`), proving multi-instance profile disk creation and sentinel Chromium browser survival (11/11 PASS).
+  - Clean Minimal Package (0 Default Extensions): Excluded all extensions from release zip, leaving strictly 76 engine files + launcher + verbatim licenses + receipt (190.68 MB).
+  - Decoupled Release Manifest: External `dist/DIST_MANIFEST.json` tracks final ZIP hash, breaking circular dependency in `BUILD_RECEIPT.json`.
+  - Corrected P2 Design: Aligned with Chromium 154 `SidePanelUIBase` / `SidePanelEntryKey` architecture and documented local hardware specs (Windows 10, 4-core, 24GB RAM, 531GB free).
+- **Artifact**: `dist/LiteChromiumPortable_v0.1.0_win64.zip` (199,943,049 bytes, SHA256: `8b4a5b827336e6234f810fe90d22357471b21cce91f6fe7708cbe43a42a469eb`).
+- **Launcher Binary**: `LiteChromiumPortable.exe` (2,725,888 bytes, SHA256: `fb9982490153d2e484299740626a15602560aa642f0f5fcfe6c37a09c4a22e71`).
+
 
 
 

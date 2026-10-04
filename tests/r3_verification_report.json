@@ -1,0 +1,62 @@
+{
+  "suite": "P1A-R3 Isolated Runtime Verification",
+  "passed": 11,
+  "failed": 0,
+  "assertions": [
+    {
+      "name": "T1. Permanent Clean Profiles Rejection",
+      "status": "PASS",
+      "detail": "rc=1, stderr=Security Refusal: --clean-profiles is permanently disabled in this release to protect user data"
+    },
+    {
+      "name": "T2. URL Switch Injection Defense",
+      "status": "PASS",
+      "detail": "rc=1, stderr=Security Error: --url parameter must not begin with '-' or '--' (flag injection prevented)"
+    },
+    {
+      "name": "T3. Multi-Instance Concurrency (3 Registered in Isolated Root)",
+      "status": "PASS",
+      "detail": "count=3"
+    },
+    {
+      "name": "T4. Instance 1 Profile Created & Populated",
+      "status": "PASS",
+      "detail": "entries=2"
+    },
+    {
+      "name": "T4. Instance 2 Profile Created & Populated",
+      "status": "PASS",
+      "detail": "entries=1"
+    },
+    {
+      "name": "T4. Instance 3 Profile Created & Populated",
+      "status": "PASS",
+      "detail": "entries=2"
+    },
+    {
+      "name": "T5. Explicit Enabled Extension Loaded (Inst 4)",
+      "status": "PASS",
+      "detail": "mv3-fixture loaded"
+    },
+    {
+      "name": "T5. Explicit Disabled Extension Excluded (Inst 5)",
+      "status": "PASS",
+      "detail": "mv3-fixture excluded"
+    },
+    {
+      "name": "T5. Empty Whitelist Loads Zero Extensions (Inst 6)",
+      "status": "PASS",
+      "detail": "zero extensions loaded"
+    },
+    {
+      "name": "T6. Sentinel Chromium Browser Alive",
+      "status": "PASS",
+      "detail": "PID=28980"
+    },
+    {
+      "name": "T6. Sentinel Profile Data Unmodified",
+      "status": "PASS",
+      "detail": "marker data verified"
+    }
+  ]
+}

@@ -1,16 +1,16 @@
 {
   "project_name": "Lite Chromium Portable",
-  "version": "0.1.0-p1a-r2",
+  "version": "0.1.0-p1a-r3",
   "git_branch": "feature/lcw-portable-chromium",
-  "git_commit": "fc8e372d3c3c7c4f2351767751ce5bcda5a0425b",
-  "build_timestamp": "2026-10-04T09:25:00Z",
+  "git_commit": "cebd5764f6fe20cb39bcaecad1c6f49704e673a5",
+  "build_timestamp": "2026-10-04T09:45:00Z",
   "platform": "windows-x64",
   "launcher": {
     "source": "src/launcher/main.go",
     "compiler": "go1.25.7 windows/amd64",
     "binary": "LiteChromiumPortable.exe",
-    "binary_bytes": 2746368,
-    "binary_sha256": "6ef1247009dc226d4ac42724706fe03739080b33eb1933707e79f92f574bd66f",
+    "binary_bytes": 2725888,
+    "binary_sha256": "fb9982490153d2e484299740626a15602560aa642f0f5fcfe6c37a09c4a22e71",
     "ldflags": "-s -w"
   },
   "engine": {
@@ -20,21 +20,14 @@
     "runtime_binary": "engine/chrome.exe",
     "package_sha256": "d4b8f53e8100e428a6ccea8070a1a909af3022c21070bfcd7dca102990d95d88"
   },
-  "release_artifact": {
-    "file": "LiteChromiumPortable_v0.1.0_win64.zip",
-    "bytes": 199954803,
-    "mb": 190.69,
-    "sha256": "e97c555d37e7b0a260363cea314e409aa3bfd3812a2b338713b6735644231939"
-  },
-  "remediation": "P1A-R2",
+  "remediation": "P1A-R3",
   "remediation_items_implemented": [
-    "R2: Windows MoveFileExW atomic registry replace and --confirm-destructive safety flag",
-    "R2: Staging backup and rollback protection on extension upgrade",
-    "R2: Per-instance EnabledExtensions whitelist and DisabledExtensions isolation",
-    "R2: Corrected upstream Chromium source commit SHA (73c14f6228d7cd537c855007e8f88678969cc0eb)",
-    "R2: Clean minimal packaging excluding 650+ legacy XPIDER extension bulk (reduced to 190.69MB)",
-    "R2: Verified browser window rendered milestone latency measurement (median: 11.609s)",
-    "R2: Full recursive process tree memory accounting (4 processes, WorkingSet: 118.83MB)",
-    "R2: Sentinel process survival verification across all lifecycle and shutdown tests"
+    "R3: Permanently disabled --clean-profiles to eliminate any risk of accidental profile destruction",
+    "R3: Eliminated destructive os.Remove fallback in atomicReplaceFile",
+    "R3: Eliminated copyDir partial copy fallback in transactionalUnzip ensuring clean rollback",
+    "R3: Fail-safe extensions_config.json handling (corrupted or empty [] strictly loads 0 extensions)",
+    "R3: Eliminated legacy taskkill /F /IM chrome.exe and wildcard remote debugging from all test scripts",
+    "R3: Separated internal build receipt from external release artifact manifest to eliminate circular hash dependency",
+    "R3: Verbatim BSD 3-Clause licenses for Chromium and Go components"
   ]
 }
