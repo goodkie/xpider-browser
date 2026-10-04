@@ -1,0 +1,24 @@
+{
+  "engine_version": "154.0.8037.57",
+  "previous_invalid_startup_result": "1.008s (MARKED INVALID: was fixed sleep delay artifact)",
+  "verified_readiness_timings_sec": [
+    0.062,
+    0.078,
+    0.078,
+    0.109,
+    0.14
+  ],
+  "median_startup_sec": 0.078,
+  "owned_process_memory": {
+    "working_set_bytes": 132403200,
+    "working_set_mb": 126.27,
+    "private_bytes": 60772352,
+    "private_bytes_mb": 57.96
+  },
+  "release_artifact": {
+    "path": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\dist\\LiteChromiumPortable_v0.1.0_win64.zip",
+    "bytes": 264685048,
+    "mb": 252.42,
+    "sha256": "e5dd6b1d21b554e16c98d037790c9feb238bb28b205834cf6c03652db59da348"
+  }
+}

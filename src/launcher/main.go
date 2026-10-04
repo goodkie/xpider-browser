@@ -3,9 +3,11 @@ package main
 import (
 	"archive/zip"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +16,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unsafe"
 )
 
 // InstanceRecord tracks running browser instances
@@ -31,13 +34,41 @@ type InstanceRegistry struct {
 	Instances []InstanceRecord `json:"instances"`
 }
 
+// InstanceExtensionConfig defines per-instance extension configuration
+type InstanceExtensionConfig struct {
+	DisabledExtensions []string `json:"disabled_extensions"`
+}
+
 func main() {
-	instanceFlag := flag.Int("instance", 1, "Instance number to launch (e.g. 1, 2, 3...)")
-	batchFlag := flag.Int("batch", 0, "Batch launch multiple instances concurrently (e.g. 3 or 5)")
+	instanceFlag := flag.Int("instance", 1, "Instance number to launch (1-100)")
+	batchFlag := flag.Int("batch", 0, "Batch launch multiple instances concurrently (1-20)")
 	statusFlag := flag.Bool("status", false, "Display status of all active browser instances")
 	cleanFlag := flag.Bool("clean-profiles", false, "Clean all instance profiles in data/profiles/")
 	urlFlag := flag.String("url", "", "Optional initial URL to navigate to")
 	flag.Parse()
+
+	// Parameter validation (R2)
+	if *instanceFlag < 1 || *instanceFlag > 100 {
+		fmt.Fprintf(os.Stderr, "Error: --instance must be between 1 and 100\n")
+		os.Exit(1)
+	}
+	if *batchFlag < 0 || *batchFlag > 20 {
+		fmt.Fprintf(os.Stderr, "Error: --batch must be between 1 and 20\n")
+		os.Exit(1)
+	}
+	if *urlFlag != "" {
+		trimmed := strings.TrimSpace(*urlFlag)
+		if strings.HasPrefix(trimmed, "-") {
+			fmt.Fprintf(os.Stderr, "Security Error: --url parameter must not begin with '-' or '--' (flag injection prevented)\n")
+			os.Exit(1)
+		}
+		// Basic URL validation
+		if !strings.HasPrefix(trimmed, "about:") && !strings.HasPrefix(trimmed, "chrome://") && !strings.HasPrefix(trimmed, "file://") {
+			if _, err := url.ParseRequestURI(trimmed); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: --url does not appear to be a standard URI: %s\n", trimmed)
+			}
+		}
+	}
 
 	appRoot, err := getAppRoot()
 	if err != nil {
@@ -48,15 +79,18 @@ func main() {
 	dataDir := filepath.Join(appRoot, "data")
 	profilesBase := filepath.Join(dataDir, "profiles")
 	registryFile := filepath.Join(dataDir, "instances.json")
+	lockFile := filepath.Join(dataDir, "instances.lock")
 	extensionsDir := filepath.Join(appRoot, "extensions")
 
+	_ = os.MkdirAll(dataDir, 0755)
+
 	if *statusFlag {
-		printStatus(registryFile)
+		printStatus(registryFile, lockFile)
 		return
 	}
 
 	if *cleanFlag {
-		cleanProfiles(profilesBase, registryFile)
+		cleanProfiles(profilesBase, registryFile, lockFile)
 		return
 	}
 
@@ -66,35 +100,44 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Prepare any zip extensions in extensions/
+	// Prepare any zip extensions transactionally (R4)
 	unzipIncomingExtensions(extensionsDir)
-
-	// Collect unpacked extension paths
-	loadedExts := discoverExtensions(extensionsDir)
 
 	if *batchFlag > 0 {
 		fmt.Printf("[LiteChromiumPortable] Batch launching %d instances...\n", *batchFlag)
 		var wg sync.WaitGroup
+		var launchErrors []string
+		var errMu sync.Mutex
+
 		for i := 1; i <= *batchFlag; i++ {
 			wg.Add(1)
 			go func(instID int) {
 				defer wg.Done()
 				pDir := filepath.Join(profilesBase, fmt.Sprintf("instance-%d", instID))
-				err := launchInstance(engineExe, pDir, instID, loadedExts, *urlFlag, registryFile)
+				loadedExts := discoverInstanceExtensions(extensionsDir, pDir)
+				err := launchInstance(engineExe, pDir, instID, loadedExts, *urlFlag, registryFile, lockFile)
 				if err != nil {
+					errMu.Lock()
+					launchErrors = append(launchErrors, fmt.Sprintf("Instance %d: %v", instID, err))
+					errMu.Unlock()
 					fmt.Fprintf(os.Stderr, "Failed to launch instance %d: %v\n", instID, err)
 				}
 			}(i)
-			time.Sleep(300 * time.Millisecond) // slight stagger for clean process creation
+			time.Sleep(200 * time.Millisecond) // slight stagger for clean process creation
 		}
 		wg.Wait()
+		if len(launchErrors) > 0 {
+			fmt.Fprintf(os.Stderr, "[LiteChromiumPortable] Batch launch completed with %d errors\n", len(launchErrors))
+			os.Exit(1)
+		}
 		fmt.Printf("[LiteChromiumPortable] Batch launch complete.\n")
 		return
 	}
 
 	// Single instance launch
 	pDir := filepath.Join(profilesBase, fmt.Sprintf("instance-%d", *instanceFlag))
-	err = launchInstance(engineExe, pDir, *instanceFlag, loadedExts, *urlFlag, registryFile)
+	loadedExts := discoverInstanceExtensions(extensionsDir, pDir)
+	err = launchInstance(engineExe, pDir, *instanceFlag, loadedExts, *urlFlag, registryFile, lockFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Launch failed: %v\n", err)
 		os.Exit(1)
@@ -127,11 +170,23 @@ func findEngine(appRoot string) (string, error) {
 	return "", fmt.Errorf("Chromium engine binary not found in %s/engine/", appRoot)
 }
 
-func discoverExtensions(extsDir string) []string {
+// discoverInstanceExtensions finds all valid extensions, filtered by instance disabled list (R4)
+func discoverInstanceExtensions(extsDir, profileDir string) []string {
 	var validExts []string
 	if _, err := os.Stat(extsDir); os.IsNotExist(err) {
 		_ = os.MkdirAll(extsDir, 0755)
 		return validExts
+	}
+
+	disabledMap := make(map[string]bool)
+	cfgFile := filepath.Join(profileDir, "extensions_config.json")
+	if data, err := os.ReadFile(cfgFile); err == nil {
+		var cfg InstanceExtensionConfig
+		if err := json.Unmarshal(data, &cfg); err == nil {
+			for _, d := range cfg.DisabledExtensions {
+				disabledMap[strings.ToLower(d)] = true
+			}
+		}
 	}
 
 	entries, err := os.ReadDir(extsDir)
@@ -140,16 +195,21 @@ func discoverExtensions(extsDir string) []string {
 	}
 
 	for _, entry := range entries {
-		if entry.IsDir() {
-			manifestPath := filepath.Join(extsDir, entry.Name(), "manifest.json")
+		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && entry.Name() != "incoming" {
+			extName := entry.Name()
+			if disabledMap[strings.ToLower(extName)] {
+				continue // disabled for this instance
+			}
+			manifestPath := filepath.Join(extsDir, extName, "manifest.json")
 			if _, err := os.Stat(manifestPath); err == nil {
-				validExts = append(validExts, filepath.Join(extsDir, entry.Name()))
+				validExts = append(validExts, filepath.Join(extsDir, extName))
 			}
 		}
 	}
 	return validExts
 }
 
+// Transactional and bounded extension unpacker (R4)
 func unzipIncomingExtensions(extsDir string) {
 	incomingDir := filepath.Join(extsDir, "incoming")
 	if _, err := os.Stat(incomingDir); os.IsNotExist(err) {
@@ -164,54 +224,125 @@ func unzipIncomingExtensions(extsDir string) {
 			zipPath := filepath.Join(incomingDir, entry.Name())
 			destName := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
 			destDir := filepath.Join(extsDir, destName)
-			if err := unzipFile(zipPath, destDir); err == nil {
-				fmt.Printf("[LiteChromiumPortable] Auto-unpacked extension: %s -> %s\n", entry.Name(), destDir)
+			stagingDir := filepath.Join(extsDir, ".staging", fmt.Sprintf("%s_%d", destName, time.Now().UnixNano()))
+
+			err := transactionalUnzip(zipPath, stagingDir, destDir)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "[LiteChromiumPortable] Extension unpack error for %s: %v (incoming archive retained)\n", entry.Name(), err)
+			} else {
+				fmt.Printf("[LiteChromiumPortable] Successfully imported extension: %s -> %s\n", entry.Name(), destDir)
 				_ = os.Remove(zipPath)
 			}
 		}
 	}
 }
 
-func unzipFile(src, dest string) error {
-	r, err := zip.OpenReader(src)
+func transactionalUnzip(zipPath, stagingDir, destDir string) error {
+	const MaxFiles = 1000
+	const MaxBytes = 100 * 1024 * 1024 // 100MB limit
+
+	r, err := zip.OpenReader(zipPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid zip file: %w", err)
 	}
 	defer r.Close()
 
-	_ = os.MkdirAll(dest, 0755)
+	if len(r.File) > MaxFiles {
+		return fmt.Errorf("archive contains too many files (%d > %d limit)", len(r.File), MaxFiles)
+	}
+
+	_ = os.RemoveAll(stagingDir)
+	if err := os.MkdirAll(stagingDir, 0755); err != nil {
+		return err
+	}
+	defer os.RemoveAll(stagingDir)
+
+	var totalExtracted int64
 	for _, f := range r.File {
-		fpath := filepath.Join(dest, f.Name)
-		if !strings.HasPrefix(fpath, filepath.Clean(dest)+string(os.PathSeparator)) {
-			continue
+		cleanName := filepath.Clean(f.Name)
+		if strings.HasPrefix(cleanName, "..") || filepath.IsAbs(cleanName) {
+			return fmt.Errorf("path traversal attempt detected: %s", f.Name)
 		}
+		target := filepath.Join(stagingDir, cleanName)
 		if f.FileInfo().IsDir() {
-			_ = os.MkdirAll(fpath, os.ModePerm)
+			_ = os.MkdirAll(target, 0755)
 			continue
 		}
-		if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
 			return err
 		}
-		outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
-		if err != nil {
-			return err
-		}
+
 		rc, err := f.Open()
 		if err != nil {
-			outFile.Close()
 			return err
 		}
-		_, err = io.Copy(outFile, rc)
+		outFile, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			rc.Close()
+			return err
+		}
+
+		written, err := io.Copy(outFile, io.LimitReader(rc, MaxBytes-totalExtracted+1))
 		outFile.Close()
 		rc.Close()
 		if err != nil {
 			return err
 		}
+		totalExtracted += written
+		if totalExtracted > MaxBytes {
+			return fmt.Errorf("archive uncompressed size exceeded limit of %d bytes", MaxBytes)
+		}
+	}
+
+	// Validate manifest.json exists in root of stagingDir
+	manifestPath := filepath.Join(stagingDir, "manifest.json")
+	manifestData, err := os.ReadFile(manifestPath)
+	if err != nil {
+		return fmt.Errorf("manifest.json not found in archive root")
+	}
+	var manifestCheck map[string]interface{}
+	if err := json.Unmarshal(manifestData, &manifestCheck); err != nil {
+		return fmt.Errorf("manifest.json is malformed JSON: %w", err)
+	}
+
+	// Promote staging to destDir
+	_ = os.RemoveAll(destDir)
+	if err := os.Rename(stagingDir, destDir); err != nil {
+		// Fallback for cross-device or permission rename failure
+		return copyDir(stagingDir, destDir)
 	}
 	return nil
 }
 
-func launchInstance(engineExe, profileDir string, instanceID int, extensions []string, initialURL, registryFile string) error {
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, info.Mode())
+		}
+		sFile, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+		defer sFile.Close()
+		dFile, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode())
+		if err != nil {
+			return err
+		}
+		defer dFile.Close()
+		_, err = io.Copy(dFile, sFile)
+		return err
+	})
+}
+
+func launchInstance(engineExe, profileDir string, instanceID int, extensions []string, initialURL, registryFile, lockFile string) error {
 	if err := os.MkdirAll(profileDir, 0755); err != nil {
 		return fmt.Errorf("could not create profile dir: %w", err)
 	}
@@ -256,66 +387,152 @@ func launchInstance(engineExe, profileDir string, instanceID int, extensions []s
 		ActiveParams: args,
 	}
 
-	updateRegistry(registryFile, record)
+	err = updateRegistryLocked(registryFile, lockFile, record)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to update instance registry: %v\n", err)
+	}
+
 	fmt.Printf("[LiteChromiumPortable] Launched Instance #%d [PID: %d] Profile: %s\n", instanceID, cmd.Process.Pid, profileDir)
 	return nil
 }
 
-func updateRegistry(regPath string, rec InstanceRecord) {
-	var reg InstanceRegistry
-	data, err := os.ReadFile(regPath)
-	if err == nil {
-		_ = json.Unmarshal(data, &reg)
-	}
-
-	var active []InstanceRecord
-	for _, inst := range reg.Instances {
-		if isProcessAlive(inst.PID) && inst.InstanceID != rec.InstanceID {
-			active = append(active, inst)
-		}
-	}
-	active = append(active, rec)
-	reg.Instances = active
-
-	bytes, err := json.MarshalIndent(reg, "", "  ")
-	if err == nil {
-		_ = os.WriteFile(regPath, bytes, 0644)
-	}
-}
-
-func printStatus(regPath string) {
-	data, err := os.ReadFile(regPath)
+// Windows cross-process file locking for registry concurrency (R2)
+func withFileLock(lockPath string, fn func() error) error {
+	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
-		fmt.Println("No instance registry found. No instances running.")
-		return
+		return fmt.Errorf("cannot open lock file: %w", err)
 	}
-	var reg InstanceRegistry
-	_ = json.Unmarshal(data, &reg)
+	defer f.Close()
 
-	fmt.Printf("Active LiteChromiumPortable Instances:\n")
-	fmt.Printf("%-12s %-8s %-20s %s\n", "INSTANCE", "PID", "STARTED_AT", "PROFILE")
-	for _, inst := range reg.Instances {
-		status := "STOPPED"
-		if isProcessAlive(inst.PID) {
-			status = "RUNNING"
+	if runtime.GOOS == "windows" {
+		handle := syscall.Handle(f.Fd())
+		var overlapped syscall.Overlapped
+		// LockFileEx with LOCKFILE_EXCLUSIVE_LOCK = 2
+		modkernel32 := syscall.NewLazyDLL("kernel32.dll")
+		procLockFileEx := modkernel32.NewProc("LockFileEx")
+		procUnlockFileEx := modkernel32.NewProc("UnlockFileEx")
+
+		r1, _, errSys := procLockFileEx.Call(
+			uintptr(handle),
+			uintptr(2), // LOCKFILE_EXCLUSIVE_LOCK
+			0,
+			1, 0, // 1 byte
+			uintptr(unsafe.Pointer(&overlapped)),
+		)
+		if r1 == 0 {
+			return fmt.Errorf("failed to acquire LockFileEx: %v", errSys)
 		}
-		fmt.Printf("%-12s %-8d %-20s %s [%s]\n",
-			fmt.Sprintf("instance-%d", inst.InstanceID),
-			inst.PID,
-			inst.StartedAt.Format("15:04:05"),
-			filepath.Base(inst.ProfileDir),
-			status,
+		defer procUnlockFileEx.Call(
+			uintptr(handle),
+			0,
+			1, 0,
+			uintptr(unsafe.Pointer(&overlapped)),
 		)
 	}
+
+	return fn()
 }
 
-func cleanProfiles(profilesBase, regPath string) {
-	_ = os.Remove(regPath)
-	err := os.RemoveAll(profilesBase)
+func updateRegistryLocked(regPath, lockPath string, rec InstanceRecord) error {
+	return withFileLock(lockPath, func() error {
+		var reg InstanceRegistry
+		data, err := os.ReadFile(regPath)
+		if err == nil {
+			_ = json.Unmarshal(data, &reg)
+		}
+
+		var active []InstanceRecord
+		for _, inst := range reg.Instances {
+			if isProcessAlive(inst.PID) && inst.InstanceID != rec.InstanceID {
+				active = append(active, inst)
+			}
+		}
+		active = append(active, rec)
+		reg.Instances = active
+
+		bytes, err := json.MarshalIndent(reg, "", "  ")
+		if err != nil {
+			return err
+		}
+
+		// Atomic file write via temp file
+		tmpFile := regPath + ".tmp"
+		if err := os.WriteFile(tmpFile, bytes, 0644); err != nil {
+			return err
+		}
+		_ = os.Remove(regPath)
+		return os.Rename(tmpFile, regPath)
+	})
+}
+
+func printStatus(regPath, lockPath string) {
+	_ = withFileLock(lockPath, func() error {
+		data, err := os.ReadFile(regPath)
+		if err != nil {
+			fmt.Println("No instance registry found. No instances running.")
+			return nil
+		}
+		var reg InstanceRegistry
+		if err := json.Unmarshal(data, &reg); err != nil {
+			fmt.Println("Instance registry is empty or invalid.")
+			return nil
+		}
+
+		fmt.Printf("Active LiteChromiumPortable Instances:\n")
+		fmt.Printf("%-12s %-8s %-20s %s\n", "INSTANCE", "PID", "STARTED_AT", "PROFILE")
+		runningCount := 0
+		for _, inst := range reg.Instances {
+			status := "STOPPED"
+			if isProcessAlive(inst.PID) {
+				status = "RUNNING"
+				runningCount++
+			}
+			fmt.Printf("%-12s %-8d %-20s %s [%s]\n",
+				fmt.Sprintf("instance-%d", inst.InstanceID),
+				inst.PID,
+				inst.StartedAt.Format("15:04:05"),
+				filepath.Base(inst.ProfileDir),
+				status,
+			)
+		}
+		if runningCount == 0 {
+			fmt.Println("No active running instances.")
+		}
+		return nil
+	})
+}
+
+// Safe profile cleanup (R3)
+func cleanProfiles(profilesBase, regPath, lockPath string) {
+	err := withFileLock(lockPath, func() error {
+		data, err := os.ReadFile(regPath)
+		if err == nil {
+			var reg InstanceRegistry
+			if json.Unmarshal(data, &reg) == nil {
+				for _, inst := range reg.Instances {
+					if isProcessAlive(inst.PID) {
+						return fmt.Errorf("cannot clean profiles: instance-%d [PID %d] is currently active", inst.InstanceID, inst.PID)
+					}
+				}
+			}
+		}
+
+		// Safety check: ensure profilesBase ends with "profiles"
+		if filepath.Base(profilesBase) != "profiles" {
+			return errors.New("aborted: profiles path does not end with 'profiles'")
+		}
+
+		_ = os.Remove(regPath)
+		if err := os.RemoveAll(profilesBase); err != nil {
+			return fmt.Errorf("failed to remove profiles: %w", err)
+		}
+		fmt.Printf("Successfully cleaned profiles directory: %s\n", profilesBase)
+		return nil
+	})
+
 	if err != nil {
-		fmt.Printf("Failed to clean profiles: %v\n", err)
-	} else {
-		fmt.Printf("Cleaned profiles directory: %s\n", profilesBase)
+		fmt.Fprintf(os.Stderr, "Profile cleanup error: %v\n", err)
+		os.Exit(1)
 	}
 }
 
@@ -328,7 +545,6 @@ func isProcessAlive(pid int) bool {
 		return false
 	}
 	if runtime.GOOS == "windows" {
-		// On Windows, FindProcess always succeeds. Check if still active via OpenProcess query
 		const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 		h, err := syscall.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
 		if err != nil {

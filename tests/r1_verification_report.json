@@ -1,0 +1,106 @@
+{
+  "tests": [
+    {
+      "name": "T1. Engine Lockfile Exists",
+      "status": "PASS",
+      "detail": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\engine.lock.json"
+    },
+    {
+      "name": "T1. Engine Version Lock",
+      "status": "PASS",
+      "detail": "154.0.8037.57"
+    },
+    {
+      "name": "T1. Engine Binary chrome.exe",
+      "status": "PASS",
+      "detail": "size=4437504"
+    },
+    {
+      "name": "T1. Engine Binary chrome.dll",
+      "status": "PASS",
+      "detail": "size=298344448"
+    },
+    {
+      "name": "T1. Engine Binary icudtl.dat",
+      "status": "PASS",
+      "detail": "size=10819840"
+    },
+    {
+      "name": "T1. Engine Binary v8_context_snapshot.bin",
+      "status": "PASS",
+      "detail": "size=758592"
+    },
+    {
+      "name": "T2. URL Flag Injection Blocked",
+      "status": "PASS",
+      "detail": "Security Error: --url parameter must not begin with '-' or '--' (flag injection prevented)"
+    },
+    {
+      "name": "T2. Instance Range Bounded",
+      "status": "PASS",
+      "detail": "Error: --instance must be between 1 and 100"
+    },
+    {
+      "name": "T3. Active Profile Reset Refused",
+      "status": "PASS",
+      "detail": "Profile cleanup error: cannot clean profiles: instance-1 [PID 14180] is currently active"
+    },
+    {
+      "name": "T3. Unrelated Sentinel Alive After Inst1 Termination",
+      "status": "PASS",
+      "detail": "Sentinel PID 4324 survived"
+    },
+    {
+      "name": "T4. Per-Instance Extension Isolation (mv3-fixture Disabled in Inst1)",
+      "status": "PASS",
+      "detail": "inst1 params=['--user-data-dir=E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\data\\\\profiles\\\\instance-1', '--no-first-run', '--no-default-browser-check', '--disable-sync', '--disable-component-update', '--disable-background-networking', '--disable-breakpad', '--disable-features=Translate,OptimizationHints,MediaRouter', '--load-extension=E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\Email_Extractor_Source,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\LocalBusinessDataCrawlerPro,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\UltraSolverPro,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\_old_collect-list_v2,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\bing_map_source,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\google_maps_extension_source,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\proxy,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\send_email_backup,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\send_message_backup,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\test_proxy', 'about:blank']"
+    },
+    {
+      "name": "T4. Per-Instance Extension Isolation (mv3-fixture Enabled in Inst2)",
+      "status": "PASS",
+      "detail": "inst2 params=['--user-data-dir=E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\data\\\\profiles\\\\instance-2', '--no-first-run', '--no-default-browser-check', '--disable-sync', '--disable-component-update', '--disable-background-networking', '--disable-breakpad', '--disable-features=Translate,OptimizationHints,MediaRouter', '--load-extension=E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\Email_Extractor_Source,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\LocalBusinessDataCrawlerPro,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\UltraSolverPro,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\_old_collect-list_v2,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\bing_map_source,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\google_maps_extension_source,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\mv3-fixture,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\proxy,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\send_email_backup,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\send_message_backup,E:\\\\vivpr\\\\ai\\\\ebrowser\\\\portable-minimal\\\\extensions\\\\test_proxy', 'about:blank']"
+    },
+    {
+      "name": "T5. Batch 5 Execution Exit Code 0",
+      "status": "PASS",
+      "detail": "[LiteChromiumPortable] Batch launching 5 instances...\n[LiteChromiumPortable] Launched Instance #1 [PID: 24664] Profile: E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-1\n[LiteChromiumPortable] Launched Instance #2 [PID: 3860] Profile: E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-2\n[LiteChromiumPortable] Launched Instance #3 [PID: 21384] Profile: E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-3\n[LiteChromiumPortable] Launched Instance #4 [PID: 21496] Profile: E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-4\n[LiteChromiumPortable] Launched Instance #5 [PID: 2808] Profile: E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-5\n[LiteChromiumPortable] Batch launch complete.\n"
+    },
+    {
+      "name": "T5. Batch 5 Registry Concurrency (All 5 Recorded Without Loss)",
+      "status": "PASS",
+      "detail": "recorded count=5"
+    },
+    {
+      "name": "T5. Instance-1 Profile Segregation",
+      "status": "PASS",
+      "detail": "path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-1"
+    },
+    {
+      "name": "T5. Instance-2 Profile Segregation",
+      "status": "PASS",
+      "detail": "path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-2"
+    },
+    {
+      "name": "T5. Instance-3 Profile Segregation",
+      "status": "PASS",
+      "detail": "path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-3"
+    },
+    {
+      "name": "T5. Instance-4 Profile Segregation",
+      "status": "PASS",
+      "detail": "path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-4"
+    },
+    {
+      "name": "T5. Instance-5 Profile Segregation",
+      "status": "PASS",
+      "detail": "path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\data\\profiles\\instance-5"
+    },
+    {
+      "name": "R1 Final Check. Sentinel Browser/Process Remained Completely Untouched",
+      "status": "PASS",
+      "detail": "Sentinel 4324 survived entire suite"
+    }
+  ],
+  "passed": 20,
+  "failed": 0
+}

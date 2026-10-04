@@ -1,0 +1,40 @@
+{
+  "project_name": "Lite Chromium Portable",
+  "version": "0.1.0-p1a-r1",
+  "git_branch": "feature/lcw-portable-chromium",
+  "git_commit": "bee59d7441ad0a143fa6fdcbf85bd7523e176c71",
+  "build_timestamp": "2026-10-04T08:40:00Z",
+  "platform": "windows-x64",
+  "launcher": {
+    "source": "src/launcher/main.go",
+    "compiler": "go1.25.7 windows/amd64",
+    "binary": "LiteChromiumPortable.exe",
+    "binary_bytes": 2743808,
+    "binary_sha256": "ffa97680fddf94cffe49337aa6e7c746790cf9ab50fde6b006304add24073eb8",
+    "ldflags": "-s -w"
+  },
+  "engine": {
+    "version": "154.0.8037.57",
+    "upstream_tag": "154.0.8037.57-1.1",
+    "chromium_upstream_commit": "b859317bf11f6be47f9b7799ec690a0a42a1fb33",
+    "runtime_binary": "engine/chrome.exe",
+    "package_sha256": "d4b8f53e8100e428a6ccea8070a1a909af3022c21070bfcd7dca102990d95d88"
+  },
+  "release_artifact": {
+    "file": "LiteChromiumPortable_v0.1.0_win64.zip",
+    "bytes": 264685048,
+    "mb": 252.42,
+    "sha256": "e5dd6b1d21b554e16c98d037790c9feb238bb28b205834cf6c03652db59da348"
+  },
+  "remediation": "P1A-R1",
+  "remediation_items_implemented": [
+    "R1: Eliminated global taskkill; targeted process lifecycle management",
+    "R2: Windows cross-process file lock and atomic registry update",
+    "R3: Protected real user profiles; restricted cleanup and checks",
+    "R4: Transactional extension import and per-instance extension configuration",
+    "R5: Real runtime assertions, 5-instance concurrency and profile segregation",
+    "R6: Monotonic readiness-based startup latency and owned-process memory measurement",
+    "R7: Panel spike static analysis clarity",
+    "R8: Chromium source commit SHA mapping"
+  ]
+}

@@ -24,10 +24,26 @@ All modifications follow the 4-tier restore model:
 
 ### 2. `RESTORE_POINT_P1A_DELIVERY_20261004_042500`
 - **Creation Timestamp**: 2026-10-04T04:25:00Z
-- **Commit**: `P1A Delivery & Panel Spike`
+- **Commit**: `bee59d7441ad0a143fa6fdcbf85bd7523e176c71`
 - **Branch**: `feature/lcw-portable-chromium`
 - **Location**: `E:\vivpr\ai\ebrowser\_RESTORE_POINTS\P1A_DELIVERY`
 - **Scope**: Native Go launcher (`LiteChromiumPortable.exe`), `engine.lock.json` (Chromium 154.0.8037.57), test fixtures, test reports, and portable release zip.
 - **Artifact**: `LiteChromiumPortable_v0.1.0_win64.zip` (264,608,216 bytes, SHA256: `686426b2ad3c59e412cd88663558842c00d6d7470553354718622692a79db903`).
 - **Spike Findings**: Unmodified engine Win32 docking evaluated; confirmed `SIDE_PANEL` native context limitation (scoped `FAIL_UNMODIFIED_DOCKING`).
+
+### 3. `RESTORE_POINT_P1A_R1_REMEDIATION_20261004_084500`
+- **Creation Timestamp**: 2026-10-04T08:45:00Z
+- **Branch**: `feature/lcw-portable-chromium`
+- **Scope**: R1~R8 Remediation in response to ChatGPT Audit (Comment #5978144344).
+  - R1: Global `taskkill /F /IM chrome.exe` 100% eliminated; strictly targeted process hierarchy management via CIM. Sentinel browser process fully protected and verified.
+  - R2: Windows `LockFileEx` cross-process file lock, atomic temp replacement, URL switch injection defense, and instance/batch range bounds.
+  - R3: User profile data protection; active instance clean rejection.
+  - R4: Transactional extension unzip with bound checks and path traversal protection; per-instance `extensions_config.json` isolation.
+  - R5: Real runtime test suite with 20/20 PASS assertions, including batch-5 concurrent launch and profile segregation.
+  - R6: Monotonic readiness-based startup latency (5 trials, median 0.078s) and owned-process memory metrics (WorkingSet: 126.27MB, PrivateBytes: 57.96MB).
+  - R7: Panel spike static analysis clarity maintained (HOLD on multi/duplicate sidebars on unmodified engine).
+  - R8: Chromium upstream source commit SHA mapping (`b859317bf11f6be47f9b7799ec690a0a42a1fb33`).
+- **Artifact**: `dist/LiteChromiumPortable_v0.1.0_win64.zip` (264,685,048 bytes, SHA256: `e5dd6b1d21b554e16c98d037790c9feb238bb28b205834cf6c03652db59da348`).
+- **Launcher Binary**: `LiteChromiumPortable.exe` (2,743,808 bytes, SHA256: `ffa97680fddf94cffe49337aa6e7c746790cf9ab50fde6b006304add24073eb8`).
+
 
