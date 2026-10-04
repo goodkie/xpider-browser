@@ -27,6 +27,9 @@ type InstanceRecord struct {
 	StartedAt    time.Time `json:"started_at"`
 	Executable   string    `json:"executable"`
 	ActiveParams []string  `json:"active_params"`
+	// Verified process identity (see procid_windows.go); PID alone is never trusted.
+	CreationTime uint64 `json:"creation_time,omitempty"`
+	ImagePath    string `json:"image_path,omitempty"`
 }
 
 // InstanceRegistry maintains the active instances
@@ -86,7 +89,14 @@ func main() {
 	_ = os.MkdirAll(dataDir, 0755)
 
 	if *statusFlag {
-		printStatus(registryFile, lockFile)
+		unknown, err := printStatus(os.Stdout, registryFile, lockFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Status error (state unknown): %v\n", err)
+			os.Exit(1)
+		}
+		if unknown > 0 {
+			os.Exit(2)
+		}
 		return
 	}
 
@@ -101,8 +111,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Prepare any zip extensions transactionally (R4)
-	unzipIncomingExtensions(extensionsDir)
+	// Prepare any zip extensions transactionally (R4). Import failures are reported; browsing continues
+	// with the previous extension set (failed archives are retained for retry).
+	for _, ierr := range unzipIncomingExtensions(extensionsDir) {
+		fmt.Fprintf(os.Stderr, "[LiteChromiumPortable] Extension import error: %v\n", ierr)
+	}
 
 	if *batchFlag > 0 {
 		fmt.Printf("[LiteChromiumPortable] Batch launching %d instances...\n", *batchFlag)
@@ -189,30 +202,14 @@ func discoverInstanceExtensions(extsDir, profileDir string) []string {
 			return validExts
 		}
 		hasConfig = true
+	} else if !os.IsNotExist(err) {
+		// Non-absent read failure (e.g. permission error, file lock) must NOT silently fall back to loading all extensions!
+		fmt.Fprintf(os.Stderr, "Security Warning: error reading %s (loading zero extensions for safety): %v\n", cfgFile, err)
+		return validExts
 	}
 
 	entries, err := os.ReadDir(extsDir)
 	if err != nil {
-		return validExts
-	}
-
-	// If explicit enabled list is provided (even if empty []), strictly enforce it
-	if hasConfig && cfg.EnabledExtensions != nil {
-		enabledMap := make(map[string]bool)
-		for _, e := range cfg.EnabledExtensions {
-			enabledMap[strings.ToLower(e)] = true
-		}
-		for _, entry := range entries {
-			if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && entry.Name() != "incoming" && entry.Name() != ".staging" {
-				extName := entry.Name()
-				if enabledMap[strings.ToLower(extName)] {
-					manifestPath := filepath.Join(extsDir, extName, "manifest.json")
-					if _, err := os.Stat(manifestPath); err == nil {
-						validExts = append(validExts, filepath.Join(extsDir, extName))
-					}
-				}
-			}
-		}
 		return validExts
 	}
 
@@ -223,8 +220,33 @@ func discoverInstanceExtensions(extsDir, profileDir string) []string {
 		}
 	}
 
+	// If explicit enabled list is provided (even if empty []), strictly enforce it
+	if hasConfig && cfg.EnabledExtensions != nil {
+		enabledMap := make(map[string]bool)
+		for _, e := range cfg.EnabledExtensions {
+			enabledMap[strings.ToLower(e)] = true
+		}
+		for _, entry := range entries {
+			if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && entry.Name() != "incoming" && entry.Name() != ".staging" && entry.Name() != ".backups" {
+				extName := entry.Name()
+				lower := strings.ToLower(extName)
+				// DISABLED WINS: conflict resolution rule
+				if disabledMap[lower] {
+					continue
+				}
+				if enabledMap[lower] {
+					manifestPath := filepath.Join(extsDir, extName, "manifest.json")
+					if _, err := os.Stat(manifestPath); err == nil {
+						validExts = append(validExts, filepath.Join(extsDir, extName))
+					}
+				}
+			}
+		}
+		return validExts
+	}
+
 	for _, entry := range entries {
-		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && entry.Name() != "incoming" && entry.Name() != ".staging" {
+		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && entry.Name() != "incoming" && entry.Name() != ".staging" && entry.Name() != ".backups" {
 			extName := entry.Name()
 			if disabledMap[strings.ToLower(extName)] {
 				continue
@@ -238,32 +260,93 @@ func discoverInstanceExtensions(extsDir, profileDir string) []string {
 	return validExts
 }
 
-// Transactional and bounded extension unpacker (R4)
-func unzipIncomingExtensions(extsDir string) {
+// renameWithRetry attempts atomic directory rename with backoff retries for Windows file lock tolerance
+func renameWithRetry(src, dst string) error {
+	var err error
+	for attempt := 0; attempt < 10; attempt++ {
+		err = os.Rename(src, dst)
+		if err == nil {
+			return nil
+		}
+		time.Sleep(time.Duration(25*(attempt+1)) * time.Millisecond)
+	}
+	return err
+}
+
+// validateExtensionDirName rejects archive names that would collide with launcher-internal directories,
+// Windows device names, or break the comma-separated --load-extension list.
+func validateExtensionDirName(name string) error {
+	if name == "" || strings.HasPrefix(name, ".") || strings.HasSuffix(name, " ") || strings.HasSuffix(name, ".") {
+		return fmt.Errorf("invalid extension directory name %q", name)
+	}
+	if strings.EqualFold(name, "incoming") {
+		return fmt.Errorf("extension directory name %q is reserved", name)
+	}
+	if strings.ContainsAny(name, ":*?\"<>|,/\\") {
+		return fmt.Errorf("extension directory name %q contains forbidden characters", name)
+	}
+	switch strings.ToUpper(name) {
+	case "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9":
+		return fmt.Errorf("extension directory name %q is a reserved Windows device name", name)
+	}
+	return nil
+}
+
+// Transactional and bounded extension unpacker (R4).
+// Imports are serialized with an OS-level lock (released automatically on crash, so no stale lock file can
+// block imports); interrupted promotions are recovered first. All errors are returned, never swallowed.
+func unzipIncomingExtensions(extsDir string) []error {
 	incomingDir := filepath.Join(extsDir, "incoming")
-	if _, err := os.Stat(incomingDir); os.IsNotExist(err) {
-		return
+	_, incErr := os.Stat(incomingDir)
+	_, bakErr := os.Stat(filepath.Join(extsDir, ".backups"))
+	if os.IsNotExist(incErr) && os.IsNotExist(bakErr) {
+		return nil
 	}
-	entries, err := os.ReadDir(incomingDir)
-	if err != nil {
-		return
-	}
-	for _, entry := range entries {
-		if !entry.IsDir() && strings.HasSuffix(strings.ToLower(entry.Name()), ".zip") {
+
+	var errs []error
+	lockErr := withFileLock(filepath.Join(extsDir, ".import.lock"), func() error {
+		errs = append(errs, recoverImportJournals(extsDir)...)
+		// Under the import lock no other importer is active, so leftover staging dirs are crash residue.
+		_ = os.RemoveAll(filepath.Join(extsDir, ".staging"))
+
+		entries, err := os.ReadDir(incomingDir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			return fmt.Errorf("cannot read %s: %w", incomingDir, err)
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".zip") {
+				continue
+			}
 			zipPath := filepath.Join(incomingDir, entry.Name())
 			destName := strings.TrimSuffix(entry.Name(), filepath.Ext(entry.Name()))
+			if err := validateExtensionDirName(destName); err != nil {
+				errs = append(errs, fmt.Errorf("%s: %w (incoming archive retained)", entry.Name(), err))
+				continue
+			}
 			destDir := filepath.Join(extsDir, destName)
 			stagingDir := filepath.Join(extsDir, ".staging", fmt.Sprintf("%s_%d", destName, time.Now().UnixNano()))
 
-			err := transactionalUnzip(zipPath, stagingDir, destDir)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "[LiteChromiumPortable] Extension unpack error for %s: %v (incoming archive retained)\n", entry.Name(), err)
-			} else {
-				fmt.Printf("[LiteChromiumPortable] Successfully imported extension: %s -> %s\n", entry.Name(), destDir)
-				_ = os.Remove(zipPath)
+			if err := transactionalUnzip(zipPath, stagingDir, destDir); err != nil {
+				errs = append(errs, fmt.Errorf("%s: %w (incoming archive retained)", entry.Name(), err))
+				continue
 			}
+			// The archive is the recovery source until promotion is verified (hasManifest checked in promoteStaged).
+			if err := os.Remove(zipPath); err != nil {
+				errs = append(errs, fmt.Errorf("%s imported but archive could not be removed: %w", entry.Name(), err))
+				continue
+			}
+			fmt.Printf("[LiteChromiumPortable] Successfully imported extension: %s -> %s\n", entry.Name(), destDir)
 		}
+		return nil
+	})
+	if lockErr != nil {
+		errs = append(errs, fmt.Errorf("import lock: %w", lockErr))
 	}
+	return errs
 }
 
 func transactionalUnzip(zipPath, stagingDir, destDir string) error {
@@ -287,11 +370,34 @@ func transactionalUnzip(zipPath, stagingDir, destDir string) error {
 	defer os.RemoveAll(stagingDir)
 
 	var totalExtracted int64
+	seenPaths := make(map[string]bool)
+
 	for _, f := range r.File {
 		cleanName := filepath.Clean(f.Name)
 		if strings.HasPrefix(cleanName, "..") || filepath.IsAbs(cleanName) {
 			return fmt.Errorf("path traversal attempt detected: %s", f.Name)
 		}
+
+		// Windows path validity and case-collision checks
+		lowerClean := strings.ToLower(cleanName)
+		if seenPaths[lowerClean] {
+			return fmt.Errorf("archive contains duplicate or case-colliding path: %s", f.Name)
+		}
+		seenPaths[lowerClean] = true
+
+		// Check for forbidden Windows characters and device names
+		for _, part := range strings.Split(cleanName, string(filepath.Separator)) {
+			if strings.ContainsAny(part, ":*?\"<>|") {
+				return fmt.Errorf("archive contains forbidden Windows characters in filename: %s", f.Name)
+			}
+			basePart := strings.ToUpper(strings.TrimSuffix(part, filepath.Ext(part)))
+			switch basePart {
+			case "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+				"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9":
+				return fmt.Errorf("archive contains forbidden Windows reserved device name: %s", f.Name)
+			}
+		}
+
 		target := filepath.Join(stagingDir, cleanName)
 		if f.FileInfo().IsDir() {
 			_ = os.MkdirAll(target, 0755)
@@ -333,38 +439,153 @@ func transactionalUnzip(zipPath, stagingDir, destDir string) error {
 	if err := json.Unmarshal(manifestData, &manifestCheck); err != nil {
 		return fmt.Errorf("manifest.json is malformed JSON: %w", err)
 	}
+	mv, ok := manifestCheck["manifest_version"]
+	if !ok {
+		return fmt.Errorf("manifest.json is missing required manifest_version field")
+	}
+	if v, isNum := mv.(float64); !isNum || v != 3 {
+		return fmt.Errorf("manifest.json manifest_version must be 3 (got %v); Chromium 154 does not load MV2 extensions", mv)
+	}
+	for _, field := range []string{"name", "version"} {
+		if s, isStr := manifestCheck[field].(string); !isStr || strings.TrimSpace(s) == "" {
+			return fmt.Errorf("manifest.json is missing required non-empty %q field", field)
+		}
+	}
 
-	// Promote staging to destDir with safe backup and rollback (R3)
-	var backupDir string
+	return promoteStaged(stagingDir, destDir)
+}
+
+// renameFn is the directory rename primitive used for promotion/rollback; tests replace it to inject failures.
+var renameFn = renameWithRetry
+
+// importJournal records an in-flight promotion so an interrupted import can be recovered on the next run.
+type importJournal struct {
+	Dest    string `json:"dest"`
+	Backup  string `json:"backup"`
+	Staging string `json:"staging"`
+	Started string `json:"started"`
+}
+
+func hasManifest(dir string) bool {
+	fi, err := os.Stat(filepath.Join(dir, "manifest.json"))
+	return err == nil && !fi.IsDir()
+}
+
+// promoteStaged moves a fully validated staging directory into place.
+// The previous version (if any) is kept in extensions/.backups with a journal until the new version is verified.
+// A failed rollback never discards the backup and is reported together with the promotion error.
+func promoteStaged(stagingDir, destDir string) error {
+	var backupDir, journalPath string
 	if _, err := os.Stat(destDir); err == nil {
-		backupDir = destDir + fmt.Sprintf(".backup_%d", time.Now().UnixNano())
-		if err := os.Rename(destDir, backupDir); err != nil {
-			return fmt.Errorf("failed to backup existing extension before promotion: %w", err)
+		backupsRoot := filepath.Join(filepath.Dir(destDir), ".backups")
+		if err := os.MkdirAll(backupsRoot, 0755); err != nil {
+			return fmt.Errorf("cannot create backups dir: %w", err)
 		}
+		backupDir = filepath.Join(backupsRoot, fmt.Sprintf("%s_%d", filepath.Base(destDir), time.Now().UnixNano()))
+		journalPath = backupDir + ".journal.json"
+		jd, _ := json.Marshal(importJournal{Dest: destDir, Backup: backupDir, Staging: stagingDir, Started: time.Now().UTC().Format(time.RFC3339Nano)})
+		if err := os.WriteFile(journalPath, jd, 0644); err != nil {
+			return fmt.Errorf("cannot write import recovery journal: %w", err)
+		}
+		if err := renameFn(destDir, backupDir); err != nil {
+			_ = os.Remove(journalPath)
+			return fmt.Errorf("failed to backup existing extension before promotion (existing version untouched): %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("cannot inspect destination %s: %w", destDir, err)
 	}
 
-	promotionErr := os.Rename(stagingDir, destDir)
-	if promotionErr != nil {
-		// Rollback previous extension if backup was created
-		if backupDir != "" {
-			_ = os.Rename(backupDir, destDir)
+	if promotionErr := renameFn(stagingDir, destDir); promotionErr != nil {
+		if backupDir == "" {
+			return fmt.Errorf("failed to promote staged extension to %s (no previous version existed): %w", destDir, promotionErr)
 		}
-		return fmt.Errorf("failed to promote staged extension to %s (rollback executed): %w", destDir, promotionErr)
+		rbErr := renameFn(backupDir, destDir)
+		if rbErr == nil && !hasManifest(destDir) {
+			rbErr = fmt.Errorf("restore verification failed: %s has no manifest.json after rollback", destDir)
+		}
+		if rbErr != nil {
+			return errors.Join(
+				fmt.Errorf("CRITICAL: promotion to %s failed: %w", destDir, promotionErr),
+				fmt.Errorf("rollback failed: %w; previous version preserved at %s (recovery journal %s)", rbErr, backupDir, journalPath))
+		}
+		_ = os.Remove(journalPath)
+		return fmt.Errorf("failed to promote staged extension to %s; previous version restored and verified: %w", destDir, promotionErr)
 	}
 
-	// Promotion succeeded: remove backup directory
+	if !hasManifest(destDir) {
+		return fmt.Errorf("promotion verification failed: %s has no manifest.json (backup kept at %s)", destDir, backupDir)
+	}
 	if backupDir != "" {
-		_ = os.RemoveAll(backupDir)
+		if err := os.RemoveAll(backupDir); err != nil {
+			fmt.Fprintf(os.Stderr, "[LiteChromiumPortable] Warning: could not remove verified-obsolete backup %s: %v (journal kept for cleanup)\n", backupDir, err)
+			return nil
+		}
+		_ = os.Remove(journalPath)
 	}
 	return nil
 }
 
-
-func launchInstance(engineExe, profileDir string, instanceID int, extensions []string, initialURL, registryFile, lockFile string) error {
-	if err := os.MkdirAll(profileDir, 0755); err != nil {
-		return fmt.Errorf("could not create profile dir: %w", err)
+// recoverImportJournals completes or reverts imports interrupted by a crash. Caller holds the import lock.
+func recoverImportJournals(extsDir string) []error {
+	var errs []error
+	backupsRoot := filepath.Join(extsDir, ".backups")
+	entries, err := os.ReadDir(backupsRoot)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return []error{fmt.Errorf("cannot read %s: %w", backupsRoot, err)}
 	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".journal.json") {
+			continue
+		}
+		jp := filepath.Join(backupsRoot, e.Name())
+		data, err := os.ReadFile(jp)
+		var j importJournal
+		if err == nil {
+			err = json.Unmarshal(data, &j)
+		}
+		if err != nil || j.Dest == "" || j.Backup == "" {
+			errs = append(errs, fmt.Errorf("unreadable import journal %s (left in place): %v", jp, err))
+			continue
+		}
+		_, backupErr := os.Stat(j.Backup)
+		backupExists := backupErr == nil
+		switch {
+		case !backupExists:
+			_ = os.Remove(jp) // nothing to recover: backup already consumed
+		case hasManifest(j.Dest):
+			// New version is in place and verified; the backup is obsolete.
+			if err := os.RemoveAll(j.Backup); err != nil {
+				errs = append(errs, fmt.Errorf("cannot remove obsolete backup %s: %w", j.Backup, err))
+				continue
+			}
+			_ = os.Remove(jp)
+		default:
+			// Promotion never completed: restore the previous version.
+			_ = os.RemoveAll(j.Dest)
+			if err := renameFn(j.Backup, j.Dest); err != nil || !hasManifest(j.Dest) {
+				errs = append(errs, fmt.Errorf("recovery of %s failed (backup preserved at %s): %v", j.Dest, j.Backup, err))
+				continue
+			}
+			_ = os.Remove(jp)
+			fmt.Fprintf(os.Stderr, "[LiteChromiumPortable] Recovered previous version of %s from interrupted import\n", j.Dest)
+		}
+	}
+	return errs
+}
 
+// ---- Instance launch / registry (R4-A) ----
+
+var (
+	// startupGrace: an engine process that exits within this window did not become an instance owner.
+	startupGrace = 1000 * time.Millisecond
+	// handoffTimeout: bound for the Chromium "new window in existing owner" forwarding process.
+	handoffTimeout = 15 * time.Second
+)
+
+func buildEngineArgs(profileDir string, extensions []string, initialURL string) []string {
 	args := []string{
 		"--user-data-dir=" + profileDir,
 		"--no-first-run",
@@ -375,43 +596,173 @@ func launchInstance(engineExe, profileDir string, instanceID int, extensions []s
 		"--disable-breakpad",
 		"--disable-features=Translate,OptimizationHints,MediaRouter",
 	}
-
 	if len(extensions) > 0 {
 		args = append(args, "--load-extension="+strings.Join(extensions, ","))
+		args = append(args, "--disable-extensions-except="+strings.Join(extensions, ","))
+	} else {
+		args = append(args, "--disable-extensions")
 	}
-
 	if initialURL != "" {
 		args = append(args, initialURL)
 	}
+	return args
+}
 
+func startEngine(engineExe string, args []string) (*exec.Cmd, error) {
 	cmd := exec.Command(engineExe, args...)
 	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{
-			CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+		cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP}
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("starting process failed: %w", err)
+	}
+	return cmd, nil
+}
+
+// launchInstance starts (or forwards to) the owner of one instance.
+//
+// The registry lock is held from the ownership check until the new record is durable, so concurrent launchers
+// cannot both become owners of the same instance. Every failure path is an error (nonzero exit upstream):
+//   - unreadable/malformed registry or UNKNOWN owner state: refuse to launch, nothing is modified;
+//   - live verified owner: documented behavior is Chromium's own handoff (new window in the existing owner);
+//     the owner's record is preserved untouched;
+//   - engine exits during startup: no record is written (owner unknown);
+//   - registry write failure after start: the process this launcher just created is terminated and the error returned.
+func launchInstance(engineExe, profileDir string, instanceID int, extensions []string, initialURL, registryFile, lockFile string) error {
+	if err := os.MkdirAll(profileDir, 0755); err != nil {
+		return fmt.Errorf("could not create profile dir: %w", err)
+	}
+	args := buildEngineArgs(profileDir, extensions, initialURL)
+
+	return withFileLock(lockFile, func() error {
+		reg, err := readRegistry(registryFile)
+		if err != nil {
+			return fmt.Errorf("instance registry is unreadable; refusing to launch instance %d (state unknown): %w", instanceID, err)
+		}
+		for _, inst := range reg.Instances {
+			if inst.InstanceID != instanceID {
+				continue
+			}
+			state, why := verifyOwner(inst)
+			switch state {
+			case ProcRunning:
+				return handoffToOwner(engineExe, args, inst)
+			case ProcUnknown:
+				return fmt.Errorf("instance %d owner state UNKNOWN (pid %d): %s; refusing to launch a second owner", instanceID, inst.PID, why)
+			}
+		}
+
+		cmd, err := startEngine(engineExe, args)
+		if err != nil {
+			return err
+		}
+		exited := make(chan error, 1)
+		go func() { exited <- cmd.Wait() }()
+		select {
+		case werr := <-exited:
+			return fmt.Errorf("engine exited %s after start (result: %v); instance %d has no verified owner and was not registered", startupGrace, werr, instanceID)
+		case <-time.After(startupGrace):
+		}
+
+		rec := InstanceRecord{
+			InstanceID:   instanceID,
+			PID:          cmd.Process.Pid,
+			ProfileDir:   profileDir,
+			StartedAt:    time.Now().UTC(),
+			Executable:   engineExe,
+			ActiveParams: args,
+		}
+		if err := captureIdentity(&rec); err != nil {
+			_ = cmd.Process.Kill()
+			return fmt.Errorf("could not verify identity of the launched process (terminated it): %w", err)
+		}
+		if err := mergeRecord(registryFile, reg, rec); err != nil {
+			killErr := cmd.Process.Kill()
+			return fmt.Errorf("failed to record instance %d (launched pid %d terminated, kill result: %v): %w", instanceID, rec.PID, killErr, err)
+		}
+		fmt.Printf("[LiteChromiumPortable] Launched Instance #%d [PID: %d] Profile: %s\n", instanceID, rec.PID, profileDir)
+		return nil
+	})
+}
+
+// handoffToOwner runs the engine with the same profile; Chromium forwards the request to the live owner
+// (opening a new window there) and exits 0. The owner record is not modified.
+func handoffToOwner(engineExe string, args []string, owner InstanceRecord) error {
+	cmd, err := startEngine(engineExe, args)
+	if err != nil {
+		return err
+	}
+	exited := make(chan error, 1)
+	go func() { exited <- cmd.Wait() }()
+	select {
+	case werr := <-exited:
+		if werr != nil {
+			return fmt.Errorf("handoff to live owner of instance %d (pid %d) failed: %w", owner.InstanceID, owner.PID, werr)
+		}
+		fmt.Printf("[LiteChromiumPortable] Instance #%d already running [PID: %d]; opened a new window in the existing owner\n", owner.InstanceID, owner.PID)
+		return nil
+	case <-time.After(handoffTimeout):
+		killErr := cmd.Process.Kill()
+		return fmt.Errorf("handoff to live owner of instance %d (pid %d) did not finish within %s (forwarding process terminated: %v)", owner.InstanceID, owner.PID, handoffTimeout, killErr)
+	}
+}
+
+// readRegistry returns an empty registry only when the file does not exist.
+// Any other read failure and any malformed/empty content is an error: it must never be overwritten silently.
+func readRegistry(regPath string) (InstanceRegistry, error) {
+	var reg InstanceRegistry
+	data, err := os.ReadFile(regPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return reg, nil
+		}
+		return reg, fmt.Errorf("cannot read registry %s: %w", regPath, err)
+	}
+	if err := json.Unmarshal(data, &reg); err != nil {
+		return reg, fmt.Errorf("registry %s is malformed (%v); repair or remove it after confirming no instances are running", regPath, err)
+	}
+	return reg, nil
+}
+
+// mergeRecord writes reg with rec as the sole record for rec.InstanceID.
+// Records whose owner is verifiably stopped are dropped; running and UNKNOWN records are preserved.
+// A different live/UNKNOWN owner for the same instance is never replaced. Caller holds the registry lock.
+func mergeRecord(regPath string, reg InstanceRegistry, rec InstanceRecord) error {
+	var keep []InstanceRecord
+	for _, inst := range reg.Instances {
+		state, why := verifyOwner(inst)
+		if inst.InstanceID == rec.InstanceID {
+			if state != ProcStopped && inst.PID != rec.PID {
+				return fmt.Errorf("instance %d already has a %s owner (pid %d: %s); refusing to replace it", inst.InstanceID, state, inst.PID, why)
+			}
+			continue
+		}
+		if state != ProcStopped {
+			keep = append(keep, inst)
 		}
 	}
+	reg.Instances = append(keep, rec)
 
-	err := cmd.Start()
+	out, err := json.MarshalIndent(reg, "", "  ")
 	if err != nil {
-		return fmt.Errorf("starting process failed: %w", err)
+		return err
 	}
-
-	record := InstanceRecord{
-		InstanceID:   instanceID,
-		PID:          cmd.Process.Pid,
-		ProfileDir:   profileDir,
-		StartedAt:    time.Now().UTC(),
-		Executable:   engineExe,
-		ActiveParams: args,
+	// Atomic file write via temp file and Windows MoveFileExW (R2)
+	tmpFile := regPath + ".tmp"
+	if err := os.WriteFile(tmpFile, out, 0644); err != nil {
+		return fmt.Errorf("cannot write registry temp file: %w", err)
 	}
+	return atomicReplaceFile(tmpFile, regPath)
+}
 
-	err = updateRegistryLocked(registryFile, lockFile, record)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to update instance registry: %v\n", err)
-	}
-
-	fmt.Printf("[LiteChromiumPortable] Launched Instance #%d [PID: %d] Profile: %s\n", instanceID, cmd.Process.Pid, profileDir)
-	return nil
+func updateRegistryLocked(regPath, lockPath string, rec InstanceRecord) error {
+	return withFileLock(lockPath, func() error {
+		reg, err := readRegistry(regPath)
+		if err != nil {
+			return err
+		}
+		return mergeRecord(regPath, reg, rec)
+	})
 }
 
 // Windows cross-process file locking for registry concurrency (R2)
@@ -426,9 +777,8 @@ func withFileLock(lockPath string, fn func() error) error {
 		handle := syscall.Handle(f.Fd())
 		var overlapped syscall.Overlapped
 		// LockFileEx with LOCKFILE_EXCLUSIVE_LOCK = 2
-		modkernel32 := syscall.NewLazyDLL("kernel32.dll")
-		procLockFileEx := modkernel32.NewProc("LockFileEx")
-		procUnlockFileEx := modkernel32.NewProc("UnlockFileEx")
+		procLockFileEx := modKernel32.NewProc("LockFileEx")
+		procUnlockFileEx := modKernel32.NewProc("UnlockFileEx")
 
 		r1, _, errSys := procLockFileEx.Call(
 			uintptr(handle),
@@ -451,42 +801,10 @@ func withFileLock(lockPath string, fn func() error) error {
 	return fn()
 }
 
-func updateRegistryLocked(regPath, lockPath string, rec InstanceRecord) error {
-	return withFileLock(lockPath, func() error {
-		var reg InstanceRegistry
-		data, err := os.ReadFile(regPath)
-		if err == nil {
-			_ = json.Unmarshal(data, &reg)
-		}
-
-		var active []InstanceRecord
-		for _, inst := range reg.Instances {
-			if isProcessAlive(inst.PID) && inst.InstanceID != rec.InstanceID {
-				active = append(active, inst)
-			}
-		}
-		active = append(active, rec)
-		reg.Instances = active
-
-		bytes, err := json.MarshalIndent(reg, "", "  ")
-		if err != nil {
-			return err
-		}
-
-		// Atomic file write via temp file and Windows MoveFileExW (R2)
-		tmpFile := regPath + ".tmp"
-		if err := os.WriteFile(tmpFile, bytes, 0644); err != nil {
-			return err
-		}
-		return atomicReplaceFile(tmpFile, regPath)
-	})
-}
-
 // Windows-safe atomic file replacement without deleting target beforehand (R2)
 func atomicReplaceFile(sourcePath, destPath string) error {
 	if runtime.GOOS == "windows" {
-		modkernel32 := syscall.NewLazyDLL("kernel32.dll")
-		procMoveFileExW := modkernel32.NewProc("MoveFileExW")
+		procMoveFileExW := modKernel32.NewProc("MoveFileExW")
 		srcPtr, err := syscall.UTF16PtrFromString(sourcePath)
 		if err != nil {
 			return err
@@ -515,96 +833,38 @@ func atomicReplaceFile(sourcePath, destPath string) error {
 	return os.Rename(sourcePath, destPath)
 }
 
-func printStatus(regPath, lockPath string) {
-	_ = withFileLock(lockPath, func() error {
-		data, err := os.ReadFile(regPath)
-		if err != nil {
-			fmt.Println("No instance registry found. No instances running.")
+// printStatus reports every recorded instance with a verified RUNNING/STOPPED/UNKNOWN state.
+// A missing registry means "no instances"; lock, read or parse failures are returned as errors.
+// unknown counts instances whose state could not be verified.
+func printStatus(w io.Writer, regPath, lockPath string) (unknown int, err error) {
+	err = withFileLock(lockPath, func() error {
+		reg, rerr := readRegistry(regPath)
+		if rerr != nil {
+			return rerr
+		}
+		if len(reg.Instances) == 0 {
+			fmt.Fprintln(w, "No instances recorded.")
 			return nil
 		}
-		var reg InstanceRegistry
-		if err := json.Unmarshal(data, &reg); err != nil {
-			fmt.Println("Instance registry is empty or invalid.")
-			return nil
-		}
-
-		fmt.Printf("Active LiteChromiumPortable Instances:\n")
-		fmt.Printf("%-12s %-8s %-20s %s\n", "INSTANCE", "PID", "STARTED_AT", "PROFILE")
-		runningCount := 0
+		fmt.Fprintf(w, "LiteChromiumPortable Instances:\n")
+		fmt.Fprintf(w, "%-12s %-8s %-20s %s\n", "INSTANCE", "PID", "STARTED_AT", "PROFILE")
+		running := 0
 		for _, inst := range reg.Instances {
-			status := "STOPPED"
-			if isProcessAlive(inst.PID) {
-				status = "RUNNING"
-				runningCount++
+			state, why := verifyOwner(inst)
+			switch state {
+			case ProcRunning:
+				running++
+			case ProcUnknown:
+				unknown++
 			}
-			fmt.Printf("%-12s %-8d %-20s %s [%s]\n",
-				fmt.Sprintf("instance-%d", inst.InstanceID),
-				inst.PID,
-				inst.StartedAt.Format("15:04:05"),
-				filepath.Base(inst.ProfileDir),
-				status,
-			)
+			fmt.Fprintf(w, "%-12s %-8d %-20s %s [%s] %s\n",
+				fmt.Sprintf("instance-%d", inst.InstanceID), inst.PID,
+				inst.StartedAt.Format("15:04:05"), filepath.Base(inst.ProfileDir), state, why)
 		}
-		if runningCount == 0 {
-			fmt.Println("No active running instances.")
+		if running == 0 {
+			fmt.Fprintln(w, "No verified running instances.")
 		}
 		return nil
 	})
-}
-
-// Safe profile cleanup (R2/R3)
-func cleanProfiles(profilesBase, regPath, lockPath string) {
-	err := withFileLock(lockPath, func() error {
-		data, err := os.ReadFile(regPath)
-		if err == nil {
-			var reg InstanceRegistry
-			if json.Unmarshal(data, &reg) == nil {
-				for _, inst := range reg.Instances {
-					if isProcessAlive(inst.PID) {
-						return fmt.Errorf("cannot clean profiles: instance-%d [PID %d] is currently active", inst.InstanceID, inst.PID)
-					}
-				}
-			}
-		}
-
-		// Safety check: ensure profilesBase ends with "profiles"
-		if filepath.Base(profilesBase) != "profiles" {
-			return errors.New("aborted: profiles path does not end with 'profiles'")
-		}
-
-		// Remove profile directories first; only if successful, clear the registry
-		if err := os.RemoveAll(profilesBase); err != nil {
-			return fmt.Errorf("failed to remove profiles: %w", err)
-		}
-		_ = os.Remove(regPath)
-		fmt.Printf("Successfully cleaned profiles directory: %s\n", profilesBase)
-		return nil
-	})
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Profile cleanup error: %v\n", err)
-		os.Exit(1)
-	}
-}
-
-func isProcessAlive(pid int) bool {
-	if pid <= 0 {
-		return false
-	}
-	proc, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-	if runtime.GOOS == "windows" {
-		const PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-		h, err := syscall.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
-		if err != nil {
-			return false
-		}
-		var exitCode uint32
-		_ = syscall.GetExitCodeProcess(h, &exitCode)
-		syscall.CloseHandle(h)
-		return exitCode == 259 // STILL_ACTIVE
-	}
-	return proc.Signal(syscall.Signal(0)) == nil
+	return unknown, err
 }
