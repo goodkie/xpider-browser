@@ -1,9 +1,9 @@
 {
   "project_name": "Lite Chromium Portable",
-  "version": "0.1.0-p1a-r4-audit",
+  "version": "0.1.0-p1a-r4-verified",
   "git_branch": "feature/lcw-portable-chromium",
-  "git_commit": "28b818ef81997410899f6f64e90598064ac76adc",
-  "build_timestamp": "2026-10-04T15:58:00Z",
+  "git_commit": "82912a9072f646e48ffb66b828a01ce604e8166a",
+  "build_timestamp": "2026-10-04T16:43:00Z",
   "platform": "windows-x64",
   "launcher": {
     "source": "src/launcher/main.go",
@@ -20,16 +20,16 @@
     "runtime_binary": "engine/chrome.exe",
     "package_sha256": "d4b8f53e8100e428a6ccea8070a1a909af3022c21070bfcd7dca102990d95d88"
   },
-  "remediation": "P1A-R4-AUDIT",
+  "remediation": "P1A-R4-VERIFIED",
   "remediation_items_implemented": [
-    "Audit-1: Eliminated all clean_exit:false failures (0 forced kills, 26/26 graceful_wm_close verified across entire suite)",
-    "Audit-2: Removed all touches to Path.home()/Downloads; downloads fully isolated to test_root/downloads with unique nonce filename and content assertions",
-    "Audit-3: Closed assertion gaps in same-instance window handoff (+1 HWND after initial window visibility confirmed)",
-    "Audit-3: Strict query parameter parsing (exact origin, path, instance, mode, nonce) for executeScript targets",
-    "Audit-3: Negative control verifies exact runtime error ('chrome.runtime API not available in window context')",
-    "Audit-3: Append-only raw probe reports preserved across all test phases (raw_probe_reports_count: 14)",
-    "Audit-4: Recovery journal data preservation (staging preserved on unreadable/malformed journals, atomic phase updates, destination checked before backup cleanup)",
-    "Audit-5: P2 native multi-panel C++ sketch patch (patches/001-native-multipanel.patch) pinned to upstream 73c14f6228d7cd537c855007e8f88678969cc0eb at chrome/browser/ui/side_panel/side_panel_entry_key.h, verified with git apply --numstat (exits 0)",
-    "Audit-5: Host toolchain audit documented with vswhere and Windows Kits inspection (MSVC, SDK, depot_tools blockers)"
+    "Audit-1: Verified owner identity check (create_time, executable, exact profile) before WM_CLOSE / kill to protect user/unregistered processes",
+    "Audit-2: 0 forced kills across entire suite (26/26 graceful_wm_close, clean_exit: true, 0 child forced kills, 0 survivors)",
+    "Audit-3: Isolated downloads strictly in test_root/downloads with unique nonce and content assertions; zero touches to Path.home()/Downloads",
+    "Audit-4: Exact same-instance window handoff (+1 HWND verified after owner window ready)",
+    "Audit-5: executeScript target refinement with sender.tab.id matching and actual frameId capture",
+    "Audit-6: Append-only raw probe reports preserved (raw_probe_reports_count: 20 auto-computed and matching array length)",
+    "Audit-7: Abort T5 copytree and propagate failure to results, summary, and exit code if cleanup fails; cleanup reloc_tracker in finally",
+    "Audit-8: Normalized P2 C++ sketch patch paths (a/chrome/..., b/chrome/...) with git apply --numstat and git apply --check verified",
+    "Audit-9: Corrected docs/P2_BUILD_ENVIRONMENT.md SidePanelUIBase path to chrome/browser/ui/side_panel/side_panel_ui_base.h"
   ]
 }
