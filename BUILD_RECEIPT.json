@@ -1,16 +1,16 @@
 {
   "project_name": "Lite Chromium Portable",
-  "version": "0.1.0-p1a-r4",
+  "version": "0.1.0-p1a-r4-audit",
   "git_branch": "feature/lcw-portable-chromium",
-  "git_commit": "354f30d62c044576c309db2f529261a2f85e8db1",
-  "build_timestamp": "2026-10-04T14:15:00Z",
+  "git_commit": "28b818ef81997410899f6f64e90598064ac76adc",
+  "build_timestamp": "2026-10-04T15:58:00Z",
   "platform": "windows-x64",
   "launcher": {
     "source": "src/launcher/main.go",
     "compiler": "go1.25.7 windows/amd64",
     "binary": "LiteChromiumPortable.exe",
-    "binary_bytes": 4069376,
-    "binary_sha256": "1a36d94c6a90d5cb6911ff30d5c451964132168892111924bf24e9e90cd105ca",
+    "binary_bytes": 2799616,
+    "binary_sha256": "7031c6aad5b7548378035b6a15e25768f3ecc32a66c8409444bce0266a12e0ec",
     "ldflags": "-s -w"
   },
   "engine": {
@@ -20,24 +20,16 @@
     "runtime_binary": "engine/chrome.exe",
     "package_sha256": "d4b8f53e8100e428a6ccea8070a1a909af3022c21070bfcd7dca102990d95d88"
   },
-  "remediation": "P1A-R4",
+  "remediation": "P1A-R4-AUDIT",
   "remediation_items_implemented": [
-    "R3: Permanently disabled --clean-profiles to eliminate any risk of accidental profile destruction",
-    "R3: Eliminated destructive os.Remove fallback in atomicReplaceFile",
-    "R3: Eliminated copyDir partial copy fallback in transactionalUnzip ensuring clean rollback",
-    "R3: Fail-safe extensions_config.json handling (corrupted or empty [] strictly loads 0 extensions)",
-    "R3: Eliminated legacy taskkill /F /IM chrome.exe and wildcard remote debugging from all test scripts",
-    "R3: Separated internal build receipt from external release artifact manifest to eliminate circular hash dependency",
-    "R3: Verbatim BSD 3-Clause licenses for Chromium and Go components",
-    "R4: Exact profile identity extraction defends against prefix collision, quoted spaces, and URL query strings",
-    "R4: Explicit --new-window handoff verified via Win32 top-level window counting",
-    "R4: Root-relative recovery journal with phase transitions (backed_up -> promoted -> verified)",
-    "R4: Fail-closed import blocking on malformed or unreadable recovery journals",
-    "R4: Preservation of referenced staging directories during orphaned staging cleanup",
-    "R4: Reparse point inspection and rejection of foreign absolute paths in safeResolveExtPath",
-    "R4: Distinct write-once (seed) and strictly read-only (read) persistence verification across 3 and 5 instance sets",
-    "R4: Selective negative control requiring explicit extension error reporting and canonical assertion failure",
-    "R4: On-disk download verification with payload hash and size assertions",
-    "R4: Complete portable directory relocation testing with Korean characters and spaces"
+    "Audit-1: Eliminated all clean_exit:false failures (0 forced kills, 26/26 graceful_wm_close verified across entire suite)",
+    "Audit-2: Removed all touches to Path.home()/Downloads; downloads fully isolated to test_root/downloads with unique nonce filename and content assertions",
+    "Audit-3: Closed assertion gaps in same-instance window handoff (+1 HWND after initial window visibility confirmed)",
+    "Audit-3: Strict query parameter parsing (exact origin, path, instance, mode, nonce) for executeScript targets",
+    "Audit-3: Negative control verifies exact runtime error ('chrome.runtime API not available in window context')",
+    "Audit-3: Append-only raw probe reports preserved across all test phases (raw_probe_reports_count: 14)",
+    "Audit-4: Recovery journal data preservation (staging preserved on unreadable/malformed journals, atomic phase updates, destination checked before backup cleanup)",
+    "Audit-5: P2 native multi-panel C++ sketch patch (patches/001-native-multipanel.patch) pinned to upstream 73c14f6228d7cd537c855007e8f88678969cc0eb at chrome/browser/ui/side_panel/side_panel_entry_key.h, verified with git apply --numstat (exits 0)",
+    "Audit-5: Host toolchain audit documented with vswhere and Windows Kits inspection (MSVC, SDK, depot_tools blockers)"
   ]
 }
