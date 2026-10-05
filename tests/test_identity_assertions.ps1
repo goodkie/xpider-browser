@@ -300,41 +300,65 @@ Assert-Succeeds -Script {
 
 Assert-Throws -Script {
     $floatMock = @([PSCustomObject]@{ Number=2; BusType=[double]15.0; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    if ($floatMock[0].BusType.GetType().FullName -ne "System.Double") {
+        throw "Fixture assertion failure: BusType is not System.Double (actual: $($floatMock[0].BusType.GetType().FullName))"
+    }
     Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $floatMock
 } -ExpectedSubstring "BusType has invalid non-integer" -TestName "Test 20s: Mock BusType=Double (15.0) rejection abort"
 
 Assert-Throws -Script {
     $decMock = @([PSCustomObject]@{ Number=2; BusType=[decimal]15; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    if ($decMock[0].BusType.GetType().FullName -ne "System.Decimal") {
+        throw "Fixture assertion failure: BusType is not System.Decimal (actual: $($decMock[0].BusType.GetType().FullName))"
+    }
     Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $decMock
 } -ExpectedSubstring "BusType has invalid non-integer" -TestName "Test 20t: Mock BusType=Decimal (15) rejection abort"
 
 Assert-Throws -Script {
     $floatPartMock = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=[double]0.0; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    if ($floatPartMock[0].PartitionStyle.GetType().FullName -ne "System.Double") {
+        throw "Fixture assertion failure: PartitionStyle is not System.Double (actual: $($floatPartMock[0].PartitionStyle.GetType().FullName))"
+    }
     Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $floatPartMock
 } -ExpectedSubstring "PartitionStyle has invalid non-integer" -TestName "Test 20u: Mock PartitionStyle=Double (0.0) rejection abort"
 
 Assert-Throws -Script {
     $decPartMock = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=[decimal]0; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    if ($decPartMock[0].PartitionStyle.GetType().FullName -ne "System.Decimal") {
+        throw "Fixture assertion failure: PartitionStyle is not System.Decimal (actual: $($decPartMock[0].PartitionStyle.GetType().FullName))"
+    }
     Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $decPartMock
 } -ExpectedSubstring "PartitionStyle has invalid non-integer" -TestName "Test 20v: Mock PartitionStyle=Decimal (0) rejection abort"
 
 Assert-Throws -Script {
-    $cimRawFloat = @(New-MockCimDisk -RawBusType [double]15.0 -BusType "File Backed Virtual")
+    $cimRawFloat = @(New-MockCimDisk -RawBusType ([double]15.0) -BusType "File Backed Virtual")
+    if ($cimRawFloat[0].CimInstanceProperties['BusType'].Value.GetType().FullName -ne "System.Double") {
+        throw "Fixture assertion failure: CimInstanceProperties['BusType'].Value is not System.Double (actual: $($cimRawFloat[0].CimInstanceProperties['BusType'].Value.GetType().FullName))"
+    }
     Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawFloat
 } -ExpectedSubstring "Raw CIM BusType has invalid non-integer type" -TestName "Test 20w: CIM raw BusType=Double (15.0) rejection abort"
 
 Assert-Throws -Script {
-    $cimRawDec = @(New-MockCimDisk -RawBusType [decimal]15 -BusType "File Backed Virtual")
+    $cimRawDec = @(New-MockCimDisk -RawBusType ([decimal]15) -BusType "File Backed Virtual")
+    if ($cimRawDec[0].CimInstanceProperties['BusType'].Value.GetType().FullName -ne "System.Decimal") {
+        throw "Fixture assertion failure: CimInstanceProperties['BusType'].Value is not System.Decimal (actual: $($cimRawDec[0].CimInstanceProperties['BusType'].Value.GetType().FullName))"
+    }
     Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawDec
 } -ExpectedSubstring "Raw CIM BusType has invalid non-integer type" -TestName "Test 20x: CIM raw BusType=Decimal (15) rejection abort"
 
 Assert-Throws -Script {
-    $cimRawPartFloat = @(New-MockCimDisk -RawPartitionStyle [double]0.0 -PartitionStyle "RAW")
+    $cimRawPartFloat = @(New-MockCimDisk -RawPartitionStyle ([double]0.0) -PartitionStyle "RAW")
+    if ($cimRawPartFloat[0].CimInstanceProperties['PartitionStyle'].Value.GetType().FullName -ne "System.Double") {
+        throw "Fixture assertion failure: CimInstanceProperties['PartitionStyle'].Value is not System.Double (actual: $($cimRawPartFloat[0].CimInstanceProperties['PartitionStyle'].Value.GetType().FullName))"
+    }
     Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawPartFloat
 } -ExpectedSubstring "Raw CIM PartitionStyle has invalid non-integer type" -TestName "Test 20y: CIM raw PartitionStyle=Double (0.0) rejection abort"
 
 Assert-Throws -Script {
-    $cimRawPartDec = @(New-MockCimDisk -RawPartitionStyle [decimal]0 -PartitionStyle "RAW")
+    $cimRawPartDec = @(New-MockCimDisk -RawPartitionStyle ([decimal]0) -PartitionStyle "RAW")
+    if ($cimRawPartDec[0].CimInstanceProperties['PartitionStyle'].Value.GetType().FullName -ne "System.Decimal") {
+        throw "Fixture assertion failure: CimInstanceProperties['PartitionStyle'].Value is not System.Decimal (actual: $($cimRawPartDec[0].CimInstanceProperties['PartitionStyle'].Value.GetType().FullName))"
+    }
     Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawPartDec
 } -ExpectedSubstring "Raw CIM PartitionStyle has invalid non-integer type" -TestName "Test 20z: CIM raw PartitionStyle=Decimal (0) rejection abort"
 
@@ -492,47 +516,226 @@ Assert-Succeeds -Script {
     Test-TargetVolumeCorrespondence -TargetLetter "X" -VerifiedDiskNumber 2 -MockPartition $mockPart -MockVolume $mockVol
 } -TestName "Test 34: Valid volume correspondence PASS"
 
-# --- SECTION 5: Error Injection & UNKNOWN Observation Status Tests ---
-Write-Host "`n--- Section 5: Error Injection & UNKNOWN Observation Status Tests ---"
+# --- SECTION 5: Real Runner Observation Functions & Failure Harness Tests ---
+Write-Host "`n--- Section 5: Real Runner Observation Functions & Failure Harness Tests ---"
 
-# Test 35: Injected Drive X query error returns UNKNOWN
-Assert-Succeeds -Script {
-    $simulatedError = {
-        try {
-            throw "Simulated WMI/PSDrive provider failure"
-        } catch {
-            return "UNKNOWN (Query error: $_)"
-        }
-    }
-    $status = & $simulatedError
-    if (-not ($status -like "UNKNOWN*")) { throw "Expected UNKNOWN status, got '$status'" }
-} -TestName "Test 35: Injected Drive X query error returns UNKNOWN PASS"
+# 1. Safely extract and load observation functions from tests/run_1gb_live_test_r2.ps1 via AST (zero execution of runner body)
+$runnerScriptPath = Join-Path $PSScriptRoot "run_1gb_live_test_r2.ps1"
+if (-not (Test-Path -LiteralPath $runnerScriptPath)) {
+    throw "Target runner script not found at '$runnerScriptPath'"
+}
+$parserTokens = $null
+$parserErrors = $null
+$runnerAst = [System.Management.Automation.Language.Parser]::ParseFile($runnerScriptPath, [ref]$parserTokens, [ref]$parserErrors)
+if ($parserErrors.Count -gt 0) {
+    throw "Parser errors detected in runner script: $($parserErrors -join '; ')"
+}
 
-# Test 36: Injected Disk Image Attached query error returns UNKNOWN
-Assert-Succeeds -Script {
-    $simulatedImgError = {
-        try {
-            throw "Simulated Storage Service timeout"
-        } catch {
-            return "UNKNOWN (Query error: $_)"
-        }
+$functionAsts = $runnerAst.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+$requiredRunnerFunctions = @('Get-DriveXObservationStatus', 'Get-ImageAttachedObservationStatus', 'Get-VhdFileObservationStatus')
+$loadedRunnerFunctions = @()
+foreach ($fn in $functionAsts) {
+    if ($fn.Name -in $requiredRunnerFunctions) {
+        Invoke-Expression $fn.Extent.Text
+        $loadedRunnerFunctions += $fn.Name
     }
-    $status = & $simulatedImgError
-    if (-not ($status -like "UNKNOWN*")) { throw "Expected UNKNOWN status, got '$status'" }
-} -TestName "Test 36: Injected Disk Image Attached query error returns UNKNOWN PASS"
+}
+if ($loadedRunnerFunctions.Count -ne 3) {
+    throw "Failed to extract all 3 observation functions from $runnerScriptPath. Found: $($loadedRunnerFunctions -join ', ')"
+}
+Write-Host "  [INIT] AST successfully extracted runner observation functions: $($loadedRunnerFunctions -join ', ')"
 
-# Test 37: Injected VHDX file path check error returns UNKNOWN
+# Test 35a: Real Get-DriveXObservationStatus with failing Get-PSDrive returns UNKNOWN
 Assert-Succeeds -Script {
-    $simulatedPathError = {
-        try {
-            throw "Simulated filesystem access denied"
-        } catch {
-            return "UNKNOWN (Path check error: $_)"
-        }
+    function script:Get-PSDrive { throw "Simulated WMI/PSDrive provider failure" }
+    try {
+        $status = Get-DriveXObservationStatus
+        if (-not ($status -like "UNKNOWN*")) { throw "Expected UNKNOWN status, got '$status'" }
+        if (-not ($status -like "*Simulated WMI/PSDrive provider failure*")) { throw "Expected error message in UNKNOWN status, got '$status'" }
+    } finally {
+        Remove-Item function:Get-PSDrive -ErrorAction SilentlyContinue
     }
-    $status = & $simulatedPathError
-    if (-not ($status -like "UNKNOWN*")) { throw "Expected UNKNOWN status, got '$status'" }
-} -TestName "Test 37: Injected VHDX file check error returns UNKNOWN PASS"
+} -TestName "Test 35a: Real Get-DriveXObservationStatus error injection returns UNKNOWN PASS"
+
+# Test 35b: Real Get-DriveXObservationStatus with no X: drive returns 'FREE / UNMOUNTED'
+Assert-Succeeds -Script {
+    function script:Get-PSDrive { return @([PSCustomObject]@{ Name="C"; Description="OS" }, [PSCustomObject]@{ Name="D"; Description="Data" }) }
+    try {
+        $status = Get-DriveXObservationStatus
+        if ($status -ne "FREE / UNMOUNTED") { throw "Expected 'FREE / UNMOUNTED', got '$status'" }
+    } finally {
+        Remove-Item function:Get-PSDrive -ErrorAction SilentlyContinue
+    }
+} -TestName "Test 35b: Real Get-DriveXObservationStatus clean empty drive returns FREE / UNMOUNTED PASS"
+
+# Test 35c: Real Get-DriveXObservationStatus with mounted X: drive returns 'STILL MOUNTED (...)'
+Assert-Succeeds -Script {
+    function script:Get-PSDrive { return @([PSCustomObject]@{ Name="X"; Description="BUILD_VOL" }) }
+    try {
+        $status = Get-DriveXObservationStatus
+        if ($status -ne "STILL MOUNTED (BUILD_VOL)") { throw "Expected 'STILL MOUNTED (BUILD_VOL)', got '$status'" }
+    } finally {
+        Remove-Item function:Get-PSDrive -ErrorAction SilentlyContinue
+    }
+} -TestName "Test 35c: Real Get-DriveXObservationStatus mounted drive returns STILL MOUNTED PASS"
+
+# Test 36a: Real Get-ImageAttachedObservationStatus with failing Get-DiskImage returns UNKNOWN
+Assert-Succeeds -Script {
+    function script:Get-DiskImage { param($ImagePath) throw "Simulated Storage Service timeout" }
+    try {
+        $status = Get-ImageAttachedObservationStatus -Path $sampleImgPath
+        if (-not ($status -like "UNKNOWN*")) { throw "Expected UNKNOWN status, got '$status'" }
+        if (-not ($status -like "*Simulated Storage Service timeout*")) { throw "Expected error message in UNKNOWN status, got '$status'" }
+    } finally {
+        Remove-Item function:Get-DiskImage -ErrorAction SilentlyContinue
+    }
+} -TestName "Test 36a: Real Get-ImageAttachedObservationStatus error injection returns UNKNOWN PASS"
+
+# Test 36b: Real Get-ImageAttachedObservationStatus with Attached=False returns 'False'
+Assert-Succeeds -Script {
+    function script:Get-DiskImage { param($ImagePath) return [PSCustomObject]@{ Attached = $false } }
+    try {
+        $status = Get-ImageAttachedObservationStatus -Path $sampleImgPath
+        if ($status -ne "False") { throw "Expected 'False', got '$status'" }
+    } finally {
+        Remove-Item function:Get-DiskImage -ErrorAction SilentlyContinue
+    }
+} -TestName "Test 36b: Real Get-ImageAttachedObservationStatus unattached returns 'False' PASS"
+
+# Test 36c: Real Get-ImageAttachedObservationStatus with Attached=True returns 'True'
+Assert-Succeeds -Script {
+    function script:Get-DiskImage { param($ImagePath) return [PSCustomObject]@{ Attached = $true } }
+    try {
+        $status = Get-ImageAttachedObservationStatus -Path $sampleImgPath
+        if ($status -ne "True") { throw "Expected 'True', got '$status'" }
+    } finally {
+        Remove-Item function:Get-DiskImage -ErrorAction SilentlyContinue
+    }
+} -TestName "Test 36c: Real Get-ImageAttachedObservationStatus attached returns 'True' PASS"
+
+# Test 36d: Real Get-ImageAttachedObservationStatus with Attached=null returns UNKNOWN
+Assert-Succeeds -Script {
+    function script:Get-DiskImage { param($ImagePath) return [PSCustomObject]@{ Attached = $null } }
+    try {
+        $status = Get-ImageAttachedObservationStatus -Path $sampleImgPath
+        if (-not ($status -like "UNKNOWN (Attached property is null)*")) { throw "Expected UNKNOWN on null Attached, got '$status'" }
+    } finally {
+        Remove-Item function:Get-DiskImage -ErrorAction SilentlyContinue
+    }
+} -TestName "Test 36d: Real Get-ImageAttachedObservationStatus Attached=null returns UNKNOWN PASS"
+
+# Test 37a: Real Get-VhdFileObservationStatus with failing Test-Path returns UNKNOWN
+Assert-Succeeds -Script {
+    function script:Test-Path { param($LiteralPath) throw "Simulated filesystem access denied" }
+    try {
+        $status = Get-VhdFileObservationStatus -Path $sampleImgPath
+        if (-not ($status -like "UNKNOWN*")) { throw "Expected UNKNOWN status, got '$status'" }
+        if (-not ($status -like "*Simulated filesystem access denied*")) { throw "Expected error message in UNKNOWN status, got '$status'" }
+    } finally {
+        Remove-Item function:Test-Path -ErrorAction SilentlyContinue
+    }
+} -TestName "Test 37a: Real Get-VhdFileObservationStatus error injection returns UNKNOWN PASS"
+
+# Test 37b: Real Get-VhdFileObservationStatus when file does not exist returns 'NOT FOUND'
+Assert-Succeeds -Script {
+    function script:Test-Path { param($LiteralPath) return $false }
+    try {
+        $status = Get-VhdFileObservationStatus -Path $sampleImgPath
+        if ($status -ne "NOT FOUND") { throw "Expected 'NOT FOUND', got '$status'" }
+    } finally {
+        Remove-Item function:Test-Path -ErrorAction SilentlyContinue
+    }
+} -TestName "Test 37b: Real Get-VhdFileObservationStatus non-existent file returns 'NOT FOUND' PASS"
+
+# Test 37c: Real Get-VhdFileObservationStatus when file exists returns 'EXISTS (Path: ..., Size: ...)'
+Assert-Succeeds -Script {
+    function script:Test-Path { param($LiteralPath) return $true }
+    function script:Get-Item { param($LiteralPath) return [PSCustomObject]@{ Length = 4194304 } }
+    try {
+        $status = Get-VhdFileObservationStatus -Path $sampleImgPath
+        if (-not ($status -like "EXISTS (Path: $sampleImgPath, Size: 4194304 bytes)*")) { throw "Expected EXISTS with size, got '$status'" }
+    } finally {
+        Remove-Item function:Test-Path -ErrorAction SilentlyContinue
+        Remove-Item function:Get-Item -ErrorAction SilentlyContinue
+    }
+} -TestName "Test 37c: Real Get-VhdFileObservationStatus existing file returns EXISTS with size PASS"
+
+# Test 38: File check error does NOT prevent subsequent Attached and Drive X observations
+Assert-Succeeds -Script {
+    function script:Test-Path { param($LiteralPath) throw "Simulated filesystem access denied" }
+    function script:Get-DiskImage { param($ImagePath) return [PSCustomObject]@{ Attached = $false } }
+    function script:Get-PSDrive { return @([PSCustomObject]@{ Name="C" }) }
+    try {
+        # Execute observation chain in identical sequence to runner post-failure catch block
+        $vhdObs = Get-VhdFileObservationStatus -Path $sampleImgPath
+        $imgObs = Get-ImageAttachedObservationStatus -Path $sampleImgPath
+        $drvObs = Get-DriveXObservationStatus
+
+        if (-not ($vhdObs -like "UNKNOWN*")) { throw "VhdStatus should be UNKNOWN, got: $vhdObs" }
+        if ($imgObs -ne "False") { throw "ImageAttached should be 'False', got: $imgObs" }
+        if ($drvObs -ne "FREE / UNMOUNTED") { throw "DriveX should be 'FREE / UNMOUNTED', got: $drvObs" }
+    } finally {
+        Remove-Item function:Test-Path -ErrorAction SilentlyContinue
+        Remove-Item function:Get-DiskImage -ErrorAction SilentlyContinue
+        Remove-Item function:Get-PSDrive -ErrorAction SilentlyContinue
+    }
+} -TestName "Test 38: File check failure does not prevent subsequent Attached and Drive X observations PASS"
+
+# Test 39: Zero-mutation stubbed failure harness exits nonzero and suppresses PASS
+Assert-Succeeds -Script {
+    # Emulate runner's control flow with a stubbed child executor failing (exit code 1)
+    $harnessScript = @'
+        function Get-DriveXObservationStatus { return "FREE / UNMOUNTED" }
+        function Get-ImageAttachedObservationStatus { param($Path) return "UNKNOWN (Query error: Simulated Storage Service timeout)" }
+        function Get-VhdFileObservationStatus { param($Path) return "NOT FOUND" }
+
+        try {
+            $simulatedChildExit = 1
+            if ($simulatedChildExit -ne 0) {
+                throw "CRITICAL FAILURE: Step 1 setup/format/nonce returned non-zero exit code $simulatedChildExit. Halting without detach or deletion."
+            }
+            Write-Host "=== 1GB LIVE TEST COMPLETE: ALL STEPS VERIFIED PASS ==="
+            exit 0
+        } catch {
+            Write-Host "[FATAL ERROR] 1GB Live Test Aborted / Failed:"
+            Write-Host $_.Exception.Message
+            Write-Host ">>> READ-ONLY POST-FAILURE STATE OBSERVATION <<<"
+            Write-Host "VHDX File Status:        $(Get-VhdFileObservationStatus -Path 'dummy.vhdx')"
+            Write-Host "Image Attached Status:   $(Get-ImageAttachedObservationStatus -Path 'dummy.vhdx')"
+            Write-Host "Drive X: Status:         $(Get-DriveXObservationStatus)"
+            Write-Host ">>> END OF OBSERVATION (No further mutation attempted) <<<"
+            exit 1
+        }
+'@
+    $tempHarnessPath = Join-Path $env:TEMP "runner_simulated_failure_harness.ps1"
+    Set-Content -Path $tempHarnessPath -Value $harnessScript -Encoding UTF8
+    try {
+        $harnessOutput = & powershell -NoProfile -ExecutionPolicy Bypass -File $tempHarnessPath 2>&1
+        $harnessExitCode = $LASTEXITCODE
+
+        if ($harnessExitCode -ne 1) {
+            throw "Harness exit code assertion failed: Expected 1, got $harnessExitCode"
+        }
+        $harnessText = $harnessOutput -join "`n"
+        if ($harnessText -like "*ALL STEPS VERIFIED PASS*") {
+            throw "Harness output assertion failed: PASS string unexpectedly emitted on failure"
+        }
+        if ($harnessText -notlike "*[FATAL ERROR]*") {
+            throw "Harness output assertion failed: FATAL ERROR marker missing"
+        }
+        if ($harnessText -notlike "*>>> READ-ONLY POST-FAILURE STATE OBSERVATION <<<*") {
+            throw "Harness output assertion failed: Read-only observation block missing"
+        }
+        if ($harnessText -notlike "*Image Attached Status:   UNKNOWN*") {
+            throw "Harness output assertion failed: UNKNOWN image observation missing"
+        }
+        if ($harnessText -notlike "*Drive X: Status:         FREE / UNMOUNTED*") {
+            throw "Harness output assertion failed: FREE / UNMOUNTED drive observation missing"
+        }
+    } finally {
+        Remove-Item -LiteralPath $tempHarnessPath -ErrorAction SilentlyContinue
+    }
+} -TestName "Test 39: Zero-mutation stubbed failure harness exits nonzero and suppresses PASS"
 
 Write-Host "`n=== UNIT TEST SUITE SUMMARY ==="
 Write-Host "Total Executed: $executedCount"
