@@ -38,26 +38,31 @@ try {
     Write-Host "Mode: $(if($PreflightOnly){ 'PREFLIGHT VERIFICATION ONLY' } else { 'LIVE ADMIN EXECUTION' })"
 
     # 1. Pre-Execution Identity and State Assertions
-    $rawDiff = & git -C $minimalRoot diff -- build/
-    if ($LASTEXITCODE -ne 0) { throw "ABORT: git diff check failed with exit code $LASTEXITCODE." }
-    $buildDiff = if ($null -ne $rawDiff) { ($rawDiff -join "`n").Trim() } else { "" }
+    Push-Location $minimalRoot
+    try {
+        $rawDiff = & git --no-pager -c safe.directory=* diff -- build/ 2>&1
+        if ($LASTEXITCODE -ne 0) { throw "ABORT: git diff check failed with exit code $LASTEXITCODE. Details: $($rawDiff -join ' ')" }
+        $buildDiff = if ($null -ne $rawDiff) { ($rawDiff -join "`n").Trim() } else { "" }
 
-    $rawCached = & git -C $minimalRoot diff --cached -- build/
-    if ($LASTEXITCODE -ne 0) { throw "ABORT: git diff --cached check failed with exit code $LASTEXITCODE." }
-    $buildCachedDiff = if ($null -ne $rawCached) { ($rawCached -join "`n").Trim() } else { "" }
+        $rawCached = & git --no-pager -c safe.directory=* diff --cached -- build/ 2>&1
+        if ($LASTEXITCODE -ne 0) { throw "ABORT: git diff --cached check failed with exit code $LASTEXITCODE. Details: $($rawCached -join ' ')" }
+        $buildCachedDiff = if ($null -ne $rawCached) { ($rawCached -join "`n").Trim() } else { "" }
 
-    if (-not [string]::IsNullOrEmpty($buildDiff)) {
-        throw "ABORT: Uncommitted working tree modifications detected in build/ directory."
+        if (-not [string]::IsNullOrEmpty($buildDiff)) {
+            throw "ABORT: Uncommitted working tree modifications detected in build/ directory."
+        }
+        if (-not [string]::IsNullOrEmpty($buildCachedDiff)) {
+            throw "ABORT: Uncommitted staged modifications detected in build/ directory."
+        }
+
+        # Exact blob hash comparison against baseline commit
+        $expectedExecutorBlob = (& git --no-pager -c safe.directory=* ls-tree $expectedBaselineSha build/setup_build_volume.ps1 | ForEach-Object { ($_ -split '\s+')[2] }).Trim()
+        $expectedModuleBlob = (& git --no-pager -c safe.directory=* ls-tree $expectedBaselineSha build/VirtualDiskSafety.psm1 | ForEach-Object { ($_ -split '\s+')[2] }).Trim()
+        $currentExecutorBlob = (& git --no-pager -c safe.directory=* hash-object build/setup_build_volume.ps1).Trim()
+        $currentModuleBlob = (& git --no-pager -c safe.directory=* hash-object build/VirtualDiskSafety.psm1).Trim()
+    } finally {
+        Pop-Location
     }
-    if (-not [string]::IsNullOrEmpty($buildCachedDiff)) {
-        throw "ABORT: Uncommitted staged modifications detected in build/ directory."
-    }
-
-    # Exact blob hash comparison against baseline commit
-    $expectedExecutorBlob = (& git -C $minimalRoot ls-tree $expectedBaselineSha build/setup_build_volume.ps1 | ForEach-Object { ($_ -split '\s+')[2] }).Trim()
-    $expectedModuleBlob = (& git -C $minimalRoot ls-tree $expectedBaselineSha build/VirtualDiskSafety.psm1 | ForEach-Object { ($_ -split '\s+')[2] }).Trim()
-    $currentExecutorBlob = (& git -C $minimalRoot hash-object build/setup_build_volume.ps1).Trim()
-    $currentModuleBlob = (& git -C $minimalRoot hash-object build/VirtualDiskSafety.psm1).Trim()
 
     Write-Host "Approved Baseline SHA: $expectedBaselineSha"
     Write-Host "Executor Blob: Expected=$expectedExecutorBlob, Actual=$currentExecutorBlob"
@@ -154,8 +159,15 @@ try {
     }
 
     Write-Host "`n=== 1GB LIVE TEST COMPLETE: ALL STEPS VERIFIED PASS ==="
+} catch {
+    Write-Host "`n==============================================================================" -ForegroundColor Red
+    Write-Host "[FATAL ERROR] 1GB Live Test Aborted:" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Host "==============================================================================" -ForegroundColor Red
+    exit 1
 } finally {
     if ($transcriptStarted) {
         Stop-Transcript
     }
 }
+

@@ -21,15 +21,18 @@ $r1VhdPath = "E:\vivpr\ai\ebrowser\build_test_1gb.vhdx"
 $vhdPath = "E:\vivpr\ai\ebrowser\build_test_1gb_r2.vhdx"
 $transcriptPath = "E:\vivpr\ai\ebrowser\portable-minimal\tests\1gb_live_test_r2_raw_transcript.txt"
 $scriptPath = "E:\vivpr\ai\ebrowser\portable-minimal\build\setup_build_volume.ps1"
-$expectedBaselineSha = "93fe0aef68edfdd654fb9d832249dd8ac96158c1"
+$expectedBaselineSha = "704adfa7e33d45c192919df56f9e05ec173043f9"
 
 $transcriptStarted = $false
 if (-not $PreflightOnly) {
+    if (Test-Path -LiteralPath $transcriptPath) {
+        throw "ABORT: Transcript file '$transcriptPath' already exists. Refusing to overwrite previous test evidence."
+    }
     try {
-        Start-Transcript -Path $transcriptPath -Force
+        Start-Transcript -Path $transcriptPath -NoClobber -ErrorAction Stop
         $transcriptStarted = $true
     } catch {
-        Write-Warning "Could not start internal transcript: $_"
+        throw "ABORT: Failed to initialize transcript at '$transcriptPath': $_. Live mutation aborted."
     }
 }
 
@@ -110,8 +113,11 @@ try {
 
     # 2. Step 1: Create, Identity Verify, Format, Correspondence, Nonce I/O
     Write-Host "`n>>> EXECUTING STEP 1: Create, Verify, Format & Nonce I/O <<<"
+    $prevEap1 = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     $step1Output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -VhdPath $vhdPath -SizeMB 1024 -DriveLetter X -Execute 2>&1
     $step1Exit = $LASTEXITCODE
+    $ErrorActionPreference = $prevEap1
     Write-Host ($step1Output -join "`n")
 
     if ($step1Exit -ne 0) {
@@ -131,8 +137,11 @@ try {
 
     # 3. Step 2: Controlled Safe Detach
     Write-Host "`n>>> EXECUTING STEP 2: Controlled Safe Detach <<<"
+    $prevEap2 = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     $step2Output = & powershell -NoProfile -ExecutionPolicy Bypass -File $scriptPath -VhdPath $vhdPath -DriveLetter X -DetachOnly -Execute 2>&1
     $step2Exit = $LASTEXITCODE
+    $ErrorActionPreference = $prevEap2
     Write-Host ($step2Output -join "`n")
 
     # 4. Final State Observation & Assertions
@@ -171,9 +180,42 @@ try {
     Write-Host "`n=== 1GB LIVE TEST COMPLETE: ALL STEPS VERIFIED PASS ==="
 } catch {
     Write-Host "`n==============================================================================" -ForegroundColor Red
-    Write-Host "[FATAL ERROR] 1GB Live Test Aborted:" -ForegroundColor Red
+    Write-Host "[FATAL ERROR] 1GB Live Test Aborted / Failed:" -ForegroundColor Red
     Write-Host $_.Exception.Message -ForegroundColor Red
     Write-Host "==============================================================================" -ForegroundColor Red
+
+    Write-Host "`n>>> READ-ONLY POST-FAILURE STATE OBSERVATION <<<"
+    # 1. Backing VHDX File
+    if (Test-Path -LiteralPath $vhdPath) {
+        try {
+            $errVhd = Get-Item -LiteralPath $vhdPath -ErrorAction Stop
+            Write-Host "VHDX File Status:        EXISTS (Path: $vhdPath, Size: $($errVhd.Length) bytes)"
+        } catch {
+            Write-Host "VHDX File Status:        EXISTS (Size query failed: UNKNOWN)"
+        }
+    } else {
+        Write-Host "VHDX File Status:        NOT FOUND"
+    }
+
+    # 2. Disk Image Attached State
+    try {
+        $errImg = Get-DiskImage -ImagePath $vhdPath -ErrorAction Stop
+        $attStr = if ($null -ne $errImg.Attached) { $errImg.Attached } else { "UNKNOWN" }
+        Write-Host "Image Attached Status:   $attStr"
+    } catch {
+        Write-Host "Image Attached Status:   UNKNOWN (Query error: $_)"
+    }
+
+    # 3. Drive X: Status
+    try {
+        $errX = Get-PSDrive -Name X -ErrorAction SilentlyContinue
+        $xStr = if ($errX) { "STILL MOUNTED ($($errX.Description))" } else { "FREE / UNMOUNTED" }
+        Write-Host "Drive X: Status:         $xStr"
+    } catch {
+        Write-Host "Drive X: Status:         UNKNOWN (Query error: $_)"
+    }
+
+    Write-Host ">>> END OF OBSERVATION (No further mutation attempted) <<<`n"
     exit 1
 } finally {
     if ($transcriptStarted) {
