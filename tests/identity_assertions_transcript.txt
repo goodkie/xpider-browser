@@ -1,56 +1,188 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20261005045023
+Username: DESKTOP-RS4GIG0\oPus
+RunAs User: DESKTOP-RS4GIG0\oPus
+Configuration Name: 
+Machine: DESKTOP-RS4GIG0 (Microsoft Windows NT 10.0.19045.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -Command & {
+    $transcriptPath = 'E:\vivpr\ai\ebrowser\portable-minimal\tests\identity_assertions_transcript.txt'
+    Start-Transcript -Path $transcriptPath -Force
+    & 'E:\vivpr\ai\ebrowser\portable-minimal\tests\test_identity_assertions.ps1'
+    Stop-Transcript
+}
+Process ID: 22804
+PSVersion: 5.1.19041.6456
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.19041.6456
+BuildVersion: 10.0.19041.6456
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is E:\vivpr\ai\ebrowser\portable-minimal\tests\identity_assertions_transcript.txt
 === STARTING OFFLINE VIRTUAL DISK SAFETY UNIT TEST SUITE (v2) ===
-Timestamp: 2026-10-05T04:38:36.8570687-04:00
+Timestamp: 2026-10-05T04:50:23.3260669-04:00
 Process Arch: x64
 
 --- Section 1: Attached Virtual Disk Identity Tests ---
+PS>TerminatingError(): "IDENTITY VERIFICATION FAILED: DiskImage object is null."
+>> TerminatingError(): "IDENTITY VERIFICATION FAILED: DiskImage object is null."
   [PASS] Test 1: Null DiskImage abort
+PS>TerminatingError(): "IDENTITY VERIFICATION FAILED: DiskImage reports Attached is not True."
+>> TerminatingError(): "IDENTITY VERIFICATION FAILED: DiskImage reports Attached is not True."
   [PASS] Test 2: Attached==False abort
+PS>TerminatingError(): "IDENTITY VERIFICATION FAILED: DiskImage.Number is null."
+>> TerminatingError(): "IDENTITY VERIFICATION FAILED: DiskImage.Number is null."
   [PASS] Test 3: Null DiskImage.Number abort
+PS>TerminatingError(): "IDENTITY VERIFICATION FAILED: DiskImage.ImagePath is null or empty."
+>> TerminatingError(): "IDENTITY VERIFICATION FAILED: DiskImage.ImagePath is null or empty."
   [PASS] Test 4: Empty ImagePath abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: DiskImage ImagePath mismatch. Expected 'E:\other\different.vhdx', Actual 'E:\vivpr\ai\ebrowser\build_ntfs.vhdx'."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: DiskImage ImagePath mismatch. Expected 'E:\other\different.vhdx', Actual 'E:\vivpr\ai\ebrowser\build_ntfs.vhdx'."
   [PASS] Test 5: ImagePath mismatch with ExpectedImagePath abort
+PS>TerminatingError(): "IDENTITY VERIFICATION FAILED: AllDisks collection is empty."
+>> TerminatingError(): "IDENTITY VERIFICATION FAILED: AllDisks collection is empty."
   [PASS] Test 6: Empty AllDisks collection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Multiple disks (2) returned matching disk number 2."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Multiple disks (2) returned matching disk number 2."
   [PASS] Test 7: Multiple matching disks ambiguity abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Disk BusType property is null."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Disk BusType property is null."
   [PASS] Test 8: Null BusType abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Disk IsSystem property is null."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Disk IsSystem property is null."
   [PASS] Test 9: Null IsSystem abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Disk IsBoot property is null."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Disk IsBoot property is null."
   [PASS] Test 10: Null IsBoot abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Disk PartitionStyle property is null."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Disk PartitionStyle property is null."
   [PASS] Test 11: Null PartitionStyle abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Disk UniqueId is null or empty."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Disk UniqueId is null or empty."
   [PASS] Test 12: Empty UniqueId abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Disk Path is null or empty."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Disk Path is null or empty."
   [PASS] Test 13: Empty Path abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is Virtual (14). Expected 15 (File Backed Virtual). Refusing format."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is Virtual (14). Expected 15 (File Backed Virtual). Refusing format."
   [PASS] Test 14: BusType=14 rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is '11'. Expected 15 (File Backed Virtual). Refusing format."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is '11'. Expected 15 (File Backed Virtual). Refusing format."
   [PASS] Test 15: BusType=11 (SATA/NVMe) rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk reports IsSystem == True! Refusing all modifications."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk reports IsSystem == True! Refusing all modifications."
   [PASS] Test 16: IsSystem==True abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk reports IsBoot == True! Refusing all modifications."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk reports IsBoot == True! Refusing all modifications."
   [PASS] Test 17: IsBoot==True abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk PartitionStyle is '2'. Expected 0 (RAW). Pre-formatted disk detected."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk PartitionStyle is '2'. Expected 0 (RAW). Pre-formatted disk detected."
   [PASS] Test 18: PartitionStyle!=RAW abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk reports NumberOfPartitions == 1. Expected 0."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk reports NumberOfPartitions == 1. Expected 0."
   [PASS] Test 19: NumberOfPartitions>0 abort
   [PASS] Test 20: Valid clean RAW virtual disk (BusType=15 numeric) PASS
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is Virtual (14). Expected 15 (File Backed Virtual). Refusing format."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is Virtual (14). Expected 15 (File Backed Virtual). Refusing format."
   [PASS] Test 20a: BusType='Virtual' string rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is 'SATA'. Expected 15 (File Backed Virtual). Refusing format."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is 'SATA'. Expected 15 (File Backed Virtual). Refusing format."
   [PASS] Test 20b: BusType='SATA' string rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk PartitionStyle is 'GPT'. Expected 0 (RAW). Pre-formatted disk detected."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk PartitionStyle is 'GPT'. Expected 0 (RAW). Pre-formatted disk detected."
   [PASS] Test 20c: PartitionStyle='GPT' string rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk PartitionStyle is 'MBR'. Expected 0 (RAW). Pre-formatted disk detected."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk PartitionStyle is 'MBR'. Expected 0 (RAW). Pre-formatted disk detected."
   [PASS] Test 20d: PartitionStyle='MBR' string rejection abort
   [PASS] Test 20e: Valid clean RAW virtual disk (BusType='File Backed Virtual', PartitionStyle='RAW') PASS
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Disk BusType has invalid type 'System.Boolean' (implicit conversion forbidden)."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Disk BusType has invalid type 'System.Boolean' (implicit conversion forbidden)."
+  [PASS] Test 20f: BusType=Boolean abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Disk PartitionStyle has invalid type 'System.Object[]' (implicit conversion forbidden)."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Disk PartitionStyle has invalid type 'System.Object[]' (implicit conversion forbidden)."
+  [PASS] Test 20g: PartitionStyle=Array abort
+  [PASS] Test 20h: Valid CIM instance with matching raw properties PASS
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is raw CIM 11. Expected 15 (File Backed Virtual). Refusing format."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is raw CIM 11. Expected 15 (File Backed Virtual). Refusing format."
+  [PASS] Test 20i: Conflict raw BusType=11 + display='File Backed Virtual' abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: BusType expression conflict: raw CIM is 15 but display property is 'SATA'."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: BusType expression conflict: raw CIM is 15 but display property is 'SATA'."
+  [PASS] Test 20j: Conflict raw BusType=15 + display='SATA' abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType property is null/unknown. Refusing fallback."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType property is null/unknown. Refusing fallback."
+  [PASS] Test 20k: Null raw CIM BusType abort (no display fallback)
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is Virtual (14). Expected 15 (File Backed Virtual). Refusing format."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk BusType is Virtual (14). Expected 15 (File Backed Virtual). Refusing format."
+  [PASS] Test 20l: Raw CIM BusType=14 (Virtual) rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk PartitionStyle is raw CIM 2. Expected 0 (RAW). Pre-formatted disk detected."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk PartitionStyle is raw CIM 2. Expected 0 (RAW). Pre-formatted disk detected."
+  [PASS] Test 20m: Conflict raw PartitionStyle=2 (GPT) + display='RAW' abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: PartitionStyle expression conflict: raw CIM is 0 but display property is 'GPT'."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: PartitionStyle expression conflict: raw CIM is 0 but display property is 'GPT'."
+  [PASS] Test 20n: Conflict raw PartitionStyle=0 + display='GPT' abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle property is null/unknown. Refusing fallback."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle property is null/unknown. Refusing fallback."
+  [PASS] Test 20o: Null raw CIM PartitionStyle abort (no display fallback)
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid type (System.Boolean)."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid type (System.Boolean)."
+  [PASS] Test 20p: Raw CIM BusType=Boolean abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid type (System.Boolean)."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid type (System.Boolean)."
+  [PASS] Test 20q: Raw CIM PartitionStyle=Boolean abort
 
 --- Section 2: Pre-Format Identity Re-Verification & Format Counter Tests ---
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Pre-format Disk Number mismatch. Initial=2, Current=3."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Pre-format Disk Number mismatch. Initial=2, Current=3."
   [PASS] Test 21: Pre-format Disk Number mismatch abort (Format count=0)
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Pre-format Disk UniqueId mismatch. Initial='VERIFIED_VHDX_UID_12345', Current='TAMPERED_UID_99999'."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Pre-format Disk UniqueId mismatch. Initial='VERIFIED_VHDX_UID_12345', Current='TAMPERED_UID_99999'."
   [PASS] Test 22: Pre-format UniqueId mismatch abort (Format count=0)
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Pre-format Disk Path mismatch. Initial='\\?\scsi#disk&ven_msft&prod_virtual_disk#000001', Current='\\?\scsi#other_path#000002'."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Pre-format Disk Path mismatch. Initial='\\?\scsi#disk&ven_msft&prod_virtual_disk#000001', Current='\\?\scsi#other_path#000002'."
   [PASS] Test 23: Pre-format Path mismatch abort (Format count=0)
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk PartitionStyle is '2'. Expected 0 (RAW). Pre-formatted disk detected."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk PartitionStyle is '2'. Expected 0 (RAW). Pre-formatted disk detected."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk PartitionStyle is '2'. Expected 0 (RAW). Pre-formatted disk detected."
   [PASS] Test 24: Pre-format state mutation to GPT abort (Format count=0)
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Target disk reports IsSystem == True! Refusing all modifications."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk reports IsSystem == True! Refusing all modifications."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Target disk reports IsSystem == True! Refusing all modifications."
   [PASS] Test 25: Pre-format state mutation to IsSystem abort (Format count=0)
   [PASS] Test 26: Pre-format matching identity PASS (Format count=1)
 
 --- Section 3: Observed Detach State & Detach Counter Tests ---
+PS>TerminatingError(): "DETACH VERIFICATION FAILED: Query returned null (UNKNOWN state). Cannot confirm detached."
+>> TerminatingError(): "DETACH VERIFICATION FAILED: Query returned null (UNKNOWN state). Cannot confirm detached."
   [PASS] Test 27: Detach query null abort (Detach count=0)
+PS>TerminatingError(): "DETACH VERIFICATION FAILED: Image Attached property is null (UNKNOWN state)."
+>> TerminatingError(): "DETACH VERIFICATION FAILED: Image Attached property is null (UNKNOWN state)."
   [PASS] Test 28: Detach query Attached=null abort (Detach count=0)
+PS>TerminatingError(): "DETACH VERIFICATION FAILED: Image is STILL ATTACHED."
+>> TerminatingError(): "DETACH VERIFICATION FAILED: Image is STILL ATTACHED."
   [PASS] Test 29: Detach query Attached=True abort (Detach count=0)
+PS>TerminatingError(): "DETACH VERIFICATION FAILED: Image Attached property is ambiguous or not False (UNKNOWN)."
+>> TerminatingError(): "DETACH VERIFICATION FAILED: Image Attached property is ambiguous or not False (UNKNOWN)."
   [PASS] Test 30: Detach query Attached='UNKNOWN' abort (Detach count=0)
   [PASS] Test 31: Explicitly observed Attached=False PASS (Detach count=1)
 
 --- Section 4: Target Volume Correspondence Tests ---
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Drive letter 'X:' belongs to Disk 0, NOT verified Disk 2!"
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Drive letter 'X:' belongs to Disk 0, NOT verified Disk 2!"
   [PASS] Test 32: Volume correspondence disk number mismatch abort
+PS>TerminatingError(): "CORRESPONDENCE FAILED: Volume on 'X:' attributes do not match NTFS / CHROMIUM_BUILD."
+>> TerminatingError(): "CORRESPONDENCE FAILED: Volume on 'X:' attributes do not match NTFS / CHROMIUM_BUILD."
   [PASS] Test 33: Volume filesystem mismatch abort
   [PASS] Test 34: Valid volume correspondence PASS
 
 === UNIT TEST SUITE SUMMARY ===
-Total Executed: 39
-Total Passed:   39
+Total Executed: 51
+Total Passed:   51
 Total Failed:   0
-=== END OF UNIT TEST SUITE: ALL 39 TESTS PASSED ===
+=== END OF UNIT TEST SUITE: ALL 51 TESTS PASSED ===
+**********************
+Windows PowerShell transcript end
+End time: 20261005045023
+**********************

@@ -196,6 +196,89 @@ Assert-Succeeds -Script {
     if ($res.Number -ne 2 -or $res.UniqueId -ne "VALID_VHDX_UID_ETS" -or $res.Path -ne $sampleDiskPath) { throw "Result mismatch" }
 } -TestName "Test 20e: Valid clean RAW virtual disk (BusType='File Backed Virtual', PartitionStyle='RAW') PASS"
 
+# 8. Type Safety Assertions (Implicit conversion / Bool / Array rejection)
+Assert-Throws -Script {
+    $boolBus = @([PSCustomObject]@{ Number=2; BusType=$true; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $boolBus
+} -ExpectedSubstring "BusType has invalid type" -TestName "Test 20f: BusType=Boolean abort"
+
+Assert-Throws -Script {
+    $arrPart = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=@(0); NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $arrPart
+} -ExpectedSubstring "PartitionStyle has invalid type" -TestName "Test 20g: PartitionStyle=Array abort"
+
+# 9. Real CIM Provider Representation & Conflict Rejection Tests (CimInstanceProperties)
+function New-MockCimDisk {
+    param($Number=2, $BusType="File Backed Virtual", $RawBusType=15, $PartitionStyle="RAW", $RawPartitionStyle=0, $UniqueId="VALID_CIM_UID")
+    $d = [PSCustomObject]@{
+        Number = $Number
+        BusType = $BusType
+        PartitionStyle = $PartitionStyle
+        IsSystem = $false
+        IsBoot = $false
+        NumberOfPartitions = 0
+        UniqueId = $UniqueId
+        Path = $sampleDiskPath
+    }
+    $props = @{
+        BusType = [PSCustomObject]@{ Value = $RawBusType }
+        PartitionStyle = [PSCustomObject]@{ Value = $RawPartitionStyle }
+    }
+    Add-Member -InputObject $d -NotePropertyName "CimInstanceProperties" -NotePropertyValue $props -Force
+    return $d
+}
+
+Assert-Succeeds -Script {
+    $cimValid = @(New-MockCimDisk -RawBusType 15 -BusType "File Backed Virtual" -RawPartitionStyle 0 -PartitionStyle "RAW")
+    $res = Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimValid -ExpectedImagePath $sampleImgPath
+    if ($res.Number -ne 2 -or $res.UniqueId -ne "VALID_CIM_UID") { throw "Result mismatch" }
+} -TestName "Test 20h: Valid CIM instance with matching raw properties PASS"
+
+Assert-Throws -Script {
+    $cimBusConflict1 = @(New-MockCimDisk -RawBusType 11 -BusType "File Backed Virtual")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimBusConflict1
+} -ExpectedSubstring "Expected 15 (File Backed Virtual)" -TestName "Test 20i: Conflict raw BusType=11 + display='File Backed Virtual' abort"
+
+Assert-Throws -Script {
+    $cimBusConflict2 = @(New-MockCimDisk -RawBusType 15 -BusType "SATA")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimBusConflict2
+} -ExpectedSubstring "BusType expression conflict" -TestName "Test 20j: Conflict raw BusType=15 + display='SATA' abort"
+
+Assert-Throws -Script {
+    $cimBusNull = @(New-MockCimDisk -RawBusType $null -BusType "File Backed Virtual")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimBusNull
+} -ExpectedSubstring "Raw CIM BusType property is null/unknown" -TestName "Test 20k: Null raw CIM BusType abort (no display fallback)"
+
+Assert-Throws -Script {
+    $cimBus14 = @(New-MockCimDisk -RawBusType 14 -BusType "Virtual")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimBus14
+} -ExpectedSubstring "Target disk BusType is Virtual (14)" -TestName "Test 20l: Raw CIM BusType=14 (Virtual) rejection abort"
+
+Assert-Throws -Script {
+    $cimPartConflict1 = @(New-MockCimDisk -RawPartitionStyle 2 -PartitionStyle "RAW")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimPartConflict1
+} -ExpectedSubstring "Pre-formatted disk detected" -TestName "Test 20m: Conflict raw PartitionStyle=2 (GPT) + display='RAW' abort"
+
+Assert-Throws -Script {
+    $cimPartConflict2 = @(New-MockCimDisk -RawPartitionStyle 0 -PartitionStyle "GPT")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimPartConflict2
+} -ExpectedSubstring "PartitionStyle expression conflict" -TestName "Test 20n: Conflict raw PartitionStyle=0 + display='GPT' abort"
+
+Assert-Throws -Script {
+    $cimPartNull = @(New-MockCimDisk -RawPartitionStyle $null -PartitionStyle "RAW")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimPartNull
+} -ExpectedSubstring "Raw CIM PartitionStyle property is null/unknown" -TestName "Test 20o: Null raw CIM PartitionStyle abort (no display fallback)"
+
+Assert-Throws -Script {
+    $cimRawBool = @(New-MockCimDisk -RawBusType $true -BusType "File Backed Virtual")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawBool
+} -ExpectedSubstring "Raw CIM BusType has invalid type" -TestName "Test 20p: Raw CIM BusType=Boolean abort"
+
+Assert-Throws -Script {
+    $cimRawPartBool = @(New-MockCimDisk -RawPartitionStyle $true -PartitionStyle "RAW")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawPartBool
+} -ExpectedSubstring "Raw CIM PartitionStyle has invalid type" -TestName "Test 20q: Raw CIM PartitionStyle=Boolean abort"
+
 # --- SECTION 2: Test-PreFormatIdentityMatch Pre-Format Identity Re-Verification Tests ---
 Write-Host "`n--- Section 2: Pre-Format Identity Re-Verification & Format Counter Tests ---"
 
