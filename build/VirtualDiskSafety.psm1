@@ -58,8 +58,22 @@ function Test-AttachedVirtualDiskIdentity {
 
     # 1. BusType check: Microsoft MSFT_Disk official specification:
     #    14 = Virtual, 15 = File Backed Virtual (VHD/VHDX)
-    #    Strictly requires 15 for VHDX, rejects 14 or lower.
-    if ($targetDisk.BusType -ne 15) {
+    #    When Storage module is loaded, ETS ScriptProperty exposes string "File Backed Virtual",
+    #    while raw CIM instance property exposes integer [uint16]15.
+    #    Strictly requires File Backed Virtual / 15, rejecting 14 (Virtual), unknown strings, or null.
+    $rawBusType = if ($targetDisk.psBase -and $targetDisk.psBase.CimInstanceProperties -and $targetDisk.psBase.CimInstanceProperties['BusType']) {
+        $targetDisk.psBase.CimInstanceProperties['BusType'].Value
+    } else {
+        $targetDisk.BusType
+    }
+
+    $isBusType15 = ($targetDisk.BusType -eq 15 -or $targetDisk.BusType -eq "File Backed Virtual" -or $rawBusType -eq 15)
+    $isForbiddenVirtual = ($targetDisk.BusType -eq 14 -or $targetDisk.BusType -eq "Virtual" -or $rawBusType -eq 14)
+
+    if ($isForbiddenVirtual) {
+        throw "CRITICAL SAFETY ABORT: Target disk BusType is Virtual (14). Expected 15 (File Backed Virtual). Refusing format."
+    }
+    if (-not $isBusType15) {
         throw "CRITICAL SAFETY ABORT: Target disk BusType is $($targetDisk.BusType). Expected 15 (File Backed Virtual). Refusing format."
     }
 
@@ -72,7 +86,16 @@ function Test-AttachedVirtualDiskIdentity {
     }
 
     # 3. Partition checks: Must be completely raw and unpartitioned
-    if ($targetDisk.PartitionStyle -ne 0) {
+    #    When Storage module is loaded, ETS ScriptProperty exposes string "RAW",
+    #    while raw CIM instance property exposes integer [uint16]0.
+    $rawPartStyle = if ($targetDisk.psBase -and $targetDisk.psBase.CimInstanceProperties -and $targetDisk.psBase.CimInstanceProperties['PartitionStyle']) {
+        $targetDisk.psBase.CimInstanceProperties['PartitionStyle'].Value
+    } else {
+        $targetDisk.PartitionStyle
+    }
+
+    $isRawPartStyle = ($targetDisk.PartitionStyle -eq 0 -or $targetDisk.PartitionStyle -eq "RAW" -or $rawPartStyle -eq 0)
+    if (-not $isRawPartStyle) {
         throw "CRITICAL SAFETY ABORT: Target disk PartitionStyle is $($targetDisk.PartitionStyle). Expected 0 (RAW). Pre-formatted disk detected."
     }
     if ($targetDisk.NumberOfPartitions -ne 0) {

@@ -167,7 +167,34 @@ Assert-Succeeds -Script {
     $valid = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="VALID_VHDX_UID"; Path=$sampleDiskPath })
     $res = Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $valid -ExpectedImagePath $sampleImgPath
     if ($res.Number -ne 2 -or $res.UniqueId -ne "VALID_VHDX_UID" -or $res.Path -ne $sampleDiskPath) { throw "Result mismatch" }
-} -TestName "Test 20: Valid clean RAW virtual disk (BusType=15) PASS"
+} -TestName "Test 20: Valid clean RAW virtual disk (BusType=15 numeric) PASS"
+
+# 7. ETS ScriptProperty Representation Tests (Real Storage Module Provider Representation)
+Assert-Throws -Script {
+    $busVirtualStr = @([PSCustomObject]@{ Number=2; BusType="Virtual"; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $busVirtualStr
+} -ExpectedSubstring "Target disk BusType is Virtual (14)" -TestName "Test 20a: BusType='Virtual' string rejection abort"
+
+Assert-Throws -Script {
+    $busSataStr = @([PSCustomObject]@{ Number=2; BusType="SATA"; IsSystem=$false; IsBoot=$false; PartitionStyle="RAW"; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $busSataStr
+} -ExpectedSubstring "Expected 15 (File Backed Virtual)" -TestName "Test 20b: BusType='SATA' string rejection abort"
+
+Assert-Throws -Script {
+    $partGptStr = @([PSCustomObject]@{ Number=2; BusType="File Backed Virtual"; IsSystem=$false; IsBoot=$false; PartitionStyle="GPT"; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $partGptStr
+} -ExpectedSubstring "Expected 0 (RAW)" -TestName "Test 20c: PartitionStyle='GPT' string rejection abort"
+
+Assert-Throws -Script {
+    $partMbrStr = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle="MBR"; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $partMbrStr
+} -ExpectedSubstring "Expected 0 (RAW)" -TestName "Test 20d: PartitionStyle='MBR' string rejection abort"
+
+Assert-Succeeds -Script {
+    $validEts = @([PSCustomObject]@{ Number=2; BusType="File Backed Virtual"; IsSystem=$false; IsBoot=$false; PartitionStyle="RAW"; NumberOfPartitions=0; UniqueId="VALID_VHDX_UID_ETS"; Path=$sampleDiskPath })
+    $res = Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $validEts -ExpectedImagePath $sampleImgPath
+    if ($res.Number -ne 2 -or $res.UniqueId -ne "VALID_VHDX_UID_ETS" -or $res.Path -ne $sampleDiskPath) { throw "Result mismatch" }
+} -TestName "Test 20e: Valid clean RAW virtual disk (BusType='File Backed Virtual', PartitionStyle='RAW') PASS"
 
 # --- SECTION 2: Test-PreFormatIdentityMatch Pre-Format Identity Re-Verification Tests ---
 Write-Host "`n--- Section 2: Pre-Format Identity Re-Verification & Format Counter Tests ---"

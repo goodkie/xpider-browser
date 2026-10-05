@@ -1,5 +1,5 @@
 === STARTING OFFLINE VIRTUAL DISK SAFETY UNIT TEST SUITE (v2) ===
-Timestamp: 2026-10-04T23:32:14.6561103-04:00
+Timestamp: 2026-10-05T04:38:36.8570687-04:00
 Process Arch: x64
 
 --- Section 1: Attached Virtual Disk Identity Tests ---
@@ -22,7 +22,12 @@ Process Arch: x64
   [PASS] Test 17: IsBoot==True abort
   [PASS] Test 18: PartitionStyle!=RAW abort
   [PASS] Test 19: NumberOfPartitions>0 abort
-  [PASS] Test 20: Valid clean RAW virtual disk (BusType=15) PASS
+  [PASS] Test 20: Valid clean RAW virtual disk (BusType=15 numeric) PASS
+  [PASS] Test 20a: BusType='Virtual' string rejection abort
+  [PASS] Test 20b: BusType='SATA' string rejection abort
+  [PASS] Test 20c: PartitionStyle='GPT' string rejection abort
+  [PASS] Test 20d: PartitionStyle='MBR' string rejection abort
+  [PASS] Test 20e: Valid clean RAW virtual disk (BusType='File Backed Virtual', PartitionStyle='RAW') PASS
 
 --- Section 2: Pre-Format Identity Re-Verification & Format Counter Tests ---
   [PASS] Test 21: Pre-format Disk Number mismatch abort (Format count=0)
@@ -45,7 +50,7 @@ Process Arch: x64
   [PASS] Test 34: Valid volume correspondence PASS
 
 === UNIT TEST SUITE SUMMARY ===
-Total Executed: 34
-Total Passed:   34
+Total Executed: 39
+Total Passed:   39
 Total Failed:   0
-=== END OF UNIT TEST SUITE: ALL 34 TESTS PASSED ===
+=== END OF UNIT TEST SUITE: ALL 39 TESTS PASSED ===
