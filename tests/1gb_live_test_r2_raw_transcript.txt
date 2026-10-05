@@ -1,0 +1,153 @@
+﻿**********************
+Windows PowerShell 기록 시작
+시작 시간: 20261005070437
+사용자 이름: DESKTOP-RS4GIG0\vivPR
+RunAs 사용자: DESKTOP-RS4GIG0\vivPR
+구성 이름: 
+Machine: DESKTOP-RS4GIG0 (Microsoft Windows NT 10.0.19045.0)
+호스트 응용 프로그램: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File E:\vivpr\ai\ebrowser\portable-minimal\tests\run_1gb_live_test_r2.ps1
+프로세스 ID: 11640
+PSVersion: 5.1.19041.6456
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.19041.6456
+BuildVersion: 10.0.19041.6456
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+기록이 시작되었습니다. 출력 파일은 E:\vivpr\ai\ebrowser\portable-minimal\tests\1gb_live_test_r2_raw_transcript.txt입니다.
+=== P2 1GB LIVE TEST RUNNER (P2-1GB-LIVE-02) ===
+Test Start Time: 2026-10-05T07:04:42.1271203-04:00
+Mode: LIVE ADMIN EXECUTION
+Approved Baseline SHA: 2165873b38afda5f23678aa150c793c8d6507262
+Executor Blob: Expected=6e216cb6588bd1e79c514e2dbc9d01b844cf02c7, Actual=6e216cb6588bd1e79c514e2dbc9d01b844cf02c7
+Module Blob:   Expected=47bfc232bb722919b65e0fb46325e8584e3e96b3, Actual=47bfc232bb722919b65e0fb46325e8584e3e96b3
+R1 Backing VHDX Preservation: PRESERVED (Size: 4194304 bytes)
+Pre-execution file and drive assertions: ALL PASS
+Administrative Elevation Check: True
+
+>>> EXECUTING STEP 1: Create, Verify, Format & Nonce I/O <<<
+=== P2 Build Volume Managed Executor (v7) ===
+Canonical Boundary: PASS (E:\vivpr\ai\ebrowser\build_test_1gb_r2.vhdx)
+Administrative Elevation: True
+Execution Mode: LIVE EXECUTION
+Backing Volume: E: (studioberry) FileSystem: exFAT
+Total Free Space on Backing Volume: 527.4 GB
+Planned Virtual Disk Maximum Size: 1 GB
+Projected Free Space after Max Allocation: 526.4 GB
+Target Drive Letter 'X:' Availability: FREE
+Backing File Exists Check: NONE (Safe for fresh creation)
+
+[STARTING CONTROLLED LIVE EXECUTION]...
+Step 1: Creating and attaching VHDX...
+
+Microsoft DiskPart 버전 10.0.19041.3636
+
+Copyright (C) Microsoft Corporation.
+컴퓨터: DESKTOP-RS4GIG0
+
+DISKPART> 
+
+    0 퍼센트 완료
+    0 퍼센트 완료
+  100 퍼센트 완료
+
+
+DiskPart가 가상 디스크 파일을 만들었습니다.
+
+DISKPART> 
+DiskPart가 가상 디스크 파일을 선택했습니다.
+
+DISKPART> 
+
+  100 퍼센트 완료
+
+
+DiskPart가 가상 디스크 파일을 연결했습니다.
+
+DISKPART> 
+
+Step 2: Structured verification of attached disk object...
+Disk Verification SUCCESS: Disk 2 verified as clean RAW virtual disk (BusType=15, UniqueId=6002248097D0EFCB4BD0DB1B9FA89EE7, Path=\\?\scsi#disk&ven_msft&prod_virtual_disk#2&1f4adffe&0&000002#{53f56307-b6bf-11d0-94f2-00a0c91efb8b}).
+
+Step 3: Re-verifying identity of Disk 2 before formatting...
+Pre-Format Re-Verification SUCCESS: Target Disk 2 matches initial identity (UniqueId, Path, RAW, BusType=15).
+Step 4: Initializing and formatting verified Disk 2...
+
+Microsoft DiskPart 버전 10.0.19041.3636
+
+Copyright (C) Microsoft Corporation.
+컴퓨터: DESKTOP-RS4GIG0
+
+DISKPART> 
+2 디스크가 선택한 디스크입니다.
+
+DISKPART> 
+DiskPart에서 선택한 디스크를 GPT 형식으로 변환했습니다.
+
+DISKPART> 
+DiskPart에서 지정한 파티션을 만들었습니다.
+
+DISKPART> 
+
+    0 퍼센트 완료
+    0 퍼센트 완료
+    0 퍼센트 완료
+    0 퍼센트 완료
+  100 퍼센트 완료
+
+
+DiskPart가 볼륨을 성공적으로 포맷했습니다.
+
+DISKPART> 
+DiskPart에서 드라이브 문자 또는 탑재 지점을 할당했습니다.
+
+DISKPART> 
+Volume Correspondence PASS: X: strictly corresponds to verified Disk 2.
+Step 6: Executing strict Nonce I/O smoke test...
+Nonce I/O Smoke Test PASS: Content byte-for-byte verified.
+Smoke Test File Cleanup: VERIFIED
+
+=== Build Volume X: Setup and Verification COMPLETE ===
+
+Step 1 Verification State:
+  Image Attached: True
+  Drive X:        STILL MOUNTED (CHROMIUM_BUILD)
+
+>>> EXECUTING STEP 2: Controlled Safe Detach <<<
+=== P2 Build Volume Managed Executor (v7) ===
+Canonical Boundary: PASS (E:\vivpr\ai\ebrowser\build_test_1gb_r2.vhdx)
+Administrative Elevation: True
+Execution Mode: LIVE EXECUTION
+
+Action: DETACH ONLY requested for E:\vivpr\ai\ebrowser\build_test_1gb_r2.vhdx
+Inspecting attached state of backing image...
+Executing verified detach under Administrator...
+
+Microsoft DiskPart 버전 10.0.19041.3636
+
+Copyright (C) Microsoft Corporation.
+컴퓨터: DESKTOP-RS4GIG0
+
+DISKPART> 
+DiskPart가 가상 디스크 파일을 선택했습니다.
+
+DISKPART> 
+DiskPart가 가상 디스크 파일을 분리했습니다.
+
+DISKPART> 
+DISKPART> 
+Detach operation verified SUCCESS: Backing image observed Attached=False, 'X:' unmounted.
+
+>>> OBSERVING FINAL STATE <<<
+Final Image Attached Status: False
+Final Drive X: Status:       FREE / UNMOUNTED
+Test VHDX Preservation:      EXISTS (Path: E:\vivpr\ai\ebrowser\build_test_1gb_r2.vhdx, Size: 138412032 bytes)
+Test End Time: 2026-10-05T07:05:39.0575027-04:00
+
+=== 1GB LIVE TEST COMPLETE: ALL STEPS VERIFIED PASS ===
+**********************
+Windows PowerShell 기록 끝
+종료 시간: 20261005070539
+**********************

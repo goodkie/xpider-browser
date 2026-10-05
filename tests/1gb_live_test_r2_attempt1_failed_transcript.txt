@@ -1,0 +1,195 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20261005062452
+Username: DESKTOP-RS4GIG0\vivPR
+RunAs User: DESKTOP-RS4GIG0\vivPR
+Configuration Name: 
+Machine: DESKTOP-RS4GIG0 (Microsoft Windows NT 10.0.19045.0)
+Host Application: powershell -NoProfile -ExecutionPolicy Bypass -File E:\vivpr\ai\ebrowser\portable-minimal\tests\run_1gb_live_test_r2.ps1
+Process ID: 24528
+PSVersion: 5.1.19041.6456
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.19041.6456
+BuildVersion: 10.0.19041.6456
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is E:\vivpr\ai\ebrowser\portable-minimal\tests\1gb_live_test_r2_raw_transcript.txt
+=== P2 1GB LIVE TEST RUNNER (P2-1GB-LIVE-02) ===
+Test Start Time: 2026-10-05T06:24:52.8637114-04:00
+Mode: LIVE ADMIN EXECUTION
+Approved Baseline SHA: 2165873b38afda5f23678aa150c793c8d6507262
+Executor Blob: Expected=6e216cb6588bd1e79c514e2dbc9d01b844cf02c7, Actual=6e216cb6588bd1e79c514e2dbc9d01b844cf02c7
+Module Blob:   Expected=47bfc232bb722919b65e0fb46325e8584e3e96b3, Actual=47bfc232bb722919b65e0fb46325e8584e3e96b3
+R1 Backing VHDX Preservation: PRESERVED (Size: 4194304 bytes)
+Pre-execution file and drive assertions: ALL PASS
+Administrative Elevation Check: True
+
+>>> EXECUTING STEP 1: Create, Verify, Format & Nonce I/O <<<
+=== P2 Build Volume Managed Executor (v7) ===
+Canonical Boundary: PASS (E:\vivpr\ai\ebrowser\build_test_1gb_r2.vhdx)
+Administrative Elevation: True
+Execution Mode: LIVE EXECUTION
+Backing Volume: E: (studioberry) FileSystem: exFAT
+Total Free Space on Backing Volume: 527.4 GB
+Planned Virtual Disk Maximum Size: 1 GB
+Projected Free Space after Max Allocation: 526.4 GB
+Target Drive Letter 'X:' Availability: FREE
+Backing File Exists Check: NONE (Safe for fresh creation)
+
+[STARTING CONTROLLED LIVE EXECUTION]...
+Step 1: Creating and attaching VHDX...
+
+Microsoft DiskPart version 10.0.19041.3636
+
+Copyright (C) Microsoft Corporation.
+On computer: DESKTOP-RS4GIG0
+
+DISKPART> 
+Microsoft DiskPart version 10.0.19041.3636
+
+ACTIVE      - Mark the selected partition as active.
+ADD         - Add a mirror to a simple volume.
+ASSIGN      - Assign a drive letter or mount point to the selected volume.
+ATTRIBUTES  - Manipulate volume or disk attributes.
+ATTACH      - Attaches a virtual disk file.
+AUTOMOUNT   - Enable and disable automatic mounting of basic volumes.
+BREAK       - Break a mirror set.
+CLEAN       - Clear the configuration information, or all information, off the
+              disk.
+COMPACT     - Attempts to reduce the physical size of the file.
+CONVERT     - Convert between different disk formats.
+CREATE      - Create a volume, partition or virtual disk.
+DELETE      - Delete an object.
+DETAIL      - Provide details about an object.
+DETACH      - Detaches a virtual disk file.
+EXIT        - Exit DiskPart.
+EXTEND      - Extend a volume.
+EXPAND      - Expands the maximum size available on a virtual disk.
+FILESYSTEMS - Display current and supported file systems on the volume.
+FORMAT      - Format the volume or partition.
+GPT         - Assign attributes to the selected GPT partition.
+HELP        - Display a list of commands.
+IMPORT      - Import a disk group.
+INACTIVE    - Mark the selected partition as inactive.
+LIST        - Display a list of objects.
+MERGE       - Merges a child disk with its parents.
+ONLINE      - Online an object that is currently marked as offline.
+OFFLINE     - Offline an object that is currently marked as online.
+RECOVER     - Refreshes the state of all disks in the selected pack.
+              Attempts recovery on disks in the invalid pack, and
+              resynchronizes mirrored volumes and RAID5 volumes
+              that have stale plex or parity data.
+REM         - Does nothing. This is used to comment scripts.
+REMOVE      - Remove a drive letter or mount point assignment.
+REPAIR      - Repair a RAID-5 volume with a failed member.
+RESCAN      - Rescan the computer looking for disks and volumes.
+RETAIN      - Place a retained partition under a simple volume.
+SAN         - Display or set the SAN policy for the currently booted OS.
+SELECT      - Shift the focus to an object.
+SETID       - Change the partition type.
+SHRINK      - Reduce the size of the selected volume.
+UNIQUEID    - Displays or sets the GUID partition table (GPT) identifier or 
+              master boot record (MBR) signature of a disk.
+
+DISKPART> 
+DiskPart has encountered an error: The system cannot find the file specified.
+See the System Event Log for more information.
+
+There is no virtual disk selected.
+
+DISKPART> 
+There is no virtual disk selected.
+Please select a virtual disk and try again.
+
+DISKPART> 
+
+Step 2: Structured verification of attached disk object...
+WARNING: ERROR DURING EXECUTION: The system cannot find the file specified. 
+WARNING: Triggering verified rollback (detach)...
+
+Microsoft DiskPart version 10.0.19041.3636
+
+Copyright (C) Microsoft Corporation.
+On computer: DESKTOP-RS4GIG0
+
+DISKPART> 
+Microsoft DiskPart version 10.0.19041.3636
+
+ACTIVE      - Mark the selected partition as active.
+ADD         - Add a mirror to a simple volume.
+ASSIGN      - Assign a drive letter or mount point to the selected volume.
+ATTRIBUTES  - Manipulate volume or disk attributes.
+ATTACH      - Attaches a virtual disk file.
+AUTOMOUNT   - Enable and disable automatic mounting of basic volumes.
+BREAK       - Break a mirror set.
+CLEAN       - Clear the configuration information, or all information, off the
+              disk.
+COMPACT     - Attempts to reduce the physical size of the file.
+CONVERT     - Convert between different disk formats.
+CREATE      - Create a volume, partition or virtual disk.
+DELETE      - Delete an object.
+DETAIL      - Provide details about an object.
+DETACH      - Detaches a virtual disk file.
+EXIT        - Exit DiskPart.
+EXTEND      - Extend a volume.
+EXPAND      - Expands the maximum size available on a virtual disk.
+FILESYSTEMS - Display current and supported file systems on the volume.
+FORMAT      - Format the volume or partition.
+GPT         - Assign attributes to the selected GPT partition.
+HELP        - Display a list of commands.
+IMPORT      - Import a disk group.
+INACTIVE    - Mark the selected partition as inactive.
+LIST        - Display a list of objects.
+MERGE       - Merges a child disk with its parents.
+ONLINE      - Online an object that is currently marked as offline.
+OFFLINE     - Offline an object that is currently marked as online.
+RECOVER     - Refreshes the state of all disks in the selected pack.
+              Attempts recovery on disks in the invalid pack, and
+              resynchronizes mirrored volumes and RAID5 volumes
+              that have stale plex or parity data.
+REM         - Does nothing. This is used to comment scripts.
+REMOVE      - Remove a drive letter or mount point assignment.
+REPAIR      - Repair a RAID-5 volume with a failed member.
+RESCAN      - Rescan the computer looking for disks and volumes.
+RETAIN      - Place a retained partition under a simple volume.
+SAN         - Display or set the SAN policy for the currently booted OS.
+SELECT      - Shift the focus to an object.
+SETID       - Change the partition type.
+SHRINK      - Reduce the size of the selected volume.
+UNIQUEID    - Displays or sets the GUID partition table (GPT) identifier or 
+              master boot record (MBR) signature of a disk.
+
+DISKPART> 
+There is no virtual disk selected.
+Please select a virtual disk and try again.
+
+DISKPART> 
+Rollback diskpart command completed successfully (exit code 0).
+WARNING: Rollback detach observation failed: The system cannot find the file specified. 
+Rollback Report: DiskPartCommandFailed=False, DetachObserved=False
+Get-DiskImage : The system cannot find the file specified. 
+At E:\vivpr\ai\ebrowser\portable-minimal\build\setup_build_volume.ps1:182 char:18
++ ... diskImage = Get-DiskImage -ImagePath $canonicalVhdPath -ErrorAction S ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (MSFT_DiskImage:ROOT/Microsoft/.../MSFT_DiskImage) [Get-DiskImage], CimE 
+   xception
+    + FullyQualifiedErrorId : HRESULT 0x80070002,Get-DiskImage
+
+==============================================================================
+[FATAL ERROR] 1GB Live Test Aborted / Failed:
+CRITICAL FAILURE: Step 1 setup/format/nonce returned non-zero exit code 1. Halting without detach or deletion.
+==============================================================================
+
+>>> READ-ONLY POST-FAILURE STATE OBSERVATION <<<
+VHDX File Status:        NOT FOUND
+PS>TerminatingError(Get-DiskImage): "The running command stopped because the preference variable "ErrorActionPreference" or common parameter is set to Stop: The system cannot find the file specified. "
+Image Attached Status:   UNKNOWN (Query error: The system cannot find the file specified. )
+Drive X: Status:         FREE / UNMOUNTED
+>>> END OF OBSERVATION (No further mutation attempted) <<<
+**********************
+Windows PowerShell transcript end
+End time: 20261005062514
+**********************
