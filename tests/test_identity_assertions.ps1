@@ -3,113 +3,170 @@
 # [BOUND THREAD]: goodkie/v-show Issue #8
 # [ISOLATION SANITY CHECK]: VERIFIED (Zero cross-project contamination)
 #
-# Offline Unit Tests for setup_build_volume.ps1 Validation Functions (v5)
-# Zero-mutation tests: Mocks inputs to verify all safety abort paths without touching disks.
+# Standalone Unit Test Driver for VirtualDiskSafety Module (P2-UNBLOCK-12)
+# Zero-mutation test suite: Does not run main script or exit prematurely.
 
-$scriptPath = "E:\vivpr\ai\ebrowser\portable-minimal\build\setup_build_volume.ps1"
+$ErrorActionPreference = "Stop"
 
-# Extract functions by dot-sourcing with dummy params in dry-run
-. $scriptPath -WhatIf | Out-Null
+Write-Host "=== STARTING OFFLINE VIRTUAL DISK SAFETY UNIT TEST SUITE ==="
+Write-Host "Timestamp: $(Get-Date -Format o)"
+Write-Host "Process Arch: $(if([Environment]::Is64BitProcess){'x64'}else{'x86'})"
 
-$testSuitePassed = $true
+$modulePath = Join-Path $PSScriptRoot "..\build\VirtualDiskSafety.psm1"
+Import-Module $modulePath -Force
+
+$executedCount = 0
+$passedCount = 0
+$failedCount = 0
 
 function Assert-Throws {
     param([scriptblock]$Script, [string]$ExpectedSubstring, [string]$TestName)
+    $script:executedCount++
     try {
         & $Script
-        Write-Host "  [FAIL] $TestName - Expected exception containing '$ExpectedSubstring' but none was thrown." -ForegroundColor Red
-        $script:testSuitePassed = $false
+        Write-Host "  [FAIL] $TestName - Expected exception containing '$ExpectedSubstring' but none was thrown."
+        $script:failedCount++
     } catch {
         if ($_.Exception.Message -like "*$ExpectedSubstring*") {
-            Write-Host "  [PASS] $TestName - Threw expected: $($_.Exception.Message)" -ForegroundColor Green
+            Write-Host "  [PASS] $TestName"
+            $script:passedCount++
         } else {
-            Write-Host "  [FAIL] $TestName - Threw unexpected exception: $($_.Exception.Message)" -ForegroundColor Red
-            $script:testSuitePassed = $false
+            Write-Host "  [FAIL] $TestName - Threw unexpected exception: $($_.Exception.Message)"
+            $script:failedCount++
         }
     }
 }
 
-Write-Host "`n=== Running Offline Unit Tests for Identity & Safety Assertions ==="
+function Assert-Succeeds {
+    param([scriptblock]$Script, [string]$TestName)
+    $script:executedCount++
+    try {
+        & $Script | Out-Null
+        Write-Host "  [PASS] $TestName"
+        $script:passedCount++
+    } catch {
+        Write-Host "  [FAIL] $TestName - Unexpected exception: $($_.Exception.Message)"
+        $script:failedCount++
+    }
+}
 
-# Test 1: Null DiskImage
+# 1. Null / Unattached / Incomplete DiskImage Tests
 Assert-Throws -Script {
-    Test-AttachedVirtualDiskIdentity -DiskImage $null -AllDisks @()
+    Test-AttachedVirtualDiskIdentity -DiskImage $null -AllDisks @([PSCustomObject]@{ Number=2 })
 } -ExpectedSubstring "DiskImage object is null" -TestName "Test 1: Null DiskImage abort"
 
-# Test 2: Unattached DiskImage
 Assert-Throws -Script {
-    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached = $false; Number = 2 }) -AllDisks @([PSCustomObject]@{ Number = 2 })
-} -ExpectedSubstring "Attached == False" -TestName "Test 2: Attached==False abort"
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$false; Number=2 }) -AllDisks @([PSCustomObject]@{ Number=2 })
+} -ExpectedSubstring "Attached is not True" -TestName "Test 2: Attached==False abort"
 
-# Test 3: Multiple matching disks (Ambiguity)
-$mockDisksMulti = @(
-    [PSCustomObject]@{ Number = 2; BusType = 14; IsSystem = $false; IsBoot = $false; PartitionStyle = 0; NumberOfPartitions = 0 },
-    [PSCustomObject]@{ Number = 2; BusType = 14; IsSystem = $false; IsBoot = $false; PartitionStyle = 0; NumberOfPartitions = 0 }
-)
 Assert-Throws -Script {
-    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached = $true; Number = 2 }) -AllDisks $mockDisksMulti
-} -ExpectedSubstring "Multiple disks (2) returned" -TestName "Test 3: Multiple matching disks abort"
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=$null }) -AllDisks @([PSCustomObject]@{ Number=2 })
+} -ExpectedSubstring "DiskImage.Number is null" -TestName "Test 3: Null DiskImage.Number abort"
 
-# Test 4: Wrong BusType (e.g. SATA / NVMe = 11, USB = 7, not 14)
-$mockDiskWrongBus = @(
-    [PSCustomObject]@{ Number = 2; BusType = 11; IsSystem = $false; IsBoot = $false; PartitionStyle = 0; NumberOfPartitions = 0 }
-)
+# 2. Ambiguity & Missing Disks
 Assert-Throws -Script {
-    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached = $true; Number = 2 }) -AllDisks $mockDiskWrongBus
-} -ExpectedSubstring "Expected 14 (Virtual/FileBackedVirtual)" -TestName "Test 4: Wrong BusType abort"
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks @()
+} -ExpectedSubstring "AllDisks collection is empty" -TestName "Test 4: Empty AllDisks collection abort"
 
-# Test 5: System Disk Protection (IsSystem == True)
-$mockDiskSystem = @(
-    [PSCustomObject]@{ Number = 2; BusType = 14; IsSystem = $true; IsBoot = $false; PartitionStyle = 0; NumberOfPartitions = 0 }
-)
 Assert-Throws -Script {
-    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached = $true; Number = 2 }) -AllDisks $mockDiskSystem
-} -ExpectedSubstring "IsSystem == True" -TestName "Test 5: IsSystem==True safety abort"
+    $multi = @(
+        [PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1" },
+        [PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID2" }
+    )
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $multi
+} -ExpectedSubstring "Multiple disks (2) returned" -TestName "Test 5: Multiple matching disks ambiguity abort"
 
-# Test 6: Boot Disk Protection (IsBoot == True)
-$mockDiskBoot = @(
-    [PSCustomObject]@{ Number = 2; BusType = 14; IsSystem = $false; IsBoot = $true; PartitionStyle = 0; NumberOfPartitions = 0 }
-)
+# 3. Required Property Null Checks
 Assert-Throws -Script {
-    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached = $true; Number = 2 }) -AllDisks $mockDiskBoot
-} -ExpectedSubstring "IsBoot == True" -TestName "Test 6: IsBoot==True safety abort"
+    $nullProp = @([PSCustomObject]@{ Number=2; BusType=$null; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1" })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $nullProp
+} -ExpectedSubstring "BusType property is null" -TestName "Test 6: Null BusType abort"
 
-# Test 7: Pre-formatted / Non-RAW Disk Protection (PartitionStyle != 0)
-$mockDiskPreformatted = @(
-    [PSCustomObject]@{ Number = 2; BusType = 14; IsSystem = $false; IsBoot = $false; PartitionStyle = 2; NumberOfPartitions = 0 }
-)
 Assert-Throws -Script {
-    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached = $true; Number = 2 }) -AllDisks $mockDiskPreformatted
-} -ExpectedSubstring "Expected 0 (RAW)" -TestName "Test 7: PartitionStyle!=RAW safety abort"
+    $nullProp = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$null; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1" })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $nullProp
+} -ExpectedSubstring "IsSystem property is null" -TestName "Test 7: Null IsSystem abort"
 
-# Test 8: Pre-existing Partitions Protection (NumberOfPartitions > 0)
-$mockDiskHasPartitions = @(
-    [PSCustomObject]@{ Number = 2; BusType = 14; IsSystem = $false; IsBoot = $false; PartitionStyle = 0; NumberOfPartitions = 1 }
-)
 Assert-Throws -Script {
-    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached = $true; Number = 2 }) -AllDisks $mockDiskHasPartitions
-} -ExpectedSubstring "NumberOfPartitions == 1. Expected 0" -TestName "Test 8: NumberOfPartitions>0 safety abort"
+    $nullProp = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$null; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1" })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $nullProp
+} -ExpectedSubstring "IsBoot property is null" -TestName "Test 8: Null IsBoot abort"
 
-# Test 9: Valid Clean Raw Virtual Disk (Success Case)
-$mockDiskValid = @(
-    [PSCustomObject]@{ Number = 2; UniqueId = "VIRTUAL_DISK_GUID_12345"; BusType = 14; IsSystem = $false; IsBoot = $false; PartitionStyle = 0; NumberOfPartitions = 0 }
-)
-$verified = Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached = $true; Number = 2 }) -AllDisks $mockDiskValid
-if ($verified.Number -eq 2 -and $verified.UniqueId -eq "VIRTUAL_DISK_GUID_12345") {
-    Write-Host "  [PASS] Test 9: Valid clean RAW virtual disk correctly verified." -ForegroundColor Green
-} else {
-    Write-Host "  [FAIL] Test 9: Valid clean RAW virtual disk failed verification." -ForegroundColor Red
-    $testSuitePassed = $false
+Assert-Throws -Script {
+    $nullProp = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=$null; NumberOfPartitions=0; UniqueId="GUID1" })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $nullProp
+} -ExpectedSubstring "PartitionStyle property is null" -TestName "Test 9: Null PartitionStyle abort"
+
+Assert-Throws -Script {
+    $nullProp = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="" })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $nullProp
+} -ExpectedSubstring "UniqueId is null or empty" -TestName "Test 10: Empty UniqueId abort"
+
+# 4. BusType Rejection & Acceptance (Official Spec: 14 = Virtual, 15 = File Backed Virtual)
+Assert-Throws -Script {
+    $bus14 = @([PSCustomObject]@{ Number=2; BusType=14; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1" })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $bus14
+} -ExpectedSubstring "Expected 15 (File Backed Virtual)" -TestName "Test 11: BusType=14 rejection abort"
+
+Assert-Throws -Script {
+    $busSata = @([PSCustomObject]@{ Number=2; BusType=11; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1" })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $busSata
+} -ExpectedSubstring "Expected 15 (File Backed Virtual)" -TestName "Test 12: BusType=11 (SATA/NVMe) rejection abort"
+
+# 5. System, Boot, Pre-formatted and Pre-existing Partition Safety
+Assert-Throws -Script {
+    $sys = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$true; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1" })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $sys
+} -ExpectedSubstring "IsSystem == True" -TestName "Test 13: IsSystem==True abort"
+
+Assert-Throws -Script {
+    $boot = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$true; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1" })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $boot
+} -ExpectedSubstring "IsBoot == True" -TestName "Test 14: IsBoot==True abort"
+
+Assert-Throws -Script {
+    $gpt = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=2; NumberOfPartitions=0; UniqueId="GUID1" })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $gpt
+} -ExpectedSubstring "Expected 0 (RAW)" -TestName "Test 15: PartitionStyle!=RAW abort"
+
+Assert-Throws -Script {
+    $part = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=1; UniqueId="GUID1" })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $part
+} -ExpectedSubstring "NumberOfPartitions == 1. Expected 0" -TestName "Test 16: NumberOfPartitions>0 abort"
+
+# 6. Valid Clean File-Backed Virtual Disk (BusType=15) Success
+Assert-Succeeds -Script {
+    $valid = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="VALID_VHDX_UID" })
+    $res = Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2 }) -AllDisks $valid
+    if ($res.Number -ne 2 -or $res.UniqueId -ne "VALID_VHDX_UID") { throw "Result mismatch" }
+} -TestName "Test 17: Valid clean RAW virtual disk (BusType=15) PASS"
+
+# 7. Volume Correspondence Tests (Completely Mocked - No OS disk assumption)
+Assert-Throws -Script {
+    $mockPart = [PSCustomObject]@{ DiskNumber = 0; DriveLetter = "X" }
+    $mockVol = [PSCustomObject]@{ FileSystem = "NTFS"; FileSystemLabel = "CHROMIUM_BUILD" }
+    Test-TargetVolumeCorrespondence -TargetLetter "X" -VerifiedDiskNumber 2 -MockPartition $mockPart -MockVolume $mockVol
+} -ExpectedSubstring "belongs to Disk 0, NOT verified Disk 2" -TestName "Test 18: Volume correspondence disk number mismatch abort"
+
+Assert-Throws -Script {
+    $mockPart = [PSCustomObject]@{ DiskNumber = 2; DriveLetter = "X" }
+    $mockVol = [PSCustomObject]@{ FileSystem = "FAT32"; FileSystemLabel = "CHROMIUM_BUILD" }
+    Test-TargetVolumeCorrespondence -TargetLetter "X" -VerifiedDiskNumber 2 -MockPartition $mockPart -MockVolume $mockVol
+} -ExpectedSubstring "attributes do not match NTFS" -TestName "Test 19: Volume filesystem mismatch abort"
+
+Assert-Succeeds -Script {
+    $mockPart = [PSCustomObject]@{ DiskNumber = 2; DriveLetter = "X" }
+    $mockVol = [PSCustomObject]@{ FileSystem = "NTFS"; FileSystemLabel = "CHROMIUM_BUILD" }
+    Test-TargetVolumeCorrespondence -TargetLetter "X" -VerifiedDiskNumber 2 -MockPartition $mockPart -MockVolume $mockVol
+} -TestName "Test 20: Valid volume correspondence PASS"
+
+Write-Host "`n=== UNIT TEST SUITE SUMMARY ==="
+Write-Host "Total Executed: $executedCount"
+Write-Host "Total Passed:   $passedCount"
+Write-Host "Total Failed:   $failedCount"
+
+if ($failedCount -gt 0) {
+    throw "UNIT TEST SUITE FAILED with $failedCount failures."
 }
 
-# Test 10: Volume Correspondence Disagreement
-Assert-Throws -Script {
-    # C: drive belongs to Disk 0, test with VerifiedDiskNumber = 99
-    Test-TargetVolumeCorrespondence -TargetLetter "C" -VerifiedDiskNumber 99
-} -ExpectedSubstring "belongs to Disk 0, NOT verified Disk 99" -TestName "Test 10: Volume correspondence mismatch abort"
-
-if (-not $testSuitePassed) {
-    throw "Offline unit test suite FAILED."
-}
-
-Write-Host "`nAll 10 offline safety assertion unit tests PASSED (Zero mutations executed)."
+Write-Host "=== END OF UNIT TEST SUITE: ALL $executedCount TESTS PASSED ==="

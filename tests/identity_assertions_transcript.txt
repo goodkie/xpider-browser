@@ -1,0 +1,29 @@
+﻿=== STARTING OFFLINE VIRTUAL DISK SAFETY UNIT TEST SUITE ===
+Timestamp: 2026-10-04T23:25:55.7748152-04:00
+Process Arch: x64
+  [PASS] Test 1: Null DiskImage abort
+  [PASS] Test 2: Attached==False abort
+  [PASS] Test 3: Null DiskImage.Number abort
+  [PASS] Test 4: Empty AllDisks collection abort
+  [PASS] Test 5: Multiple matching disks ambiguity abort
+  [PASS] Test 6: Null BusType abort
+  [PASS] Test 7: Null IsSystem abort
+  [PASS] Test 8: Null IsBoot abort
+  [PASS] Test 9: Null PartitionStyle abort
+  [PASS] Test 10: Empty UniqueId abort
+  [PASS] Test 11: BusType=14 rejection abort
+  [PASS] Test 12: BusType=11 (SATA/NVMe) rejection abort
+  [PASS] Test 13: IsSystem==True abort
+  [PASS] Test 14: IsBoot==True abort
+  [PASS] Test 15: PartitionStyle!=RAW abort
+  [PASS] Test 16: NumberOfPartitions>0 abort
+  [PASS] Test 17: Valid clean RAW virtual disk (BusType=15) PASS
+  [PASS] Test 18: Volume correspondence disk number mismatch abort
+  [PASS] Test 19: Volume filesystem mismatch abort
+  [PASS] Test 20: Valid volume correspondence PASS
+
+=== UNIT TEST SUITE SUMMARY ===
+Total Executed: 20
+Total Passed:   20
+Total Failed:   0
+=== END OF UNIT TEST SUITE: ALL 20 TESTS PASSED ===

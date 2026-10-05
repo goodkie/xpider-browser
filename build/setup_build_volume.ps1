@@ -3,18 +3,8 @@
 # [BOUND THREAD]: goodkie/v-show Issue #8
 # [ISOLATION SANITY CHECK]: VERIFIED (Zero cross-project contamination)
 #
-# P2 Build Volume Safe Managed Mount & Recovery Executor (v5)
-# Implements all P2-UNBLOCK-11 directives:
-# 1. Modularized validation functions enabling zero-mutation offline testing:
-#    - Test-AttachedVirtualDiskIdentity: Asserts exactly 1 matching disk, BusType == 14 (FileBackedVirtual),
-#      PartitionStyle == 0 (RAW), NumberOfPartitions == 0, IsSystem == False, IsBoot == False.
-#    - Test-TargetVolumeCorrespondence: Asserts assigned DriveLetter strictly corresponds to the verified disk number.
-# 2. Re-verifies exact virtual disk identity (DiskPath, UniqueId, RAW status) immediately before formatting.
-# 3. Verified Rollback & Detach with zero false success:
-#    - Verifies diskpart exit codes ($LASTEXITCODE == 0).
-#    - Requires observing Get-DiskImage.Attached == False; failures or exceptions report UNKNOWN/FAIL.
-# 4. Strict Nonce I/O comparison and clean deletion reporting.
-# 5. Dual execution flags: -WhatIf / Default = Dry-Run (Zero disk modification).
+# P2 Build Volume Safe Managed Mount & Recovery Executor (v6)
+# Imports VirtualDiskSafety module for strict identity/correspondence verification.
 
 param(
     [string]$VhdPath = "E:\vivpr\ai\ebrowser\build_ntfs.vhdx",
@@ -27,86 +17,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# --- CORE VALIDATION FUNCTIONS (MODULARIZED FOR OFFLINE UNIT TESTING) ---
+# Import safety validation functions without side-effects
+$modulePath = Join-Path $PSScriptRoot "VirtualDiskSafety.psm1"
+Import-Module $modulePath -Force
 
-function Test-AttachedVirtualDiskIdentity {
-    param(
-        $DiskImage,
-        $AllDisks
-    )
-
-    if ($null -eq $DiskImage) {
-        throw "IDENTITY VERIFICATION FAILED: DiskImage object is null."
-    }
-    if ($null -eq $AllDisks -or @($AllDisks).Count -eq 0) {
-        throw "IDENTITY VERIFICATION FAILED: AllDisks collection is empty."
-    }
-    if (-not $DiskImage.Attached) {
-        throw "IDENTITY VERIFICATION FAILED: DiskImage reports Attached == False."
-    }
-
-    $matchingDisks = @($AllDisks | Where-Object { $_.Number -eq $DiskImage.Number })
-    
-    if ($matchingDisks.Count -eq 0) {
-        throw "IDENTITY VERIFICATION FAILED: No MSFT_Disk found matching DiskImage.Number $($DiskImage.Number)."
-    }
-    if ($matchingDisks.Count -gt 1) {
-        throw "CRITICAL SAFETY ABORT: Multiple disks ($($matchingDisks.Count)) returned matching disk number $($DiskImage.Number)."
-    }
-
-    $targetDisk = $matchingDisks[0]
-
-    # 1. BusType check: 14 = FileBackedVirtual / Virtual in Windows Storage WMI
-    if ($targetDisk.BusType -ne 14) {
-        throw "CRITICAL SAFETY ABORT: Target disk BusType is $($targetDisk.BusType). Expected 14 (Virtual/FileBackedVirtual). Refusing format."
-    }
-
-    # 2. System and Boot disk checks
-    if ($targetDisk.IsSystem) {
-        throw "CRITICAL SAFETY ABORT: Target disk reports IsSystem == True! Refusing all modifications."
-    }
-    if ($targetDisk.IsBoot) {
-        throw "CRITICAL SAFETY ABORT: Target disk reports IsBoot == True! Refusing all modifications."
-    }
-
-    # 3. Partition checks: Must be completely raw and unpartitioned
-    if ($targetDisk.PartitionStyle -ne 0) {
-        throw "CRITICAL SAFETY ABORT: Target disk PartitionStyle is $($targetDisk.PartitionStyle). Expected 0 (RAW). Pre-formatted disk detected."
-    }
-    if ($targetDisk.NumberOfPartitions -ne 0) {
-        throw "CRITICAL SAFETY ABORT: Target disk reports NumberOfPartitions == $($targetDisk.NumberOfPartitions). Expected 0."
-    }
-
-    return $targetDisk
-}
-
-function Test-TargetVolumeCorrespondence {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$TargetLetter,
-        [Parameter(Mandatory=$true)]
-        [int]$VerifiedDiskNumber
-    )
-
-    $part = Get-Partition -DriveLetter $TargetLetter -ErrorAction Stop
-    if (-not $part) {
-        throw "CORRESPONDENCE FAILED: No partition found for drive letter '$TargetLetter`:'."
-    }
-    if ($part.DiskNumber -ne $VerifiedDiskNumber) {
-        throw "CRITICAL SAFETY ABORT: Drive letter '$TargetLetter`:' belongs to Disk $($part.DiskNumber), NOT verified Disk $VerifiedDiskNumber!"
-    }
-
-    $vol = Get-Volume -DriveLetter $TargetLetter -ErrorAction Stop
-    if ($vol.FileSystem -ne "NTFS" -or $vol.FileSystemLabel -ne "CHROMIUM_BUILD") {
-        throw "CORRESPONDENCE FAILED: Volume on '$TargetLetter`:' attributes do not match NTFS / CHROMIUM_BUILD."
-    }
-
-    return $true
-}
-
-# --- MAIN EXECUTOR ---
-
-Write-Host "=== P2 Build Volume Managed Executor (v5) ==="
+Write-Host "=== P2 Build Volume Managed Executor (v6) ==="
 
 # 0. Canonical Workspace Boundary Validation
 $workspaceRoot = "E:\vivpr\ai\ebrowser"
@@ -228,7 +143,7 @@ if ($isDryRun -or (-not $isAdmin)) {
     Write-Host "`nPlanned Execution Steps (Deferred to Approval):"
     Write-Host "  Step 1: Create expandable VHDX at $canonicalVhdPath (Size: $SizeMB MB) and attach"
     Write-Host "  Step 2: Structured verification of attached disk via Test-AttachedVirtualDiskIdentity:"
-    Write-Host "          - Assert BusType == 14 (FileBackedVirtual)"
+    Write-Host "          - Assert BusType == 15 (File Backed Virtual)"
     Write-Host "          - Assert IsSystem == False AND IsBoot == False"
     Write-Host "          - Assert PartitionStyle == 0 (RAW) AND NumberOfPartitions == 0"
     Write-Host "  Step 3: Re-verify exact target disk identity (UniqueId, RAW status) immediately before GPT conversion"
@@ -270,7 +185,7 @@ try {
     $verifiedDisk = Test-AttachedVirtualDiskIdentity -DiskImage $diskImage -AllDisks $allDisks
     $verifiedDiskNumber = [int]$verifiedDisk.Number
     $verifiedDiskUniqueId = $verifiedDisk.UniqueId
-    Write-Host "Disk Verification SUCCESS: Disk $verifiedDiskNumber verified as clean RAW virtual disk (BusType=14, UniqueId=$verifiedDiskUniqueId)."
+    Write-Host "Disk Verification SUCCESS: Disk $verifiedDiskNumber verified as clean RAW virtual disk (BusType=15, UniqueId=$verifiedDiskUniqueId)."
 
     # Step 3: Re-verify identity immediately before partition/format
     Write-Host "`nStep 3: Re-verifying identity of Disk $verifiedDiskNumber before formatting..."
