@@ -30,7 +30,8 @@
   "remediation": "P1A-R4-VERIFIED",
   "p2_patch": {
     "file": "patches/001-native-multipanel.patch",
-    "status": "REVIEW_READY",
+    "status": "DESIGN_SKETCH",
+    "applied_status": "NOT_APPLIED",
     "upstream_commit": "73c14f6228d7cd537c855007e8f88678969cc0eb",
     "files_modified": [
       "chrome/browser/ui/side_panel/side_panel_entry_key.h",
@@ -47,7 +48,7 @@
     "Audit-5: executeScript target refinement with sender.tab.id matching and actual frameId capture",
     "Audit-6: Append-only raw probe reports preserved (raw_probe_reports_count: 20 auto-computed and matching array length)",
     "Audit-7: Abort T5 copytree and propagate failure to results, summary, and exit code if cleanup fails; cleanup reloc_tracker in finally",
-    "Audit-8: Normalized P2 C++ sketch patch paths (a/chrome/..., b/chrome/...) with git apply --numstat and git apply --check verified",
+    "Audit-8: Normalized P2 C++ sketch patch paths (a/chrome/..., b/chrome/...); marked DESIGN_SKETCH / NOT_APPLIED pending pinned source tree checkout",
     "Audit-9: Corrected docs/P2_BUILD_ENVIRONMENT.md SidePanelUIBase path to chrome/browser/ui/side_panel/side_panel_ui_base.h"
   ]
 }

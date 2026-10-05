@@ -1,10 +1,11 @@
-# STATUS: REVIEW_READY
+# STATUS: DESIGN_SKETCH
+# APPLIED_STATUS: NOT_APPLIED
 # UPSTREAM PINNED COMMIT: 73c14f6228d7cd537c855007e8f88678969cc0eb (Chromium 154.0.8037.57)
 # TARGET ARCHITECTURE: MultiPanel Slot Routing & Key Namespacing
-# AUDIT: Audit-8 VERIFIED (git apply --numstat + git apply --check passed)
-# NOTE: This patch is a REVIEW_READY design prototype for multi-instance side panels.
-#       It requires MSVC, Windows 10 SDK (10.0.22621.0+), and depot_tools to apply to a live tree.
-#       See docs/P2_BUILD_ENVIRONMENT.md for full toolchain prerequisites.
+# AUDIT: Audit-8 REVISED (Paths normalized; apply --check pending live source tree checkout)
+# NOTE: This patch is a design prototype sketch for multi-instance side panels.
+#       It requires live Chromium source, MSVC, Windows SDK, and depot_tools to apply and build.
+#       See docs/P2_BUILD_ENVIRONMENT.md for toolchain prerequisites.
 #
 # FILES MODIFIED:
 #   1. chrome/browser/ui/side_panel/side_panel_entry_key.h   — PanelInstanceId type + new constructor
