@@ -110,6 +110,10 @@ $magic = ""
 $cleanupSuccess = $false
 $res = -1
 
+if (-not [Environment]::Is64BitProcess) {
+    throw "ABORT: Probe requires a 64-bit PowerShell process."
+}
+
 try {
     Write-Host "Invoking CreateVirtualDisk API (Native Struct Layout):"
     Write-Host "  Process Arch: $([Environment]::Is64BitProcess)"
@@ -122,8 +126,8 @@ try {
 
     $res = [VHDProbeNativeV2]::CreateVirtualDisk([ref]$vst, $testPath, 0, [IntPtr]::Zero, 0, 0, [ref]$params, [IntPtr]::Zero, [ref]$handle)
     
-    $created = Test-Path -LiteralPath $testPath
-    if ($created) {
+    if ($res -eq 0 -and $handle -ne [IntPtr]::Zero -and (Test-Path -LiteralPath $testPath)) {
+        $created = $true
         $fileSize = (Get-Item -LiteralPath $testPath).Length
         $bytes = [System.IO.File]::ReadAllBytes($testPath)
         if ($bytes.Length -ge 8) {
@@ -132,9 +136,13 @@ try {
     }
 } finally {
     if ($handle -ne [IntPtr]::Zero) {
-        [VHDProbeNativeV2]::CloseHandle($handle) | Out-Null
+        $closeOk = [VHDProbeNativeV2]::CloseHandle($handle)
+        if (-not $closeOk) {
+            Write-Warning "CloseHandle failed with error: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())"
+        }
         $handle = [IntPtr]::Zero
     }
+    # Only clean up if this specific execution created and verified ownership of the file
     if ($created -and (Test-Path -LiteralPath $testPath)) {
         try {
             Remove-Item -LiteralPath $testPath -Force -ErrorAction Stop
