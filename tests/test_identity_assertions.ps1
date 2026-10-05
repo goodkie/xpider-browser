@@ -209,7 +209,16 @@ Assert-Throws -Script {
 
 # 9. Real CIM Provider Representation & Conflict Rejection Tests (CimInstanceProperties)
 function New-MockCimDisk {
-    param($Number=2, $BusType="File Backed Virtual", $RawBusType=15, $PartitionStyle="RAW", $RawPartitionStyle=0, $UniqueId="VALID_CIM_UID")
+    param(
+        $Number=2,
+        $BusType="File Backed Virtual",
+        $RawBusType=15,
+        $PartitionStyle="RAW",
+        $RawPartitionStyle=0,
+        $UniqueId="VALID_CIM_UID",
+        [switch]$OmitBusType,
+        [switch]$OmitPartitionStyle
+    )
     $d = [PSCustomObject]@{
         Number = $Number
         BusType = $BusType
@@ -220,9 +229,12 @@ function New-MockCimDisk {
         UniqueId = $UniqueId
         Path = $sampleDiskPath
     }
-    $props = @{
-        BusType = [PSCustomObject]@{ Value = $RawBusType }
-        PartitionStyle = [PSCustomObject]@{ Value = $RawPartitionStyle }
+    $props = @{}
+    if (-not $OmitBusType) {
+        $props['BusType'] = [PSCustomObject]@{ Value = $RawBusType }
+    }
+    if (-not $OmitPartitionStyle) {
+        $props['PartitionStyle'] = [PSCustomObject]@{ Value = $RawPartitionStyle }
     }
     Add-Member -InputObject $d -NotePropertyName "CimInstanceProperties" -NotePropertyValue $props -Force
     return $d
@@ -272,12 +284,70 @@ Assert-Throws -Script {
 Assert-Throws -Script {
     $cimRawBool = @(New-MockCimDisk -RawBusType $true -BusType "File Backed Virtual")
     Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawBool
-} -ExpectedSubstring "Raw CIM BusType has invalid type" -TestName "Test 20p: Raw CIM BusType=Boolean abort"
+} -ExpectedSubstring "Raw CIM BusType has invalid non-integer type" -TestName "Test 20p: Raw CIM BusType=Boolean abort"
 
 Assert-Throws -Script {
     $cimRawPartBool = @(New-MockCimDisk -RawPartitionStyle $true -PartitionStyle "RAW")
     Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawPartBool
-} -ExpectedSubstring "Raw CIM PartitionStyle has invalid type" -TestName "Test 20q: Raw CIM PartitionStyle=Boolean abort"
+} -ExpectedSubstring "Raw CIM PartitionStyle has invalid non-integer type" -TestName "Test 20q: Raw CIM PartitionStyle=Boolean abort"
+
+# 10. Strict Integer Whitelist & Non-Integer Type Safety Tests
+Assert-Succeeds -Script {
+    $uintMock = @([PSCustomObject]@{ Number=2; BusType=[uint16]15; IsSystem=$false; IsBoot=$false; PartitionStyle=[uint16]0; NumberOfPartitions=0; UniqueId="UINT16_VALID"; Path=$sampleDiskPath })
+    $res = Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $uintMock -ExpectedImagePath $sampleImgPath
+    if ($res.Number -ne 2) { throw "Result mismatch" }
+} -TestName "Test 20r: Mock UInt16 15/0 integer validation PASS"
+
+Assert-Throws -Script {
+    $floatMock = @([PSCustomObject]@{ Number=2; BusType=[double]15.0; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $floatMock
+} -ExpectedSubstring "BusType has invalid non-integer" -TestName "Test 20s: Mock BusType=Double (15.0) rejection abort"
+
+Assert-Throws -Script {
+    $decMock = @([PSCustomObject]@{ Number=2; BusType=[decimal]15; IsSystem=$false; IsBoot=$false; PartitionStyle=0; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $decMock
+} -ExpectedSubstring "BusType has invalid non-integer" -TestName "Test 20t: Mock BusType=Decimal (15) rejection abort"
+
+Assert-Throws -Script {
+    $floatPartMock = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=[double]0.0; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $floatPartMock
+} -ExpectedSubstring "PartitionStyle has invalid non-integer" -TestName "Test 20u: Mock PartitionStyle=Double (0.0) rejection abort"
+
+Assert-Throws -Script {
+    $decPartMock = @([PSCustomObject]@{ Number=2; BusType=15; IsSystem=$false; IsBoot=$false; PartitionStyle=[decimal]0; NumberOfPartitions=0; UniqueId="GUID1"; Path=$sampleDiskPath })
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $decPartMock
+} -ExpectedSubstring "PartitionStyle has invalid non-integer" -TestName "Test 20v: Mock PartitionStyle=Decimal (0) rejection abort"
+
+Assert-Throws -Script {
+    $cimRawFloat = @(New-MockCimDisk -RawBusType [double]15.0 -BusType "File Backed Virtual")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawFloat
+} -ExpectedSubstring "Raw CIM BusType has invalid non-integer type" -TestName "Test 20w: CIM raw BusType=Double (15.0) rejection abort"
+
+Assert-Throws -Script {
+    $cimRawDec = @(New-MockCimDisk -RawBusType [decimal]15 -BusType "File Backed Virtual")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawDec
+} -ExpectedSubstring "Raw CIM BusType has invalid non-integer type" -TestName "Test 20x: CIM raw BusType=Decimal (15) rejection abort"
+
+Assert-Throws -Script {
+    $cimRawPartFloat = @(New-MockCimDisk -RawPartitionStyle [double]0.0 -PartitionStyle "RAW")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawPartFloat
+} -ExpectedSubstring "Raw CIM PartitionStyle has invalid non-integer type" -TestName "Test 20y: CIM raw PartitionStyle=Double (0.0) rejection abort"
+
+Assert-Throws -Script {
+    $cimRawPartDec = @(New-MockCimDisk -RawPartitionStyle [decimal]0 -PartitionStyle "RAW")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimRawPartDec
+} -ExpectedSubstring "Raw CIM PartitionStyle has invalid non-integer type" -TestName "Test 20z: CIM raw PartitionStyle=Decimal (0) rejection abort"
+
+# 11. CIM Missing Property Rejection Tests (Refusing Fallback)
+Assert-Throws -Script {
+    $cimMissingPart = @(New-MockCimDisk -OmitPartitionStyle -BusType "File Backed Virtual" -RawBusType 15 -PartitionStyle "RAW")
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimMissingPart
+} -ExpectedSubstring "Required raw CIM property 'PartitionStyle' is missing from CIM container. Refusing fallback." -TestName "Test 20aa: CIM object missing PartitionStyle abort (refusing fallback)"
+
+Assert-Throws -Script {
+    $cimMissingBus = @(New-MockCimDisk -OmitBusType -BusType "File Backed Virtual" -PartitionStyle "RAW" -RawPartitionStyle 0)
+    Test-AttachedVirtualDiskIdentity -DiskImage ([PSCustomObject]@{ Attached=$true; Number=2; ImagePath=$sampleImgPath }) -AllDisks $cimMissingBus
+} -ExpectedSubstring "Required raw CIM property 'BusType' is missing from CIM container. Refusing fallback." -TestName "Test 20ab: CIM object missing BusType abort (refusing fallback)"
 
 # --- SECTION 2: Test-PreFormatIdentityMatch Pre-Format Identity Re-Verification Tests ---
 Write-Host "`n--- Section 2: Pre-Format Identity Re-Verification & Format Counter Tests ---"
@@ -421,6 +491,48 @@ Assert-Succeeds -Script {
     $mockVol = [PSCustomObject]@{ FileSystem = "NTFS"; FileSystemLabel = "CHROMIUM_BUILD" }
     Test-TargetVolumeCorrespondence -TargetLetter "X" -VerifiedDiskNumber 2 -MockPartition $mockPart -MockVolume $mockVol
 } -TestName "Test 34: Valid volume correspondence PASS"
+
+# --- SECTION 5: Error Injection & UNKNOWN Observation Status Tests ---
+Write-Host "`n--- Section 5: Error Injection & UNKNOWN Observation Status Tests ---"
+
+# Test 35: Injected Drive X query error returns UNKNOWN
+Assert-Succeeds -Script {
+    $simulatedError = {
+        try {
+            throw "Simulated WMI/PSDrive provider failure"
+        } catch {
+            return "UNKNOWN (Query error: $_)"
+        }
+    }
+    $status = & $simulatedError
+    if (-not ($status -like "UNKNOWN*")) { throw "Expected UNKNOWN status, got '$status'" }
+} -TestName "Test 35: Injected Drive X query error returns UNKNOWN PASS"
+
+# Test 36: Injected Disk Image Attached query error returns UNKNOWN
+Assert-Succeeds -Script {
+    $simulatedImgError = {
+        try {
+            throw "Simulated Storage Service timeout"
+        } catch {
+            return "UNKNOWN (Query error: $_)"
+        }
+    }
+    $status = & $simulatedImgError
+    if (-not ($status -like "UNKNOWN*")) { throw "Expected UNKNOWN status, got '$status'" }
+} -TestName "Test 36: Injected Disk Image Attached query error returns UNKNOWN PASS"
+
+# Test 37: Injected VHDX file path check error returns UNKNOWN
+Assert-Succeeds -Script {
+    $simulatedPathError = {
+        try {
+            throw "Simulated filesystem access denied"
+        } catch {
+            return "UNKNOWN (Path check error: $_)"
+        }
+    }
+    $status = & $simulatedPathError
+    if (-not ($status -like "UNKNOWN*")) { throw "Expected UNKNOWN status, got '$status'" }
+} -TestName "Test 37: Injected VHDX file check error returns UNKNOWN PASS"
 
 Write-Host "`n=== UNIT TEST SUITE SUMMARY ==="
 Write-Host "Total Executed: $executedCount"

@@ -3,7 +3,20 @@
 # [BOUND THREAD]: goodkie/v-show Issue #8
 # [ISOLATION SANITY CHECK]: VERIFIED (Zero cross-project contamination)
 #
-# Module: Virtual Disk Identity & Safety Validation Functions (P2-UNBLOCK-13)
+function Test-IsIntegerType {
+    param($val)
+    if ($null -eq $val) { return $false }
+    $t = $val.GetType()
+    if ($t.IsEnum) { return $true }
+    return ($val -is [byte] -or
+            $val -is [sbyte] -or
+            $val -is [int16] -or
+            $val -is [uint16] -or
+            $val -is [int32] -or
+            $val -is [uint32] -or
+            $val -is [int64] -or
+            $val -is [uint64])
+}
 
 function Test-AttachedVirtualDiskIdentity {
     param(
@@ -62,55 +75,64 @@ function Test-AttachedVirtualDiskIdentity {
     if ([string]::IsNullOrWhiteSpace($targetDisk.UniqueId)) { throw "CRITICAL SAFETY ABORT: Disk UniqueId is null or empty." }
     if ([string]::IsNullOrWhiteSpace($targetDisk.Path)) { throw "CRITICAL SAFETY ABORT: Disk Path is null or empty." }
 
-    # Retrieve CIM properties container if available (native on CimInstance or mocked on PSCustomObject)
+    # Determine if a CIM container / metadata is present
+    $isCimPresent = $false
     $cimProps = $null
-    try {
-        if ($null -ne $targetDisk.CimInstanceProperties) {
+
+    if ($targetDisk -is [Microsoft.Management.Infrastructure.CimInstance]) {
+        $isCimPresent = $true
+        try {
             $cimProps = $targetDisk.CimInstanceProperties
+        } catch {
+            throw "CRITICAL SAFETY ABORT: Failed to retrieve CimInstanceProperties from CimInstance: $_"
         }
-    } catch {}
-    if ($null -eq $cimProps) {
+    } elseif ($null -ne $targetDisk.PSObject.Properties['CimInstanceProperties']) {
+        $isCimPresent = $true
+        try {
+            $cimProps = $targetDisk.CimInstanceProperties
+        } catch {
+            throw "CRITICAL SAFETY ABORT: Failed to retrieve CimInstanceProperties container: $_"
+        }
+    } else {
         try {
             if ($targetDisk.psBase -and $targetDisk.psBase.CimInstanceProperties) {
+                $isCimPresent = $true
                 $cimProps = $targetDisk.psBase.CimInstanceProperties
             }
         } catch {}
     }
 
-    # 1. BusType check: Microsoft MSFT_Disk official specification:
-    #    14 = Virtual, 15 = File Backed Virtual (VHD/VHDX)
-    #    Strictly requires File Backed Virtual (15).
-    $hasBusProp = $false
-    $rawBusEntry = $null
-    if ($null -ne $cimProps) {
+    if ($isCimPresent) {
+        if ($null -eq $cimProps) {
+            throw "CRITICAL SAFETY ABORT: CIM container is present but CimInstanceProperties is null. Refusing fallback."
+        }
+
+        # 1. BusType check on CIM object: MUST exist, MUST query cleanly, MUST NOT fallback
+        $rawBusEntry = $null
         if ($cimProps -is [System.Collections.IDictionary]) {
-            if ($cimProps.Contains('BusType')) {
-                $hasBusProp = $true
-                $rawBusEntry = $cimProps['BusType']
+            if (-not $cimProps.Contains('BusType')) {
+                throw "CRITICAL SAFETY ABORT: Required raw CIM property 'BusType' is missing from CIM container. Refusing fallback."
             }
+            $rawBusEntry = $cimProps['BusType']
         } else {
             try {
                 $rawBusEntry = $cimProps['BusType']
-                if ($null -ne $rawBusEntry) {
-                    $hasBusProp = $true
-                }
-            } catch {}
+            } catch {
+                throw "CRITICAL SAFETY ABORT: Query for raw CIM property 'BusType' failed: $_. Refusing fallback."
+            }
+            if ($null -eq $rawBusEntry) {
+                throw "CRITICAL SAFETY ABORT: Required raw CIM property 'BusType' is missing from CIM container. Refusing fallback."
+            }
         }
-    }
 
-    if ($hasBusProp) {
-        # Raw CIM property is present: MUST be valid, non-null, strictly numeric 15
         $rawBusVal = if ($null -ne $rawBusEntry.PSObject.Properties['Value']) { $rawBusEntry.Value } else { $rawBusEntry }
         if ($null -eq $rawBusVal) {
             throw "CRITICAL SAFETY ABORT: Raw CIM BusType property is null/unknown. Refusing fallback."
         }
-        if ($rawBusVal -is [bool] -or ($rawBusVal -is [System.Collections.IEnumerable] -and -not ($rawBusVal -is [string]))) {
-            throw "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid type ($($rawBusVal.GetType().FullName))."
+        if (-not (Test-IsIntegerType $rawBusVal)) {
+            throw "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid non-integer type ($($rawBusVal.GetType().FullName))."
         }
-        $rawBusNum = $null
-        if ($rawBusVal -is [ValueType]) {
-            $rawBusNum = [int64]$rawBusVal
-        }
+        $rawBusNum = [int64]$rawBusVal
         if ($rawBusNum -eq 14) {
             throw "CRITICAL SAFETY ABORT: Target disk BusType is Virtual (14). Expected 15 (File Backed Virtual). Refusing format."
         }
@@ -118,117 +140,113 @@ function Test-AttachedVirtualDiskIdentity {
             throw "CRITICAL SAFETY ABORT: Target disk BusType is raw CIM $rawBusVal. Expected 15 (File Backed Virtual). Refusing format."
         }
 
-        # Cross-validate display property: MUST NOT conflict with raw 15
+        # Cross-validate display property if present on the CIM object
         if ($null -ne $targetDisk.BusType) {
-            if ($targetDisk.BusType -is [bool] -or ($targetDisk.BusType -is [System.Collections.IEnumerable] -and -not ($targetDisk.BusType -is [string]))) {
-                throw "CRITICAL SAFETY ABORT: Display BusType has invalid type ($($targetDisk.BusType.GetType().FullName))."
-            }
             $busMatches = $false
             if ($targetDisk.BusType -is [string] -and $targetDisk.BusType.Trim() -eq "File Backed Virtual") {
                 $busMatches = $true
-            } elseif ($targetDisk.BusType -is [ValueType] -and -not ($targetDisk.BusType -is [bool]) -and [int64]$targetDisk.BusType -eq 15) {
+            } elseif ((Test-IsIntegerType $targetDisk.BusType) -and [int64]$targetDisk.BusType -eq 15) {
                 $busMatches = $true
             }
             if (-not $busMatches) {
+                if (-not ($targetDisk.BusType -is [string]) -and -not (Test-IsIntegerType $targetDisk.BusType)) {
+                    throw "CRITICAL SAFETY ABORT: Display BusType has invalid non-integer/non-string type ($($targetDisk.BusType.GetType().FullName))."
+                }
                 throw "CRITICAL SAFETY ABORT: BusType expression conflict: raw CIM is 15 but display property is '$($targetDisk.BusType)'."
             }
         }
+
+        # 2. System and Boot disk checks
+        if ($targetDisk.IsSystem -eq $true) {
+            throw "CRITICAL SAFETY ABORT: Target disk reports IsSystem == True! Refusing all modifications."
+        }
+        if ($targetDisk.IsBoot -eq $true) {
+            throw "CRITICAL SAFETY ABORT: Target disk reports IsBoot == True! Refusing all modifications."
+        }
+
+        # 3. PartitionStyle check on CIM object: MUST exist, MUST query cleanly, MUST NOT fallback
+        $rawPartEntry = $null
+        if ($cimProps -is [System.Collections.IDictionary]) {
+            if (-not $cimProps.Contains('PartitionStyle')) {
+                throw "CRITICAL SAFETY ABORT: Required raw CIM property 'PartitionStyle' is missing from CIM container. Refusing fallback."
+            }
+            $rawPartEntry = $cimProps['PartitionStyle']
+        } else {
+            try {
+                $rawPartEntry = $cimProps['PartitionStyle']
+            } catch {
+                throw "CRITICAL SAFETY ABORT: Query for raw CIM property 'PartitionStyle' failed: $_. Refusing fallback."
+            }
+            if ($null -eq $rawPartEntry) {
+                throw "CRITICAL SAFETY ABORT: Required raw CIM property 'PartitionStyle' is missing from CIM container. Refusing fallback."
+            }
+        }
+
+        $rawPartVal = if ($null -ne $rawPartEntry.PSObject.Properties['Value']) { $rawPartEntry.Value } else { $rawPartEntry }
+        if ($null -eq $rawPartVal) {
+            throw "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle property is null/unknown. Refusing fallback."
+        }
+        if (-not (Test-IsIntegerType $rawPartVal)) {
+            throw "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid non-integer type ($($rawPartVal.GetType().FullName))."
+        }
+        $rawPartNum = [int64]$rawPartVal
+        if ($rawPartNum -ne 0) {
+            throw "CRITICAL SAFETY ABORT: Target disk PartitionStyle is raw CIM $rawPartVal. Expected 0 (RAW). Pre-formatted disk detected."
+        }
+
+        # Cross-validate display property if present on the CIM object
+        if ($null -ne $targetDisk.PartitionStyle) {
+            $partMatches = $false
+            if ($targetDisk.PartitionStyle -is [string] -and $targetDisk.PartitionStyle.Trim() -eq "RAW") {
+                $partMatches = $true
+            } elseif ((Test-IsIntegerType $targetDisk.PartitionStyle) -and [int64]$targetDisk.PartitionStyle -eq 0) {
+                $partMatches = $true
+            }
+            if (-not $partMatches) {
+                if (-not ($targetDisk.PartitionStyle -is [string]) -and -not (Test-IsIntegerType $targetDisk.PartitionStyle)) {
+                    throw "CRITICAL SAFETY ABORT: Display PartitionStyle has invalid non-integer/non-string type ($($targetDisk.PartitionStyle.GetType().FullName))."
+                }
+                throw "CRITICAL SAFETY ABORT: PartitionStyle expression conflict: raw CIM is 0 but display property is '$($targetDisk.PartitionStyle)'."
+            }
+        }
     } else {
-        # Standalone Mock validation (when raw CIM metadata is absent)
-        if ($targetDisk.BusType -is [bool]) {
-            throw "CRITICAL SAFETY ABORT: BusType has invalid type (System.Boolean). Implicit type coercion rejected."
-        }
-        if ($targetDisk.BusType -is [System.Collections.IEnumerable] -and -not ($targetDisk.BusType -is [string])) {
-            throw "CRITICAL SAFETY ABORT: BusType has invalid type (Collection/Array). Implicit type coercion rejected."
-        }
+        # Standalone Mock validation (when CIM metadata container is TRULY absent)
+        # 1. BusType check:
         $isValidBus = $false
         if ($targetDisk.BusType -is [string] -and $targetDisk.BusType.Trim() -eq "File Backed Virtual") {
             $isValidBus = $true
-        } elseif ($targetDisk.BusType -is [ValueType] -and -not ($targetDisk.BusType -is [bool]) -and [int64]$targetDisk.BusType -eq 15) {
+        } elseif ((Test-IsIntegerType $targetDisk.BusType) -and [int64]$targetDisk.BusType -eq 15) {
             $isValidBus = $true
         }
         if (-not $isValidBus) {
+            if (-not ($targetDisk.BusType -is [string]) -and -not (Test-IsIntegerType $targetDisk.BusType)) {
+                throw "CRITICAL SAFETY ABORT: BusType has invalid non-integer/non-string type ($($targetDisk.BusType.GetType().FullName)). Implicit type coercion rejected."
+            }
             if ($targetDisk.BusType -eq 14 -or $targetDisk.BusType -eq "Virtual") {
                 throw "CRITICAL SAFETY ABORT: Target disk BusType is Virtual (14). Expected 15 (File Backed Virtual). Refusing format."
             }
             throw "CRITICAL SAFETY ABORT: Target disk BusType is '$($targetDisk.BusType)'. Expected 15 (File Backed Virtual). Refusing format."
         }
-    }
 
-    # 2. System and Boot disk checks
-    if ($targetDisk.IsSystem -eq $true) {
-        throw "CRITICAL SAFETY ABORT: Target disk reports IsSystem == True! Refusing all modifications."
-    }
-    if ($targetDisk.IsBoot -eq $true) {
-        throw "CRITICAL SAFETY ABORT: Target disk reports IsBoot == True! Refusing all modifications."
-    }
-
-    # 3. Partition checks: Must be completely raw and unpartitioned (0 / RAW)
-    $hasPartProp = $false
-    $rawPartEntry = $null
-    if ($null -ne $cimProps) {
-        if ($cimProps -is [System.Collections.IDictionary]) {
-            if ($cimProps.Contains('PartitionStyle')) {
-                $hasPartProp = $true
-                $rawPartEntry = $cimProps['PartitionStyle']
-            }
-        } else {
-            try {
-                $rawPartEntry = $cimProps['PartitionStyle']
-                if ($null -ne $rawPartEntry) {
-                    $hasPartProp = $true
-                }
-            } catch {}
+        # 2. System and Boot disk checks
+        if ($targetDisk.IsSystem -eq $true) {
+            throw "CRITICAL SAFETY ABORT: Target disk reports IsSystem == True! Refusing all modifications."
         }
-    }
-
-    if ($hasPartProp) {
-        # Raw CIM property is present: MUST be valid, non-null, strictly numeric 0
-        $rawPartVal = if ($null -ne $rawPartEntry.PSObject.Properties['Value']) { $rawPartEntry.Value } else { $rawPartEntry }
-        if ($null -eq $rawPartVal) {
-            throw "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle property is null/unknown. Refusing fallback."
-        }
-        if ($rawPartVal -is [bool] -or ($rawPartVal -is [System.Collections.IEnumerable] -and -not ($rawPartVal -is [string]))) {
-            throw "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid type ($($rawPartVal.GetType().FullName))."
-        }
-        $rawPartNum = $null
-        if ($rawPartVal -is [ValueType]) {
-            $rawPartNum = [int64]$rawPartVal
-        }
-        if ($rawPartNum -ne 0) {
-            throw "CRITICAL SAFETY ABORT: Target disk PartitionStyle is raw CIM $rawPartVal. Expected 0 (RAW). Pre-formatted disk detected."
+        if ($targetDisk.IsBoot -eq $true) {
+            throw "CRITICAL SAFETY ABORT: Target disk reports IsBoot == True! Refusing all modifications."
         }
 
-        # Cross-validate display property: MUST NOT conflict with raw 0
-        if ($null -ne $targetDisk.PartitionStyle) {
-            if ($targetDisk.PartitionStyle -is [bool] -or ($targetDisk.PartitionStyle -is [System.Collections.IEnumerable] -and -not ($targetDisk.PartitionStyle -is [string]))) {
-                throw "CRITICAL SAFETY ABORT: Display PartitionStyle has invalid type ($($targetDisk.PartitionStyle.GetType().FullName))."
-            }
-            $partMatches = $false
-            if ($targetDisk.PartitionStyle -is [string] -and $targetDisk.PartitionStyle.Trim() -eq "RAW") {
-                $partMatches = $true
-            } elseif ($targetDisk.PartitionStyle -is [ValueType] -and -not ($targetDisk.PartitionStyle -is [bool]) -and [int64]$targetDisk.PartitionStyle -eq 0) {
-                $partMatches = $true
-            }
-            if (-not $partMatches) {
-                throw "CRITICAL SAFETY ABORT: PartitionStyle expression conflict: raw CIM is 0 but display property is '$($targetDisk.PartitionStyle)'."
-            }
-        }
-    } else {
-        # Standalone Mock validation (when raw CIM metadata is absent)
-        if ($targetDisk.PartitionStyle -is [bool]) {
-            throw "CRITICAL SAFETY ABORT: PartitionStyle has invalid type (System.Boolean). Implicit type coercion rejected."
-        }
-        if ($targetDisk.PartitionStyle -is [System.Collections.IEnumerable] -and -not ($targetDisk.PartitionStyle -is [string])) {
-            throw "CRITICAL SAFETY ABORT: PartitionStyle has invalid type (Collection/Array). Implicit type coercion rejected."
-        }
+        # 3. PartitionStyle check:
         $isValidPart = $false
         if ($targetDisk.PartitionStyle -is [string] -and $targetDisk.PartitionStyle.Trim() -eq "RAW") {
             $isValidPart = $true
-        } elseif ($targetDisk.PartitionStyle -is [ValueType] -and -not ($targetDisk.PartitionStyle -is [bool]) -and [int64]$targetDisk.PartitionStyle -eq 0) {
+        } elseif ((Test-IsIntegerType $targetDisk.PartitionStyle) -and [int64]$targetDisk.PartitionStyle -eq 0) {
             $isValidPart = $true
         }
         if (-not $isValidPart) {
+            if (-not ($targetDisk.PartitionStyle -is [string]) -and -not (Test-IsIntegerType $targetDisk.PartitionStyle)) {
+                throw "CRITICAL SAFETY ABORT: PartitionStyle has invalid non-integer/non-string type ($($targetDisk.PartitionStyle.GetType().FullName)). Implicit type coercion rejected."
+            }
             throw "CRITICAL SAFETY ABORT: Target disk PartitionStyle is '$($targetDisk.PartitionStyle)'. Expected 0 (RAW). Pre-formatted disk detected."
         }
     }

@@ -1,6 +1,6 @@
 ﻿**********************
 Windows PowerShell transcript start
-Start time: 20261005045023
+Start time: 20261005061519
 Username: DESKTOP-RS4GIG0\oPus
 RunAs User: DESKTOP-RS4GIG0\oPus
 Configuration Name: 
@@ -11,7 +11,7 @@ Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoP
     & 'E:\vivpr\ai\ebrowser\portable-minimal\tests\test_identity_assertions.ps1'
     Stop-Transcript
 }
-Process ID: 22804
+Process ID: 20252
 PSVersion: 5.1.19041.6456
 PSEdition: Desktop
 PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.19041.6456
@@ -23,7 +23,7 @@ SerializationVersion: 1.1.0.1
 **********************
 Transcript started, output file is E:\vivpr\ai\ebrowser\portable-minimal\tests\identity_assertions_transcript.txt
 === STARTING OFFLINE VIRTUAL DISK SAFETY UNIT TEST SUITE (v2) ===
-Timestamp: 2026-10-05T04:50:23.3260669-04:00
+Timestamp: 2026-10-05T06:15:19.6754383-04:00
 Process Arch: x64
 
 --- Section 1: Attached Virtual Disk Identity Tests ---
@@ -126,12 +126,43 @@ PS>TerminatingError(): "CRITICAL SAFETY ABORT: PartitionStyle expression conflic
 PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle property is null/unknown. Refusing fallback."
 >> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle property is null/unknown. Refusing fallback."
   [PASS] Test 20o: Null raw CIM PartitionStyle abort (no display fallback)
-PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid type (System.Boolean)."
->> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid type (System.Boolean)."
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid non-integer type (System.Boolean)."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid non-integer type (System.Boolean)."
   [PASS] Test 20p: Raw CIM BusType=Boolean abort
-PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid type (System.Boolean)."
->> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid type (System.Boolean)."
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid non-integer type (System.Boolean)."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid non-integer type (System.Boolean)."
   [PASS] Test 20q: Raw CIM PartitionStyle=Boolean abort
+  [PASS] Test 20r: Mock UInt16 15/0 integer validation PASS
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: BusType has invalid non-integer/non-string type (System.Double). Implicit type coercion rejected."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: BusType has invalid non-integer/non-string type (System.Double). Implicit type coercion rejected."
+  [PASS] Test 20s: Mock BusType=Double (15.0) rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: BusType has invalid non-integer/non-string type (System.Decimal). Implicit type coercion rejected."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: BusType has invalid non-integer/non-string type (System.Decimal). Implicit type coercion rejected."
+  [PASS] Test 20t: Mock BusType=Decimal (15) rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: PartitionStyle has invalid non-integer/non-string type (System.Double). Implicit type coercion rejected."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: PartitionStyle has invalid non-integer/non-string type (System.Double). Implicit type coercion rejected."
+  [PASS] Test 20u: Mock PartitionStyle=Double (0.0) rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: PartitionStyle has invalid non-integer/non-string type (System.Decimal). Implicit type coercion rejected."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: PartitionStyle has invalid non-integer/non-string type (System.Decimal). Implicit type coercion rejected."
+  [PASS] Test 20v: Mock PartitionStyle=Decimal (0) rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid non-integer type (System.String)."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid non-integer type (System.String)."
+  [PASS] Test 20w: CIM raw BusType=Double (15.0) rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid non-integer type (System.String)."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM BusType has invalid non-integer type (System.String)."
+  [PASS] Test 20x: CIM raw BusType=Decimal (15) rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid non-integer type (System.String)."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid non-integer type (System.String)."
+  [PASS] Test 20y: CIM raw PartitionStyle=Double (0.0) rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid non-integer type (System.String)."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Raw CIM PartitionStyle has invalid non-integer type (System.String)."
+  [PASS] Test 20z: CIM raw PartitionStyle=Decimal (0) rejection abort
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Required raw CIM property 'PartitionStyle' is missing from CIM container. Refusing fallback."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Required raw CIM property 'PartitionStyle' is missing from CIM container. Refusing fallback."
+  [PASS] Test 20aa: CIM object missing PartitionStyle abort (refusing fallback)
+PS>TerminatingError(): "CRITICAL SAFETY ABORT: Required raw CIM property 'BusType' is missing from CIM container. Refusing fallback."
+>> TerminatingError(): "CRITICAL SAFETY ABORT: Required raw CIM property 'BusType' is missing from CIM container. Refusing fallback."
+  [PASS] Test 20ab: CIM object missing BusType abort (refusing fallback)
 
 --- Section 2: Pre-Format Identity Re-Verification & Format Counter Tests ---
 PS>TerminatingError(): "CRITICAL SAFETY ABORT: Pre-format Disk Number mismatch. Initial=2, Current=3."
@@ -177,12 +208,17 @@ PS>TerminatingError(): "CORRESPONDENCE FAILED: Volume on 'X:' attributes do not 
   [PASS] Test 33: Volume filesystem mismatch abort
   [PASS] Test 34: Valid volume correspondence PASS
 
+--- Section 5: Error Injection & UNKNOWN Observation Status Tests ---
+  [PASS] Test 35: Injected Drive X query error returns UNKNOWN PASS
+  [PASS] Test 36: Injected Disk Image Attached query error returns UNKNOWN PASS
+  [PASS] Test 37: Injected VHDX file check error returns UNKNOWN PASS
+
 === UNIT TEST SUITE SUMMARY ===
-Total Executed: 51
-Total Passed:   51
+Total Executed: 65
+Total Passed:   65
 Total Failed:   0
-=== END OF UNIT TEST SUITE: ALL 51 TESTS PASSED ===
+=== END OF UNIT TEST SUITE: ALL 65 TESTS PASSED ===
 **********************
 Windows PowerShell transcript end
-End time: 20261005045023
+End time: 20261005061520
 **********************
