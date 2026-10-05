@@ -21,7 +21,53 @@ $r1VhdPath = "E:\vivpr\ai\ebrowser\build_test_1gb.vhdx"
 $vhdPath = "E:\vivpr\ai\ebrowser\build_test_1gb_r2.vhdx"
 $transcriptPath = "E:\vivpr\ai\ebrowser\portable-minimal\tests\1gb_live_test_r2_raw_transcript.txt"
 $scriptPath = "E:\vivpr\ai\ebrowser\portable-minimal\build\setup_build_volume.ps1"
-$expectedBaselineSha = "704adfa7e33d45c192919df56f9e05ec173043f9"
+$expectedBaselineSha = "2165873b38afda5f23678aa150c793c8d6507262"
+
+function Get-DriveXObservationStatus {
+    try {
+        $allDrives = Get-PSDrive -ErrorAction Stop
+        $x = $allDrives | Where-Object { $_.Name -eq 'X' }
+        if ($null -ne $x) {
+            return "STILL MOUNTED ($($x.Description))"
+        } else {
+            return "FREE / UNMOUNTED"
+        }
+    } catch {
+        return "UNKNOWN (Query error: $_)"
+    }
+}
+
+function Get-ImageAttachedObservationStatus {
+    param([string]$Path)
+    try {
+        $img = Get-DiskImage -ImagePath $Path -ErrorAction Stop
+        if ($null -ne $img.Attached) {
+            return "$($img.Attached)"
+        } else {
+            return "UNKNOWN (Attached property is null)"
+        }
+    } catch {
+        return "UNKNOWN (Query error: $_)"
+    }
+}
+
+function Get-VhdFileObservationStatus {
+    param([string]$Path)
+    try {
+        if (Test-Path -LiteralPath $Path -ErrorAction Stop) {
+            try {
+                $item = Get-Item -LiteralPath $Path -ErrorAction Stop
+                return "EXISTS (Path: $Path, Size: $($item.Length) bytes)"
+            } catch {
+                return "EXISTS (Size query failed: UNKNOWN)"
+            }
+        } else {
+            return "NOT FOUND"
+        }
+    } catch {
+        return "UNKNOWN (Path check error: $_)"
+    }
+}
 
 $transcriptStarted = $false
 if (-not $PreflightOnly) {
@@ -125,14 +171,14 @@ try {
     }
 
     # Verify intermediate state before proceeding to detach
-    $midImg = Get-DiskImage -ImagePath $vhdPath -ErrorAction Stop
-    $midDrive = Get-PSDrive -Name X -ErrorAction SilentlyContinue
+    $midImgAttached = Get-ImageAttachedObservationStatus -Path $vhdPath
+    $midDriveX = Get-DriveXObservationStatus
     Write-Host "`nStep 1 Verification State:"
-    Write-Host "  Image Attached: $($midImg.Attached)"
-    Write-Host "  Drive X Mounted: $(if($midDrive){'YES'}else{'NO'})"
+    Write-Host "  Image Attached: $midImgAttached"
+    Write-Host "  Drive X:        $midDriveX"
 
-    if ($midImg.Attached -ne $true -or $null -eq $midDrive) {
-        throw "CRITICAL FAILURE: Intermediate state verification failed after Step 1. ImageAttached=$($midImg.Attached), DriveX=$($null -ne $midDrive)."
+    if ($midImgAttached -ne "True" -or -not ($midDriveX -like 'STILL MOUNTED*')) {
+        throw "CRITICAL FAILURE: Intermediate state verification failed after Step 1. ImageAttached=$midImgAttached, DriveX=$midDriveX."
     }
 
     # 3. Step 2: Controlled Safe Detach
@@ -146,19 +192,13 @@ try {
 
     # 4. Final State Observation & Assertions
     Write-Host "`n>>> OBSERVING FINAL STATE <<<"
-    $finalImg = Get-DiskImage -ImagePath $vhdPath -ErrorAction Stop
-    $finalX = Get-PSDrive -Name X -ErrorAction SilentlyContinue
+    $finalImgAttached = Get-ImageAttachedObservationStatus -Path $vhdPath
+    $finalDriveX = Get-DriveXObservationStatus
+    $finalVhdStatus = Get-VhdFileObservationStatus -Path $vhdPath
 
-    Write-Host "Final Image Attached Status: $($finalImg.Attached)"
-    Write-Host "Final Drive X: Status:       $(if($finalX){ 'STILL MOUNTED' } else { 'FREE / UNMOUNTED' })"
-
-    $vhdPreserved = Test-Path -LiteralPath $vhdPath
-    if ($vhdPreserved) {
-        $vhdItem = Get-Item -LiteralPath $vhdPath
-        Write-Host "Test VHDX Preservation: PRESERVED (Path: $vhdPath, Size: $($vhdItem.Length) bytes)"
-    } else {
-        Write-Host "Test VHDX Preservation: NOT FOUND"
-    }
+    Write-Host "Final Image Attached Status: $finalImgAttached"
+    Write-Host "Final Drive X: Status:       $finalDriveX"
+    Write-Host "Test VHDX Preservation:      $finalVhdStatus"
 
     $endTime = (Get-Date).ToString("o")
     Write-Host "Test End Time: $endTime"
@@ -167,14 +207,14 @@ try {
     if ($step2Exit -ne 0) {
         throw "CRITICAL FAILURE: Step 2 detach returned non-zero exit code $step2Exit. Halting without additional mutation."
     }
-    if ($finalImg.Attached -ne $false) {
-        throw "CRITICAL FAILURE: Backing image is not detached (Attached = $($finalImg.Attached))."
+    if ($finalImgAttached -ne "False") {
+        throw "CRITICAL FAILURE: Backing image is not detached (Attached = $finalImgAttached)."
     }
-    if ($finalX) {
-        throw "CRITICAL FAILURE: Drive X: is still mounted after detach."
+    if ($finalDriveX -ne "FREE / UNMOUNTED") {
+        throw "CRITICAL FAILURE: Drive X: is not free/unmounted (Status = $finalDriveX)."
     }
-    if (-not $vhdPreserved) {
-        throw "CRITICAL FAILURE: Test VHDX file $vhdPath was not preserved."
+    if (-not ($finalVhdStatus -like 'EXISTS*')) {
+        throw "CRITICAL FAILURE: Test VHDX file was not preserved (Status = $finalVhdStatus)."
     }
 
     Write-Host "`n=== 1GB LIVE TEST COMPLETE: ALL STEPS VERIFIED PASS ==="
@@ -185,36 +225,9 @@ try {
     Write-Host "==============================================================================" -ForegroundColor Red
 
     Write-Host "`n>>> READ-ONLY POST-FAILURE STATE OBSERVATION <<<"
-    # 1. Backing VHDX File
-    if (Test-Path -LiteralPath $vhdPath) {
-        try {
-            $errVhd = Get-Item -LiteralPath $vhdPath -ErrorAction Stop
-            Write-Host "VHDX File Status:        EXISTS (Path: $vhdPath, Size: $($errVhd.Length) bytes)"
-        } catch {
-            Write-Host "VHDX File Status:        EXISTS (Size query failed: UNKNOWN)"
-        }
-    } else {
-        Write-Host "VHDX File Status:        NOT FOUND"
-    }
-
-    # 2. Disk Image Attached State
-    try {
-        $errImg = Get-DiskImage -ImagePath $vhdPath -ErrorAction Stop
-        $attStr = if ($null -ne $errImg.Attached) { $errImg.Attached } else { "UNKNOWN" }
-        Write-Host "Image Attached Status:   $attStr"
-    } catch {
-        Write-Host "Image Attached Status:   UNKNOWN (Query error: $_)"
-    }
-
-    # 3. Drive X: Status
-    try {
-        $errX = Get-PSDrive -Name X -ErrorAction SilentlyContinue
-        $xStr = if ($errX) { "STILL MOUNTED ($($errX.Description))" } else { "FREE / UNMOUNTED" }
-        Write-Host "Drive X: Status:         $xStr"
-    } catch {
-        Write-Host "Drive X: Status:         UNKNOWN (Query error: $_)"
-    }
-
+    Write-Host "VHDX File Status:        $(Get-VhdFileObservationStatus -Path $vhdPath)"
+    Write-Host "Image Attached Status:   $(Get-ImageAttachedObservationStatus -Path $vhdPath)"
+    Write-Host "Drive X: Status:         $(Get-DriveXObservationStatus)"
     Write-Host ">>> END OF OBSERVATION (No further mutation attempted) <<<`n"
     exit 1
 } finally {
