@@ -19,10 +19,22 @@ Write-Host "=== P2 VHDX Build Workspace Pre-flight Check ==="
 
 # 1. Canonical Workspace Boundary Validation
 $workspaceRoot = "E:\vivpr\ai\ebrowser"
+$canonicalRoot = [System.IO.Path]::GetFullPath($workspaceRoot).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
 $canonicalVhdPath = [System.IO.Path]::GetFullPath($VhdPath)
-if (-not $canonicalVhdPath.StartsWith($workspaceRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "ABORT: VhdPath '$canonicalVhdPath' is outside workspace boundary '$workspaceRoot'."
+
+if (-not $canonicalVhdPath.StartsWith($canonicalRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw "ABORT: VhdPath '$canonicalVhdPath' is outside workspace boundary '$canonicalRoot'."
 }
+
+if ([System.IO.Path]::GetExtension($canonicalVhdPath).ToLowerInvariant() -ne ".vhdx") {
+    throw "ABORT: VhdPath must have '.vhdx' extension. Given: '$canonicalVhdPath'."
+}
+
+$parentDir = [System.IO.Path]::GetDirectoryName($canonicalVhdPath)
+if (-not (Test-Path -LiteralPath $parentDir -PathType Container)) {
+    throw "ABORT: Parent directory '$parentDir' does not exist."
+}
+
 Write-Host "Canonical Boundary Check: PASS ($canonicalVhdPath)"
 
 # 2. Input Parameter Validation
