@@ -3,12 +3,13 @@
 # [BOUND THREAD]: goodkie/v-show Issue #8
 # [ISOLATION SANITY CHECK]: VERIFIED (Zero cross-project contamination)
 #
-# Module: Virtual Disk Identity & Safety Validation Functions (P2-UNBLOCK-12)
+# Module: Virtual Disk Identity & Safety Validation Functions (P2-UNBLOCK-13)
 
 function Test-AttachedVirtualDiskIdentity {
     param(
         $DiskImage,
-        $AllDisks
+        $AllDisks,
+        [string]$ExpectedImagePath = ""
     )
 
     if ($null -eq $DiskImage) {
@@ -19,6 +20,16 @@ function Test-AttachedVirtualDiskIdentity {
     }
     if ($null -eq $DiskImage.Number) {
         throw "IDENTITY VERIFICATION FAILED: DiskImage.Number is null."
+    }
+    if ([string]::IsNullOrWhiteSpace($DiskImage.ImagePath)) {
+        throw "IDENTITY VERIFICATION FAILED: DiskImage.ImagePath is null or empty."
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedImagePath)) {
+        $canonDiskImg = [System.IO.Path]::GetFullPath($DiskImage.ImagePath)
+        $canonExpected = [System.IO.Path]::GetFullPath($ExpectedImagePath)
+        if ($canonDiskImg -ne $canonExpected) {
+            throw "CRITICAL SAFETY ABORT: DiskImage ImagePath mismatch. Expected '$canonExpected', Actual '$canonDiskImg'."
+        }
     }
 
     if ($null -eq $AllDisks -or @($AllDisks).Count -eq 0) {
@@ -43,6 +54,7 @@ function Test-AttachedVirtualDiskIdentity {
     if ($null -eq $targetDisk.PartitionStyle) { throw "CRITICAL SAFETY ABORT: Disk PartitionStyle property is null." }
     if ($null -eq $targetDisk.NumberOfPartitions) { throw "CRITICAL SAFETY ABORT: Disk NumberOfPartitions property is null." }
     if ([string]::IsNullOrWhiteSpace($targetDisk.UniqueId)) { throw "CRITICAL SAFETY ABORT: Disk UniqueId is null or empty." }
+    if ([string]::IsNullOrWhiteSpace($targetDisk.Path)) { throw "CRITICAL SAFETY ABORT: Disk Path is null or empty." }
 
     # 1. BusType check: Microsoft MSFT_Disk official specification:
     #    14 = Virtual, 15 = File Backed Virtual (VHD/VHDX)
@@ -68,6 +80,65 @@ function Test-AttachedVirtualDiskIdentity {
     }
 
     return $targetDisk
+}
+
+function Test-PreFormatIdentityMatch {
+    param(
+        [Parameter(Mandatory=$true)]
+        $InitialDisk,
+        [Parameter(Mandatory=$true)]
+        $CurrentDiskImage,
+        [Parameter(Mandatory=$true)]
+        [array]$CurrentAllDisks,
+        [string]$ExpectedImagePath = ""
+    )
+
+    if ($null -eq $InitialDisk) {
+        throw "CRITICAL SAFETY ABORT: InitialDisk object is null."
+    }
+    if ([string]::IsNullOrWhiteSpace($InitialDisk.UniqueId)) {
+        throw "CRITICAL SAFETY ABORT: InitialDisk UniqueId is null or empty."
+    }
+    if ([string]::IsNullOrWhiteSpace($InitialDisk.Path)) {
+        throw "CRITICAL SAFETY ABORT: InitialDisk Path is null or empty."
+    }
+
+    # Full rigorous re-verification via Test-AttachedVirtualDiskIdentity
+    $reverifiedDisk = Test-AttachedVirtualDiskIdentity -DiskImage $CurrentDiskImage -AllDisks $CurrentAllDisks -ExpectedImagePath $ExpectedImagePath
+
+    # Match initial identity: Number, UniqueId, and Path
+    if ($reverifiedDisk.Number -ne $InitialDisk.Number) {
+        throw "CRITICAL SAFETY ABORT: Pre-format Disk Number mismatch. Initial=$($InitialDisk.Number), Current=$($reverifiedDisk.Number)."
+    }
+    if ($reverifiedDisk.UniqueId -ne $InitialDisk.UniqueId) {
+        throw "CRITICAL SAFETY ABORT: Pre-format Disk UniqueId mismatch. Initial='$($InitialDisk.UniqueId)', Current='$($reverifiedDisk.UniqueId)'."
+    }
+    if ($reverifiedDisk.Path -ne $InitialDisk.Path) {
+        throw "CRITICAL SAFETY ABORT: Pre-format Disk Path mismatch. Initial='$($InitialDisk.Path)', Current='$($reverifiedDisk.Path)'."
+    }
+
+    return $reverifiedDisk
+}
+
+function Test-ObservedDetachState {
+    param(
+        $DiskImageQueryOutput
+    )
+
+    if ($null -eq $DiskImageQueryOutput) {
+        throw "DETACH VERIFICATION FAILED: Query returned null (UNKNOWN state). Cannot confirm detached."
+    }
+    if ($null -eq $DiskImageQueryOutput.Attached) {
+        throw "DETACH VERIFICATION FAILED: Image Attached property is null (UNKNOWN state)."
+    }
+    if ($DiskImageQueryOutput.Attached -eq $true) {
+        throw "DETACH VERIFICATION FAILED: Image is STILL ATTACHED."
+    }
+    if ($DiskImageQueryOutput.Attached -ne $false) {
+        throw "DETACH VERIFICATION FAILED: Image Attached property is ambiguous or not False ($($DiskImageQueryOutput.Attached))."
+    }
+
+    return $true # Explicitly observed Attached == False
 }
 
 function Test-TargetVolumeCorrespondence {
@@ -96,4 +167,4 @@ function Test-TargetVolumeCorrespondence {
     return $true
 }
 
-Export-ModuleMember -Function Test-AttachedVirtualDiskIdentity, Test-TargetVolumeCorrespondence
+Export-ModuleMember -Function Test-AttachedVirtualDiskIdentity, Test-PreFormatIdentityMatch, Test-ObservedDetachState, Test-TargetVolumeCorrespondence

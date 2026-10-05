@@ -1,29 +1,51 @@
-﻿=== STARTING OFFLINE VIRTUAL DISK SAFETY UNIT TEST SUITE ===
-Timestamp: 2026-10-04T23:25:55.7748152-04:00
+=== STARTING OFFLINE VIRTUAL DISK SAFETY UNIT TEST SUITE (v2) ===
+Timestamp: 2026-10-04T23:32:14.6561103-04:00
 Process Arch: x64
+
+--- Section 1: Attached Virtual Disk Identity Tests ---
   [PASS] Test 1: Null DiskImage abort
   [PASS] Test 2: Attached==False abort
   [PASS] Test 3: Null DiskImage.Number abort
-  [PASS] Test 4: Empty AllDisks collection abort
-  [PASS] Test 5: Multiple matching disks ambiguity abort
-  [PASS] Test 6: Null BusType abort
-  [PASS] Test 7: Null IsSystem abort
-  [PASS] Test 8: Null IsBoot abort
-  [PASS] Test 9: Null PartitionStyle abort
-  [PASS] Test 10: Empty UniqueId abort
-  [PASS] Test 11: BusType=14 rejection abort
-  [PASS] Test 12: BusType=11 (SATA/NVMe) rejection abort
-  [PASS] Test 13: IsSystem==True abort
-  [PASS] Test 14: IsBoot==True abort
-  [PASS] Test 15: PartitionStyle!=RAW abort
-  [PASS] Test 16: NumberOfPartitions>0 abort
-  [PASS] Test 17: Valid clean RAW virtual disk (BusType=15) PASS
-  [PASS] Test 18: Volume correspondence disk number mismatch abort
-  [PASS] Test 19: Volume filesystem mismatch abort
-  [PASS] Test 20: Valid volume correspondence PASS
+  [PASS] Test 4: Empty ImagePath abort
+  [PASS] Test 5: ImagePath mismatch with ExpectedImagePath abort
+  [PASS] Test 6: Empty AllDisks collection abort
+  [PASS] Test 7: Multiple matching disks ambiguity abort
+  [PASS] Test 8: Null BusType abort
+  [PASS] Test 9: Null IsSystem abort
+  [PASS] Test 10: Null IsBoot abort
+  [PASS] Test 11: Null PartitionStyle abort
+  [PASS] Test 12: Empty UniqueId abort
+  [PASS] Test 13: Empty Path abort
+  [PASS] Test 14: BusType=14 rejection abort
+  [PASS] Test 15: BusType=11 (SATA/NVMe) rejection abort
+  [PASS] Test 16: IsSystem==True abort
+  [PASS] Test 17: IsBoot==True abort
+  [PASS] Test 18: PartitionStyle!=RAW abort
+  [PASS] Test 19: NumberOfPartitions>0 abort
+  [PASS] Test 20: Valid clean RAW virtual disk (BusType=15) PASS
+
+--- Section 2: Pre-Format Identity Re-Verification & Format Counter Tests ---
+  [PASS] Test 21: Pre-format Disk Number mismatch abort (Format count=0)
+  [PASS] Test 22: Pre-format UniqueId mismatch abort (Format count=0)
+  [PASS] Test 23: Pre-format Path mismatch abort (Format count=0)
+  [PASS] Test 24: Pre-format state mutation to GPT abort (Format count=0)
+  [PASS] Test 25: Pre-format state mutation to IsSystem abort (Format count=0)
+  [PASS] Test 26: Pre-format matching identity PASS (Format count=1)
+
+--- Section 3: Observed Detach State & Detach Counter Tests ---
+  [PASS] Test 27: Detach query null abort (Detach count=0)
+  [PASS] Test 28: Detach query Attached=null abort (Detach count=0)
+  [PASS] Test 29: Detach query Attached=True abort (Detach count=0)
+  [PASS] Test 30: Detach query Attached='UNKNOWN' abort (Detach count=0)
+  [PASS] Test 31: Explicitly observed Attached=False PASS (Detach count=1)
+
+--- Section 4: Target Volume Correspondence Tests ---
+  [PASS] Test 32: Volume correspondence disk number mismatch abort
+  [PASS] Test 33: Volume filesystem mismatch abort
+  [PASS] Test 34: Valid volume correspondence PASS
 
 === UNIT TEST SUITE SUMMARY ===
-Total Executed: 20
-Total Passed:   20
+Total Executed: 34
+Total Passed:   34
 Total Failed:   0
-=== END OF UNIT TEST SUITE: ALL 20 TESTS PASSED ===
+=== END OF UNIT TEST SUITE: ALL 34 TESTS PASSED ===

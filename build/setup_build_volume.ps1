@@ -3,7 +3,7 @@
 # [BOUND THREAD]: goodkie/v-show Issue #8
 # [ISOLATION SANITY CHECK]: VERIFIED (Zero cross-project contamination)
 #
-# P2 Build Volume Safe Managed Mount & Recovery Executor (v6)
+# P2 Build Volume Safe Managed Mount & Recovery Executor (v7)
 # Imports VirtualDiskSafety module for strict identity/correspondence verification.
 
 param(
@@ -21,7 +21,7 @@ $ErrorActionPreference = "Stop"
 $modulePath = Join-Path $PSScriptRoot "VirtualDiskSafety.psm1"
 Import-Module $modulePath -Force
 
-Write-Host "=== P2 Build Volume Managed Executor (v6) ==="
+Write-Host "=== P2 Build Volume Managed Executor (v7) ==="
 
 # 0. Canonical Workspace Boundary Validation
 $workspaceRoot = "E:\vivpr\ai\ebrowser"
@@ -88,15 +88,13 @@ if ($DetachOnly) {
         throw "ABORT: DiskPart detach failed with exit code $LASTEXITCODE."
     }
 
-    # Verify actual detached state via observed Get-DiskImage
+    # Verify actual detached state via observed Get-DiskImage and Test-ObservedDetachState
     Start-Sleep -Seconds 1
     try {
         $postImg = Get-DiskImage -ImagePath $canonicalVhdPath -ErrorAction Stop
-        if ($postImg.Attached) {
-            throw "ABORT: DiskImage reports STILL ATTACHED after detach command."
-        }
+        Test-ObservedDetachState -DiskImageQueryOutput $postImg | Out-Null
     } catch {
-        throw "ABORT: Could not verify detached state (query error): $_"
+        throw "ABORT: Could not verify detached state: $_"
     }
 
     $stillMounted = Get-PSDrive -Name $DriveLetter -ErrorAction SilentlyContinue
@@ -146,7 +144,8 @@ if ($isDryRun -or (-not $isAdmin)) {
     Write-Host "          - Assert BusType == 15 (File Backed Virtual)"
     Write-Host "          - Assert IsSystem == False AND IsBoot == False"
     Write-Host "          - Assert PartitionStyle == 0 (RAW) AND NumberOfPartitions == 0"
-    Write-Host "  Step 3: Re-verify exact target disk identity (UniqueId, RAW status) immediately before GPT conversion"
+    Write-Host "          - Assert non-empty UniqueId and Path, backing ImagePath match"
+    Write-Host "  Step 3: Full pre-format re-verification via Test-PreFormatIdentityMatch (re-query + Number/UniqueId/Path match)"
     Write-Host "  Step 4: Initialize GPT, create primary partition, format NTFS label='CHROMIUM_BUILD', assign letter='$DriveLetter`:'"
     Write-Host "  Step 5: Verify volume correspondence (Test-TargetVolumeCorrespondence: DriveLetter -> DiskNumber)"
     Write-Host "  Step 6: Strict Nonce-based I/O comparison with guaranteed deletion verification"
@@ -169,6 +168,7 @@ detach vdisk
 
 $verifiedDiskNumber = $null
 $verifiedDiskUniqueId = $null
+$verifiedDiskPath = $null
 
 try {
     Write-Host "Step 1: Creating and attaching VHDX..."
@@ -182,17 +182,19 @@ try {
     $diskImage = Get-DiskImage -ImagePath $canonicalVhdPath -ErrorAction Stop
     $allDisks = Get-CimInstance -ClassName MSFT_Disk -Namespace Root/Microsoft/Windows/Storage
 
-    $verifiedDisk = Test-AttachedVirtualDiskIdentity -DiskImage $diskImage -AllDisks $allDisks
+    $verifiedDisk = Test-AttachedVirtualDiskIdentity -DiskImage $diskImage -AllDisks $allDisks -ExpectedImagePath $canonicalVhdPath
     $verifiedDiskNumber = [int]$verifiedDisk.Number
     $verifiedDiskUniqueId = $verifiedDisk.UniqueId
-    Write-Host "Disk Verification SUCCESS: Disk $verifiedDiskNumber verified as clean RAW virtual disk (BusType=15, UniqueId=$verifiedDiskUniqueId)."
+    $verifiedDiskPath = $verifiedDisk.Path
+    Write-Host "Disk Verification SUCCESS: Disk $verifiedDiskNumber verified as clean RAW virtual disk (BusType=15, UniqueId=$verifiedDiskUniqueId, Path=$verifiedDiskPath)."
 
-    # Step 3: Re-verify identity immediately before partition/format
+    # Step 3: Full re-query and identity match immediately before partition/format
     Write-Host "`nStep 3: Re-verifying identity of Disk $verifiedDiskNumber before formatting..."
-    $recheckDisk = Get-CimInstance -ClassName MSFT_Disk -Namespace Root/Microsoft/Windows/Storage | Where-Object { $_.Number -eq $verifiedDiskNumber }
-    if (-not $recheckDisk -or $recheckDisk.UniqueId -ne $verifiedDiskUniqueId -or $recheckDisk.IsSystem -or $recheckDisk.IsBoot -or $recheckDisk.PartitionStyle -ne 0) {
-        throw "CRITICAL SAFETY ABORT: Pre-format re-check failed for Disk $verifiedDiskNumber. Identity or state changed!"
-    }
+    $currentDiskImage = Get-DiskImage -ImagePath $canonicalVhdPath -ErrorAction Stop
+    $currentAllDisks = Get-CimInstance -ClassName MSFT_Disk -Namespace Root/Microsoft/Windows/Storage
+
+    $recheckedDisk = Test-PreFormatIdentityMatch -InitialDisk $verifiedDisk -CurrentDiskImage $currentDiskImage -CurrentAllDisks $currentAllDisks -ExpectedImagePath $canonicalVhdPath
+    Write-Host "Pre-Format Re-Verification SUCCESS: Target Disk $verifiedDiskNumber matches initial identity (UniqueId, Path, RAW, BusType=15)."
 
     # Step 4: Partition, format, and assign drive letter
     $step4Script = @"
@@ -252,22 +254,31 @@ assign letter=$DriveLetter
 } catch {
     Write-Warning "ERROR DURING EXECUTION: $_"
     Write-Warning "Triggering verified rollback (detach)..."
+    $rollbackCommandFailed = $false
+    $detachStateObserved = $false
     try {
         $rollbackOutput = $rollbackScript | diskpart
         Write-Host ($rollbackOutput -join "`n")
         if ($LASTEXITCODE -ne 0) {
+            $rollbackCommandFailed = $true
             Write-Warning "Rollback diskpart exited with non-zero code $LASTEXITCODE."
-        }
-        
-        # Verify rollback state strictly
-        $postRollbackImg = Get-DiskImage -ImagePath $canonicalVhdPath -ErrorAction Stop
-        if ($postRollbackImg.Attached) {
-            Write-Warning "CRITICAL: Image is STILL ATTACHED after rollback attempt."
         } else {
-            Write-Host "Rollback detach VERIFIED: Observed Image.Attached == False."
+            Write-Host "Rollback diskpart command completed successfully (exit code 0)."
         }
     } catch {
-        Write-Warning "Rollback detach verification failed: $_"
+        $rollbackCommandFailed = $true
+        Write-Warning "Rollback diskpart command invocation failed: $_"
     }
+
+    # Verify actual detached state via strict Test-ObservedDetachState
+    try {
+        $postRollbackImg = Get-DiskImage -ImagePath $canonicalVhdPath -ErrorAction Stop
+        $detachStateObserved = Test-ObservedDetachState -DiskImageQueryOutput $postRollbackImg
+        Write-Host "Rollback detach VERIFIED: Observed Image.Attached == False."
+    } catch {
+        Write-Warning "Rollback detach observation failed: $_"
+    }
+
+    Write-Host "Rollback Report: DiskPartCommandFailed=$rollbackCommandFailed, DetachObserved=$detachStateObserved"
     throw
 }
