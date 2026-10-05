@@ -1,0 +1,39 @@
+﻿**********************
+Windows PowerShell 기록 시작
+시작 시간: 20261005042551
+사용자 이름: DESKTOP-RS4GIG0\vivPR
+RunAs 사용자: DESKTOP-RS4GIG0\vivPR
+구성 이름: 
+Machine: DESKTOP-RS4GIG0 (Microsoft Windows NT 10.0.19045.0)
+호스트 응용 프로그램: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File E:\vivpr\ai\ebrowser\portable-minimal\tests\run_1gb_live_test.ps1
+프로세스 ID: 21476
+PSVersion: 5.1.19041.6456
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.19041.6456
+BuildVersion: 10.0.19041.6456
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+기록이 시작되었습니다. 출력 파일은 E:\vivpr\ai\ebrowser\portable-minimal\tests\1gb_live_test_raw_transcript.txt입니다.
+=== P2 1GB LIVE TEST RUNNER (P2-1GB-LIVE-01 v2) ===
+Test Start Time: 2026-10-05T04:25:51.7846196-04:00
+Mode: LIVE ADMIN EXECUTION
+Approved Baseline SHA: c6025f415e1c9323e7cb60b9fe52301ee4f2d6ca
+Executor Blob: Expected=6e216cb6588bd1e79c514e2dbc9d01b844cf02c7, Actual=6e216cb6588bd1e79c514e2dbc9d01b844cf02c7
+Module Blob:   Expected=87e8bf693350eba197b16dac45f4bd9e97a71d96, Actual=87e8bf693350eba197b16dac45f4bd9e97a71d96
+Pre-execution file and drive assertions: ALL PASS
+Administrative Elevation Check: True
+
+>>> EXECUTING STEP 1: Create, Verify, Format & Nonce I/O <<<
+PS>종료 오류(powershell.exe): "기본 설정 변수 "ErrorActionPreference" 또는 일반 매개 변수가 Stop으로 설정되어 있으므로 실행 중인 명령이 중지되었습니다. CRITICAL SAFETY ABORT: Target disk BusType is File Backed Virtual. Expected 15 (File Backed Virtual). Refusing format."
+
+==============================================================================
+[FATAL ERROR] 1GB Live Test Aborted:
+CRITICAL SAFETY ABORT: Target disk BusType is File Backed Virtual. Expected 15 (File Backed Virtual). Refusing format.
+==============================================================================
+**********************
+Windows PowerShell 기록 끝
+종료 시간: 20261005042628
+**********************
