@@ -1,0 +1,26 @@
+﻿Invoking CreateVirtualDisk API (Native Struct Layout):
+  Process Arch: True
+  DeviceId: 3 (VHDX)
+  VendorId: ec984aec-a0f9-47e9-901f-71415a66345b
+  ParamVersion: 2
+  SectorSize: 512
+  PhysicalSectorSize: 4096
+  TargetPath: E:\vivpr\ai\ebrowser\probe_vhdx_audited.vhdx
+
+
+ProcessArch               : x64
+DeviceId                  : 3
+VendorId                  : ec984aec-a0f9-47e9-901f-71415a66345b
+ParamVersion              : 2
+SectorSizeInBytes         : 512
+PhysicalSectorSizeInBytes : 4096
+Win32ErrorCode            : 0
+HexErrorCode              : 0x0
+FileCreated               : True
+FileSize                  : 4194304
+HeaderMagic               : vhdxfile
+FileCleanedUp             : True
+
+
+
+All VHDX Creation Probe Assertions PASSED.

@@ -3,16 +3,20 @@
 # [BOUND THREAD]: goodkie/v-show Issue #8
 # [ISOLATION SANITY CHECK]: VERIFIED (Zero cross-project contamination)
 #
-# Win32 virtdisk.dll VHDX Creation Probe (Audited Implementation)
-# Strictly tests VHDX header creation on exFAT backing volume without elevation.
-# Cleans up probe file immediately upon completion.
+# Win32 virtdisk.dll VHDX Creation Probe (Audited Implementation v2)
+# - Strict C# struct alignment matching native CREATE_VIRTUAL_DISK_PARAMETERS Version 2
+# - Abort if target file already exists prior to probe
+# - Guaranteed cleanup and handle closure in try/finally
+# - Strict exit code assertion: res == 0, magic == 'vhdxfile', cleanup == True
 
-$code = @'
+$ErrorActionPreference = "Stop"
+
+$csharpCode = @'
 using System;
 using System.Runtime.InteropServices;
 
-public class VHDProbeAudited {
-    [DllImport("virtdisk.dll", CharSet = CharSet.Unicode)]
+public class VHDProbeNativeV2 {
+    [DllImport("virtdisk.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern int CreateVirtualDisk(
         ref VIRTUAL_STORAGE_TYPE VirtualStorageType,
         string Path,
@@ -34,75 +38,139 @@ public class VHDProbeAudited {
         public Guid VendorId; // EC984AEC-A0F9-47e9-901F-71415A66345B (Microsoft)
     }
 
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    // CREATE_VIRTUAL_DISK_PARAMETERS with Version 2 struct alignment
+    [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode)]
     public struct CREATE_VIRTUAL_DISK_PARAMETERS {
+        [FieldOffset(0)]
         public int Version; // 2 for VHDX
+
+        // Union member: Version2
+        [FieldOffset(8)]
         public Guid UniqueId;
+
+        [FieldOffset(24)]
         public ulong MaximumSize;
+
+        [FieldOffset(32)]
         public uint BlockSizeInBytes;
+
+        [FieldOffset(36)]
         public uint SectorSizeInBytes;
+
+        [FieldOffset(40)]
         public uint PhysicalSectorSizeInBytes;
+
+        [FieldOffset(48)]
         public IntPtr ParentPath;
+
+        [FieldOffset(56)]
         public IntPtr SourcePath;
-        public IntPtr OpenFlags;
+
+        [FieldOffset(64)]
+        public int OpenFlags; // 32-bit enum (OPEN_VIRTUAL_DISK_FLAG)
+
+        [FieldOffset(68)]
         public VIRTUAL_STORAGE_TYPE ParentVirtualStorageType;
+
+        [FieldOffset(88)]
         public VIRTUAL_STORAGE_TYPE SourceVirtualStorageType;
+
+        [FieldOffset(108)]
         public Guid ResiliencyGuid;
     }
 }
 '@
 
-Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
+Add-Type -TypeDefinition $csharpCode -ErrorAction Stop
 
 # Official Microsoft VHDX Constants
-$vst = New-Object VHDProbeAudited+VIRTUAL_STORAGE_TYPE
+$vst = New-Object VHDProbeNativeV2+VIRTUAL_STORAGE_TYPE
 $vst.DeviceId = 3 # VIRTUAL_STORAGE_TYPE_DEVICE_VHDX
 $vst.VendorId = [Guid]"EC984AEC-A0F9-47e9-901F-71415A66345B" # VIRTUAL_STORAGE_TYPE_VENDOR_MICROSOFT
 
-$params = New-Object VHDProbeAudited+CREATE_VIRTUAL_DISK_PARAMETERS
+$params = New-Object VHDProbeNativeV2+CREATE_VIRTUAL_DISK_PARAMETERS
 $params.Version = 2 # CREATE_VIRTUAL_DISK_VERSION_2
 $params.MaximumSize = 10485760 # 10MB minimal test payload
+$params.SectorSizeInBytes = 512 # Standard sector size
+$params.BlockSizeInBytes = 0 # Default block size
+$params.PhysicalSectorSizeInBytes = 4096 # 4KB physical sector size
+$params.OpenFlags = 0 # OPEN_VIRTUAL_DISK_FLAG_NONE
+
+$testPath = "E:\vivpr\ai\ebrowser\probe_vhdx_audited.vhdx"
+
+# Strict safety rule: ABORT if file already exists
+if (Test-Path -LiteralPath $testPath) {
+    throw "ABORT: Pre-existing probe file '$testPath' detected. Cannot proceed without clean isolation."
+}
 
 $handle = [IntPtr]::Zero
-$testPath = "E:\vivpr\ai\ebrowser\probe_vhdx_audited.vhdx"
-if (Test-Path $testPath) { Remove-Item -Force $testPath }
-
-Write-Host "Calling CreateVirtualDisk with:"
-Write-Host "  DeviceId: $($vst.DeviceId) (VIRTUAL_STORAGE_TYPE_DEVICE_VHDX)"
-Write-Host "  VendorId: $($vst.VendorId) (Official Microsoft Vendor GUID)"
-Write-Host "  ParamVersion: $($params.Version)"
-Write-Host "  TargetPath: $testPath (exFAT)"
-
-$res = [VHDProbeAudited]::CreateVirtualDisk([ref]$vst, $testPath, 0, [IntPtr]::Zero, 0, 0, [ref]$params, [IntPtr]::Zero, [ref]$handle)
-
-$created = Test-Path $testPath
-$size = if ($created) { (Get-Item $testPath).Length } else { 0 }
+$created = $false
+$fileSize = 0
 $magic = ""
-if ($created) {
-    $bytes = [System.IO.File]::ReadAllBytes($testPath)
-    $magic = [System.Text.Encoding]::ASCII.GetString($bytes[0..7])
-}
+$cleanupSuccess = $false
+$res = -1
 
-if ($handle -ne [IntPtr]::Zero) {
-    [VHDProbeAudited]::CloseHandle($handle) | Out-Null
-}
-
-$deleted = $false
 try {
-    Remove-Item -Force $testPath -ErrorAction Stop
-    $deleted = -not (Test-Path $testPath)
-} catch {
-    $deleted = $false
+    Write-Host "Invoking CreateVirtualDisk API (Native Struct Layout):"
+    Write-Host "  Process Arch: $([Environment]::Is64BitProcess)"
+    Write-Host "  DeviceId: $($vst.DeviceId) (VHDX)"
+    Write-Host "  VendorId: $($vst.VendorId)"
+    Write-Host "  ParamVersion: $($params.Version)"
+    Write-Host "  SectorSize: $($params.SectorSizeInBytes)"
+    Write-Host "  PhysicalSectorSize: $($params.PhysicalSectorSizeInBytes)"
+    Write-Host "  TargetPath: $testPath"
+
+    $res = [VHDProbeNativeV2]::CreateVirtualDisk([ref]$vst, $testPath, 0, [IntPtr]::Zero, 0, 0, [ref]$params, [IntPtr]::Zero, [ref]$handle)
+    
+    $created = Test-Path -LiteralPath $testPath
+    if ($created) {
+        $fileSize = (Get-Item -LiteralPath $testPath).Length
+        $bytes = [System.IO.File]::ReadAllBytes($testPath)
+        if ($bytes.Length -ge 8) {
+            $magic = [System.Text.Encoding]::ASCII.GetString($bytes[0..7])
+        }
+    }
+} finally {
+    if ($handle -ne [IntPtr]::Zero) {
+        [VHDProbeNativeV2]::CloseHandle($handle) | Out-Null
+        $handle = [IntPtr]::Zero
+    }
+    if ($created -and (Test-Path -LiteralPath $testPath)) {
+        try {
+            Remove-Item -LiteralPath $testPath -Force -ErrorAction Stop
+            $cleanupSuccess = -not (Test-Path -LiteralPath $testPath)
+        } catch {
+            $cleanupSuccess = $false
+        }
+    }
 }
 
-[PSCustomObject]@{
+$report = [PSCustomObject]@{
+    ProcessArch = if ([Environment]::Is64BitProcess) { "x64" } else { "x86" }
     DeviceId = $vst.DeviceId
     VendorId = $vst.VendorId.ToString()
     ParamVersion = $params.Version
+    SectorSizeInBytes = $params.SectorSizeInBytes
+    PhysicalSectorSizeInBytes = $params.PhysicalSectorSizeInBytes
     Win32ErrorCode = $res
-    Hex = "0x$($res.ToString('X'))"
+    HexErrorCode = "0x$($res.ToString('X'))"
     FileCreated = $created
-    FileSize = $size
+    FileSize = $fileSize
     HeaderMagic = $magic
-    FileCleanedUp = $deleted
-} | Format-List
+    FileCleanedUp = $cleanupSuccess
+}
+
+$report | Format-List
+
+# Strict Assertion Check
+if ($res -ne 0) {
+    throw "PROBE FAILED: CreateVirtualDisk returned Win32 error $res (0x$($res.ToString('X')))."
+}
+if ($magic -ne "vhdxfile") {
+    throw "PROBE FAILED: Header magic mismatch. Expected 'vhdxfile', Got '$magic'."
+}
+if (-not $cleanupSuccess) {
+    throw "PROBE FAILED: Probe artifact cleanup failed."
+}
+
+Write-Host "All VHDX Creation Probe Assertions PASSED."
