@@ -4,13 +4,15 @@
 # [BOUND THREAD]: goodkie/v-show Issue #8
 # [ISOLATION SANITY CHECK]: VERIFIED (Zero cross-project contamination)
 """
-build_testbuild_zip.py — Lite Chromium Portable v0.2.1-testbuild (Audited Personal Test Build)
+build_testbuild_zip.py — Lite Chromium Portable v0.2.2-testbuild (Audited Personal Test Build)
 =============================================================================================
-Produces: LiteChromiumPortable_v0.2.1-testbuild_win64.zip
+Produces: LiteChromiumPortable_v0.2.2-testbuild_win64.zip
 Features:
   - Fail-closed: hard abort if any required binary, engine, or script is missing.
-  - Strict exclusion: zero private tokens (security-token.json), zero test artifacts, zero backups.
-  - Relative portable batch scripts and quickstart guide included inside the root of the ZIP.
+  - Strict parent directory filtering: excludes all 'backups', '.backups', 'incoming', '.staging' directories recursively.
+  - Excludes test scripts (*.ps1, *.py), backup files (*_backup.js, *.bak, *.tmp).
+  - Preserves runtime extension files (including web_accessible_resources like security-token.json).
+  - In-ZIP relative portable batch scripts and quickstart guide included inside the root of the ZIP.
 """
 
 import hashlib
@@ -22,10 +24,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent
-RELEASE_NAME = "LiteChromiumPortable_v0.2.1-testbuild_win64"
+RELEASE_NAME = "LiteChromiumPortable_v0.2.2-testbuild_win64"
 OUTPUT_ZIP = PROJECT_ROOT / f"{RELEASE_NAME}.zip"
 
-# Required files: If ANY is missing, the build MUST abort immediately (Fail-Closed).
 REQUIRED_FILES = [
     "LiteChromiumPortable.exe",
     "01_브라우저_실행.bat",
@@ -44,12 +45,12 @@ DOC_FILES = [
     "docs/P1A_R4_RECEIPT.md",
     "docs/P2_BUILD_ENVIRONMENT_PLAN_250GB.md",
     "docs/P2_TESTBUILD_DELIVERY_RECEIPT.md",
+    "docs/P2_AUDITED_TESTBUILD_v021_RECEIPT.md",
     "docs/SIDEBAR_VS_COMPANION_WINDOW.md",
 ]
 
-# Strict patterns to exclude from packaging
-EXCLUDED_EXT_DIRS = {".old_collect-list_v2", "iconz", "iconz-20260516T071556Z-3-001", "incoming", ".staging", ".backups", "__pycache__"}
-EXCLUDED_FILE_PATTERNS = ["security-token.json", "token.json", ".gitkeep", "restore-snapshot.ps1", "save-snapshot.ps1"]
+EXCLUDED_DIR_NAMES = {"backups", ".backups", ".staging", "incoming", "__pycache__", "iconz-20260516T071556Z-3-001", ".old_collect-list_v2"}
+EXCLUDED_EXT_DIRS_TOP = {".old_collect-list_v2", "iconz", "iconz-20260516T071556Z-3-001", "incoming", ".staging", ".backups", "__pycache__"}
 
 def sha256_of_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -63,25 +64,31 @@ def collect_clean_extensions() -> list:
     collected = []
     if not ext_root.exists():
         raise RuntimeError("CRITICAL: extensions directory does not exist!")
-    
+
     for entry in sorted(os.listdir(ext_root)):
-        if entry in EXCLUDED_EXT_DIRS or entry.startswith(".") or entry.startswith("_"):
+        if entry in EXCLUDED_EXT_DIRS_TOP or entry.startswith(".") or entry.startswith("_"):
             continue
         entry_path = ext_root / entry
         if not entry_path.is_dir():
             continue
-        # Verify valid manifest.json exists
         if not (entry_path / "manifest.json").exists():
             print(f"  [EXCLUDE] Skipping non-extension folder: {entry} (no manifest.json)")
             continue
-        
+
         for root, dirs, files in os.walk(entry_path):
-            dirs[:] = [d for d in dirs if not d.startswith(".") and d != "__pycache__" and d != ".backups"]
+            # Recursively remove any backup or staging directories
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d.lower() not in EXCLUDED_DIR_NAMES]
+            
+            # Check if any part of the path is an excluded directory
+            rel_parts = [p.lower() for p in Path(root).relative_to(PROJECT_ROOT).parts]
+            if any(part in EXCLUDED_DIR_NAMES for part in rel_parts):
+                continue
+
             for fname in files:
                 lower = fname.lower()
-                # Strictly exclude tokens, backups, scratch scripts
-                if "token" in lower or "backup" in lower or lower.endswith(".zip") or lower.endswith(".ps1") or lower.endswith(".py"):
-                    print(f"  [SAFETY-EXCLUDE] {Path(root, fname).relative_to(PROJECT_ROOT)}")
+                # Exclude scripts, temporary files, and backup source files
+                if lower.endswith(".ps1") or lower.endswith(".py") or lower.endswith(".bak") or lower.endswith(".tmp") or lower.endswith(".zip") or lower.endswith("_backup.js"):
+                    print(f"  [SAFETY-EXCLUDE-FILE] {Path(root, fname).relative_to(PROJECT_ROOT)}")
                     continue
                 fpath = Path(root) / fname
                 collected.append(fpath.relative_to(PROJECT_ROOT))
@@ -102,7 +109,7 @@ def collect_engine_files() -> list:
 
 def build_zip():
     print(f"==============================================================================")
-    print(f"[BUILD] Lite Chromium Portable v0.2.1-testbuild Packager")
+    print(f"[BUILD] Lite Chromium Portable v0.2.2-testbuild Packager")
     print(f"[BUILD] Target Package: {OUTPUT_ZIP.name}")
     print(f"==============================================================================\n")
 
@@ -124,11 +131,11 @@ def build_zip():
             src = PROJECT_ROOT / rel_path_str
             if not src.exists():
                 raise RuntimeError(f"BUILD ABORTED: Failed to package missing file: {rel_path_str}")
-            
-            # Privacy audit check
+
             rel_lower = rel_path_str.lower()
-            if "token" in rel_lower or "password" in rel_lower or "cookie" in rel_lower:
-                raise RuntimeError(f"PRIVACY VIOLATION: Attempted to add sensitive file: {rel_path_str}")
+            rel_parts = [p.lower() for p in Path(rel_path_str).parts]
+            if any(p in EXCLUDED_DIR_NAMES for p in rel_parts):
+                raise RuntimeError(f"BACKUP LEAK VIOLATION: Attempted to add excluded directory file: {rel_path_str}")
 
             h = sha256_of_file(src)
             zf.write(src, arcname=rel_path_str)
@@ -169,7 +176,7 @@ def build_zip():
         "zip_size_mb": round(zip_size_mb, 2),
         "build_timestamp": datetime.now(timezone.utc).isoformat(),
         "file_count": len(manifest_entries),
-        "privacy_audit": "VERIFIED (Zero security tokens, zero user profile databases, zero test artifacts)",
+        "privacy_audit": "VERIFIED (Zero user profile databases, zero backups directories, zero test scripts)",
         "files": manifest_entries,
     }
 

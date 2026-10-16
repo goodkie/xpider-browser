@@ -1,0 +1,34 @@
+{
+  "timestamp": "2026-10-16T04:29:58.506876+00:00",
+  "fixture_extension_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
+  "engine_pid": 20460,
+  "debug_port": 9444,
+  "active_panel_windows_count": 2,
+  "panel_windows": [
+    {
+      "window_index": 1,
+      "target_id": "FDCD683A68EA9A0B1884E3EC6641D06A",
+      "title": "",
+      "type": "page",
+      "url": "chrome-extension://mpmmjhlclnpalhaeilhkfkacdjkkhkli/popup.html",
+      "ws_debugger_url": "ws://127.0.0.1:9444/devtools/page/FDCD683A68EA9A0B1884E3EC6641D06A"
+    },
+    {
+      "window_index": 2,
+      "target_id": "32EC21334D798BDE149C0CED315F1197",
+      "title": "chrome-extension://mpmmjhlclnpalhaeilhkfkacdjkkhkli/sidepanel.html",
+      "type": "page",
+      "url": "chrome-extension://mpmmjhlclnpalhaeilhkfkacdjkkhkli/sidepanel.html",
+      "ws_debugger_url": "ws://127.0.0.1:9444/devtools/page/32EC21334D798BDE149C0CED315F1197"
+    }
+  ],
+  "service_workers": [
+    {
+      "target_id": "3F14F711ECCC553AEEB8CAFD9B033D19",
+      "url": "chrome-extension://ilclknkanjmflccmlobiboakkhbomcmk/background.js",
+      "type": "service_worker"
+    }
+  ],
+  "all_cdp_targets_count": 7,
+  "verdict": "PASS \u2014 Concurrent multi-window extension panels confirmed active simultaneously via CDP."
+}

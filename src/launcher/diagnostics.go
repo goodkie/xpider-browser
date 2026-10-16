@@ -7,6 +7,8 @@ package main
 
 import (
 	"archive/zip"
+	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -88,8 +90,52 @@ func computeFileSHA256(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
+// sanitizeJSONLLine parses a JSONL line, applies recursive sanitization on details/command/messages,
+// and serializes back into standard sanitized JSON.
+func sanitizeJSONLLine(line string) []byte {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return nil
+	}
+	var rawEvent map[string]interface{}
+	if err := json.Unmarshal([]byte(trimmed), &rawEvent); err == nil {
+		// 1. Sanitize Details map recursively
+		if d, ok := rawEvent["details"].(map[string]interface{}); ok {
+			rawEvent["details"] = SanitizeValue(d)
+		}
+		// 2. Sanitize Command slice
+		if cmdSlice, ok := rawEvent["command"].([]interface{}); ok {
+			strCmds := make([]string, len(cmdSlice))
+			for i, c := range cmdSlice {
+				if s, ok := c.(string); ok {
+					strCmds[i] = s
+				}
+			}
+			cleanCmds := SanitizeArgs(strCmds)
+			cleanInterface := make([]interface{}, len(cleanCmds))
+			for i, s := range cleanCmds {
+				cleanInterface[i] = s
+			}
+			rawEvent["command"] = cleanInterface
+		}
+		// 3. Sanitize message & event
+		if m, ok := rawEvent["message"].(string); ok {
+			rawEvent["message"] = SanitizeString(m)
+		}
+		if ev, ok := rawEvent["event"].(string); ok {
+			rawEvent["event"] = SanitizeString(ev)
+		}
+		if b, err := json.Marshal(rawEvent); err == nil {
+			return append(b, '\n')
+		}
+	}
+	// Fallback for unparsable lines
+	fallback := SanitizeString(trimmed)
+	return append([]byte(fallback), '\n')
+}
+
 // ExportDiagnostics packages an audited diagnostic bundle with zero private user data
-// Applies export-level sanitization, allowed field whitelisting, and strict error handling.
+// Applies export-level structured JSON parsing, allowed field whitelisting, and strict error handling.
 func ExportDiagnostics(appRoot string) (string, error) {
 	dataDir := filepath.Join(appRoot, "data")
 	logsDir := filepath.Join(dataDir, "logs")
@@ -107,7 +153,6 @@ func ExportDiagnostics(appRoot string) (string, error) {
 
 	w := zip.NewWriter(zipFile)
 
-	// Helper to write file into zip with error checking
 	writeZipEntry := func(entryName string, data []byte) error {
 		f, err := w.Create(entryName)
 		if err != nil {
@@ -119,7 +164,7 @@ func ExportDiagnostics(appRoot string) (string, error) {
 		return nil
 	}
 
-	// 1. Gather System Summary & Whitelisted Instances
+	// 1. System Summary & Whitelisted Instances
 	launcherExe, _ := os.Executable()
 	launcherSHA, _ := computeFileSHA256(launcherExe)
 	engineExe, _ := findEngine(appRoot)
@@ -194,7 +239,7 @@ func ExportDiagnostics(appRoot string) (string, error) {
 		return "", err
 	}
 
-	// 2. Add whitelisted instances.json (re-serialized to guarantee zero argument/token leaks)
+	// 2. Add whitelisted instances.json
 	regData, err := json.MarshalIndent(map[string]interface{}{
 		"instances": sanitizedInstances,
 	}, "", "  ")
@@ -206,15 +251,40 @@ func ExportDiagnostics(appRoot string) (string, error) {
 		}
 	}
 
-	// 3. Add Sanitized Logs (re-sanitized at export time line-by-line)
+	// 3. Add Sanitized Logs line-by-line with structured JSON deserialization/re-serialization
 	if logEntries, err := os.ReadDir(logsDir); err == nil {
 		for _, le := range logEntries {
-			if !le.IsDir() && (strings.HasSuffix(le.Name(), ".log") || strings.HasSuffix(le.Name(), ".jsonl")) {
+			if le.IsDir() {
+				continue
+			}
+			lowerName := strings.ToLower(le.Name())
+			if strings.HasSuffix(lowerName, ".jsonl") {
 				lp := filepath.Join(logsDir, le.Name())
 				if ldata, err := os.ReadFile(lp); err == nil {
-					// Double-pass sanitize on export
-					sanitizedLog := SanitizeString(string(ldata))
-					if err := writeZipEntry("logs/"+le.Name(), []byte(sanitizedLog)); err != nil {
+					var outBuf bytes.Buffer
+					scanner := bufio.NewScanner(bytes.NewReader(ldata))
+					for scanner.Scan() {
+						cleanBytes := sanitizeJSONLLine(scanner.Text())
+						if len(cleanBytes) > 0 {
+							outBuf.Write(cleanBytes)
+						}
+					}
+					if err := writeZipEntry("logs/"+le.Name(), outBuf.Bytes()); err != nil {
+						_ = w.Close()
+						_ = zipFile.Close()
+						return "", err
+					}
+				}
+			} else if strings.HasSuffix(lowerName, ".log") {
+				lp := filepath.Join(logsDir, le.Name())
+				if ldata, err := os.ReadFile(lp); err == nil {
+					var outBuf bytes.Buffer
+					scanner := bufio.NewScanner(bytes.NewReader(ldata))
+					for scanner.Scan() {
+						outBuf.WriteString(SanitizeString(scanner.Text()))
+						outBuf.WriteByte('\n')
+					}
+					if err := writeZipEntry("logs/"+le.Name(), outBuf.Bytes()); err != nil {
 						_ = w.Close()
 						_ = zipFile.Close()
 						return "", err

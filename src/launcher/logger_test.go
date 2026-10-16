@@ -7,6 +7,7 @@ package main
 
 import (
 	"archive/zip"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -90,7 +91,7 @@ func TestLevelFiltering(t *testing.T) {
 	// Log INFO event -> MUST BE WRITTEN
 	l.Log(LevelInfo, "SHOULD_BE_WRITTEN", "Info message", 1, 100, "", "", nil, nil)
 
-	auditPath := filepath.Join(tempDir, "launcher_audit_inst1.jsonl")
+	auditPath := filepath.Join(tempDir, fmt.Sprintf("launcher_audit_inst1_pid%d.jsonl", os.Getpid()))
 	data, err := os.ReadFile(auditPath)
 	if err != nil {
 		t.Fatalf("Failed to read audit log: %v", err)
@@ -117,10 +118,17 @@ func TestDiagnosticsSanitizationLeakCheck(t *testing.T) {
 
 	dummySecretToken := "TEST_DUMMY_SECRET_TOKEN_XYZ987654"
 	dummyPassword := "FAKE_PASSWORD_ABC_123"
+	dummyJSONLSecret := "DUMMY_JSON_SECRET_KEY_9999"
+	dummyFlagPass := "SUPER_SECRET_IN_FLAG_URL_456"
 
 	// Create log with dummy secrets
 	l := NewLogger(logsDir, "test_session", LevelInfo)
 	l.Log(LevelInfo, "TEST_RUN", "Starting with token="+dummySecretToken, 1, 500, "", "", []string{"--password", dummyPassword}, nil)
+
+	// Simulate an un-sanitized raw jsonl file with nested details token and --app=url with credentials
+	rawJSONLPath := filepath.Join(logsDir, "raw_leak.jsonl")
+	rawJSONLContent := fmt.Sprintf(`{"event":"TEST_RAW","details":{"token":"%s"},"command":["--app=https://admin:%s@internal.host/path?key=foo"]}`+"\n", dummyJSONLSecret, dummyFlagPass)
+	_ = os.WriteFile(rawJSONLPath, []byte(rawJSONLContent), 0644)
 
 	// Also simulate an un-sanitized log file line directly on disk
 	leakLogPath := filepath.Join(logsDir, "raw_leak.log")
@@ -155,6 +163,12 @@ func TestDiagnosticsSanitizationLeakCheck(t *testing.T) {
 		}
 		if strings.Contains(content, dummyPassword) {
 			t.Fatalf("LEAK DETECTED in %s: dummyPassword was found!", f.Name)
+		}
+		if strings.Contains(content, dummyJSONLSecret) {
+			t.Fatalf("LEAK DETECTED in %s: dummyJSONLSecret was found in details!", f.Name)
+		}
+		if strings.Contains(content, dummyFlagPass) {
+			t.Fatalf("LEAK DETECTED in %s: dummyFlagPass was found in --app=url flag!", f.Name)
 		}
 	}
 }

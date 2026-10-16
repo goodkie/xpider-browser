@@ -61,7 +61,7 @@ type LogEvent struct {
 	Details       map[string]interface{} `json:"details,omitempty"`
 }
 
-// Logger provides high-detail structured and rotated logging with instance isolation
+// Logger provides high-detail structured logging with absolute process/session isolation
 type Logger struct {
 	mu           sync.Mutex
 	logDir       string
@@ -151,7 +151,7 @@ func SanitizeString(input string) string {
 	return res
 }
 
-// SanitizeArgs sanitizes a slice of command line arguments, including split flag parameters
+// SanitizeArgs sanitizes a slice of command line arguments, including split flags and --flag=val formats
 func SanitizeArgs(args []string) []string {
 	if args == nil {
 		return nil
@@ -170,6 +170,20 @@ func SanitizeArgs(args []string) []string {
 			maskNext = true
 			continue
 		}
+
+		// Handle --flag=value formats (e.g. --app=https://user:pass@host)
+		if eqIdx := strings.Index(a, "="); eqIdx != -1 && strings.HasPrefix(a, "--") {
+			flagPrefix := a[:eqIdx+1]
+			val := a[eqIdx+1:]
+			flagLower := strings.ToLower(flagPrefix)
+			if strings.Contains(flagLower, "token") || strings.Contains(flagLower, "pass") || strings.Contains(flagLower, "secret") || strings.Contains(flagLower, "key") || strings.Contains(flagLower, "auth") {
+				clean[i] = flagPrefix + "[REDACTED]"
+			} else {
+				clean[i] = flagPrefix + SanitizeString(val)
+			}
+			continue
+		}
+
 		clean[i] = SanitizeString(a)
 	}
 	return clean
@@ -208,7 +222,7 @@ func SanitizeValue(v interface{}) interface{} {
 }
 
 // Log writes both a human-readable entry and a structured JSONL record
-// Uses instance-specific log files to completely prevent rotation race conditions between concurrent instances.
+// Strictly writes to PID and session isolated files to prevent ANY file rotation race conditions.
 func (l *Logger) Log(level LogLevel, event, msg string, instID, pid int, profileDir string, correlationID string, cmd []string, details map[string]interface{}) {
 	// Enforce level priority filter
 	if levelPriority(level) < levelPriority(l.currentLevel) {
@@ -265,38 +279,32 @@ func (l *Logger) Log(level LogLevel, event, msg string, instID, pid int, profile
 		sanitizedMsg,
 	)
 
-	// Target files: write to instance-specific log file to avoid cross-process rotation lock contention
-	var targetJSONFiles []string
-	var targetHumanFiles []string
-
+	// Process/Session/Instance isolated filenames eliminate 100% of concurrent rotation lock contention
+	currentPid := os.Getpid()
+	var jsonFilename, humanFilename string
 	if instID > 0 {
-		targetJSONFiles = append(targetJSONFiles, filepath.Join(l.logDir, fmt.Sprintf("launcher_audit_inst%d.jsonl", instID)))
-		targetHumanFiles = append(targetHumanFiles, filepath.Join(l.logDir, fmt.Sprintf("launcher_inst%d.log", instID)))
+		jsonFilename = fmt.Sprintf("launcher_audit_inst%d_pid%d.jsonl", instID, currentPid)
+		humanFilename = fmt.Sprintf("launcher_inst%d_pid%d.log", instID, currentPid)
 	} else {
-		targetJSONFiles = append(targetJSONFiles, filepath.Join(l.logDir, "launcher_audit_main.jsonl"))
-		targetHumanFiles = append(targetHumanFiles, filepath.Join(l.logDir, "launcher_main.log"))
-	}
-	// Also append to global aggregate log
-	targetJSONFiles = append(targetJSONFiles, filepath.Join(l.logDir, "launcher_audit.jsonl"))
-	targetHumanFiles = append(targetHumanFiles, filepath.Join(l.logDir, "launcher.log"))
-
-	for _, p := range targetJSONFiles {
-		l.rotateIfNeeded(p)
-		if f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
-			_, _ = f.Write(jsonBytes)
-			_ = f.Close()
-		}
+		jsonFilename = fmt.Sprintf("launcher_audit_main_pid%d.jsonl", currentPid)
+		humanFilename = fmt.Sprintf("launcher_main_pid%d.log", currentPid)
 	}
 
-	for _, p := range targetHumanFiles {
-		l.rotateIfNeeded(p)
-		if f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
-			_, _ = f.WriteString(humanLine)
-			_ = f.Close()
-		}
+	targetJSON := filepath.Join(l.logDir, jsonFilename)
+	targetHuman := filepath.Join(l.logDir, humanFilename)
+
+	l.rotateIfNeeded(targetJSON)
+	if f, err := os.OpenFile(targetJSON, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
+		_, _ = f.Write(jsonBytes)
+		_ = f.Close()
 	}
 
-	// Clean older rotated logs if total size exceeds limit
+	l.rotateIfNeeded(targetHuman)
+	if f, err := os.OpenFile(targetHuman, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
+		_, _ = f.WriteString(humanLine)
+		_ = f.Close()
+	}
+
 	l.enforceMaxTotalSize()
 }
 
