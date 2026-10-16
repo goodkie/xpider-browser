@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -26,5 +27,70 @@ func TestComputeExtensionID_Fixture(t *testing.T) {
 	actualID := b.String()
 	if actualID != expectedID {
 		t.Fatalf("Expected ID %s, got %s", expectedID, actualID)
+	}
+
+	computed := computeExtensionID(fixtureKey, "")
+	if computed != expectedID {
+		t.Fatalf("computeExtensionID with key: expected %s, got %s", expectedID, computed)
+	}
+}
+
+func TestComputeExtensionID_KeylessPath(t *testing.T) {
+	testCases := []struct {
+		path       string
+		expectedID string
+	}{
+		{
+			path:       `E:\vivpr\ai\ebrowser\portable-minimal\extensions\Email_Extractor_Source`,
+			expectedID: "ilclknkanjmflccmlobiboakkhbomcmk",
+		},
+		{
+			path:       `E:\vivpr\ai\ebrowser\portable-minimal\extensions\UltraSolverPro`,
+			expectedID: "bfgbdhmljeadpfpnigblmdngnaoianla",
+		},
+		{
+			path:       `E:\vivpr\ai\ebrowser\portable-minimal\extensions\proxy`,
+			expectedID: "nfikoffdlalelmnkdpbndlkjeekchioh",
+		},
+	}
+
+	for _, tc := range testCases {
+		id := computeExtensionID("", tc.path)
+		if id != tc.expectedID {
+			t.Errorf("Path %s: expected %s, got %s", tc.path, tc.expectedID, id)
+		}
+	}
+}
+
+func TestGenerateUniquePanelID(t *testing.T) {
+	seen := make(map[string]bool)
+	for i := 0; i < 1000; i++ {
+		id := generateUniquePanelID()
+		if seen[id] {
+			t.Fatalf("Duplicate panel ID generated: %s", id)
+		}
+		seen[id] = true
+	}
+}
+
+func TestURLPreservation(t *testing.T) {
+	baseRaw := "chrome-extension://abcdefghijklmnopqrstuvwxyzabcdef/sidepanel.html?existing=true#section1"
+	u, err := url.Parse(baseRaw)
+	if err != nil {
+		t.Fatalf("url.Parse: %v", err)
+	}
+	q := u.Query()
+	q.Set("panel_id", "p_123")
+	u.RawQuery = q.Encode()
+
+	finalURL := u.String()
+	if !strings.Contains(finalURL, "existing=true") {
+		t.Errorf("existing query lost: %s", finalURL)
+	}
+	if !strings.Contains(finalURL, "panel_id=p_123") {
+		t.Errorf("panel_id missing: %s", finalURL)
+	}
+	if !strings.Contains(finalURL, "#section1") {
+		t.Errorf("fragment lost: %s", finalURL)
 	}
 }

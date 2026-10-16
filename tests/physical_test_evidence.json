@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-10-16T22:28:21Z",
+  "verdict": "PASS",
+  "panel_a1": {
+    "diag_output": "{\n  \"type\": \"PONG\",\n  \"alive\": true,\n  \"ping_count\": 1,\n  \"instance_marker\": \"unassigned\",\n  \"sender_id\": \"mpmmjhlclnpalhaeilhkfkacdjkkhkli\",\n  \"context_type\": \"SERVICE_WORKER\",\n  \"timestamp\": 1792189711951\n}",
+    "panel_id": "p_64375800_1_36405",
+    "status": "LAUNCHED",
+    "target_id": "B7F3D42A9293640F29C052DE067A6F67",
+    "window_id": "2046437939"
+  },
+  "panel_a2": {
+    "diag_output": "{\n  \"type\": \"PONG\",\n  \"alive\": true,\n  \"ping_count\": 2,\n  \"instance_marker\": \"unassigned\",\n  \"sender_id\": \"mpmmjhlclnpalhaeilhkfkacdjkkhkli\",\n  \"context_type\": \"SERVICE_WORKER\",\n  \"timestamp\": 1792189712327\n}",
+    "panel_id": "p_3560000_1_19786",
+    "status": "LAUNCHED",
+    "target_id": "A0E9B9BB0617166E89360EF688D183A2",
+    "window_id": "2046437941"
+  },
+  "panel_b": {
+    "dom_info": "{\"title\":\"Bing Maps Business Finder\",\"bodyLen\":492,\"readyState\":\"complete\"}",
+    "panel_id": "p_16934000_1_84087",
+    "status": "LAUNCHED",
+    "target_id": "C918B0C02659DAE3B9324CAE65EAF391",
+    "window_id": "2046437943"
+  },
+  "concurrent_count": 3,
+  "survival_verification": {
+    "a1_closed": true,
+    "a2_survived": true,
+    "b_survived": true
+  },
+  "instance2_isolation": {
+    "cdp_port": 9223,
+    "status": "VERIFIED_ISOLATED",
+    "target_id": "A2ACA01E4619A6531870D62C4D586856",
+    "window_id": "304681860"
+  },
+  "screenshots": {
+    "Panel_A1": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\tests\\screenshot_panel_A1.png",
+    "Panel_A2": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\tests\\screenshot_panel_A2.png",
+    "Panel_B": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\tests\\screenshot_panel_B.png"
+  },
+  "steps": [
+    "[22:28:22] STEP 1: Cold Start + Launch Extension A Panel 1 (Fixture SidePanel)",
+    "[22:28:26] STEP 2: Warm Start + Launch Extension A Panel 2 (Same extension duplicate panel)",
+    "[22:28:29] STEP 3: Warm Start + Launch Extension B Panel 1 (Bing Maps Business Finder)",
+    "[22:28:31] STEP 4: Query Active Panels Table via LiteChromiumPortable.exe --list-panels",
+    "[22:28:31] STEP 5: UI Interactivity \u0026 Screenshot Capture on Panels A1, A2, and B",
+    "[22:28:32] STEP 6: Close Panel A1 Only [Target ID: B7F3D42A9293640F29C052DE067A6F67]",
+    "[22:28:35] STEP 7: Verify Survival and State of Panel A2 and Panel B",
+    "[22:28:35] STEP 8: Multi-Instance Isolation Test (Launch Panel in Instance #2, CDP Port: 9223)"
+  ]
+}

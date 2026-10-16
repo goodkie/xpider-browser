@@ -199,8 +199,9 @@ func main() {
 
 	if *listExtsFlag {
 		port := getInstanceCDPPort(*instanceFlag)
-		liveIDs := QueryLiveExtensionIDs(port)
-		exts, err := DiscoverInstalledExtensions(extensionsDir, liveIDs)
+		liveIDs, _ := QueryLiveExtensionIDs(port)
+		pDir := filepath.Join(profilesBase, fmt.Sprintf("instance-%d", *instanceFlag))
+		exts, err := DiscoverInstalledExtensions(extensionsDir, liveIDs, pDir)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error discovering extensions: %v\n", err)
 			os.Exit(1)
@@ -236,8 +237,11 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Launch companion panel failed: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("[LiteChromiumPortable] 보조 도구창(패널) 실행 성공!\n")
+		fmt.Printf("[LiteChromiumPortable] 보조 도구창(독립 윈도우) 실행 성공!\n")
 		fmt.Printf("  - 패널 ID:    %s\n", panel.PanelID)
+		if panel.WindowID > 0 {
+			fmt.Printf("  - 윈도우 ID:  %d\n", panel.WindowID)
+		}
 		fmt.Printf("  - 타깃 ID:    %s\n", panel.ID)
 		fmt.Printf("  - 창 제목:    %s\n", panel.Title)
 		fmt.Printf("  - 대상 URL:   %s\n", panel.URL)
@@ -955,7 +959,7 @@ func buildEngineArgs(profileDir string, extensions []string, initialURL, appURL 
 	}
 	if instID > 0 {
 		cdpPort := 9221 + instID
-		args = append(args, fmt.Sprintf("--remote-debugging-port=%d", cdpPort), "--remote-allow-origins=*")
+		args = append(args, fmt.Sprintf("--remote-debugging-port=%d", cdpPort), fmt.Sprintf("--remote-allow-origins=http://127.0.0.1:%d", cdpPort))
 	}
 	if len(extensions) > 0 {
 		args = append(args, "--load-extension="+strings.Join(extensions, ","))
