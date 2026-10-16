@@ -43,7 +43,7 @@ type InstanceExtensionConfig struct {
 	DisabledExtensions []string `json:"disabled_extensions,omitempty"`
 }
 
-const LauncherVersion = "v0.2.4-hotfix"
+const LauncherVersion = "v0.2.5-beta"
 
 func main() {
 	instanceFlag := flag.Int("instance", 1, "Instance number to launch (1-100)")
@@ -60,6 +60,12 @@ func main() {
 	cleanLogsFlag := flag.Bool("clean-logs", false, "Safely clean inactive/dead log files while protecting running instances")
 	exportReportFlag := flag.Bool("export-chatgpt-report", false, "Generate an audited markdown debug report formatted for ChatGPT and exit")
 	exportReportShortFlag := flag.Bool("export-report", false, "Alias for --export-chatgpt-report")
+	listExtsFlag := flag.Bool("list-extensions", false, "List all discovered installed extensions and their UI entry points")
+	listPanelsFlag := flag.Bool("list-panels", false, "List all active companion tool windows (panels) for the instance")
+	launchPanelFlag := flag.String("launch-panel", "", "Launch companion tool window for an extension (name, folder, index, or ID)")
+	panelIDFlag := flag.String("panel-id", "", "Custom panel instance ID for launching duplicate/cloned panels of the same extension")
+	panelUIFlag := flag.String("panel-ui", "", "Force UI mode for panel (sidepanel or popup)")
+	closePanelFlag := flag.String("close-panel", "", "Close an active companion tool window by target ID")
 	flag.Parse()
 
 	appRoot, err := getAppRoot()
@@ -189,6 +195,53 @@ func main() {
 	if *markerFlag != "" {
 		logger.Log(LevelInfo, "OPERATOR_MARKER", *markerFlag, *instanceFlag, os.Getpid(), "", "", os.Args, nil)
 		fmt.Printf("[LiteChromiumPortable] Logged operator marker: %s\n", *markerFlag)
+	}
+
+	if *listExtsFlag {
+		port := getInstanceCDPPort(*instanceFlag)
+		liveIDs := QueryLiveExtensionIDs(port)
+		exts, err := DiscoverInstalledExtensions(extensionsDir, liveIDs)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error discovering extensions: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Print(FormatExtensionsTable(exts))
+		return
+	}
+
+	if *listPanelsFlag {
+		port := getInstanceCDPPort(*instanceFlag)
+		panels, err := ListActivePanels(port)
+		if err != nil {
+			fmt.Printf("[LiteChromiumPortable] 인스턴스 #%d (CDP Port: %d)에 연결할 수 없습니다. 브라우저가 실행 중인지 확인하세요.\n", *instanceFlag, port)
+			return
+		}
+		fmt.Print(FormatPanelsTable(panels, *instanceFlag))
+		return
+	}
+
+	if *closePanelFlag != "" {
+		err := CloseCompanionPanel(*instanceFlag, *closePanelFlag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error closing panel %s: %v\n", *closePanelFlag, err)
+			os.Exit(1)
+		}
+		fmt.Printf("[LiteChromiumPortable] 보조 도구창(패널) [Target ID: %s]이(가) 정상적으로 종료되었습니다.\n", *closePanelFlag)
+		return
+	}
+
+	if *launchPanelFlag != "" {
+		panel, err := LaunchCompanionPanel(engineExe, appRoot, *instanceFlag, *launchPanelFlag, *panelUIFlag, *panelIDFlag)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Launch companion panel failed: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("[LiteChromiumPortable] 보조 도구창(패널) 실행 성공!\n")
+		fmt.Printf("  - 패널 ID:    %s\n", panel.PanelID)
+		fmt.Printf("  - 타깃 ID:    %s\n", panel.ID)
+		fmt.Printf("  - 창 제목:    %s\n", panel.Title)
+		fmt.Printf("  - 대상 URL:   %s\n", panel.URL)
+		return
 	}
 
 	if *batchFlag > 0 {
@@ -894,6 +947,15 @@ func buildEngineArgs(profileDir string, extensions []string, initialURL, appURL 
 		"--disable-features=Translate,OptimizationHints,MediaRouter",
 		"--enable-logging",
 		"--v=1",
+	}
+	var instID int = 1
+	base := filepath.Base(profileDir)
+	if strings.HasPrefix(base, "instance-") {
+		fmt.Sscanf(strings.TrimPrefix(base, "instance-"), "%d", &instID)
+	}
+	if instID > 0 {
+		cdpPort := 9221 + instID
+		args = append(args, fmt.Sprintf("--remote-debugging-port=%d", cdpPort), "--remote-allow-origins=*")
 	}
 	if len(extensions) > 0 {
 		args = append(args, "--load-extension="+strings.Join(extensions, ","))

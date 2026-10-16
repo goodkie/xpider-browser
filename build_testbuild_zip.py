@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent
-RELEASE_NAME = "LiteChromiumPortable_v0.2.4-hotfix_win64"
+RELEASE_NAME = "LiteChromiumPortable_v0.2.5-beta_win64"
 OUTPUT_ZIP = PROJECT_ROOT / f"{RELEASE_NAME}.zip"
 
 REQUIRED_FILES = [
@@ -50,6 +50,8 @@ DOC_FILES = [
     "docs/P2_AUDITED_TESTBUILD_v022_FINAL_RECEIPT.md",
     "docs/P2_BETA_v023_RECEIPT.md",
     "docs/P2_HOTFIX_v024_RECEIPT.md",
+    "docs/P2_BETA_v025_RECEIPT.md",
+    "docs/BROWSER_FEATURE_CHECKLIST.md",
     "docs/SIDEBAR_VS_COMPANION_WINDOW.md",
 ]
 

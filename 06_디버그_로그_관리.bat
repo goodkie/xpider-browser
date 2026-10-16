@@ -16,7 +16,7 @@ exit /b 1
 :MENU
 cls
 echo ==============================================================================
-echo [PROJECT]: Lite Chromium Portable (v0.2.4-hotfix)
+echo [PROJECT]: Lite Chromium Portable (v0.2.5-beta)
 echo [TOOL]   : 디버그 로그 및 ChatGPT 리포트 관리자
 echo ==============================================================================
 echo.
