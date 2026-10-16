@@ -252,7 +252,7 @@ func discoverInstanceExtensions(extsDir, profileDir string) []string {
 			enabledMap[strings.ToLower(e)] = true
 		}
 		for _, entry := range entries {
-			if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && entry.Name() != "incoming" && entry.Name() != ".staging" && entry.Name() != ".backups" {
+			if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && !strings.HasPrefix(entry.Name(), "_") && entry.Name() != "incoming" && entry.Name() != ".staging" && entry.Name() != ".backups" {
 				extName := entry.Name()
 				lower := strings.ToLower(extName)
 				// DISABLED WINS: conflict resolution rule
@@ -271,7 +271,7 @@ func discoverInstanceExtensions(extsDir, profileDir string) []string {
 	}
 
 	for _, entry := range entries {
-		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && entry.Name() != "incoming" && entry.Name() != ".staging" && entry.Name() != ".backups" {
+		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && !strings.HasPrefix(entry.Name(), "_") && entry.Name() != "incoming" && entry.Name() != ".staging" && entry.Name() != ".backups" {
 			extName := entry.Name()
 			if disabledMap[strings.ToLower(extName)] {
 				continue

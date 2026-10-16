@@ -42,6 +42,7 @@ const (
 	processVMRead                  = 0x0010
 	stillActive                    = 259
 	errorInvalidParameter          = syscall.Errno(87)
+	errorAccessDenied              = syscall.Errno(5)
 )
 
 var (
@@ -253,8 +254,13 @@ func verifyOwner(rec InstanceRecord) (ProcState, string) {
 	}
 	h, err := syscall.OpenProcess(processQueryLimitedInformation, false, uint32(rec.PID))
 	if err != nil {
-		if en, ok := err.(syscall.Errno); ok && en == errorInvalidParameter {
-			return ProcStopped, "no process with that pid"
+		if en, ok := err.(syscall.Errno); ok {
+			if en == errorInvalidParameter {
+				return ProcStopped, "no process with that pid"
+			}
+			if en == errorAccessDenied {
+				return ProcStopped, "pid reused by foreign/restricted process (access denied)"
+			}
 		}
 		return ProcUnknown, fmt.Sprintf("cannot open pid %d: %v", rec.PID, err)
 	}
