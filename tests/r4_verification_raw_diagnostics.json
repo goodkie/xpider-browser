@@ -1,6 +1,6 @@
 {
   "summary": {
-    "timestamp": 1791132180.8152287,
+    "timestamp": 1792117170.1704319,
     "launcher_sha256": "7031c6aad5b7548378035b6a15e25768f3ecc32a66c8409444bce0266a12e0ec",
     "total": 12,
     "passed": 12,
@@ -14,7 +14,7 @@
       {
         "name": "T1-A: Initial Owner Window Visibility",
         "status": "PASS",
-        "detail": "Detected 1 ready visible windows for PID 36780"
+        "detail": "Detected 1 ready visible windows for PID 1776"
       },
       {
         "name": "T1-A: Strict Same-Instance Handoff Window Count (+1 HWND)",
@@ -24,12 +24,12 @@
       {
         "name": "T1: Single Instance MV3 Worker Probe, Scripting & Completed Isolated Download",
         "status": "PASS",
-        "detail": "All MV3 Worker, Scripting, Target Tab URL, Cookie, and Storage assertions PASSED, isolated_file_downloaded=True (E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\downloads\\dl_r4_1791131808809_nonce_1791131820557_inst1.txt), payload_verified=True"
+        "detail": "All MV3 Worker, Scripting, Target Tab URL, Cookie, and Storage assertions PASSED, isolated_file_downloaded=True (E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\downloads\\dl_r4_1792116757740_nonce_1792116771082_inst1.txt), payload_verified=True"
       },
       {
         "name": "T1-B: Verified Owner Closure & Exit",
         "status": "PASS",
-        "detail": "PID 36780 dead=True, exit_mode=graceful_wm_close"
+        "detail": "PID 1776 dead=True, exit_mode=forced_kill"
       },
       {
         "name": "T2: Negative Control (SAME Assertion Fails on Disabled Extension)",
@@ -39,7 +39,7 @@
       {
         "name": "T3-A: Batch 3 Concurrent Creation",
         "status": "PASS",
-        "detail": "verified_owners=3/3 (PIDs: [35084, 24412, 31424])"
+        "detail": "verified_owners=3/3 (PIDs: [5368, 18676, 27000])"
       },
       {
         "name": "T3-B: Batch 3 Disk Profile Directory Isolation",
@@ -54,7 +54,7 @@
       {
         "name": "T4-A: Batch 5 Scaling Creation",
         "status": "PASS",
-        "detail": "active_instances_count=5/5 (PIDs: [35956, 22532, 34372, 17964, 17824])"
+        "detail": "active_instances_count=5/5 (PIDs: [23844, 4056, 16720, 13936, 24888])"
       },
       {
         "name": "T4-B: Batch 5 Distinct Nonce Read Persistence & Zero Contamination",
@@ -64,7 +64,7 @@
       {
         "name": "T5: Complete Directory Relocation (Korean/Spaces) & Read-Only Retention",
         "status": "PASS",
-        "detail": "reloc_path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_reloc_1791132092506_\ud55c\uae00 \uacf5\ubc31, All MV3 Worker, Scripting, Target Tab URL, Cookie, and Storage assertions PASSED"
+        "detail": "reloc_path=E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_reloc_1792117096876_\ud55c\uae00 \uacf5\ubc31, All MV3 Worker, Scripting, Target Tab URL, Cookie, and Storage assertions PASSED"
       }
     ]
   },
@@ -72,884 +72,918 @@
   "raw_probe_reports": [
     {
       "probe_index": 1,
-      "received_at": 1791131845.912653,
+      "received_at": 1792116809.6289284,
       "instance_id": "1",
       "mode": "seed",
-      "nonce": "nonce_1791131820557_inst1",
+      "nonce": "nonce_1792116771082_inst1",
       "data": {
         "instance_id": "1",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "seed",
-        "nonce": "nonce_1791131820557_inst1",
-        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1791131820557_inst1",
+        "nonce": "nonce_1792116771082_inst1",
+        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1792116771082_inst1",
         "local_storage": "marker_val_1",
-        "storage_nonce": "nonce_1791131820557_inst1",
+        "storage_nonce": "nonce_1792116771082_inst1",
         "ext_data": {
           "type": "SEED_ACK",
           "alive": true,
           "instance_marker": "inst_1",
-          "seed_nonce": "nonce_1791131820557_inst1",
+          "seed_nonce": "nonce_1792116771082_inst1",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1519438562,
-          "sender_tab_id": 1519438562,
+          "tab_id": 1475247958,
+          "sender_tab_id": 1475247958,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791131845904,
+            "evaluated_at": 1792116809361,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791131820557_inst1&dl=0",
+            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792116771082_inst1&dl=1&dl_filename=dl_r4_1792116757740_nonce_1792116771082_inst1.txt",
             "title": "LCW R4 Fixture Tab 1",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791131820557_inst1&dl=0"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792116771082_inst1&dl=1&dl_filename=dl_r4_1792116757740_nonce_1792116771082_inst1.txt"
           }
         },
         "error": null,
-        "reported_at": 1791131845909
+        "reported_at": 1792116809625
       }
     },
     {
       "probe_index": 2,
-      "received_at": 1791131845.9162588,
+      "received_at": 1792116809.650877,
       "instance_id": "1",
       "mode": "seed",
-      "nonce": "nonce_1791131820557_inst1",
+      "nonce": "nonce_1792116771082_inst1",
       "data": {
         "instance_id": "1",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "seed",
-        "nonce": "nonce_1791131820557_inst1",
-        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1791131820557_inst1",
+        "nonce": "nonce_1792116771082_inst1",
+        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1792116771082_inst1",
         "local_storage": "marker_val_1",
-        "storage_nonce": "nonce_1791131820557_inst1",
+        "storage_nonce": "nonce_1792116771082_inst1",
         "ext_data": {
           "type": "SEED_ACK",
           "alive": true,
           "instance_marker": "inst_1",
-          "seed_nonce": "nonce_1791131820557_inst1",
+          "seed_nonce": "nonce_1792116771082_inst1",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1519438560,
-          "sender_tab_id": 1519438560,
+          "tab_id": 1475247960,
+          "sender_tab_id": 1475247960,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791131845905,
+            "evaluated_at": 1792116809628,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791131820557_inst1&dl=1&dl_filename=dl_r4_1791131808809_nonce_1791131820557_inst1.txt",
+            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792116771082_inst1&dl=0",
             "title": "LCW R4 Fixture Tab 1",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791131820557_inst1&dl=1&dl_filename=dl_r4_1791131808809_nonce_1791131820557_inst1.txt"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792116771082_inst1&dl=0"
           }
         },
         "error": null,
-        "reported_at": 1791131845911
+        "reported_at": 1792116809648
       }
     },
     {
       "probe_index": 3,
-      "received_at": 1791131854.0926604,
+      "received_at": 1792116828.763852,
       "instance_id": "1",
       "mode": "seed",
-      "nonce": "neg_nonce_1791131852669",
+      "nonce": "neg_nonce_1792116827856",
       "data": {
         "instance_id": "1",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "seed",
-        "nonce": "neg_nonce_1791131852669",
-        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=neg_nonce_1791131852669",
+        "nonce": "neg_nonce_1792116827856",
+        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=neg_nonce_1792116827856",
         "local_storage": "marker_val_1",
-        "storage_nonce": "neg_nonce_1791131852669",
+        "storage_nonce": "neg_nonce_1792116827856",
         "ext_data": null,
         "script_result": null,
         "error": "chrome.runtime API not available in window context",
-        "reported_at": 1791131854084
+        "reported_at": 1792116828759
       }
     },
     {
       "probe_index": 4,
-      "received_at": 1791131933.8962317,
+      "received_at": 1792116918.4597554,
       "instance_id": "1",
       "mode": "seed",
-      "nonce": "nonce_1791131931979_b3_inst1",
+      "nonce": "nonce_1792116914696_b3_inst1",
       "data": {
         "instance_id": "1",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "seed",
-        "nonce": "nonce_1791131931979_b3_inst1",
-        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1791131931979_b3_inst1",
+        "nonce": "nonce_1792116914696_b3_inst1",
+        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1792116914696_b3_inst1",
         "local_storage": "marker_val_1",
-        "storage_nonce": "nonce_1791131931979_b3_inst1",
+        "storage_nonce": "nonce_1792116914696_b3_inst1",
         "ext_data": {
           "type": "SEED_ACK",
           "alive": true,
           "instance_marker": "inst_1",
-          "seed_nonce": "nonce_1791131931979_b3_inst1",
+          "seed_nonce": "nonce_1792116914696_b3_inst1",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1519438736,
-          "sender_tab_id": 1519438736,
+          "tab_id": 1475248134,
+          "sender_tab_id": 1475248134,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791131933892,
+            "evaluated_at": 1792116918414,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791131931979_b3_inst1",
+            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792116914696_b3_inst1",
             "title": "LCW R4 Fixture Tab 1",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791131931979_b3_inst1"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792116914696_b3_inst1"
           }
         },
         "error": null,
-        "reported_at": 1791131933893
+        "reported_at": 1792116918457
       }
     },
     {
       "probe_index": 5,
-      "received_at": 1791131938.5887747,
+      "received_at": 1792116928.3695965,
       "instance_id": "2",
       "mode": "seed",
-      "nonce": "nonce_1791131937208_b3_inst2",
+      "nonce": "nonce_1792116925330_b3_inst2",
       "data": {
         "instance_id": "2",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "seed",
-        "nonce": "nonce_1791131937208_b3_inst2",
-        "cookie": "sentinel_cookie_inst=2; sentinel_nonce=nonce_1791131937208_b3_inst2",
+        "nonce": "nonce_1792116925330_b3_inst2",
+        "cookie": "sentinel_cookie_inst=2; sentinel_nonce=nonce_1792116925330_b3_inst2",
         "local_storage": "marker_val_2",
-        "storage_nonce": "nonce_1791131937208_b3_inst2",
+        "storage_nonce": "nonce_1792116925330_b3_inst2",
         "ext_data": {
           "type": "SEED_ACK",
           "alive": true,
           "instance_marker": "inst_2",
-          "seed_nonce": "nonce_1791131937208_b3_inst2",
+          "seed_nonce": "nonce_1792116925330_b3_inst2",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 861305393,
-          "sender_tab_id": 861305393,
+          "tab_id": 698592467,
+          "sender_tab_id": 698592467,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791131938583,
+            "evaluated_at": 1792116928364,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791131937208_b3_inst2",
+            "search": "?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792116925330_b3_inst2",
             "title": "LCW R4 Fixture Tab 2",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791131937208_b3_inst2"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792116925330_b3_inst2"
           }
         },
         "error": null,
-        "reported_at": 1791131938584
+        "reported_at": 1792116928366
       }
     },
     {
       "probe_index": 6,
-      "received_at": 1791131943.7207215,
+      "received_at": 1792116939.250085,
       "instance_id": "3",
       "mode": "seed",
-      "nonce": "nonce_1791131942301_b3_inst3",
+      "nonce": "nonce_1792116933033_b3_inst3",
       "data": {
         "instance_id": "3",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "seed",
-        "nonce": "nonce_1791131942301_b3_inst3",
-        "cookie": "sentinel_cookie_inst=3; sentinel_nonce=nonce_1791131942301_b3_inst3",
+        "nonce": "nonce_1792116933033_b3_inst3",
+        "cookie": "sentinel_cookie_inst=3; sentinel_nonce=nonce_1792116933033_b3_inst3",
         "local_storage": "marker_val_3",
-        "storage_nonce": "nonce_1791131942301_b3_inst3",
+        "storage_nonce": "nonce_1792116933033_b3_inst3",
         "ext_data": {
           "type": "SEED_ACK",
           "alive": true,
           "instance_marker": "inst_3",
-          "seed_nonce": "nonce_1791131942301_b3_inst3",
+          "seed_nonce": "nonce_1792116933033_b3_inst3",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1176603130,
-          "sender_tab_id": 1176603130,
+          "tab_id": 1471761665,
+          "sender_tab_id": 1471761665,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791131943716,
+            "evaluated_at": 1792116939205,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791131942301_b3_inst3",
+            "search": "?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792116933033_b3_inst3",
             "title": "LCW R4 Fixture Tab 3",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791131942301_b3_inst3"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792116933033_b3_inst3"
           }
         },
         "error": null,
-        "reported_at": 1791131943717
+        "reported_at": 1792116939247
       }
     },
     {
       "probe_index": 7,
-      "received_at": 1791131949.546348,
+      "received_at": 1792116953.0005174,
       "instance_id": "1",
       "mode": "read",
-      "nonce": "nonce_1791131931979_b3_inst1",
+      "nonce": "nonce_1792116914696_b3_inst1",
       "data": {
         "instance_id": "1",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "read",
-        "nonce": "nonce_1791131931979_b3_inst1",
-        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1791131931979_b3_inst1",
+        "nonce": "nonce_1792116914696_b3_inst1",
+        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1792116914696_b3_inst1",
         "local_storage": "marker_val_1",
-        "storage_nonce": "nonce_1791131931979_b3_inst1",
+        "storage_nonce": "nonce_1792116914696_b3_inst1",
         "ext_data": {
           "type": "STORAGE_DATA",
           "alive": true,
           "data": {
             "install_reason": "install",
-            "installed_at": 1791131948997,
+            "installed_at": 1792116951689,
             "instance_marker": "inst_1",
             "ping_count": 0,
-            "seed_nonce": "nonce_1791131931979_b3_inst1",
-            "seeded_at": 1791131933791
+            "seed_nonce": "nonce_1792116914696_b3_inst1",
+            "seeded_at": 1792116918248
           },
           "instance_marker": "inst_1",
-          "seed_nonce": "nonce_1791131931979_b3_inst1",
+          "seed_nonce": "nonce_1792116914696_b3_inst1",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1519438798,
-          "sender_tab_id": 1519438798,
+          "tab_id": 1475248196,
+          "sender_tab_id": 1475248196,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791131949535,
+            "evaluated_at": 1792116952996,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791131931979_b3_inst1",
+            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792116914696_b3_inst1",
             "title": "LCW R4 Fixture Tab 1",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791131931979_b3_inst1"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792116914696_b3_inst1"
           }
         },
         "error": null,
-        "reported_at": 1791131949544
+        "reported_at": 1792116952997
       }
     },
     {
       "probe_index": 8,
-      "received_at": 1791131956.962091,
+      "received_at": 1792116960.3764038,
       "instance_id": "2",
       "mode": "read",
-      "nonce": "nonce_1791131937208_b3_inst2",
+      "nonce": "nonce_1792116925330_b3_inst2",
       "data": {
         "instance_id": "2",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "read",
-        "nonce": "nonce_1791131937208_b3_inst2",
-        "cookie": "sentinel_cookie_inst=2; sentinel_nonce=nonce_1791131937208_b3_inst2",
+        "nonce": "nonce_1792116925330_b3_inst2",
+        "cookie": "sentinel_cookie_inst=2; sentinel_nonce=nonce_1792116925330_b3_inst2",
         "local_storage": "marker_val_2",
-        "storage_nonce": "nonce_1791131937208_b3_inst2",
+        "storage_nonce": "nonce_1792116925330_b3_inst2",
         "ext_data": {
           "type": "STORAGE_DATA",
           "alive": true,
           "data": {
             "install_reason": "install",
-            "installed_at": 1791131956808,
+            "installed_at": 1792116959175,
             "instance_marker": "inst_2",
             "ping_count": 0,
-            "seed_nonce": "nonce_1791131937208_b3_inst2",
-            "seeded_at": 1791131938494
+            "seed_nonce": "nonce_1792116925330_b3_inst2",
+            "seeded_at": 1792116928342
           },
           "instance_marker": "inst_2",
-          "seed_nonce": "nonce_1791131937208_b3_inst2",
+          "seed_nonce": "nonce_1792116925330_b3_inst2",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 861305449,
-          "sender_tab_id": 861305449,
+          "tab_id": 698592523,
+          "sender_tab_id": 698592523,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791131956949,
+            "evaluated_at": 1792116960340,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791131937208_b3_inst2",
+            "search": "?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792116925330_b3_inst2",
             "title": "LCW R4 Fixture Tab 2",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791131937208_b3_inst2"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792116925330_b3_inst2"
           }
         },
         "error": null,
-        "reported_at": 1791131956959
+        "reported_at": 1792116960373
       }
     },
     {
       "probe_index": 9,
-      "received_at": 1791131961.7330632,
+      "received_at": 1792116967.3190715,
       "instance_id": "3",
       "mode": "read",
-      "nonce": "nonce_1791131942301_b3_inst3",
+      "nonce": "nonce_1792116933033_b3_inst3",
       "data": {
         "instance_id": "3",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "read",
-        "nonce": "nonce_1791131942301_b3_inst3",
-        "cookie": "sentinel_cookie_inst=3; sentinel_nonce=nonce_1791131942301_b3_inst3",
+        "nonce": "nonce_1792116933033_b3_inst3",
+        "cookie": "sentinel_cookie_inst=3; sentinel_nonce=nonce_1792116933033_b3_inst3",
         "local_storage": "marker_val_3",
-        "storage_nonce": "nonce_1791131942301_b3_inst3",
+        "storage_nonce": "nonce_1792116933033_b3_inst3",
         "ext_data": {
           "type": "STORAGE_DATA",
           "alive": true,
           "data": {
             "install_reason": "install",
-            "installed_at": 1791131961428,
+            "installed_at": 1792116966355,
             "instance_marker": "inst_3",
             "ping_count": 0,
-            "seed_nonce": "nonce_1791131942301_b3_inst3",
-            "seeded_at": 1791131943549
+            "seed_nonce": "nonce_1792116933033_b3_inst3",
+            "seeded_at": 1792116936955
           },
           "instance_marker": "inst_3",
-          "seed_nonce": "nonce_1791131942301_b3_inst3",
+          "seed_nonce": "nonce_1792116933033_b3_inst3",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1176603186,
-          "sender_tab_id": 1176603186,
+          "tab_id": 1471761721,
+          "sender_tab_id": 1471761721,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791131961731,
+            "evaluated_at": 1792116967315,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791131942301_b3_inst3",
+            "search": "?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792116933033_b3_inst3",
             "title": "LCW R4 Fixture Tab 3",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791131942301_b3_inst3"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792116933033_b3_inst3"
           }
         },
         "error": null,
-        "reported_at": 1791131961732
+        "reported_at": 1792116967316
       }
     },
     {
       "probe_index": 10,
-      "received_at": 1791132039.9714642,
+      "received_at": 1792117046.0085378,
       "instance_id": "1",
       "mode": "seed",
-      "nonce": "nonce_1791132038366_b5_inst1",
+      "nonce": "nonce_1792117044509_b5_inst1",
       "data": {
         "instance_id": "1",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "seed",
-        "nonce": "nonce_1791132038366_b5_inst1",
-        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1791132038366_b5_inst1",
+        "nonce": "nonce_1792117044509_b5_inst1",
+        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1792117044509_b5_inst1",
         "local_storage": "marker_val_1",
-        "storage_nonce": "nonce_1791132038366_b5_inst1",
+        "storage_nonce": "nonce_1792117044509_b5_inst1",
         "ext_data": {
           "type": "SEED_ACK",
           "alive": true,
           "instance_marker": "inst_1",
-          "seed_nonce": "nonce_1791132038366_b5_inst1",
+          "seed_nonce": "nonce_1792117044509_b5_inst1",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1519438928,
-          "sender_tab_id": 1519438928,
+          "tab_id": 1475248326,
+          "sender_tab_id": 1475248326,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791132039966,
+            "evaluated_at": 1792117046001,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791132038366_b5_inst1",
+            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792117044509_b5_inst1",
             "title": "LCW R4 Fixture Tab 1",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791132038366_b5_inst1"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792117044509_b5_inst1"
           }
         },
         "error": null,
-        "reported_at": 1791132039968
+        "reported_at": 1792117046006
       }
     },
     {
       "probe_index": 11,
-      "received_at": 1791132045.2913265,
+      "received_at": 1792117050.786899,
       "instance_id": "2",
       "mode": "seed",
-      "nonce": "nonce_1791132043867_b5_inst2",
+      "nonce": "nonce_1792117049468_b5_inst2",
       "data": {
         "instance_id": "2",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "seed",
-        "nonce": "nonce_1791132043867_b5_inst2",
-        "cookie": "sentinel_cookie_inst=2; sentinel_nonce=nonce_1791132043867_b5_inst2",
+        "nonce": "nonce_1792117049468_b5_inst2",
+        "cookie": "sentinel_cookie_inst=2; sentinel_nonce=nonce_1792117049468_b5_inst2",
         "local_storage": "marker_val_2",
-        "storage_nonce": "nonce_1791132043867_b5_inst2",
+        "storage_nonce": "nonce_1792117049468_b5_inst2",
         "ext_data": {
           "type": "SEED_ACK",
           "alive": true,
           "instance_marker": "inst_2",
-          "seed_nonce": "nonce_1791132043867_b5_inst2",
+          "seed_nonce": "nonce_1792117049468_b5_inst2",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 861305567,
-          "sender_tab_id": 861305567,
+          "tab_id": 698592641,
+          "sender_tab_id": 698592641,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791132045288,
+            "evaluated_at": 1792117050782,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791132043867_b5_inst2",
+            "search": "?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792117049468_b5_inst2",
             "title": "LCW R4 Fixture Tab 2",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791132043867_b5_inst2"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792117049468_b5_inst2"
           }
         },
         "error": null,
-        "reported_at": 1791132045289
+        "reported_at": 1792117050784
       }
     },
     {
       "probe_index": 12,
-      "received_at": 1791132050.3921015,
+      "received_at": 1792117056.7969701,
       "instance_id": "3",
       "mode": "seed",
-      "nonce": "nonce_1791132048876_b5_inst3",
+      "nonce": "nonce_1792117054820_b5_inst3",
       "data": {
         "instance_id": "3",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "seed",
-        "nonce": "nonce_1791132048876_b5_inst3",
-        "cookie": "sentinel_cookie_inst=3; sentinel_nonce=nonce_1791132048876_b5_inst3",
+        "nonce": "nonce_1792117054820_b5_inst3",
+        "cookie": "sentinel_cookie_inst=3; sentinel_nonce=nonce_1792117054820_b5_inst3",
         "local_storage": "marker_val_3",
-        "storage_nonce": "nonce_1791132048876_b5_inst3",
+        "storage_nonce": "nonce_1792117054820_b5_inst3",
         "ext_data": {
           "type": "SEED_ACK",
           "alive": true,
           "instance_marker": "inst_3",
-          "seed_nonce": "nonce_1791132048876_b5_inst3",
+          "seed_nonce": "nonce_1792117054820_b5_inst3",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1176603304,
-          "sender_tab_id": 1176603304,
+          "tab_id": 1471761839,
+          "sender_tab_id": 1471761839,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791132050388,
+            "evaluated_at": 1792117056793,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791132048876_b5_inst3",
+            "search": "?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792117054820_b5_inst3",
             "title": "LCW R4 Fixture Tab 3",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791132048876_b5_inst3"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792117054820_b5_inst3"
           }
         },
         "error": null,
-        "reported_at": 1791132050390
+        "reported_at": 1792117056794
       }
     },
     {
       "probe_index": 13,
-      "received_at": 1791132056.159858,
+      "received_at": 1792117061.5988696,
       "instance_id": "4",
       "mode": "seed",
-      "nonce": "nonce_1791132054430_b5_inst4",
+      "nonce": "nonce_1792117060331_b5_inst4",
       "data": {
         "instance_id": "4",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "seed",
-        "nonce": "nonce_1791132054430_b5_inst4",
-        "cookie": "sentinel_cookie_inst=4; sentinel_nonce=nonce_1791132054430_b5_inst4",
+        "nonce": "nonce_1792117060331_b5_inst4",
+        "cookie": "sentinel_cookie_inst=4; sentinel_nonce=nonce_1792117060331_b5_inst4",
         "local_storage": "marker_val_4",
-        "storage_nonce": "nonce_1791132054430_b5_inst4",
+        "storage_nonce": "nonce_1792117060331_b5_inst4",
         "ext_data": {
           "type": "SEED_ACK",
           "alive": true,
           "instance_marker": "inst_4",
-          "seed_nonce": "nonce_1791132054430_b5_inst4",
+          "seed_nonce": "nonce_1792117060331_b5_inst4",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1415908005,
-          "sender_tab_id": 1415908005,
+          "tab_id": 776601080,
+          "sender_tab_id": 776601080,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791132056156,
+            "evaluated_at": 1792117061596,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=4&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791132054430_b5_inst4",
+            "search": "?inst=4&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792117060331_b5_inst4",
             "title": "LCW R4 Fixture Tab 4",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=4&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791132054430_b5_inst4"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=4&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792117060331_b5_inst4"
           }
         },
         "error": null,
-        "reported_at": 1791132056157
+        "reported_at": 1792117061597
       }
     },
     {
       "probe_index": 14,
-      "received_at": 1791132062.6930737,
+      "received_at": 1792117066.3834727,
       "instance_id": "5",
       "mode": "seed",
-      "nonce": "nonce_1791132060049_b5_inst5",
+      "nonce": "nonce_1792117065267_b5_inst5",
       "data": {
         "instance_id": "5",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "seed",
-        "nonce": "nonce_1791132060049_b5_inst5",
-        "cookie": "sentinel_cookie_inst=5; sentinel_nonce=nonce_1791132060049_b5_inst5",
+        "nonce": "nonce_1792117065267_b5_inst5",
+        "cookie": "sentinel_cookie_inst=5; sentinel_nonce=nonce_1792117065267_b5_inst5",
         "local_storage": "marker_val_5",
-        "storage_nonce": "nonce_1791132060049_b5_inst5",
+        "storage_nonce": "nonce_1792117065267_b5_inst5",
         "ext_data": {
           "type": "SEED_ACK",
           "alive": true,
           "instance_marker": "inst_5",
-          "seed_nonce": "nonce_1791132060049_b5_inst5",
+          "seed_nonce": "nonce_1792117065267_b5_inst5",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 831865152,
-          "sender_tab_id": 831865152,
+          "tab_id": 1712353939,
+          "sender_tab_id": 1712353939,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791132062681,
+            "evaluated_at": 1792117066380,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=5&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791132060049_b5_inst5",
+            "search": "?inst=5&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792117065267_b5_inst5",
             "title": "LCW R4 Fixture Tab 5",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=5&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1791132060049_b5_inst5"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=5&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=seed&nonce=nonce_1792117065267_b5_inst5"
           }
         },
         "error": null,
-        "reported_at": 1791132062690
+        "reported_at": 1792117066381
       }
     },
     {
       "probe_index": 15,
-      "received_at": 1791132067.6648564,
+      "received_at": 1792117071.8797574,
       "instance_id": "1",
       "mode": "read",
-      "nonce": "nonce_1791132038366_b5_inst1",
+      "nonce": "nonce_1792117044509_b5_inst1",
       "data": {
         "instance_id": "1",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "read",
-        "nonce": "nonce_1791132038366_b5_inst1",
-        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1791132038366_b5_inst1",
+        "nonce": "nonce_1792117044509_b5_inst1",
+        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1792117044509_b5_inst1",
         "local_storage": "marker_val_1",
-        "storage_nonce": "nonce_1791132038366_b5_inst1",
+        "storage_nonce": "nonce_1792117044509_b5_inst1",
         "ext_data": {
           "type": "STORAGE_DATA",
           "alive": true,
           "data": {
             "install_reason": "install",
-            "installed_at": 1791132067448,
+            "installed_at": 1792117071524,
             "instance_marker": "inst_1",
             "ping_count": 0,
-            "seed_nonce": "nonce_1791132038366_b5_inst1",
-            "seeded_at": 1791132039693
+            "seed_nonce": "nonce_1792117044509_b5_inst1",
+            "seeded_at": 1792117045904
           },
           "instance_marker": "inst_1",
-          "seed_nonce": "nonce_1791132038366_b5_inst1",
+          "seed_nonce": "nonce_1792117044509_b5_inst1",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1519438996,
-          "sender_tab_id": 1519438996,
+          "tab_id": 1475248394,
+          "sender_tab_id": 1475248394,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791132067662,
+            "evaluated_at": 1792117071877,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132038366_b5_inst1",
+            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117044509_b5_inst1",
             "title": "LCW R4 Fixture Tab 1",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132038366_b5_inst1"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117044509_b5_inst1"
           }
         },
         "error": null,
-        "reported_at": 1791132067663
+        "reported_at": 1792117071878
       }
     },
     {
       "probe_index": 16,
-      "received_at": 1791132072.2891605,
+      "received_at": 1792117076.8911312,
       "instance_id": "2",
       "mode": "read",
-      "nonce": "nonce_1791132043867_b5_inst2",
+      "nonce": "nonce_1792117049468_b5_inst2",
       "data": {
         "instance_id": "2",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "read",
-        "nonce": "nonce_1791132043867_b5_inst2",
-        "cookie": "sentinel_cookie_inst=2; sentinel_nonce=nonce_1791132043867_b5_inst2",
+        "nonce": "nonce_1792117049468_b5_inst2",
+        "cookie": "sentinel_cookie_inst=2; sentinel_nonce=nonce_1792117049468_b5_inst2",
         "local_storage": "marker_val_2",
-        "storage_nonce": "nonce_1791132043867_b5_inst2",
+        "storage_nonce": "nonce_1792117049468_b5_inst2",
         "ext_data": {
           "type": "STORAGE_DATA",
           "alive": true,
           "data": {
             "install_reason": "install",
-            "installed_at": 1791132071907,
+            "installed_at": 1792117076557,
             "instance_marker": "inst_2",
             "ping_count": 0,
-            "seed_nonce": "nonce_1791132043867_b5_inst2",
-            "seeded_at": 1791132045158
+            "seed_nonce": "nonce_1792117049468_b5_inst2",
+            "seeded_at": 1792117050570
           },
           "instance_marker": "inst_2",
-          "seed_nonce": "nonce_1791132043867_b5_inst2",
+          "seed_nonce": "nonce_1792117049468_b5_inst2",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 861305629,
-          "sender_tab_id": 861305629,
+          "tab_id": 698592703,
+          "sender_tab_id": 698592703,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791132072284,
+            "evaluated_at": 1792117076888,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132043867_b5_inst2",
+            "search": "?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117049468_b5_inst2",
             "title": "LCW R4 Fixture Tab 2",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132043867_b5_inst2"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=2&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117049468_b5_inst2"
           }
         },
         "error": null,
-        "reported_at": 1791132072285
+        "reported_at": 1792117076889
       }
     },
     {
       "probe_index": 17,
-      "received_at": 1791132077.5786126,
+      "received_at": 1792117081.52522,
       "instance_id": "3",
       "mode": "read",
-      "nonce": "nonce_1791132048876_b5_inst3",
+      "nonce": "nonce_1792117054820_b5_inst3",
       "data": {
         "instance_id": "3",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "read",
-        "nonce": "nonce_1791132048876_b5_inst3",
-        "cookie": "sentinel_cookie_inst=3; sentinel_nonce=nonce_1791132048876_b5_inst3",
+        "nonce": "nonce_1792117054820_b5_inst3",
+        "cookie": "sentinel_cookie_inst=3; sentinel_nonce=nonce_1792117054820_b5_inst3",
         "local_storage": "marker_val_3",
-        "storage_nonce": "nonce_1791132048876_b5_inst3",
+        "storage_nonce": "nonce_1792117054820_b5_inst3",
         "ext_data": {
           "type": "STORAGE_DATA",
           "alive": true,
           "data": {
             "install_reason": "install",
-            "installed_at": 1791132077170,
+            "installed_at": 1792117081163,
             "instance_marker": "inst_3",
             "ping_count": 0,
-            "seed_nonce": "nonce_1791132048876_b5_inst3",
-            "seeded_at": 1791132050316
+            "seed_nonce": "nonce_1792117054820_b5_inst3",
+            "seeded_at": 1792117056722
           },
           "instance_marker": "inst_3",
-          "seed_nonce": "nonce_1791132048876_b5_inst3",
+          "seed_nonce": "nonce_1792117054820_b5_inst3",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1176603366,
-          "sender_tab_id": 1176603366,
+          "tab_id": 1471761901,
+          "sender_tab_id": 1471761901,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791132077567,
+            "evaluated_at": 1792117081520,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132048876_b5_inst3",
+            "search": "?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117054820_b5_inst3",
             "title": "LCW R4 Fixture Tab 3",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132048876_b5_inst3"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=3&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117054820_b5_inst3"
           }
         },
         "error": null,
-        "reported_at": 1791132077576
+        "reported_at": 1792117081522
       }
     },
     {
       "probe_index": 18,
-      "received_at": 1791132082.764677,
+      "received_at": 1792117085.9905412,
       "instance_id": "4",
       "mode": "read",
-      "nonce": "nonce_1791132054430_b5_inst4",
+      "nonce": "nonce_1792117060331_b5_inst4",
       "data": {
         "instance_id": "4",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "read",
-        "nonce": "nonce_1791132054430_b5_inst4",
-        "cookie": "sentinel_cookie_inst=4; sentinel_nonce=nonce_1791132054430_b5_inst4",
+        "nonce": "nonce_1792117060331_b5_inst4",
+        "cookie": "sentinel_cookie_inst=4; sentinel_nonce=nonce_1792117060331_b5_inst4",
         "local_storage": "marker_val_4",
-        "storage_nonce": "nonce_1791132054430_b5_inst4",
+        "storage_nonce": "nonce_1792117060331_b5_inst4",
         "ext_data": {
           "type": "STORAGE_DATA",
           "alive": true,
           "data": {
             "install_reason": "install",
-            "installed_at": 1791132082630,
+            "installed_at": 1792117085722,
             "instance_marker": "inst_4",
             "ping_count": 0,
-            "seed_nonce": "nonce_1791132054430_b5_inst4",
-            "seeded_at": 1791132056032
+            "seed_nonce": "nonce_1792117060331_b5_inst4",
+            "seeded_at": 1792117061535
           },
           "instance_marker": "inst_4",
-          "seed_nonce": "nonce_1791132054430_b5_inst4",
+          "seed_nonce": "nonce_1792117060331_b5_inst4",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1415908061,
-          "sender_tab_id": 1415908061,
+          "tab_id": 776601136,
+          "sender_tab_id": 776601136,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791132082762,
+            "evaluated_at": 1792117085986,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=4&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132054430_b5_inst4",
+            "search": "?inst=4&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117060331_b5_inst4",
             "title": "LCW R4 Fixture Tab 4",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=4&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132054430_b5_inst4"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=4&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117060331_b5_inst4"
           }
         },
         "error": null,
-        "reported_at": 1791132082762
+        "reported_at": 1792117085988
       }
     },
     {
       "probe_index": 19,
-      "received_at": 1791132087.2944026,
+      "received_at": 1792117091.4723496,
       "instance_id": "5",
       "mode": "read",
-      "nonce": "nonce_1791132060049_b5_inst5",
+      "nonce": "nonce_1792117065267_b5_inst5",
       "data": {
         "instance_id": "5",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "read",
-        "nonce": "nonce_1791132060049_b5_inst5",
-        "cookie": "sentinel_cookie_inst=5; sentinel_nonce=nonce_1791132060049_b5_inst5",
+        "nonce": "nonce_1792117065267_b5_inst5",
+        "cookie": "sentinel_cookie_inst=5; sentinel_nonce=nonce_1792117065267_b5_inst5",
         "local_storage": "marker_val_5",
-        "storage_nonce": "nonce_1791132060049_b5_inst5",
+        "storage_nonce": "nonce_1792117065267_b5_inst5",
         "ext_data": {
           "type": "STORAGE_DATA",
           "alive": true,
           "data": {
             "install_reason": "install",
-            "installed_at": 1791132087034,
+            "installed_at": 1792117090500,
             "instance_marker": "inst_5",
             "ping_count": 0,
-            "seed_nonce": "nonce_1791132060049_b5_inst5",
-            "seeded_at": 1791132062598
+            "seed_nonce": "nonce_1792117065267_b5_inst5",
+            "seeded_at": 1792117066315
           },
           "instance_marker": "inst_5",
-          "seed_nonce": "nonce_1791132060049_b5_inst5",
+          "seed_nonce": "nonce_1792117065267_b5_inst5",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 831865208,
-          "sender_tab_id": 831865208,
+          "tab_id": 1712353995,
+          "sender_tab_id": 1712353995,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791132087287,
+            "evaluated_at": 1792117091469,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=5&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132060049_b5_inst5",
+            "search": "?inst=5&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117065267_b5_inst5",
             "title": "LCW R4 Fixture Tab 5",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=5&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132060049_b5_inst5"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=5&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117065267_b5_inst5"
           }
         },
         "error": null,
-        "reported_at": 1791132087292
+        "reported_at": 1792117091470
       }
     },
     {
       "probe_index": 20,
-      "received_at": 1791132158.222254,
+      "received_at": 1792117146.2718568,
       "instance_id": "1",
       "mode": "read",
-      "nonce": "nonce_1791132038366_b5_inst1",
+      "nonce": "nonce_1792117044509_b5_inst1",
       "data": {
         "instance_id": "1",
         "ext_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
         "mode": "read",
-        "nonce": "nonce_1791132038366_b5_inst1",
-        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1791132038366_b5_inst1",
+        "nonce": "nonce_1792117044509_b5_inst1",
+        "cookie": "sentinel_cookie_inst=1; sentinel_nonce=nonce_1792117044509_b5_inst1",
         "local_storage": "marker_val_1",
-        "storage_nonce": "nonce_1791132038366_b5_inst1",
+        "storage_nonce": "nonce_1792117044509_b5_inst1",
         "ext_data": {
           "type": "STORAGE_DATA",
           "alive": true,
           "data": {
             "install_reason": "install",
-            "installed_at": 1791132157677,
+            "installed_at": 1792117146059,
             "instance_marker": "inst_1",
             "ping_count": 0,
-            "seed_nonce": "nonce_1791132038366_b5_inst1",
-            "seeded_at": 1791132039693
+            "seed_nonce": "nonce_1792117044509_b5_inst1",
+            "seeded_at": 1792117045904
           },
           "instance_marker": "inst_1",
-          "seed_nonce": "nonce_1791132038366_b5_inst1",
+          "seed_nonce": "nonce_1792117044509_b5_inst1",
           "sender_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
           "context_type": "SERVICE_WORKER"
         },
         "script_result": {
           "type": "SCRIPT_RESULT",
-          "tab_id": 1519439066,
-          "sender_tab_id": 1519439066,
+          "tab_id": 1475248464,
+          "sender_tab_id": 1475248464,
           "frame_id": 0,
           "result": {
-            "evaluated_at": 1791132158220,
+            "evaluated_at": 1792117146267,
             "origin": "http://127.0.0.1:9876",
             "pathname": "/fixture.html",
-            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132038366_b5_inst1",
+            "search": "?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117044509_b5_inst1",
             "title": "LCW R4 Fixture Tab 1",
-            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1791132038366_b5_inst1"
+            "url": "http://127.0.0.1:9876/fixture.html?inst=1&ext_id=mpmmjhlclnpalhaeilhkfkacdjkkhkli&mode=read&nonce=nonce_1792117044509_b5_inst1"
           }
         },
         "error": null,
-        "reported_at": 1791132158220
+        "reported_at": 1792117146270
       }
     }
   ],
   "lifecycle_events_count": 78,
   "lifecycle_events": [
     {
-      "timestamp": 1791131825.653944,
+      "timestamp": 1792116778.5661147,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 1,
-        "pid": 36780,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-        "create_time": 1791131821.818792,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 1776,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+        "create_time": 1792116772.1974344,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131846.4763086,
+      "timestamp": 1792116809.9216266,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 1,
-        "pid": 36780
+        "pid": 1776
       }
     },
     {
-      "timestamp": 1791131850.655443,
+      "timestamp": 1792116825.8463602,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 1,
-        "pid": 36780,
+        "pid": 1776,
+        "root_exit_mode": "forced_kill",
+        "exit_mode": "forced_kill",
+        "child_forced_kills": [
+          25228
+        ],
+        "survivors": [],
+        "clean_exit": true
+      }
+    },
+    {
+      "timestamp": 1792116831.005396,
+      "type": "OWNER_REGISTERED",
+      "details": {
+        "instance_id": 1,
+        "pid": 24736,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+        "create_time": 1792116827.881262,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
+      }
+    },
+    {
+      "timestamp": 1792116831.005396,
+      "type": "CLOSE_REQUESTED",
+      "details": {
+        "instance_id": 1,
+        "pid": 24736
+      }
+    },
+    {
+      "timestamp": 1792116832.6522663,
+      "type": "PROCESS_EXITED",
+      "details": {
+        "instance_id": 1,
+        "pid": 24736,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -958,84 +992,52 @@
       }
     },
     {
-      "timestamp": 1791131856.066744,
+      "timestamp": 1792116853.5452623,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 1,
-        "pid": 31072,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-        "create_time": 1791131852.712984,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 5368,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+        "create_time": 1792116834.68484,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131856.066744,
-      "type": "CLOSE_REQUESTED",
-      "details": {
-        "instance_id": 1,
-        "pid": 31072
-      }
-    },
-    {
-      "timestamp": 1791131857.8737378,
-      "type": "PROCESS_EXITED",
-      "details": {
-        "instance_id": 1,
-        "pid": 31072,
-        "root_exit_mode": "graceful_wm_close",
-        "exit_mode": "graceful_wm_close",
-        "child_forced_kills": [],
-        "survivors": [],
-        "clean_exit": true
-      }
-    },
-    {
-      "timestamp": 1791131880.6744564,
-      "type": "OWNER_REGISTERED",
-      "details": {
-        "instance_id": 1,
-        "pid": 35084,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-        "create_time": 1791131859.9049315,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
-      }
-    },
-    {
-      "timestamp": 1791131880.8330085,
+      "timestamp": 1792116853.9596908,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 2,
-        "pid": 24412,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-        "create_time": 1791131861.400535,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 18676,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+        "create_time": 1792116835.8926845,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131880.9221392,
+      "timestamp": 1792116854.3250198,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 3,
-        "pid": 31424,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-        "create_time": 1791131871.2178388,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 27000,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+        "create_time": 1792116838.1976016,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131898.2868042,
+      "timestamp": 1792116878.3375332,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 1,
-        "pid": 35084
+        "pid": 5368
       }
     },
     {
-      "timestamp": 1791131917.6178489,
+      "timestamp": 1792116897.7881432,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 1,
-        "pid": 35084,
+        "pid": 5368,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1044,19 +1046,19 @@
       }
     },
     {
-      "timestamp": 1791131917.6178489,
+      "timestamp": 1792116897.7881432,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 2,
-        "pid": 24412
+        "pid": 18676
       }
     },
     {
-      "timestamp": 1791131922.6635664,
+      "timestamp": 1792116910.0322442,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 2,
-        "pid": 24412,
+        "pid": 18676,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1065,19 +1067,19 @@
       }
     },
     {
-      "timestamp": 1791131922.6635664,
+      "timestamp": 1792116910.0322442,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 3,
-        "pid": 31424
+        "pid": 27000
       }
     },
     {
-      "timestamp": 1791131929.973813,
+      "timestamp": 1792116912.6956434,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 3,
-        "pid": 31424,
+        "pid": 27000,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1086,30 +1088,30 @@
       }
     },
     {
-      "timestamp": 1791131934.2432294,
+      "timestamp": 1792116917.0758824,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 1,
-        "pid": 14860,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-        "create_time": 1791131932.0217905,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 26076,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+        "create_time": 1792116914.774989,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131934.2432294,
+      "timestamp": 1792116918.616211,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 1,
-        "pid": 14860
+        "pid": 26076
       }
     },
     {
-      "timestamp": 1791131936.2066407,
+      "timestamp": 1792116924.3164794,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 1,
-        "pid": 14860,
+        "pid": 26076,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1118,30 +1120,30 @@
       }
     },
     {
-      "timestamp": 1791131939.4380128,
+      "timestamp": 1792116929.023742,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 2,
-        "pid": 6412,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-        "create_time": 1791131937.2373903,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 25988,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+        "create_time": 1792116925.4373116,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131939.4380128,
+      "timestamp": 1792116929.023742,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 2,
-        "pid": 6412
+        "pid": 25988
       }
     },
     {
-      "timestamp": 1791131941.300097,
+      "timestamp": 1792116932.0141509,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 2,
-        "pid": 6412,
+        "pid": 25988,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1150,30 +1152,30 @@
       }
     },
     {
-      "timestamp": 1791131944.6527662,
+      "timestamp": 1792116935.914345,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 3,
-        "pid": 36516,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-        "create_time": 1791131942.3274198,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 19024,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+        "create_time": 1792116933.2396097,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131944.6527662,
+      "timestamp": 1792116939.5003772,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 3,
-        "pid": 36516
+        "pid": 19024
       }
     },
     {
-      "timestamp": 1791131946.54132,
+      "timestamp": 1792116948.7153013,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 3,
-        "pid": 36516,
+        "pid": 19024,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1182,30 +1184,30 @@
       }
     },
     {
-      "timestamp": 1791131950.0089164,
+      "timestamp": 1792116952.5780213,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 1,
-        "pid": 33916,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-        "create_time": 1791131947.5724316,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 1940,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+        "create_time": 1792116949.8065927,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131950.0089164,
+      "timestamp": 1792116953.0831401,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 1,
-        "pid": 33916
+        "pid": 1940
       }
     },
     {
-      "timestamp": 1791131953.893931,
+      "timestamp": 1792116955.0865443,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 1,
-        "pid": 33916,
+        "pid": 1940,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1214,30 +1216,30 @@
       }
     },
     {
-      "timestamp": 1791131957.1898534,
+      "timestamp": 1792116958.5801084,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 2,
-        "pid": 14816,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-        "create_time": 1791131954.923816,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 1264,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+        "create_time": 1792116956.1954412,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131957.191847,
+      "timestamp": 1792116960.612294,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 2,
-        "pid": 14816
+        "pid": 1264
       }
     },
     {
-      "timestamp": 1791131959.1785624,
+      "timestamp": 1792116964.1546133,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 2,
-        "pid": 14816,
+        "pid": 1264,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1246,30 +1248,30 @@
       }
     },
     {
-      "timestamp": 1791131962.5065172,
+      "timestamp": 1792116967.361366,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 3,
-        "pid": 34236,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-        "create_time": 1791131960.2052293,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 24744,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+        "create_time": 1792116965.1736107,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131962.5065172,
+      "timestamp": 1792116967.362365,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 3,
-        "pid": 34236
+        "pid": 24744
       }
     },
     {
-      "timestamp": 1791131964.114879,
+      "timestamp": 1792116969.5524375,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 3,
-        "pid": 34236,
+        "pid": 24744,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1278,74 +1280,74 @@
       }
     },
     {
-      "timestamp": 1791131979.1529212,
+      "timestamp": 1792116986.5476742,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 1,
-        "pid": 35956,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-        "create_time": 1791131965.1609776,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 23844,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+        "create_time": 1792116970.600263,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131979.9099832,
+      "timestamp": 1792116988.1552007,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 2,
-        "pid": 22532,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-        "create_time": 1791131967.44194,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 4056,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+        "create_time": 1792116971.8971016,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131980.3048937,
+      "timestamp": 1792116988.4457614,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 3,
-        "pid": 34372,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-        "create_time": 1791131969.107706,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 16720,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+        "create_time": 1792116973.673344,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131981.4659972,
+      "timestamp": 1792116990.7804053,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 4,
-        "pid": 17964,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-4",
-        "create_time": 1791131970.9264724,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 13936,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-4",
+        "create_time": 1792116975.1782255,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791131981.6825423,
+      "timestamp": 1792116991.9916348,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 5,
-        "pid": 17824,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-5",
-        "create_time": 1791131972.2970624,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 24888,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-5",
+        "create_time": 1792116976.4472847,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791132007.614128,
+      "timestamp": 1792117013.8654053,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 1,
-        "pid": 35956
+        "pid": 23844
       }
     },
     {
-      "timestamp": 1791132022.7080064,
+      "timestamp": 1792117031.9523618,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 1,
-        "pid": 35956,
+        "pid": 23844,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1354,19 +1356,19 @@
       }
     },
     {
-      "timestamp": 1791132022.7080064,
+      "timestamp": 1792117031.9523618,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 2,
-        "pid": 22532
+        "pid": 4056
       }
     },
     {
-      "timestamp": 1791132028.679167,
+      "timestamp": 1792117034.9300196,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 2,
-        "pid": 22532,
+        "pid": 4056,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1375,19 +1377,19 @@
       }
     },
     {
-      "timestamp": 1791132028.679167,
+      "timestamp": 1792117034.9300196,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 3,
-        "pid": 34372
+        "pid": 16720
       }
     },
     {
-      "timestamp": 1791132030.2909932,
+      "timestamp": 1792117036.5982752,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 3,
-        "pid": 34372,
+        "pid": 16720,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1396,19 +1398,19 @@
       }
     },
     {
-      "timestamp": 1791132030.2909932,
+      "timestamp": 1792117036.5982752,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 4,
-        "pid": 17964
+        "pid": 13936
       }
     },
     {
-      "timestamp": 1791132032.8488986,
+      "timestamp": 1792117039.758072,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 4,
-        "pid": 17964,
+        "pid": 13936,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1417,19 +1419,19 @@
       }
     },
     {
-      "timestamp": 1791132032.8488986,
+      "timestamp": 1792117039.758072,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 5,
-        "pid": 17824
+        "pid": 24888
       }
     },
     {
-      "timestamp": 1791132036.3653677,
+      "timestamp": 1792117042.507922,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 5,
-        "pid": 17824,
+        "pid": 24888,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1438,30 +1440,30 @@
       }
     },
     {
-      "timestamp": 1791132040.6293092,
+      "timestamp": 1792117046.6749887,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 1,
-        "pid": 16796,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-        "create_time": 1791132038.3935072,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 25664,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+        "create_time": 1792117044.5303564,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791132040.6293092,
+      "timestamp": 1792117046.6749887,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 1,
-        "pid": 16796
+        "pid": 25664
       }
     },
     {
-      "timestamp": 1791132042.8657799,
+      "timestamp": 1792117048.4674008,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 1,
-        "pid": 16796,
+        "pid": 25664,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1470,30 +1472,30 @@
       }
     },
     {
-      "timestamp": 1791132046.0297856,
+      "timestamp": 1792117051.7799942,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 2,
-        "pid": 30344,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-        "create_time": 1791132043.885132,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 10672,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+        "create_time": 1792117049.4848692,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791132046.0297856,
+      "timestamp": 1792117051.7799942,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 2,
-        "pid": 30344
+        "pid": 10672
       }
     },
     {
-      "timestamp": 1791132047.874988,
+      "timestamp": 1792117053.8192112,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 2,
-        "pid": 30344,
+        "pid": 10672,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1502,30 +1504,30 @@
       }
     },
     {
-      "timestamp": 1791132051.1237428,
+      "timestamp": 1792117057.6970935,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 3,
-        "pid": 8332,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-        "create_time": 1791132048.8942344,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 4564,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+        "create_time": 1792117054.8360307,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791132051.1237428,
+      "timestamp": 1792117057.6970935,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 3,
-        "pid": 8332
+        "pid": 4564
       }
     },
     {
-      "timestamp": 1791132053.4290445,
+      "timestamp": 1792117059.32988,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 3,
-        "pid": 8332,
+        "pid": 4564,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1534,30 +1536,30 @@
       }
     },
     {
-      "timestamp": 1791132056.8897228,
+      "timestamp": 1792117062.545054,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 4,
-        "pid": 3764,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-4",
-        "create_time": 1791132054.448526,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 3788,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-4",
+        "create_time": 1792117060.347247,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791132056.8897228,
+      "timestamp": 1792117062.545054,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 4,
-        "pid": 3764
+        "pid": 3788
       }
     },
     {
-      "timestamp": 1791132059.00171,
+      "timestamp": 1792117064.2670803,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 4,
-        "pid": 3764,
+        "pid": 3788,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1566,30 +1568,30 @@
       }
     },
     {
-      "timestamp": 1791132063.3599195,
+      "timestamp": 1792117067.4570212,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 5,
-        "pid": 5876,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-5",
-        "create_time": 1791132060.2766051,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 27016,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-5",
+        "create_time": 1792117065.283914,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791132063.3599195,
+      "timestamp": 1792117067.4570212,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 5,
-        "pid": 5876
+        "pid": 27016
       }
     },
     {
-      "timestamp": 1791132065.240423,
+      "timestamp": 1792117069.515606,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 5,
-        "pid": 5876,
+        "pid": 27016,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1598,30 +1600,30 @@
       }
     },
     {
-      "timestamp": 1791132068.4065368,
+      "timestamp": 1792117072.7873142,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 1,
-        "pid": 20208,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-        "create_time": 1791132066.261456,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 11360,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+        "create_time": 1792117070.533494,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791132068.4065368,
+      "timestamp": 1792117072.7873142,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 1,
-        "pid": 20208
+        "pid": 11360
       }
     },
     {
-      "timestamp": 1791132069.8559551,
+      "timestamp": 1792117074.4016821,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 1,
-        "pid": 20208,
+        "pid": 11360,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1630,30 +1632,30 @@
       }
     },
     {
-      "timestamp": 1791132073.0423715,
+      "timestamp": 1792117077.5751112,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 2,
-        "pid": 28668,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-        "create_time": 1791132070.8737032,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 25508,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+        "create_time": 1792117075.427522,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791132073.0423715,
+      "timestamp": 1792117077.5751112,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 2,
-        "pid": 28668
+        "pid": 25508
       }
     },
     {
-      "timestamp": 1791132074.4733481,
+      "timestamp": 1792117079.1025617,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 2,
-        "pid": 28668,
+        "pid": 25508,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1662,30 +1664,30 @@
       }
     },
     {
-      "timestamp": 1791132078.2311575,
+      "timestamp": 1792117082.2444685,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 3,
-        "pid": 23456,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-        "create_time": 1791132075.4979494,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 25104,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+        "create_time": 1792117080.1214297,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791132078.2311575,
+      "timestamp": 1792117082.2444685,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 3,
-        "pid": 23456
+        "pid": 25104
       }
     },
     {
-      "timestamp": 1791132080.118965,
+      "timestamp": 1792117083.6531572,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 3,
-        "pid": 23456,
+        "pid": 25104,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1694,30 +1696,30 @@
       }
     },
     {
-      "timestamp": 1791132083.31063,
+      "timestamp": 1792117086.7959828,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 4,
-        "pid": 34768,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-4",
-        "create_time": 1791132081.135589,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 23432,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-4",
+        "create_time": 1792117084.6703403,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791132083.31063,
+      "timestamp": 1792117086.7959828,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 4,
-        "pid": 34768
+        "pid": 23432
       }
     },
     {
-      "timestamp": 1791132084.7575858,
+      "timestamp": 1792117088.508068,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 4,
-        "pid": 34768,
+        "pid": 23432,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1726,30 +1728,30 @@
       }
     },
     {
-      "timestamp": 1791132087.964796,
+      "timestamp": 1792117092.3333383,
       "type": "OWNER_REGISTERED",
       "details": {
         "instance_id": 5,
-        "pid": 28724,
-        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-5",
-        "create_time": 1791132085.776081,
-        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+        "pid": 15980,
+        "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-5",
+        "create_time": 1792117089.5253646,
+        "exe": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
       }
     },
     {
-      "timestamp": 1791132087.964796,
+      "timestamp": 1792117092.3333383,
       "type": "CLOSE_REQUESTED",
       "details": {
         "instance_id": 5,
-        "pid": 28724
+        "pid": 15980
       }
     },
     {
-      "timestamp": 1791132089.5049589,
+      "timestamp": 1792117093.874756,
       "type": "PROCESS_EXITED",
       "details": {
         "instance_id": 5,
-        "pid": 28724,
+        "pid": 15980,
         "root_exit_mode": "graceful_wm_close",
         "exit_mode": "graceful_wm_close",
         "child_forced_kills": [],
@@ -1762,185 +1764,185 @@
   "all_registered_owners": [
     {
       "instance_id": 1,
-      "pid": 36780,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-      "create_time": 1791131821.818792,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 1776,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+      "create_time": 1792116772.1974344,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 1,
-      "pid": 31072,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-      "create_time": 1791131852.712984,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 24736,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+      "create_time": 1792116827.881262,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 1,
-      "pid": 35084,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-      "create_time": 1791131859.9049315,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 5368,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+      "create_time": 1792116834.68484,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 2,
-      "pid": 24412,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-      "create_time": 1791131861.400535,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 18676,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+      "create_time": 1792116835.8926845,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 3,
-      "pid": 31424,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-      "create_time": 1791131871.2178388,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 27000,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+      "create_time": 1792116838.1976016,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 1,
-      "pid": 14860,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-      "create_time": 1791131932.0217905,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 26076,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+      "create_time": 1792116914.774989,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 2,
-      "pid": 6412,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-      "create_time": 1791131937.2373903,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 25988,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+      "create_time": 1792116925.4373116,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 3,
-      "pid": 36516,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-      "create_time": 1791131942.3274198,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 19024,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+      "create_time": 1792116933.2396097,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 1,
-      "pid": 33916,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-      "create_time": 1791131947.5724316,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 1940,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+      "create_time": 1792116949.8065927,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 2,
-      "pid": 14816,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-      "create_time": 1791131954.923816,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 1264,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+      "create_time": 1792116956.1954412,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 3,
-      "pid": 34236,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-      "create_time": 1791131960.2052293,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 24744,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+      "create_time": 1792116965.1736107,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 1,
-      "pid": 35956,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-      "create_time": 1791131965.1609776,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 23844,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+      "create_time": 1792116970.600263,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 2,
-      "pid": 22532,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-      "create_time": 1791131967.44194,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 4056,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+      "create_time": 1792116971.8971016,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 3,
-      "pid": 34372,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-      "create_time": 1791131969.107706,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 16720,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+      "create_time": 1792116973.673344,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 4,
-      "pid": 17964,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-4",
-      "create_time": 1791131970.9264724,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 13936,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-4",
+      "create_time": 1792116975.1782255,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 5,
-      "pid": 17824,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-5",
-      "create_time": 1791131972.2970624,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 24888,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-5",
+      "create_time": 1792116976.4472847,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 1,
-      "pid": 16796,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-      "create_time": 1791132038.3935072,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 25664,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+      "create_time": 1792117044.5303564,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 2,
-      "pid": 30344,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-      "create_time": 1791132043.885132,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 10672,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+      "create_time": 1792117049.4848692,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 3,
-      "pid": 8332,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-      "create_time": 1791132048.8942344,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 4564,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+      "create_time": 1792117054.8360307,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 4,
-      "pid": 3764,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-4",
-      "create_time": 1791132054.448526,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 3788,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-4",
+      "create_time": 1792117060.347247,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 5,
-      "pid": 5876,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-5",
-      "create_time": 1791132060.2766051,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 27016,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-5",
+      "create_time": 1792117065.283914,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 1,
-      "pid": 20208,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-1",
-      "create_time": 1791132066.261456,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 11360,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-1",
+      "create_time": 1792117070.533494,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 2,
-      "pid": 28668,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-2",
-      "create_time": 1791132070.8737032,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 25508,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-2",
+      "create_time": 1792117075.427522,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 3,
-      "pid": 23456,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-3",
-      "create_time": 1791132075.4979494,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 25104,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-3",
+      "create_time": 1792117080.1214297,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 4,
-      "pid": 34768,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-4",
-      "create_time": 1791132081.135589,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 23432,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-4",
+      "create_time": 1792117084.6703403,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     },
     {
       "instance_id": 5,
-      "pid": 28724,
-      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\data\\profiles\\instance-5",
-      "create_time": 1791132085.776081,
-      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1791131808809\\engine\\chrome.exe"
+      "pid": 15980,
+      "profile_dir": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\data\\profiles\\instance-5",
+      "create_time": 1792117089.5253646,
+      "executable": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_verify_r4_1792116757740\\engine\\chrome.exe"
     }
   ]
 }
