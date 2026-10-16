@@ -129,26 +129,30 @@ Per Microsoft documentation, redirection parameters (`--path cache`, `--path sha
 2. **Windows SDK Runtime & Shared CRT**: Side-by-side CRT assemblies and shared headers register directly to `C:\Program Files (x86)\Windows Kits\10`.
 3. **MSI Package Metadata & Package Cache Registrations**: Recorded in `C:\ProgramData\Package Cache` and Windows System Registry.
 
-**Updated C: Drive Consumption Estimates & Safety Threshold:**
+**Updated C: Drive Consumption Estimates & Managed Safety Guard:**
 - **Estimated Host C: Footprint**: **~5.0 to 8.0 GB** (Classified as an **unconfirmed pre-installation estimate**; claims of "SDK 100% on X:" or "C: max 6.5 GB guaranteed" are explicitly retracted).
-- **Projected C: Free Space Remaining**: ~17.31 to 20.31 GB (from current 25.31 GB).
-- **Hard Safety Abort Threshold**: If host C: drive free space drops below **15.00 GB** at any point prior to or during installation, the procedure must immediately halt and fail-closed.
+- **Projected C: Free Space Remaining**: ~16.47 to 19.47 GB (from current 24.47 GB).
+- **Concrete Safety Implementation (`build/install_toolchain_safely.ps1`)**:
+  - **Pre-flight Gate**: Verifies `(Get-Volume C).SizeRemaining / 1GB >= 15.0 GB` prior to launching installer. If under 15 GB, immediately aborts.
+  - **Active Live Polling**: During installation, polls host C: free space every 5 seconds.
+  - **Graceful Soft Cancellation**: If C: free space drops below 15.00 GB during installation, triggers soft installer shutdown/cancellation request (`CloseMainWindow()` and standard graceful signal) allowing the installer engine to perform a clean rollback without forceful process killing (`taskkill /f`), thereby preventing MSI database corruption.
 
 ---
 
 ## 6. Fixed Chromium Revision & Synchronization Order
 
-### 6.1 Fixed Target Revision Identity
+### 6.1 Fixed Target Revision Identity & Toolchain Reconciliation
 - **Repository**: `chromium/src`
 - **Target Commit Hash**: `73c14f6228d7cd537c855007e8f88678969cc0eb`
 - **Milestone / Branch**: Milestone M154 (Branch heads/8037, Tag `154.0.8037.57`)
-- **Toolchain Specification (from `build/vs_toolchain.py` at target commit)**:
-  - Supported Visual Studio: VS 2026 (18.0) and VS 2022 (17.0, `VC143`).
-  - Expected SDK Version: `SDK_VERSION = '10.0.28000.0'` (or compatible Windows 11 SDK `10.0.26100.3323`+ with Debugging Tools for Windows).
+- **SDK Version Reconciliation (`SDK_VERSION` 28000 vs. VS Component 26100)**:
+  - In `build/vs_toolchain.py` line 63, `SDK_VERSION = '10.0.28000.0'` is specified as the default for Google's internal hermetic toolchain packages (`TOOLCHAIN_HASH = '3bfcb536c8'`).
+  - For external Windows builds with `DEPOT_TOOLS_WIN_TOOLCHAIN=0`, Visual Studio 2022 provides `Microsoft.VisualStudio.Component.Windows11SDK.26100` (Windows 11 24H2 SDK `10.0.26100.x`).
+  - To eliminate SDK version ambiguity and ensure GN aligns perfectly with the locally installed SDK, `win_sdk_version = "10.0.26100.0"` is explicitly declared in `out\Default\args.gn`.
   - Required MSVC Workload: Native Desktop / VCTools (`Microsoft.VisualStudio.Workload.VCTools`), `Microsoft.VisualStudio.Component.VC.Tools.x86.x64`, `Microsoft.VisualStudio.Component.VC.ATLMFC`.
 
-### 6.2 Strict Synchronization & Build Sequence
-The synchronization process must follow this strict sequence without substituting `main` or arbitrary SDK versions:
+### 6.2 Strict Synchronization & Build Sequence (Avoiding Early Hooks on Main)
+The synchronization process must follow this strict sequence to ensure hooks run strictly against the fixed revision rather than `main`:
 
 1. **Environment Initialization**:
    ```cmd
@@ -159,12 +163,12 @@ The synchronization process must follow this strict sequence without substitutin
    set TEMP=X:\temp
    set TMP=X:\temp
    ```
-2. **Initial Fetch (`--no-history`)**:
+2. **Initial Fetch with `--no-hooks`**:
    ```cmd
    cd /d X:\chromium
-   fetch --no-history chromium
+   fetch --no-history --no-hooks chromium
    ```
-   *(Note: `--no-history` creates a shallow clone with depth=1 to minimize initial download bandwidth; it is technically distinct from git blobless `--filter=blob:none`).*
+   *(Note: `--no-hooks` ensures that DEPS hooks are NOT executed against the tip of tree/main before checking out the fixed revision).*
 3. **Checkout Fixed Revision**:
    ```cmd
    cd /d X:\chromium\src
@@ -174,18 +178,19 @@ The synchronization process must follow this strict sequence without substitutin
    ```cmd
    gclient sync --with_branch_heads --with_tags
    ```
-5. **Run Hooks (`gclient runhooks`)**:
+5. **Run Hooks on Fixed Revision**:
    ```cmd
    gclient runhooks
    ```
 6. **Configure GN Build Arguments via File (`args.gn`)**:
-   To avoid shell quoting errors and syntax misinterpretations, create `X:\chromium\src\out\Default\args.gn` directly with the following content:
+   Create `X:\chromium\src\out\Default\args.gn` directly:
    ```gn
    is_debug = false
    is_component_build = false
    symbol_level = 0
    blink_symbol_level = 0
    target_cpu = "x64"
+   win_sdk_version = "10.0.26100.0"
    enable_nacl = false
    proprietary_codecs = false
    ```
@@ -216,13 +221,15 @@ Used to re-attach an already formatted 250GB build volume in subsequent sessions
 # Elevated Administrator PowerShell
 powershell -NoProfile -ExecutionPolicy Bypass -File "E:\vivpr\ai\ebrowser\portable-minimal\build\setup_build_volume.ps1" -VhdPath "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" -DriveLetter X -AttachOnly -Execute
 ```
+- **Dynamic Partition Identification (No Hardcoded Partition 1):**
+  Uses `Find-VerifiedTargetPartition` to inspect all partitions on the verified disk and match the specific partition whose volume has `FileSystem == "NTFS"` and `FileSystemLabel == "CHROMIUM_BUILD"`. If Partition 1 is an MSR or EFI reserved partition, it dynamically identifies and targets the data partition.
 - **Assertions:**
   1. Assert backing file exists (`Test-Path`).
   2. Assert target drive letter `X:` is currently unmounted.
   3. DiskPart attach (`select vdisk file="..."; attach vdisk`).
   4. Structured identity check via `Test-AttachedExistingVirtualDiskIdentity`: BusType==15 (File Backed Virtual), IsSystem==False, IsBoot==False, PartitionStyle==2 (GPT), NumberOfPartitions>=1, UniqueId/Path non-empty, ImagePath match.
-  5. Assign drive letter `X:` to partition 1 if unassigned.
-  6. Assert target volume correspondence via `Test-TargetVolumeCorrespondence` (Partition on verified disk, FileSystem=="NTFS", FileSystemLabel=="CHROMIUM_BUILD").
+  5. Identify target partition via `Find-VerifiedTargetPartition` and map `X:` if unassigned.
+  6. Assert target volume correspondence via `Test-TargetVolumeCorrespondence`.
 
 ### 7.3 Mode C: Controlled Safe Detach (`-DetachOnly`)
 Used when suspending or concluding build activities.
@@ -245,9 +252,25 @@ Used when suspending or concluding build activities.
 
 ---
 
-## 8. Explicit User Approvals Required (Gate Inventory)
+## 8. Phased Execution Roadmap & Execution Gates
 
-Before any commands in this plan are executed, the following explicit Owner approvals must be formally recorded:
+Execution is structured into two sequential phases with independent logs and fail-safe boundaries:
+
+### Phase A: 250GB Dynamic VHDX Provisioning
+- **Execution Command (Elevated Administrator)**:
+  ```cmd
+  powershell -NoProfile -ExecutionPolicy Bypass -File "E:\vivpr\ai\ebrowser\portable-minimal\build\setup_build_volume.ps1" -VhdPath "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" -SizeMB 256000 -DriveLetter X -Execute
+  ```
+- **Live Transcript Target**: `tests/250gb_provision_transcript.txt`
+- **Rollback / Detach on Failure**: Automatic rollback detach verified by `Test-ObservedDetachState`. Backing files R1 (`build_test_1gb.vhdx`) and R2 (`build_test_1gb_r2.vhdx`) remain untouched and preserved.
+
+### Phase B: Toolchain Setup & Installation with C: Guard
+- **Execution Command (Elevated Administrator)**:
+  ```cmd
+  powershell -NoProfile -ExecutionPolicy Bypass -File "E:\vivpr\ai\ebrowser\portable-minimal\build\install_toolchain_safely.ps1" -InstallerPath "E:\vivpr\ai\ebrowser\downloads\vs_BuildTools.exe" -InstallPath "X:\toolchain\vs2022" -CachePath "X:\toolchain\vs_cache" -SharedPath "X:\toolchain\vs_shared" -MinFreeCGB 15.0 -Execute
+  ```
+- **Live Transcript Target**: `tests/toolchain_install_transcript.txt`
+- **Safety Assertion**: C: drive free space actively monitored every 5s; soft cancellation triggered if free space drops below 15.00 GB.
 
 1. **Gate Approval 1 (Disk Allocation):**
    - Permission to create `E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx` (Expandable VHDX, Max 250 GB) on host E: drive.

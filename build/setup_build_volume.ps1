@@ -126,7 +126,7 @@ if ($AttachOnly) {
         Write-Host "Planned Steps:"
         Write-Host "  Step 1: Attach existing VHDX via DiskPart (No format, No create)"
         Write-Host "  Step 2: Verify disk identity via Test-AttachedExistingVirtualDiskIdentity (BusType=15, PartitionStyle=GPT, Partitions>=1)"
-        Write-Host "  Step 3: Ensure partition 1 mapped to $DriveLetter`: (if unassigned)"
+        Write-Host "  Step 3: Dynamically locate NTFS / CHROMIUM_BUILD data partition via Find-VerifiedTargetPartition and ensure mapped to $DriveLetter`: (if unassigned)"
         Write-Host "  Step 4: Verify volume correspondence (NTFS, label='CHROMIUM_BUILD') via Test-TargetVolumeCorrespondence"
         exit 0
     }
