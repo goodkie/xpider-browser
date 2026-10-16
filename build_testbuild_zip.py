@@ -107,9 +107,16 @@ def collect_engine_files() -> list:
         raise RuntimeError("CRITICAL: engine directory does not exist!")
     collected = []
     for root, dirs, files in os.walk(engine_root):
-        dirs[:] = [d for d in dirs if not d.startswith(".")]
+        # Fail-closed guard: exclude data, profiles, cache, and test dirs
+        dirs[:] = [d for d in dirs if not d.startswith(".") and d.lower() not in {"data", "profiles", "cache", "user-data"} and not d.lower().startswith("test_")]
+        
+        rel_parts = [p.lower() for p in Path(root).relative_to(PROJECT_ROOT).parts]
+        if any(p in {"data", "profiles", "cache", "user-data"} or p.startswith("test_") for p in rel_parts):
+            raise RuntimeError(f"PROFILE/DATA LEAK VIOLATION: Attempted to package user data/cache in engine: {root}")
+
         for fname in files:
-            if fname.endswith(".zip") or fname.startswith("."):
+            lower = fname.lower()
+            if lower.endswith(".zip") or lower.startswith(".") or lower.endswith(".pma") or lower.endswith(".log") or lower.endswith(".tmp"):
                 continue
             collected.append((Path(root) / fname).relative_to(PROJECT_ROOT))
     return collected

@@ -212,13 +212,32 @@ func main() {
 			}
 			_ = clickRes
 		} else {
-			// Inspect DOM title / body
+			// Manipulate DOM on Panel B (Bing Maps Business Finder):
+			// 1. Select language dropdown (#langSelect) -> 'ko'
+			// 2. Dispatch 'change' event
+			// 3. Click CAPTCHA method option (.method-option[data-value="api"])
+			// 4. Inspect resulting DOM state
 			domRes, _ := cdpClient.CallSession(sessID, "Runtime.evaluate", map[string]interface{}{
 				"expression": `(() => {
+					const sel = document.getElementById('langSelect');
+					let oldLang = sel ? sel.value : null;
+					if (sel) {
+						sel.value = 'ko';
+						sel.dispatchEvent(new Event('change', { bubbles: true }));
+					}
+					const optApi = document.querySelector('.method-option[data-value="api"]');
+					if (optApi) {
+						optApi.click();
+					}
+					const methodInput = document.getElementById('captchaMethod');
 					return JSON.stringify({
 						title: document.title,
-						bodyLen: document.body ? document.body.innerText.length : 0,
-						readyState: document.readyState
+						old_lang: oldLang,
+						new_lang: sel ? sel.value : null,
+						captcha_method: methodInput ? methodInput.value : null,
+						nav_screen_present: !!document.getElementById('navScreen'),
+						body_len: document.body ? document.body.innerText.length : 0,
+						ready_state: document.readyState
 					});
 				})()`,
 				"returnByValue": true,
@@ -260,7 +279,7 @@ func main() {
 	ssB, diagB := interactAndScreenshot(targetB, "panel_B", false)
 	evidence.Screenshots["Panel_B"] = ssB
 	evidence.PanelB["dom_info"] = diagB
-	fmt.Printf("Panel B DOM Info: %s\n", diagB)
+	fmt.Printf("Panel B Functional Manipulation Result: %s\n", diagB)
 
 	// 6. Close Panel A1 Only
 	logStep(fmt.Sprintf("STEP 6: Close Panel A1 Only [Target ID: %s]", targetA1))
@@ -307,10 +326,69 @@ func main() {
 		return
 	}
 
+	// Re-operate Panel A2
+	logStep(fmt.Sprintf("STEP 7-A: Re-operate Panel A2 after A1 closed [Target ID: %s]", targetA2))
+	ssA2After, diagA2After := interactAndScreenshot(targetA2, "panel_A2_after_A1_close", true)
+	evidence.Screenshots["Panel_A2_After_A1_Close"] = ssA2After
+	fmt.Printf("Panel A2 Re-operation (Ping Count Increment): %s\n", diagA2After)
+
+	// Re-operate Panel B
+	logStep(fmt.Sprintf("STEP 7-B: Re-operate Panel B after A1 closed [Target ID: %s]", targetB))
+	attB, errB := cdpClient.Call("Target.attachToTarget", map[string]interface{}{
+		"targetId": targetB,
+		"flatten":  true,
+	})
+	var diagBAfter string
+	var ssBAfter string
+	if errB == nil {
+		sessB := attB["sessionId"].(string)
+		reopBRes, _ := cdpClient.CallSession(sessB, "Runtime.evaluate", map[string]interface{}{
+			"expression": `(() => {
+				const sel = document.getElementById('langSelect');
+				if (sel) {
+					sel.value = 'ja';
+					sel.dispatchEvent(new Event('change', { bubbles: true }));
+				}
+				const optAudio = document.querySelector('.method-option[data-value="audio"]');
+				if (optAudio) {
+					optAudio.click();
+				}
+				const methodInput = document.getElementById('captchaMethod');
+				return JSON.stringify({
+					title: document.title,
+					reoperated_lang: sel ? sel.value : null,
+					reoperated_captcha_method: methodInput ? methodInput.value : null,
+					alive: true
+				});
+			})()`,
+			"returnByValue": true,
+		})
+		if reopBRes != nil {
+			if rObj, ok := reopBRes["result"].(map[string]interface{}); ok {
+				diagBAfter, _ = rObj["value"].(string)
+			}
+		}
+		ssResB, _ := cdpClient.CallSession(sessB, "Page.captureScreenshot", map[string]interface{}{
+			"format": "png",
+		})
+		if ssResB != nil {
+			if dataStr, ok := ssResB["data"].(string); ok && dataStr != "" {
+				pngBytes, _ := base64.StdEncoding.DecodeString(dataStr)
+				ssBAfter = filepath.Join(appRoot, "tests", "screenshot_panel_B_after_A1_close.png")
+				_ = os.WriteFile(ssBAfter, pngBytes, 0644)
+				fmt.Printf("  -> Captured screenshot for Panel B after A1 close: %s (%d bytes)\n", ssBAfter, len(pngBytes))
+			}
+		}
+	}
+	evidence.Screenshots["Panel_B_After_A1_Close"] = ssBAfter
+	fmt.Printf("Panel B Re-operation Result: %s\n", diagBAfter)
+
 	evidence.SurvivalVerification = map[string]interface{}{
-		"a1_closed":   a1Dead,
-		"a2_survived": a2Alive,
-		"b_survived":  bAlive,
+		"a1_closed":           a1Dead,
+		"a2_survived":         a2Alive,
+		"b_survived":          bAlive,
+		"a2_reoperation_diag": diagA2After,
+		"b_reoperation_diag":  diagBAfter,
 	}
 
 	// 8. Multi-Instance Isolation Test: Launch Panel in Instance 2

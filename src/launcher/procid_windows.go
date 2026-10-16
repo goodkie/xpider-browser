@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -301,3 +302,63 @@ func verifyOwner(rec InstanceRecord) (ProcState, string) {
 	}
 	return ProcRunning, "creation time, image path and exact profile dir verified"
 }
+
+var (
+	modIphlpapi             = syscall.NewLazyDLL("iphlpapi.dll")
+	procGetExtendedTcpTable = modIphlpapi.NewProc("GetExtendedTcpTable")
+)
+
+const (
+	afInet              = 2
+	tcpTableOwnerPIDAll = 5
+)
+
+// getTCPListeningPID queries the OS TCP table via GetExtendedTcpTable to determine the PID of the process listening on 127.0.0.1:port or 0.0.0.0:port.
+func getTCPListeningPID(port int) (uint32, error) {
+	var size uint32
+	ret, _, _ := procGetExtendedTcpTable.Call(
+		0,
+		uintptr(unsafe.Pointer(&size)),
+		0,
+		uintptr(afInet),
+		uintptr(tcpTableOwnerPIDAll),
+		0,
+	)
+	if ret != 0 && size == 0 {
+		return 0, fmt.Errorf("GetExtendedTcpTable size query failed: %d", ret)
+	}
+
+	buf := make([]byte, size)
+	ret, _, _ = procGetExtendedTcpTable.Call(
+		uintptr(unsafe.Pointer(&buf[0])),
+		uintptr(unsafe.Pointer(&size)),
+		0,
+		uintptr(afInet),
+		uintptr(tcpTableOwnerPIDAll),
+		0,
+	)
+	if ret != 0 {
+		return 0, fmt.Errorf("GetExtendedTcpTable failed: %d", ret)
+	}
+
+	numEntries := binary.LittleEndian.Uint32(buf[0:4])
+	for i := uint32(0); i < numEntries; i++ {
+		offset := 4 + i*24
+		if int(offset+24) > len(buf) {
+			break
+		}
+		state := binary.LittleEndian.Uint32(buf[offset : offset+4])
+		// dwState == 2 is MIB_TCP_STATE_LISTEN
+		if state != 2 {
+			continue
+		}
+		// Port in dwLocalPort: first 2 bytes in network byte order (big endian)
+		rowPort := int(binary.BigEndian.Uint16(buf[offset+8 : offset+10]))
+		if rowPort == port {
+			pid := binary.LittleEndian.Uint32(buf[offset+20 : offset+24])
+			return pid, nil
+		}
+	}
+	return 0, fmt.Errorf("no process listening on TCP port %d", port)
+}
+

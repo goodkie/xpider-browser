@@ -1,0 +1,31 @@
+{
+  "timestamp": "2026-10-16T23:14:19Z",
+  "test_path": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\temp_\uc2e4\uae30\uae30 \ud55c\uae00 \uacf5\ubc31 \ud14c\uc2a4\ud2b8",
+  "verdict": "PASS",
+  "steps": [
+    "A1 launched: target=86901647BBB9AC79463DD46A1D2EF732, window=1128685802",
+    "A2 launched: target=E66F61047E3ED5162E857DCD877FFA81, window=1128685804",
+    "B launched: target=857B5F9244807CB0BF16E5EC458945F0, window=1128685806"
+  ],
+  "panel_a1": {
+    "target_id": "86901647BBB9AC79463DD46A1D2EF732",
+    "window_id": "1128685802",
+    "panel_id": "p_45159600_1_85208"
+  },
+  "panel_a2": {
+    "target_id": "E66F61047E3ED5162E857DCD877FFA81",
+    "window_id": "1128685804",
+    "panel_id": "p_7764000_1_35077"
+  },
+  "panel_b": {
+    "target_id": "857B5F9244807CB0BF16E5EC458945F0",
+    "window_id": "1128685806",
+    "panel_id": "p_6194700_1_30073"
+  },
+  "concurrent_count": 3,
+  "survival_verification": {
+    "a1_closed": true,
+    "a2_survived": true,
+    "b_survived": true
+  }
+}

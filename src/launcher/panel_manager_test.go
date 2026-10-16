@@ -3,7 +3,11 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"fmt"
+	"net"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -94,3 +98,67 @@ func TestURLPreservation(t *testing.T) {
 		t.Errorf("fragment lost: %s", finalURL)
 	}
 }
+
+func TestGetTCPListeningPID(t *testing.T) {
+	// 1. Open a temporary local TCP listener
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen failed: %v", err)
+	}
+	defer l.Close()
+
+	port := l.Addr().(*net.TCPAddr).Port
+
+	// 2. Query listener PID via GetExtendedTcpTable
+	pid, err := getTCPListeningPID(port)
+	if err != nil {
+		t.Fatalf("getTCPListeningPID(%d) failed: %v", port, err)
+	}
+	myPID := uint32(os.Getpid())
+	if pid != myPID {
+		t.Fatalf("Expected PID %d, got %d", myPID, pid)
+	}
+
+	// 3. Query unused port -> expect error
+	_, err = getTCPListeningPID(59999)
+	if err == nil {
+		t.Fatalf("Expected error for unused port 59999, got nil")
+	}
+}
+
+func TestVerifyInstanceOwnership_AlienProcessRejection(t *testing.T) {
+	// 1. Open a TCP listener owned by this test process
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen failed: %v", err)
+	}
+	defer l.Close()
+
+	port := l.Addr().(*net.TCPAddr).Port
+
+	// 2. Case A: Registry does not have this instance
+	tmpDir := t.TempDir()
+	regPath := filepath.Join(tmpDir, "instances.json")
+	if err := os.WriteFile(regPath, []byte(`{"instances":[]}`), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	err = verifyInstanceOwnership(1, port, regPath)
+	if err == nil || !strings.Contains(err.Error(), "refuse to hijack alien process") {
+		t.Fatalf("Expected 'refuse to hijack alien process' error, got: %v", err)
+	}
+
+	// 3. Case B: Registry has instance 1, but with an alien PID
+	fakeAlienPID := os.Getpid() + 99999
+	regContent := fmt.Sprintf(`{"instances":[{"instance_id":1,"pid":%d,"profile_dir":"%s"}]}`,
+		fakeAlienPID, strings.ReplaceAll(tmpDir, `\`, `\\`))
+	if err := os.WriteFile(regPath, []byte(regContent), 0644); err != nil {
+		t.Fatalf("WriteFile failed: %v", err)
+	}
+
+	err = verifyInstanceOwnership(1, port, regPath)
+	if err == nil || (!strings.Contains(err.Error(), "refuse to control alien process") && !strings.Contains(err.Error(), "refuse to control unverified process")) {
+		t.Fatalf("Expected alien/unverified process refusal error, got: %v", err)
+	}
+}
+

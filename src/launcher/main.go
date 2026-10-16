@@ -222,7 +222,7 @@ func main() {
 	}
 
 	if *closePanelFlag != "" {
-		err := CloseCompanionPanel(*instanceFlag, *closePanelFlag)
+		err := CloseCompanionPanel(appRoot, *instanceFlag, *closePanelFlag)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error closing panel %s: %v\n", *closePanelFlag, err)
 			os.Exit(1)

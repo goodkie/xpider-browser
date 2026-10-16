@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -108,20 +109,21 @@ func getInstanceCDPPort(instanceID int) int {
 
 // CDPClient is a lightweight, zero-dependency RFC 6455 WebSocket client for CDP commands.
 type CDPClient struct {
-	conn  net.Conn
-	msgID int
-	mu    sync.Mutex
+	conn   net.Conn
+	reader *bufio.Reader
+	msgID  int
+	mu     sync.Mutex
 }
 
 // ConnectCDP opens a WebSocket connection to the browser-level CDP endpoint.
 func ConnectCDP(wsURLStr string) (*CDPClient, error) {
 	u, err := url.Parse(wsURLStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid websocket url: %w", err)
+		return nil, fmt.Errorf("[handshake_url] invalid websocket url: %w", err)
 	}
 	conn, err := net.DialTimeout("tcp", u.Host, 4*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("dial websocket %s: %w", u.Host, err)
+		return nil, fmt.Errorf("[handshake_dial] dial websocket %s: %w", u.Host, err)
 	}
 
 	key := make([]byte, 16)
@@ -130,24 +132,43 @@ func ConnectCDP(wsURLStr string) (*CDPClient, error) {
 
 	req := fmt.Sprintf("GET %s HTTP/1.1\r\nHost: %s\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: %s\r\nSec-WebSocket-Version: 13\r\n\r\n",
 		u.RequestURI(), u.Host, secKey)
+
+	if err := conn.SetWriteDeadline(time.Now().Add(4 * time.Second)); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("[handshake_deadline] set write deadline: %w", err)
+	}
 	if _, err := conn.Write([]byte(req)); err != nil {
 		conn.Close()
-		return nil, fmt.Errorf("write websocket upgrade: %w", err)
+		return nil, fmt.Errorf("[handshake_write] write websocket upgrade request: %w", err)
 	}
 
-	buf := make([]byte, 2048)
-	n, err := conn.Read(buf)
+	if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("[handshake_deadline] set read deadline: %w", err)
+	}
+
+	br := bufio.NewReader(conn)
+	resp, err := http.ReadResponse(br, &http.Request{Method: "GET"})
 	if err != nil {
 		conn.Close()
-		return nil, fmt.Errorf("read websocket upgrade response: %w", err)
+		return nil, fmt.Errorf("[handshake_read_http] read websocket upgrade response: %w", err)
 	}
-	resp := string(buf[:n])
-	if !strings.Contains(resp, "101") {
+	if resp.StatusCode != http.StatusSwitchingProtocols {
 		conn.Close()
-		return nil, fmt.Errorf("websocket handshake failed: %s", resp)
+		return nil, fmt.Errorf("[handshake_status] server rejected upgrade with HTTP %d: %s", resp.StatusCode, resp.Status)
+	}
+	if !strings.EqualFold(resp.Header.Get("Upgrade"), "websocket") {
+		conn.Close()
+		return nil, fmt.Errorf("[handshake_headers] invalid or missing Upgrade header in response: %q", resp.Header.Get("Upgrade"))
 	}
 
-	return &CDPClient{conn: conn}, nil
+	// Reset general connection deadlines
+	_ = conn.SetDeadline(time.Time{})
+
+	return &CDPClient{
+		conn:   conn,
+		reader: br,
+	}, nil
 }
 
 // Close closes the underlying network connection.
@@ -188,35 +209,43 @@ func (c *CDPClient) Send(payload []byte) error {
 	}
 	frame = append(frame, masked...)
 
+	if err := c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return fmt.Errorf("[cdp_send_deadline] %w", err)
+	}
 	_, err := c.conn.Write(frame)
-	return err
+	if err != nil {
+		return fmt.Errorf("[cdp_send_write] %w", err)
+	}
+	return nil
 }
 
 // Read reads an unmasked RFC 6455 server-to-client frame.
 func (c *CDPClient) Read() ([]byte, error) {
-	c.conn.SetReadDeadline(time.Now().Add(6 * time.Second))
+	if err := c.conn.SetReadDeadline(time.Now().Add(6 * time.Second)); err != nil {
+		return nil, fmt.Errorf("[cdp_read_deadline] %w", err)
+	}
 	header := make([]byte, 2)
-	if _, err := io.ReadFull(c.conn, header); err != nil {
-		return nil, err
+	if _, err := io.ReadFull(c.reader, header); err != nil {
+		return nil, fmt.Errorf("[cdp_read_header] %w", err)
 	}
 	length := int(header[1] & 0x7f)
 	if length == 126 {
 		lenBytes := make([]byte, 2)
-		if _, err := io.ReadFull(c.conn, lenBytes); err != nil {
-			return nil, err
+		if _, err := io.ReadFull(c.reader, lenBytes); err != nil {
+			return nil, fmt.Errorf("[cdp_read_len16] %w", err)
 		}
 		length = int(binary.BigEndian.Uint16(lenBytes))
 	} else if length == 127 {
 		lenBytes := make([]byte, 8)
-		if _, err := io.ReadFull(c.conn, lenBytes); err != nil {
-			return nil, err
+		if _, err := io.ReadFull(c.reader, lenBytes); err != nil {
+			return nil, fmt.Errorf("[cdp_read_len64] %w", err)
 		}
 		length = int(binary.BigEndian.Uint64(lenBytes))
 	}
 
 	payload := make([]byte, length)
-	if _, err := io.ReadFull(c.conn, payload); err != nil {
-		return nil, err
+	if _, err := io.ReadFull(c.reader, payload); err != nil {
+		return nil, fmt.Errorf("[cdp_read_payload] %w", err)
 	}
 	return payload, nil
 }
@@ -341,14 +370,18 @@ func DiscoverInstalledExtensions(extsDir string, liveIDs map[string]string, prof
 	var enabledList []string
 	if profileDir != "" {
 		cfgFile := filepath.Join(profileDir, "extensions_config.json")
-		if data, err := os.ReadFile(cfgFile); err == nil {
+		data, err := os.ReadFile(cfgFile)
+		if err == nil {
 			var cfg InstanceExtensionConfig
-			if err := json.Unmarshal(data, &cfg); err == nil {
-				for _, d := range cfg.DisabledExtensions {
-					disabledMap[strings.ToLower(d)] = true
-				}
-				enabledList = cfg.EnabledExtensions
+			if err := json.Unmarshal(data, &cfg); err != nil {
+				return nil, fmt.Errorf("corrupted extensions_config.json in %s: %w", profileDir, err)
 			}
+			for _, d := range cfg.DisabledExtensions {
+				disabledMap[strings.ToLower(d)] = true
+			}
+			enabledList = cfg.EnabledExtensions
+		} else if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to read extensions_config.json in %s: %w", profileDir, err)
 		}
 	}
 
@@ -489,17 +522,17 @@ func ListActivePanels(port int) ([]PanelTarget, error) {
 
 // verifyInstanceOwnership verifies that the port corresponds to the registered instance process.
 func verifyInstanceOwnership(instanceID int, port int, registryFile string) error {
-	client := http.Client{Timeout: 1 * time.Second}
-	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/json/version", port))
+	// 1. Query the actual OS process listening on this TCP port via OS TCP table
+	listenerPID, err := getTCPListeningPID(port)
 	if err != nil {
-		// Port not responding: cold start is permitted
+		// Port is not listening: cold start is permitted
 		return nil
 	}
-	resp.Body.Close()
 
+	// 2. Read instance registry
 	reg, err := readRegistry(registryFile)
 	if err != nil {
-		return fmt.Errorf("port %d is responding, but instance registry is unreadable: %w", port, err)
+		return fmt.Errorf("port %d is in use by listener PID %d, but instance registry is unreadable: %w", port, listenerPID, err)
 	}
 
 	var found *InstanceRecord
@@ -511,12 +544,18 @@ func verifyInstanceOwnership(instanceID int, port int, registryFile string) erro
 		}
 	}
 	if found == nil {
-		return fmt.Errorf("port %d is in use, but instance #%d is not registered in instances.json; refuse to hijack alien process", port, instanceID)
+		return fmt.Errorf("port %d is in use by listener PID %d, but instance #%d is not registered in instances.json; refuse to hijack alien process", port, listenerPID, instanceID)
 	}
 
+	// 3. Rigorously verify owner process state (creation time, image path, profile dir)
 	state, why := verifyOwner(*found)
-	if state == ProcStopped {
-		return fmt.Errorf("port %d is in use, but registered PID %d for instance #%d is stopped (%s); refuse to control unverified process", port, found.PID, instanceID, why)
+	if state != ProcRunning {
+		return fmt.Errorf("port %d is in use by listener PID %d, but registered PID %d for instance #%d is not running (state: %s, why: %s); refuse to control unverified process", port, listenerPID, found.PID, instanceID, state, why)
+	}
+
+	// 4. Verify listener PID matches the verified browser process PID
+	if listenerPID != uint32(found.PID) {
+		return fmt.Errorf("port %d is listened by PID %d, which does not match verified instance PID %d; refuse to control alien process", port, listenerPID, found.PID)
 	}
 
 	return nil
@@ -559,7 +598,7 @@ func LaunchCompanionPanel(engineExe, appRoot string, instanceID int, extIndexOrN
 		}
 
 		ready := false
-		for attempt := 0; attempt < 50; attempt++ {
+		for attempt := 0; attempt < 100; attempt++ {
 			time.Sleep(200 * time.Millisecond)
 			if resp, chkErr := client.Get(fmt.Sprintf("http://127.0.0.1:%d/json/version", port)); chkErr == nil {
 				var verData struct {
@@ -575,7 +614,12 @@ func LaunchCompanionPanel(engineExe, appRoot string, instanceID int, extIndexOrN
 			}
 		}
 		if !ready {
-			return nil, fmt.Errorf("browser started but CDP port %d did not respond within 10s", port)
+			return nil, fmt.Errorf("browser started but CDP port %d did not respond within 20s", port)
+		}
+
+		// Verify cold-start connection target ownership
+		if err := verifyInstanceOwnership(instanceID, port, registryFile); err != nil {
+			return nil, fmt.Errorf("post-cold-start instance ownership check failed: %w", err)
 		}
 	}
 
@@ -660,16 +704,20 @@ func LaunchCompanionPanel(engineExe, appRoot string, instanceID int, extIndexOrN
 		return nil, fmt.Errorf("CDP Target.createTarget did not return targetId: %v", createRes)
 	}
 
-	// 8. Retrieve and verify actual OS window ID
-	var windowID int64
+	// 8. Retrieve and verify actual OS window ID (fail-closed)
 	winRes, err := cdpClient.Call("Browser.getWindowForTarget", map[string]interface{}{
 		"targetId": targetID,
 	})
-	if err == nil {
-		if wid, ok := winRes["windowId"].(float64); ok {
-			windowID = int64(wid)
-		}
+	if err != nil {
+		_ = closeTarget(port, targetID)
+		return nil, fmt.Errorf("failed to retrieve OS windowId via Browser.getWindowForTarget for target %s: %w", targetID, err)
 	}
+	wid, ok := winRes["windowId"].(float64)
+	if !ok || wid <= 0 {
+		_ = closeTarget(port, targetID)
+		return nil, fmt.Errorf("invalid or non-positive windowId (%v) returned for target %s", winRes["windowId"], targetID)
+	}
+	windowID := int64(wid)
 
 	// 9. Attach and verify DOM / extension environment (Fail-Closed)
 	attachRes, err := cdpClient.Call("Target.attachToTarget", map[string]interface{}{
@@ -782,25 +830,45 @@ func closeTarget(port int, targetID string) error {
 }
 
 // CloseCompanionPanel terminates a specific companion panel by target ID via CDP, failing closed on errors.
-func CloseCompanionPanel(instanceID int, targetID string) error {
+func CloseCompanionPanel(appRoot string, instanceID int, targetID string) error {
 	port := getInstanceCDPPort(instanceID)
-	client := http.Client{Timeout: 2 * time.Second}
-	resp, err := client.Get(fmt.Sprintf("http://127.0.0.1:%d/json/version", port))
-	if err != nil {
-		return fmt.Errorf("instance #%d CDP port %d unreachable: %w", instanceID, port, err)
-	}
-	resp.Body.Close()
+	dataDir := filepath.Join(appRoot, "data")
+	registryFile := filepath.Join(dataDir, "instances.json")
 
+	// 1. Rigorous instance ownership check before sending any command to port
+	if err := verifyInstanceOwnership(instanceID, port, registryFile); err != nil {
+		return fmt.Errorf("instance ownership verification failed: %w", err)
+	}
+
+	// 2. Query active companion panels and verify that targetID is actually owned by this instance
+	panels, err := ListActivePanels(port)
+	if err != nil {
+		return fmt.Errorf("failed to query active companion panels for instance #%d: %w", instanceID, err)
+	}
+	var targetPanel *PanelTarget
+	for _, p := range panels {
+		if p.ID == targetID {
+			pCopy := p
+			targetPanel = &pCopy
+			break
+		}
+	}
+	if targetPanel == nil {
+		return fmt.Errorf("target %s is not an active companion panel owned by instance #%d; refuse to close foreign or non-panel target", targetID, instanceID)
+	}
+
+	// 3. Close the validated target
 	if err := closeTarget(port, targetID); err != nil {
 		return fmt.Errorf("CDP /json/close failed: %w", err)
 	}
 
+	// 4. Verify panel is gone
 	time.Sleep(200 * time.Millisecond)
-	panels, err := ListActivePanels(port)
+	remaining, err := ListActivePanels(port)
 	if err != nil {
 		return fmt.Errorf("failed to verify panel closure: %w", err)
 	}
-	for _, p := range panels {
+	for _, p := range remaining {
 		if p.ID == targetID {
 			return fmt.Errorf("target %s did not close and remains active", targetID)
 		}
@@ -808,7 +876,9 @@ func CloseCompanionPanel(instanceID int, targetID string) error {
 
 	logger := getLogger()
 	logger.Log(LevelInfo, "PANEL_CLOSE_SUCCESS", fmt.Sprintf("Companion panel target %s closed successfully", targetID), instanceID, 0, "", "", nil, map[string]interface{}{
-		"target_id": targetID,
+		"target_id":    targetID,
+		"extension_id": targetPanel.ExtensionID,
+		"panel_id":     targetPanel.PanelID,
 	})
 	return nil
 }

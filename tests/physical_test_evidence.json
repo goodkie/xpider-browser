@@ -1,52 +1,58 @@
 {
-  "timestamp": "2026-10-16T22:28:21Z",
+  "timestamp": "2026-10-16T23:10:50Z",
   "verdict": "PASS",
   "panel_a1": {
-    "diag_output": "{\n  \"type\": \"PONG\",\n  \"alive\": true,\n  \"ping_count\": 1,\n  \"instance_marker\": \"unassigned\",\n  \"sender_id\": \"mpmmjhlclnpalhaeilhkfkacdjkkhkli\",\n  \"context_type\": \"SERVICE_WORKER\",\n  \"timestamp\": 1792189711951\n}",
-    "panel_id": "p_64375800_1_36405",
+    "diag_output": "{\n  \"type\": \"PONG\",\n  \"alive\": true,\n  \"ping_count\": 1,\n  \"instance_marker\": \"unassigned\",\n  \"sender_id\": \"mpmmjhlclnpalhaeilhkfkacdjkkhkli\",\n  \"context_type\": \"SERVICE_WORKER\",\n  \"timestamp\": 1792192261126\n}",
+    "panel_id": "p_30894900_1_2720",
     "status": "LAUNCHED",
-    "target_id": "B7F3D42A9293640F29C052DE067A6F67",
-    "window_id": "2046437939"
+    "target_id": "5CCBCC9DEC896362054050A6A4C1B08F",
+    "window_id": "2046438149"
   },
   "panel_a2": {
-    "diag_output": "{\n  \"type\": \"PONG\",\n  \"alive\": true,\n  \"ping_count\": 2,\n  \"instance_marker\": \"unassigned\",\n  \"sender_id\": \"mpmmjhlclnpalhaeilhkfkacdjkkhkli\",\n  \"context_type\": \"SERVICE_WORKER\",\n  \"timestamp\": 1792189712327\n}",
-    "panel_id": "p_3560000_1_19786",
+    "diag_output": "{\n  \"type\": \"PONG\",\n  \"alive\": true,\n  \"ping_count\": 2,\n  \"instance_marker\": \"unassigned\",\n  \"sender_id\": \"mpmmjhlclnpalhaeilhkfkacdjkkhkli\",\n  \"context_type\": \"SERVICE_WORKER\",\n  \"timestamp\": 1792192261510\n}",
+    "panel_id": "p_87439900_1_95633",
     "status": "LAUNCHED",
-    "target_id": "A0E9B9BB0617166E89360EF688D183A2",
-    "window_id": "2046437941"
+    "target_id": "02ED55FFB488A75799DC79ACDCA7FC21",
+    "window_id": "2046438151"
   },
   "panel_b": {
-    "dom_info": "{\"title\":\"Bing Maps Business Finder\",\"bodyLen\":492,\"readyState\":\"complete\"}",
-    "panel_id": "p_16934000_1_84087",
+    "dom_info": "{\"title\":\"Bing Maps Business Finder\",\"old_lang\":\"ja\",\"new_lang\":\"ko\",\"captcha_method\":\"api\",\"nav_screen_present\":true,\"body_len\":393,\"ready_state\":\"complete\"}",
+    "panel_id": "p_24475700_1_45825",
     "status": "LAUNCHED",
-    "target_id": "C918B0C02659DAE3B9324CAE65EAF391",
-    "window_id": "2046437943"
+    "target_id": "88D9068A0902EB9BFDEB033CE7662197",
+    "window_id": "2046438153"
   },
   "concurrent_count": 3,
   "survival_verification": {
     "a1_closed": true,
+    "a2_reoperation_diag": "{\n  \"type\": \"PONG\",\n  \"alive\": true,\n  \"ping_count\": 3,\n  \"instance_marker\": \"unassigned\",\n  \"sender_id\": \"mpmmjhlclnpalhaeilhkfkacdjkkhkli\",\n  \"context_type\": \"SERVICE_WORKER\",\n  \"timestamp\": 1792192264539\n}",
     "a2_survived": true,
+    "b_reoperation_diag": "{\"title\":\"Bing Maps Business Finder\",\"reoperated_lang\":\"ja\",\"reoperated_captcha_method\":\"audio\",\"alive\":true}",
     "b_survived": true
   },
   "instance2_isolation": {
     "cdp_port": 9223,
     "status": "VERIFIED_ISOLATED",
-    "target_id": "A2ACA01E4619A6531870D62C4D586856",
-    "window_id": "304681860"
+    "target_id": "EDE33AA061C61B08F193A2D0C7E069EF",
+    "window_id": "304681924"
   },
   "screenshots": {
     "Panel_A1": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\tests\\screenshot_panel_A1.png",
     "Panel_A2": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\tests\\screenshot_panel_A2.png",
-    "Panel_B": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\tests\\screenshot_panel_B.png"
+    "Panel_A2_After_A1_Close": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\tests\\screenshot_panel_A2_after_A1_close.png",
+    "Panel_B": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\tests\\screenshot_panel_B.png",
+    "Panel_B_After_A1_Close": "E:\\vivpr\\ai\\ebrowser\\portable-minimal\\tests\\screenshot_panel_B_after_A1_close.png"
   },
   "steps": [
-    "[22:28:22] STEP 1: Cold Start + Launch Extension A Panel 1 (Fixture SidePanel)",
-    "[22:28:26] STEP 2: Warm Start + Launch Extension A Panel 2 (Same extension duplicate panel)",
-    "[22:28:29] STEP 3: Warm Start + Launch Extension B Panel 1 (Bing Maps Business Finder)",
-    "[22:28:31] STEP 4: Query Active Panels Table via LiteChromiumPortable.exe --list-panels",
-    "[22:28:31] STEP 5: UI Interactivity \u0026 Screenshot Capture on Panels A1, A2, and B",
-    "[22:28:32] STEP 6: Close Panel A1 Only [Target ID: B7F3D42A9293640F29C052DE067A6F67]",
-    "[22:28:35] STEP 7: Verify Survival and State of Panel A2 and Panel B",
-    "[22:28:35] STEP 8: Multi-Instance Isolation Test (Launch Panel in Instance #2, CDP Port: 9223)"
+    "[23:10:51] STEP 1: Cold Start + Launch Extension A Panel 1 (Fixture SidePanel)",
+    "[23:10:55] STEP 2: Warm Start + Launch Extension A Panel 2 (Same extension duplicate panel)",
+    "[23:10:58] STEP 3: Warm Start + Launch Extension B Panel 1 (Bing Maps Business Finder)",
+    "[23:11:01] STEP 4: Query Active Panels Table via LiteChromiumPortable.exe --list-panels",
+    "[23:11:01] STEP 5: UI Interactivity \u0026 Screenshot Capture on Panels A1, A2, and B",
+    "[23:11:02] STEP 6: Close Panel A1 Only [Target ID: 5CCBCC9DEC896362054050A6A4C1B08F]",
+    "[23:11:04] STEP 7: Verify Survival and State of Panel A2 and Panel B",
+    "[23:11:04] STEP 7-A: Re-operate Panel A2 after A1 closed [Target ID: 02ED55FFB488A75799DC79ACDCA7FC21]",
+    "[23:11:04] STEP 7-B: Re-operate Panel B after A1 closed [Target ID: 88D9068A0902EB9BFDEB033CE7662197]",
+    "[23:11:05] STEP 8: Multi-Instance Isolation Test (Launch Panel in Instance #2, CDP Port: 9223)"
   ]
 }
