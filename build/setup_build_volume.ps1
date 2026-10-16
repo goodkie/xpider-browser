@@ -12,7 +12,8 @@ param(
     [int]$SizeMB = 250000,
     [switch]$Execute,
     [switch]$WhatIf,
-    [switch]$DetachOnly
+    [switch]$DetachOnly,
+    [switch]$AttachOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -102,6 +103,76 @@ if ($DetachOnly) {
         throw "ABORT: Drive letter '$DriveLetter`:' is still mounted after detach."
     }
     Write-Host "Detach operation verified SUCCESS: Backing image observed Attached=False, '$DriveLetter`:' unmounted."
+    exit 0
+}
+
+# --- ATTACH ONLY PATH (FOR PRE-EXISTING FORMATTED DISKS) ---
+if ($AttachOnly) {
+    Write-Host "`nAction: ATTACH ONLY requested for $canonicalVhdPath to drive $DriveLetter`:"
+    
+    if (-not (Test-Path -LiteralPath $canonicalVhdPath)) {
+        throw "ABORT: Backing file '$canonicalVhdPath' does not exist. Cannot attach non-existent file."
+    }
+
+    $existingDrive = Get-PSDrive -Name $DriveLetter -ErrorAction SilentlyContinue
+    if ($existingDrive) {
+        throw "ABORT: Target drive letter '$DriveLetter`:' is already in use by $($existingDrive.Description) ($($existingDrive.Root))."
+    }
+
+    if ($isDryRun -or (-not $isAdmin)) {
+        Write-Host "[DRY-RUN / HOLD] Attach-only execution plan verified. Zero modifications performed."
+        if (-not $Execute) { Write-Host "Reason: -Execute flag not provided." }
+        if (-not $isAdmin) { Write-Host "Reason: Administrative elevation not present." }
+        Write-Host "Planned Steps:"
+        Write-Host "  Step 1: Attach existing VHDX via DiskPart (No format, No create)"
+        Write-Host "  Step 2: Verify disk identity via Test-AttachedExistingVirtualDiskIdentity (BusType=15, PartitionStyle=GPT, Partitions>=1)"
+        Write-Host "  Step 3: Ensure partition 1 mapped to $DriveLetter`: (if unassigned)"
+        Write-Host "  Step 4: Verify volume correspondence (NTFS, label='CHROMIUM_BUILD') via Test-TargetVolumeCorrespondence"
+        exit 0
+    }
+
+    Write-Host "Checking if backing image is already attached..."
+    $img = Get-DiskImage -ImagePath $canonicalVhdPath -ErrorAction SilentlyContinue
+    if (-not $img -or -not $img.Attached) {
+        Write-Host "Attaching existing virtual disk via DiskPart..."
+        $attachScript = "select vdisk file=`"$canonicalVhdPath`"`nattach vdisk`n"
+        $attachOutput = $attachScript | diskpart
+        Write-Host ($attachOutput -join "`n")
+        if ($LASTEXITCODE -ne 0) {
+            throw "ABORT: DiskPart attach failed with exit code $LASTEXITCODE."
+        }
+        Start-Sleep -Seconds 1
+        $img = Get-DiskImage -ImagePath $canonicalVhdPath -ErrorAction Stop
+    }
+
+    # Structured verification using Test-AttachedExistingVirtualDiskIdentity
+    Write-Host "Verifying attached disk identity (BusType=15, GPT, Partitions>=1)..."
+    $allDisks = Get-CimInstance -ClassName MSFT_Disk -Namespace Root/Microsoft/Windows/Storage
+    $verifiedDisk = Test-AttachedExistingVirtualDiskIdentity -DiskImage $img -AllDisks $allDisks -ExpectedImagePath $canonicalVhdPath
+    $verifiedDiskNumber = [int]$verifiedDisk.Number
+    Write-Host "Disk Verification SUCCESS: Disk $verifiedDiskNumber verified as existing GPT virtual disk."
+
+    # Check and assign drive letter if needed
+    $part = Get-Partition -DiskNumber $verifiedDiskNumber -PartitionNumber 1 -ErrorAction SilentlyContinue
+    if (-not $part) {
+        throw "ABORT: Partition 1 not found on verified Disk $verifiedDiskNumber."
+    }
+
+    if ($part.DriveLetter -ne $DriveLetter[0]) {
+        Write-Host "Assigning drive letter $DriveLetter`: to Disk $verifiedDiskNumber Partition 1..."
+        $assignScript = "select disk $verifiedDiskNumber`nselect partition 1`nassign letter=$DriveLetter`n"
+        $assignOutput = $assignScript | diskpart
+        Write-Host ($assignOutput -join "`n")
+        if ($LASTEXITCODE -ne 0) {
+            throw "ABORT: DiskPart assign letter failed with exit code $LASTEXITCODE."
+        }
+        Start-Sleep -Seconds 1
+    }
+
+    # Verify Target Volume Correspondence
+    Test-TargetVolumeCorrespondence -TargetLetter $DriveLetter -VerifiedDiskNumber $verifiedDiskNumber | Out-Null
+    Write-Host "Volume Correspondence PASS: $DriveLetter`: strictly corresponds to verified Disk $verifiedDiskNumber (NTFS / CHROMIUM_BUILD)."
+    Write-Host "Attach-only operation verified SUCCESS: Backing image attached and mapped to $DriveLetter`: without reformatting."
     exit 0
 }
 
