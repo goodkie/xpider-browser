@@ -49,7 +49,35 @@ func main() {
 	statusFlag := flag.Bool("status", false, "Display status of all active browser instances")
 	cleanFlag := flag.Bool("clean-profiles", false, "Clean all instance profiles (permanently disabled)")
 	urlFlag := flag.String("url", "", "Optional initial URL to navigate to")
+	diagFlag := flag.Bool("export-diagnostics", false, "Generate an audited diagnostic ZIP package and exit")
+	logLevelFlag := flag.String("log-level", "INFO", "Logging level: INFO, DEBUG, TRACE")
 	flag.Parse()
+
+	appRoot, err := getAppRoot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error resolving app root: %v\n", err)
+		os.Exit(1)
+	}
+
+	dataDir := filepath.Join(appRoot, "data")
+	logsDir := filepath.Join(dataDir, "logs")
+	_ = os.MkdirAll(dataDir, 0755)
+
+	logger := initLogger(logsDir, fmt.Sprintf("sess_%d", time.Now().UnixNano()), LogLevel(strings.ToUpper(*logLevelFlag)))
+	logger.Log(LevelInfo, "LAUNCHER_INIT", "LiteChromiumPortable launcher initialized", 0, os.Getpid(), "", "", os.Args, nil)
+
+	if *diagFlag {
+		fmt.Printf("[LiteChromiumPortable] Exporting diagnostics bundle...\n")
+		zipPath, err := ExportDiagnostics(appRoot)
+		if err != nil {
+			logger.Log(LevelError, "DIAGNOSTICS_EXPORT_FAILED", err.Error(), 0, os.Getpid(), "", "", nil, nil)
+			fmt.Fprintf(os.Stderr, "Error exporting diagnostics: %v\n", err)
+			os.Exit(1)
+		}
+		logger.Log(LevelInfo, "DIAGNOSTICS_EXPORT_SUCCESS", fmt.Sprintf("Exported diagnostics to %s", zipPath), 0, os.Getpid(), "", "", nil, nil)
+		fmt.Printf("[LiteChromiumPortable] Diagnostics exported successfully: %s\n", zipPath)
+		return
+	}
 
 	// Parameter validation (R2)
 	if *instanceFlag < 1 || *instanceFlag > 100 {
@@ -66,7 +94,6 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Security Error: --url parameter must not begin with '-' or '--' (flag injection prevented)\n")
 			os.Exit(1)
 		}
-		// Basic URL validation
 		if !strings.HasPrefix(trimmed, "about:") && !strings.HasPrefix(trimmed, "chrome://") && !strings.HasPrefix(trimmed, "file://") {
 			if _, err := url.ParseRequestURI(trimmed); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: --url does not appear to be a standard URI: %s\n", trimmed)
@@ -74,19 +101,10 @@ func main() {
 		}
 	}
 
-	appRoot, err := getAppRoot()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error resolving app root: %v\n", err)
-		os.Exit(1)
-	}
-
-	dataDir := filepath.Join(appRoot, "data")
 	profilesBase := filepath.Join(dataDir, "profiles")
 	registryFile := filepath.Join(dataDir, "instances.json")
 	lockFile := filepath.Join(dataDir, "instances.lock")
 	extensionsDir := filepath.Join(appRoot, "extensions")
-
-	_ = os.MkdirAll(dataDir, 0755)
 
 	if *statusFlag {
 		unknown, err := printStatus(os.Stdout, registryFile, lockFile)
@@ -852,7 +870,14 @@ func startEngine(engineExe string, args []string) (*exec.Cmd, error) {
 //   - engine exits during startup: no record is written (owner unknown);
 //   - registry write failure after start: the process this launcher just created is terminated and the error returned.
 func launchInstance(engineExe, profileDir string, instanceID int, extensions []string, initialURL, registryFile, lockFile string) error {
+	logger := getLogger()
+	logger.Log(LevelInfo, "INSTANCE_LAUNCH_REQUEST", fmt.Sprintf("Preparing launch for Instance #%d", instanceID), instanceID, 0, profileDir, "", nil, map[string]interface{}{
+		"extensions_count": len(extensions),
+		"initial_url":      initialURL,
+	})
+
 	if err := os.MkdirAll(profileDir, 0755); err != nil {
+		logger.Log(LevelError, "PROFILE_DIR_ERROR", err.Error(), instanceID, 0, profileDir, "", nil, nil)
 		return fmt.Errorf("could not create profile dir: %w", err)
 	}
 	args := buildEngineArgs(profileDir, extensions, initialURL)
@@ -860,6 +885,7 @@ func launchInstance(engineExe, profileDir string, instanceID int, extensions []s
 	return withFileLock(lockFile, func() error {
 		reg, err := readRegistry(registryFile)
 		if err != nil {
+			logger.Log(LevelError, "REGISTRY_READ_ERROR", err.Error(), instanceID, 0, profileDir, "", args, nil)
 			return fmt.Errorf("instance registry is unreadable; refusing to launch instance %d (state unknown): %w", instanceID, err)
 		}
 		for _, inst := range reg.Instances {
@@ -869,27 +895,34 @@ func launchInstance(engineExe, profileDir string, instanceID int, extensions []s
 			state, why := verifyOwner(inst)
 			switch state {
 			case ProcRunning:
+				logger.Log(LevelInfo, "INSTANCE_HANDOFF", fmt.Sprintf("Instance #%d running on PID %d; forwarding request to owner", instanceID, inst.PID), instanceID, inst.PID, profileDir, "", args, nil)
 				return handoffToOwner(engineExe, args, inst)
 			case ProcUnknown:
-				return fmt.Errorf("instance %d owner state UNKNOWN (pid %d): %s; refusing to launch a second owner", instanceID, inst.PID, why)
+				err := fmt.Errorf("instance %d owner state UNKNOWN (pid %d): %s; refusing to launch a second owner", instanceID, inst.PID, why)
+				logger.Log(LevelError, "INSTANCE_STATE_UNKNOWN", err.Error(), instanceID, inst.PID, profileDir, "", args, nil)
+				return err
 			}
 		}
 
 		cmd, err := startEngine(engineExe, args)
 		if err != nil {
+			logger.Log(LevelError, "ENGINE_START_ERROR", err.Error(), instanceID, 0, profileDir, "", args, nil)
 			return err
 		}
 		exited := make(chan error, 1)
 		go func() { exited <- cmd.Wait() }()
 		select {
-		case werr := <-exited:
-			return fmt.Errorf("engine exited %s after start (result: %v); instance %d has no verified owner and was not registered", startupGrace, werr, instanceID)
+			case werr := <-exited:
+			err := fmt.Errorf("engine exited %s after start (result: %v); instance %d has no verified owner and was not registered", startupGrace, werr, instanceID)
+			logger.Log(LevelError, "ENGINE_EARLY_EXIT", err.Error(), instanceID, cmd.Process.Pid, profileDir, "", args, nil)
+			return err
 		case <-time.After(startupGrace):
 		}
 
 		ct, img, err := verifyLaunchedProcess(cmd.Process.Pid, engineExe, profileDir)
 		if err != nil {
 			_ = cmd.Process.Kill()
+			logger.Log(LevelError, "PROCESS_VERIFICATION_FAILED", err.Error(), instanceID, cmd.Process.Pid, profileDir, "", args, nil)
 			return fmt.Errorf("could not verify identity/profile of the launched process (terminated it): %w", err)
 		}
 
@@ -905,8 +938,13 @@ func launchInstance(engineExe, profileDir string, instanceID int, extensions []s
 		}
 		if err := mergeRecord(registryFile, reg, rec); err != nil {
 			killErr := cmd.Process.Kill()
+			logger.Log(LevelError, "REGISTRY_MERGE_ERROR", err.Error(), instanceID, rec.PID, profileDir, "", args, nil)
 			return fmt.Errorf("failed to record instance %d (launched pid %d terminated, kill result: %v): %w", instanceID, rec.PID, killErr, err)
 		}
+		logger.Log(LevelInfo, "INSTANCE_LAUNCH_SUCCESS", fmt.Sprintf("Instance #%d verified running on PID %d", instanceID, rec.PID), instanceID, rec.PID, profileDir, "", args, map[string]interface{}{
+			"creation_time": ct,
+			"executable":    img,
+		})
 		fmt.Printf("[LiteChromiumPortable] Launched Instance #%d [PID: %d] Profile: %s\n", instanceID, rec.PID, profileDir)
 		return nil
 	})
