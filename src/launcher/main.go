@@ -43,7 +43,7 @@ type InstanceExtensionConfig struct {
 	DisabledExtensions []string `json:"disabled_extensions,omitempty"`
 }
 
-const LauncherVersion = "v0.2.3-beta"
+const LauncherVersion = "v0.2.4-hotfix"
 
 func main() {
 	instanceFlag := flag.Int("instance", 1, "Instance number to launch (1-100)")
@@ -897,9 +897,6 @@ func buildEngineArgs(profileDir string, extensions []string, initialURL, appURL 
 	}
 	if len(extensions) > 0 {
 		args = append(args, "--load-extension="+strings.Join(extensions, ","))
-		args = append(args, "--disable-extensions-except="+strings.Join(extensions, ","))
-	} else {
-		args = append(args, "--disable-extensions")
 	}
 	if appURL != "" {
 		args = append(args, "--app="+appURL)
@@ -912,7 +909,18 @@ func buildEngineArgs(profileDir string, extensions []string, initialURL, appURL 
 func startEngine(engineExe string, args []string) (*exec.Cmd, error) {
 	cmd := exec.Command(engineExe, args...)
 	if runtime.GOOS == "windows" {
-		cmd.SysProcAttr = &syscall.SysProcAttr{CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP}
+		// Attempt breakaway from parent job object so browser survives launcher exit
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP | 0x01000000, // CREATE_BREAKAWAY_FROM_JOB
+		}
+		if err := cmd.Start(); err == nil {
+			return cmd, nil
+		}
+		// Fallback without CREATE_BREAKAWAY_FROM_JOB if parent job forbids breakaway
+		cmd = exec.Command(engineExe, args...)
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+		}
 	}
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("starting process failed: %w", err)
@@ -962,17 +970,24 @@ func launchInstanceWithApp(engineExe, profileDir string, instanceID int, extensi
 			}
 		}
 
-		cmd, err := startEngine(engineExe, args)
+		coldStartApp := appURL != "" && strings.HasPrefix(strings.ToLower(appURL), "chrome-extension://")
+		launchArgs := args
+		if coldStartApp {
+			// On cold startup, launch engine with about:blank first so extension network service mounts cleanly.
+			launchArgs = buildEngineArgs(profileDir, extensions, "about:blank", "")
+		}
+
+		cmd, err := startEngine(engineExe, launchArgs)
 		if err != nil {
-			logger.Log(LevelError, "ENGINE_START_ERROR", err.Error(), instanceID, 0, profileDir, "", args, nil)
+			logger.Log(LevelError, "ENGINE_START_ERROR", err.Error(), instanceID, 0, profileDir, "", launchArgs, nil)
 			return err
 		}
 		exited := make(chan error, 1)
 		go func() { exited <- cmd.Wait() }()
 		select {
-			case werr := <-exited:
+		case werr := <-exited:
 			err := fmt.Errorf("engine exited %s after start (result: %v); instance %d has no verified owner and was not registered", startupGrace, werr, instanceID)
-			logger.Log(LevelError, "ENGINE_EARLY_EXIT", err.Error(), instanceID, cmd.Process.Pid, profileDir, "", args, nil)
+			logger.Log(LevelError, "ENGINE_EARLY_EXIT", err.Error(), instanceID, cmd.Process.Pid, profileDir, "", launchArgs, nil)
 			return err
 		case <-time.After(startupGrace):
 		}
@@ -980,7 +995,7 @@ func launchInstanceWithApp(engineExe, profileDir string, instanceID int, extensi
 		ct, img, err := verifyLaunchedProcess(cmd.Process.Pid, engineExe, profileDir)
 		if err != nil {
 			_ = cmd.Process.Kill()
-			logger.Log(LevelError, "PROCESS_VERIFICATION_FAILED", err.Error(), instanceID, cmd.Process.Pid, profileDir, "", args, nil)
+			logger.Log(LevelError, "PROCESS_VERIFICATION_FAILED", err.Error(), instanceID, cmd.Process.Pid, profileDir, "", launchArgs, nil)
 			return fmt.Errorf("could not verify identity/profile of the launched process (terminated it): %w", err)
 		}
 
@@ -990,20 +1005,27 @@ func launchInstanceWithApp(engineExe, profileDir string, instanceID int, extensi
 			ProfileDir:   profileDir,
 			StartedAt:    time.Now().UTC(),
 			Executable:   img,
-			ActiveParams: args,
+			ActiveParams: launchArgs,
 			CreationTime: ct,
 			ImagePath:    img,
 		}
 		if err := mergeRecord(registryFile, reg, rec); err != nil {
 			killErr := cmd.Process.Kill()
-			logger.Log(LevelError, "REGISTRY_MERGE_ERROR", err.Error(), instanceID, rec.PID, profileDir, "", args, nil)
+			logger.Log(LevelError, "REGISTRY_MERGE_ERROR", err.Error(), instanceID, rec.PID, profileDir, "", launchArgs, nil)
 			return fmt.Errorf("failed to record instance %d (launched pid %d terminated, kill result: %v): %w", instanceID, rec.PID, killErr, err)
 		}
-		logger.Log(LevelInfo, "INSTANCE_LAUNCH_SUCCESS", fmt.Sprintf("Instance #%d verified running on PID %d", instanceID, rec.PID), instanceID, rec.PID, profileDir, "", args, map[string]interface{}{
+		logger.Log(LevelInfo, "INSTANCE_LAUNCH_SUCCESS", fmt.Sprintf("Instance #%d verified running on PID %d", instanceID, rec.PID), instanceID, rec.PID, profileDir, "", launchArgs, map[string]interface{}{
 			"creation_time": ct,
 			"executable":    img,
 		})
 		fmt.Printf("[LiteChromiumPortable] Launched Instance #%d [PID: %d] Profile: %s\n", instanceID, rec.PID, profileDir)
+
+		if coldStartApp {
+			logger.Log(LevelInfo, "EXTENSION_APP_WARMUP", "Staggering companion tool window until extension mount completes", instanceID, rec.PID, profileDir, "", nil, nil)
+			time.Sleep(1200 * time.Millisecond)
+			handoffArgs := buildEngineArgs(profileDir, extensions, "", appURL)
+			return handoffToOwner(engineExe, handoffArgs, rec)
+		}
 		return nil
 	})
 }
@@ -1011,8 +1033,18 @@ func launchInstanceWithApp(engineExe, profileDir string, instanceID int, extensi
 // handoffToOwner runs the engine with the same profile; Chromium forwards the request to the live owner
 // (opening a new window there) and exits 0. The owner record is not modified.
 func handoffToOwner(engineExe string, args []string, owner InstanceRecord) error {
-	// Explicitly request Chromium to open a new window in the existing owner instance
-	handoffArgs := append([]string{"--new-window"}, args...)
+	var handoffArgs []string
+	hasApp := false
+	for _, a := range args {
+		if strings.HasPrefix(a, "--app=") {
+			hasApp = true
+			break
+		}
+	}
+	if !hasApp {
+		handoffArgs = append(handoffArgs, "--new-window")
+	}
+	handoffArgs = append(handoffArgs, args...)
 	cmd, err := startEngine(engineExe, handoffArgs)
 	if err != nil {
 		return err

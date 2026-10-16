@@ -3,12 +3,20 @@ setlocal
 chcp 65001 >nul
 title Lite Chromium Portable - 디버그 로그 및 ChatGPT 리포트 관리자
 
-cd /d "%~dp0"
+pushd "%~dp0"
+
+if exist "LiteChromiumPortable.exe" goto MENU
+echo [오류] LiteChromiumPortable.exe 실행 파일이 현재 디렉터리에 없습니다.
+echo 현재 경로: %CD%
+echo.
+pause
+popd
+exit /b 1
 
 :MENU
 cls
 echo ==============================================================================
-echo [PROJECT]: Lite Chromium Portable (v0.2.3-beta)
+echo [PROJECT]: Lite Chromium Portable (v0.2.4-hotfix)
 echo [TOOL]   : 디버그 로그 및 ChatGPT 리포트 관리자
 echo ==============================================================================
 echo.
@@ -20,7 +28,9 @@ echo  [5] 로그 저장 폴더 열기 (Explorer)
 echo  [0] 종료
 echo.
 echo ==============================================================================
+set "CHOICE="
 set /p "CHOICE=원하시는 작업 번호를 입력하세요 (0-5): "
+if defined CHOICE set "CHOICE=%CHOICE: =%"
 
 if "%CHOICE%"=="1" goto VIEW_LOGS
 if "%CHOICE%"=="2" goto EXPORT_CHATGPT
@@ -28,10 +38,11 @@ if "%CHOICE%"=="3" goto EXPORT_DIAG
 if "%CHOICE%"=="4" goto CLEAN_LOGS
 if "%CHOICE%"=="5" goto OPEN_FOLDER
 if "%CHOICE%"=="0" goto EXIT
+if "%CHOICE%"=="" goto EXIT
 
 echo.
 echo 잘못된 입력입니다. 다시 선택해 주세요.
-timeout /t 2 >nul
+ping 127.0.0.1 -n 2 >nul
 goto MENU
 
 :VIEW_LOGS
@@ -85,16 +96,19 @@ goto MENU
 
 :OPEN_FOLDER
 echo.
-if exist "data\logs" (
-    start explorer.exe "data\logs"
-) else (
-    echo 로그 폴더가 아직 생성되지 않았습니다.
-)
-timeout /t 1 >nul
+if exist "data\logs" goto OPEN_LOGS_DIR
+echo 로그 폴더가 아직 생성되지 않았습니다.
+ping 127.0.0.1 -n 2 >nul
+goto MENU
+
+:OPEN_LOGS_DIR
+start explorer.exe "data\logs"
+ping 127.0.0.1 -n 2 >nul
 goto MENU
 
 :EXIT
 echo.
 echo 프로그램을 종료합니다.
+popd
 endlocal
 exit /b 0
