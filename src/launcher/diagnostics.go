@@ -17,6 +17,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -360,3 +362,443 @@ func ExportDiagnostics(appRoot string) (string, error) {
 
 	return zipPath, nil
 }
+
+// ExportChatGPTReport generates a comprehensive Markdown debug report formatted specifically for ChatGPT.
+func ExportChatGPTReport(appRoot string, targetInstanceID int) (string, error) {
+	dataDir := filepath.Join(appRoot, "data")
+	logsDir := filepath.Join(dataDir, "logs")
+	registryFile := filepath.Join(dataDir, "instances.json")
+	extsDir := filepath.Join(appRoot, "extensions")
+
+	now := time.Now().UTC()
+	reportFilename := fmt.Sprintf("CHATGPT_DEBUG_REPORT_%s.md", now.Format("20060102_150405"))
+	reportPath := filepath.Join(appRoot, reportFilename)
+
+	var sb strings.Builder
+	sb.WriteString("# [Lite Chromium Portable] ChatGPT Debug Report\n\n")
+	sb.WriteString(fmt.Sprintf("- **Generated At (UTC):** `%s`\n", now.Format(time.RFC3339)))
+	sb.WriteString(fmt.Sprintf("- **Launcher Version:** `%s`\n", LauncherVersion))
+	sb.WriteString(fmt.Sprintf("- **Target Instance ID:** `#%d`\n", targetInstanceID))
+	sb.WriteString("- **Workspace Root:** `E:\\vivpr\\ai\\ebrowser\\portable-minimal`\n")
+	sb.WriteString("- **Bound GitHub Thread:** `goodkie/v-show Issue #8`\n")
+	sb.WriteString("- **Isolation Sanity Check:** `VERIFIED (Strictly isolated local portable)`\n\n")
+
+	// 1. Environment & Binary Fingerprints
+	launcherExe, _ := os.Executable()
+	launcherSHA, _ := computeFileSHA256(launcherExe)
+	engineExe, _ := findEngine(appRoot)
+	engineFi, engineStatErr := os.Stat(engineExe)
+	engineStatus := "NOT FOUND"
+	var engineSizeMB float64
+	if engineStatErr == nil {
+		engineStatus = "Verified / Present"
+		engineSizeMB = float64(engineFi.Size()) / (1024.0 * 1024.0)
+	}
+
+	sb.WriteString("## 1. System Environment & Binary Fingerprints\n\n")
+	sb.WriteString("| Component | Value |\n")
+	sb.WriteString("|-----------|-------|\n")
+	sb.WriteString(fmt.Sprintf("| Operating System | `%s %s` (NumCPU: %d) |\n", runtime.GOOS, runtime.GOARCH, runtime.NumCPU()))
+	sb.WriteString(fmt.Sprintf("| Launcher Path | `%s` |\n", SanitizeString(launcherExe)))
+	sb.WriteString(fmt.Sprintf("| Launcher SHA-256 | `%s` |\n", launcherSHA))
+	sb.WriteString(fmt.Sprintf("| Engine Path | `%s` |\n", SanitizeString(engineExe)))
+	sb.WriteString(fmt.Sprintf("| Engine Status | %s (%.2f MB) |\n", engineStatus, engineSizeMB))
+	sb.WriteString(fmt.Sprintf("| Disk Free (C:) | %.2f GB |\n", float64(getDiskFreeSpace("C:\\"))/(1024.0*1024.0*1024.0)))
+	sb.WriteString(fmt.Sprintf("| Disk Free (E:) | %.2f GB |\n", float64(getDiskFreeSpace("E:\\"))/(1024.0*1024.0*1024.0)))
+	sb.WriteString("\n")
+
+	// 2. Instance Registry Status
+	reg, _ := readRegistry(registryFile)
+	sb.WriteString("## 2. Browser Instance Topology & Health\n\n")
+	sb.WriteString("| Instance | PID | State | Started At | Verification / Reason |\n")
+	sb.WriteString("|----------|-----|-------|------------|-----------------------|\n")
+	for _, inst := range reg.Instances {
+		state, why := verifyOwner(inst)
+		sb.WriteString(fmt.Sprintf("| Instance #%d | `%d` | **%s** | %s | %s |\n",
+			inst.InstanceID, inst.PID, state.String(), inst.StartedAt.Format("2006-01-02 15:04:05"), why))
+	}
+	if len(reg.Instances) == 0 {
+		sb.WriteString("| - | - | NONE | - | No instance records found in registry |\n")
+	}
+	sb.WriteString("\n")
+
+	// 3. Installed Extensions Status
+	sb.WriteString("## 3. Installed MV3 Extensions Verification\n\n")
+	sb.WriteString("| Directory | Extension Name | Version | Manifest | SidePanel | Background Worker |\n")
+	sb.WriteString("|-----------|----------------|---------|----------|-----------|-------------------|\n")
+	if entries, err := os.ReadDir(extsDir); err == nil {
+		for _, e := range entries {
+			if e.IsDir() && !strings.HasPrefix(e.Name(), ".") && !strings.HasPrefix(e.Name(), "_") && e.Name() != "incoming" {
+				mfPath := filepath.Join(extsDir, e.Name(), "manifest.json")
+				name := e.Name()
+				ver := "Unknown"
+				mv := "None"
+				hasSidePanel := "No"
+				bgWorker := "None"
+				if data, err := os.ReadFile(mfPath); err == nil {
+					var rawMf map[string]interface{}
+					if json.Unmarshal(data, &rawMf) == nil {
+						if n, ok := rawMf["name"].(string); ok {
+							name = n
+						}
+						if v, ok := rawMf["version"].(string); ok {
+							ver = v
+						}
+						if m, ok := rawMf["manifest_version"].(float64); ok {
+							mv = fmt.Sprintf("MV%d", int(m))
+						}
+						if _, ok := rawMf["side_panel"]; ok {
+							hasSidePanel = "Yes"
+						}
+						if bg, ok := rawMf["background"].(map[string]interface{}); ok {
+							if sw, ok := bg["service_worker"].(string); ok {
+								bgWorker = sw
+							}
+						}
+					}
+				}
+				sb.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s | %s | `%s` |\n",
+					e.Name(), name, ver, mv, hasSidePanel, bgWorker))
+			}
+		}
+	}
+	sb.WriteString("\n")
+
+	// 4. Per-Instance Extension Configuration (Disabled / Enabled rules)
+	pDir := filepath.Join(dataDir, "profiles", fmt.Sprintf("instance-%d", targetInstanceID))
+	cfgPath := filepath.Join(pDir, "extensions_config.json")
+	sb.WriteString(fmt.Sprintf("## 4. Extension Rules Configuration (Instance #%d)\n\n", targetInstanceID))
+	if cfgData, err := os.ReadFile(cfgPath); err == nil {
+		sb.WriteString("```json\n")
+		sb.WriteString(string(cfgData))
+		sb.WriteString("\n```\n\n")
+	} else {
+		sb.WriteString("*No custom extensions_config.json (default auto-discovery applied)*\n\n")
+	}
+
+	// 5. Active Command-line Arguments
+	var activeArgs []string
+	for _, inst := range reg.Instances {
+		if inst.InstanceID == targetInstanceID {
+			activeArgs = inst.ActiveParams
+			break
+		}
+	}
+	if len(activeArgs) == 0 && len(reg.Instances) > 0 {
+		activeArgs = reg.Instances[0].ActiveParams
+	}
+	sb.WriteString("## 5. Engine Runtime Command-Line Arguments\n\n")
+	if len(activeArgs) > 0 {
+		sb.WriteString("```bash\n")
+		for _, a := range SanitizeArgs(activeArgs) {
+			sb.WriteString(a)
+			sb.WriteString("\n")
+		}
+		sb.WriteString("```\n\n")
+	} else {
+		sb.WriteString("*No active runtime parameters recorded*\n\n")
+	}
+
+	// 6. Recent Launcher Audit Trail
+	sb.WriteString("## 6. Recent Launcher Audit Events (Sanitized)\n\n")
+	sb.WriteString("```json\n")
+	auditEvents := collectRecentAuditEvents(logsDir, targetInstanceID, 25)
+	if len(auditEvents) > 0 {
+		for _, ev := range auditEvents {
+			sb.WriteString(ev)
+			sb.WriteString("\n")
+		}
+	} else {
+		sb.WriteString("// No recent audit events found\n")
+	}
+	sb.WriteString("```\n\n")
+
+	// 7. Chromium Engine & Extension Runtime Debug Logs (Tail)
+	sb.WriteString(fmt.Sprintf("## 7. Chromium Engine & Extension Debug Log (Instance #%d)\n\n", targetInstanceID))
+	chromeDebugLog := filepath.Join(pDir, "chrome_debug.log")
+	if _, err := os.Stat(chromeDebugLog); os.IsNotExist(err) {
+		chromeDebugLog = filepath.Join(dataDir, "profiles", "instance-1", "chrome_debug.log")
+	}
+	debugLines := readTailOfLog(chromeDebugLog, 60)
+	if len(debugLines) > 0 {
+		sb.WriteString(fmt.Sprintf("*(Displaying last %d lines from `%s`)*\n\n", len(debugLines), SanitizeString(chromeDebugLog)))
+		sb.WriteString("```log\n")
+		for _, l := range debugLines {
+			sb.WriteString(SanitizeString(l))
+			sb.WriteString("\n")
+		}
+		sb.WriteString("```\n\n")
+	} else {
+		sb.WriteString(fmt.Sprintf("*No `chrome_debug.log` found in `%s`*\n\n", SanitizeString(pDir)))
+	}
+
+	// 8. ChatGPT Prompt Guide
+	sb.WriteString("## 8. ChatGPT Diagnostic Prompt\n\n")
+	sb.WriteString("> **Copy & Paste Instructions for ChatGPT:**\n")
+	sb.WriteString("> Copy the block below and send it to ChatGPT for targeted diagnostic analysis and debugging advice:\n\n")
+	sb.WriteString("````markdown\n")
+	sb.WriteString("### [Lite Chromium Portable] Diagnostic Analysis Request\n")
+	sb.WriteString(fmt.Sprintf("- **Launcher Version:** %s\n", LauncherVersion))
+	sb.WriteString(fmt.Sprintf("- **Report Timestamp:** %s\n", now.Format(time.RFC3339)))
+	sb.WriteString(fmt.Sprintf("- **Target Instance:** Instance #%d\n", targetInstanceID))
+	sb.WriteString("\n")
+	sb.WriteString("Please review the attached Lite Chromium Portable debug report above. Specifically:\n")
+	sb.WriteString("1. Inspect sections 2 and 5 for process status and startup/handoff parameters.\n")
+	sb.WriteString("2. Analyze section 6 (Audit Trail) and section 7 (Chromium Debug Log) for runtime warnings, extension initialization errors, or unexpected terminations.\n")
+	sb.WriteString("3. Provide step-by-step remediation advice or code adjustments for any detected anomalies.\n")
+	sb.WriteString("````\n\n")
+
+	if err := os.WriteFile(reportPath, []byte(sb.String()), 0644); err != nil {
+		return "", fmt.Errorf("failed to write ChatGPT report: %w", err)
+	}
+
+	return reportPath, nil
+}
+
+func collectRecentAuditEvents(logsDir string, instanceID int, maxCount int) []string {
+	entries, err := os.ReadDir(logsDir)
+	if err != nil {
+		return nil
+	}
+	type fileEntry struct {
+		name    string
+		modTime time.Time
+	}
+	var jsonlFiles []fileEntry
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(strings.ToLower(e.Name()), ".jsonl") {
+			if fi, err := e.Info(); err == nil {
+				jsonlFiles = append(jsonlFiles, fileEntry{name: e.Name(), modTime: fi.ModTime()})
+			}
+		}
+	}
+	// Sort newest first
+	sort.Slice(jsonlFiles, func(i, j int) bool {
+		return jsonlFiles[i].modTime.After(jsonlFiles[j].modTime)
+	})
+
+	var collected []string
+	for _, f := range jsonlFiles {
+		lp := filepath.Join(logsDir, f.name)
+		data, err := os.ReadFile(lp)
+		if err != nil {
+			continue
+		}
+		scanner := bufio.NewScanner(bytes.NewReader(data))
+		buf := make([]byte, 64*1024)
+		scanner.Buffer(buf, 10*1024*1024)
+		var fileLines []string
+		for scanner.Scan() {
+			t := strings.TrimSpace(scanner.Text())
+			if t != "" {
+				fileLines = append(fileLines, t)
+			}
+		}
+		// Iterate backwards (most recent lines first)
+		for i := len(fileLines) - 1; i >= 0; i-- {
+			clean := sanitizeJSONLLine(fileLines[i])
+			if len(clean) > 0 {
+				collected = append(collected, string(bytes.TrimSpace(clean)))
+				if len(collected) >= maxCount {
+					break
+				}
+			}
+		}
+		if len(collected) >= maxCount {
+			break
+		}
+	}
+	// Reverse collected so they appear chronologically in output
+	for i, j := 0, len(collected)-1; i < j; i, j = i+1, j-1 {
+		collected[i], collected[j] = collected[j], collected[i]
+	}
+	return collected
+}
+
+func readTailOfLog(filePath string, maxLines int) []string {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil
+	}
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	buf := make([]byte, 64*1024)
+	scanner.Buffer(buf, 10*1024*1024)
+	var allLines []string
+	for scanner.Scan() {
+		allLines = append(allLines, scanner.Text())
+	}
+	if len(allLines) <= maxLines {
+		return allLines
+	}
+	return allLines[len(allLines)-maxLines:]
+}
+
+// CleanLogs safely removes inactive/dead logs while protecting active instance processes.
+func CleanLogs(appRoot string, targetInstanceID int) (int, int64, error) {
+	dataDir := filepath.Join(appRoot, "data")
+	logsDir := filepath.Join(dataDir, "logs")
+	registryFile := filepath.Join(dataDir, "instances.json")
+
+	// 1. Identify active PIDs that MUST NOT be touched
+	activePIDs := make(map[int]bool)
+	activePIDs[os.Getpid()] = true
+
+	reg, _ := readRegistry(registryFile)
+	for _, inst := range reg.Instances {
+		state, _ := verifyOwner(inst)
+		if state == ProcRunning {
+			activePIDs[inst.PID] = true
+		}
+	}
+
+	entries, err := os.ReadDir(logsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, 0, nil
+		}
+		return 0, 0, err
+	}
+
+	cleanedCount := 0
+	var bytesFreed int64
+
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		filePath := filepath.Join(logsDir, name)
+		fi, err := e.Info()
+		if err != nil {
+			continue
+		}
+
+		// Check if file is associated with a specific PID
+		matches := pidInFilenameRegex.FindStringSubmatch(name)
+		if len(matches) > 1 {
+			pidVal, _ := strconv.Atoi(matches[1])
+			if activePIDs[pidVal] || isPIDAlive(pidVal) {
+				// PROTECTED: Active process log file
+				continue
+			}
+			// Inactive process: delete
+			if err := os.Remove(filePath); err == nil {
+				cleanedCount++
+				bytesFreed += fi.Size()
+			}
+			continue
+		}
+
+		// Check rotated backup files (.log.1, .jsonl.1, etc.)
+		if strings.Contains(name, ".log.") || strings.Contains(name, ".jsonl.") {
+			if err := os.Remove(filePath); err == nil {
+				cleanedCount++
+				bytesFreed += fi.Size()
+			}
+			continue
+		}
+	}
+
+	// Also clean stale chrome_debug.log from stopped instance profile if stopped
+	profilesDir := filepath.Join(dataDir, "profiles")
+	if pEntries, err := os.ReadDir(profilesDir); err == nil {
+		for _, pe := range pEntries {
+			if !pe.IsDir() {
+				continue
+			}
+			isActiveProfile := false
+			for _, inst := range reg.Instances {
+				if strings.EqualFold(filepath.Clean(inst.ProfileDir), filepath.Clean(filepath.Join(profilesDir, pe.Name()))) {
+					state, _ := verifyOwner(inst)
+					if state == ProcRunning {
+						isActiveProfile = true
+						break
+					}
+				}
+			}
+			if !isActiveProfile {
+				cdl := filepath.Join(profilesDir, pe.Name(), "chrome_debug.log")
+				if cfi, err := os.Stat(cdl); err == nil {
+					if err := os.Remove(cdl); err == nil {
+						cleanedCount++
+						bytesFreed += cfi.Size()
+					}
+				}
+			}
+		}
+	}
+
+	return cleanedCount, bytesFreed, nil
+}
+
+// ViewLogs returns a human-readable console summary of recent logs and engine operations.
+func ViewLogs(appRoot string, targetInstanceID int, maxLines int) (string, error) {
+	dataDir := filepath.Join(appRoot, "data")
+	logsDir := filepath.Join(dataDir, "logs")
+	registryFile := filepath.Join(dataDir, "instances.json")
+
+	var sb strings.Builder
+	sb.WriteString("==============================================================================\n")
+	sb.WriteString(fmt.Sprintf("LiteChromiumPortable %s - Diagnostic Log Viewer\n", LauncherVersion))
+	sb.WriteString("==============================================================================\n\n")
+
+	// 1. Instance Topology
+	reg, _ := readRegistry(registryFile)
+	sb.WriteString("[INSTANCE STATUS OVERVIEW]\n")
+	foundTarget := false
+	for _, inst := range reg.Instances {
+		state, why := verifyOwner(inst)
+		mark := " "
+		if inst.InstanceID == targetInstanceID {
+			mark = "*"
+			foundTarget = true
+		}
+		sb.WriteString(fmt.Sprintf("%s Instance #%-2d | PID: %-5d | Status: %-7s | Started: %s | %s\n",
+			mark, inst.InstanceID, inst.PID, state.String(), inst.StartedAt.Format("15:04:05"), why))
+	}
+	if !foundTarget {
+		sb.WriteString(fmt.Sprintf("  Instance #%d is not currently registered or running.\n", targetInstanceID))
+	}
+	sb.WriteString("\n")
+
+	// 2. Recent Launcher Audit Events
+	sb.WriteString(fmt.Sprintf("[RECENT LAUNCHER AUDIT EVENTS (Instance #%d)]\n", targetInstanceID))
+	events := collectRecentAuditEvents(logsDir, targetInstanceID, maxLines/2)
+	if len(events) > 0 {
+		for _, ev := range events {
+			sb.WriteString("  ")
+			sb.WriteString(ev)
+			sb.WriteString("\n")
+		}
+	} else {
+		sb.WriteString("  (No recent audit events)\n")
+	}
+	sb.WriteString("\n")
+
+	// 3. Recent Chromium Debug Logs
+	pDir := filepath.Join(dataDir, "profiles", fmt.Sprintf("instance-%d", targetInstanceID))
+	cdl := filepath.Join(pDir, "chrome_debug.log")
+	if _, err := os.Stat(cdl); os.IsNotExist(err) {
+		cdl = filepath.Join(dataDir, "profiles", "instance-1", "chrome_debug.log")
+	}
+	debugLines := readTailOfLog(cdl, maxLines/2)
+	sb.WriteString(fmt.Sprintf("[RECENT CHROMIUM ENGINE LOGS (Tail: %d lines)]\n", len(debugLines)))
+	if len(debugLines) > 0 {
+		for _, l := range debugLines {
+			sb.WriteString("  ")
+			sb.WriteString(SanitizeString(l))
+			sb.WriteString("\n")
+		}
+	} else {
+		sb.WriteString(fmt.Sprintf("  (No chrome_debug.log found in %s)\n", pDir))
+	}
+
+	sb.WriteString("\n==============================================================================\n")
+	sb.WriteString("TIP: To export a complete report for ChatGPT, run:\n")
+	sb.WriteString("     LiteChromiumPortable.exe --export-chatgpt-report\n")
+	sb.WriteString("     (or use '06_디버그_로그_관리.bat')\n")
+	sb.WriteString("==============================================================================\n")
+
+	return sb.String(), nil
+}
+

@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -153,3 +154,117 @@ func TestDiscoverInstanceExtensions_IgnoreBackups(t *testing.T) {
 		t.Fatalf("expected .backups to be ignored, got: %v", loaded)
 	}
 }
+
+func TestDiscoverInstanceExtensions_IgnoreUnderscore(t *testing.T) {
+	tmp := t.TempDir()
+	extsDir := filepath.Join(tmp, "extensions")
+	profDir := filepath.Join(tmp, "profile")
+	_ = os.MkdirAll(filepath.Join(extsDir, "_old_ext"), 0755)
+	_ = os.WriteFile(filepath.Join(extsDir, "_old_ext", "manifest.json"), []byte(`{"manifest_version": 3, "name": "Old", "version": "1.0"}`), 0644)
+	_ = os.MkdirAll(filepath.Join(extsDir, "valid_ext"), 0755)
+	_ = os.WriteFile(filepath.Join(extsDir, "valid_ext", "manifest.json"), []byte(`{"manifest_version": 3, "name": "Valid", "version": "1.0"}`), 0644)
+	_ = os.MkdirAll(profDir, 0755)
+
+	loaded := discoverInstanceExtensions(extsDir, profDir)
+	if len(loaded) != 1 {
+		t.Fatalf("expected 1 extension (valid_ext), got: %v", loaded)
+	}
+	if !strings.Contains(loaded[0], "valid_ext") {
+		t.Fatalf("expected valid_ext, got: %s", loaded[0])
+	}
+}
+
+func TestExportChatGPTReport_StructureAndSanitization(t *testing.T) {
+	tmp := t.TempDir()
+	dataDir := filepath.Join(tmp, "data")
+	logsDir := filepath.Join(dataDir, "logs")
+	_ = os.MkdirAll(logsDir, 0755)
+	extsDir := filepath.Join(tmp, "extensions")
+	_ = os.MkdirAll(filepath.Join(extsDir, "my_ext"), 0755)
+	_ = os.WriteFile(filepath.Join(extsDir, "my_ext", "manifest.json"), []byte(`{"manifest_version": 3, "name": "My Ext", "version": "1.2.3"}`), 0644)
+
+	// Write mock audit log with secret token that must be sanitized
+	sampleAudit := `{"timestamp":"2026-10-16T05:00:00Z","level":"INFO","event":"TEST_EVENT","message":"Logged in user with token=SUPER_SECRET_TOKEN_123"}` + "\n"
+	_ = os.WriteFile(filepath.Join(logsDir, "launcher_audit_inst1_pid99999.jsonl"), []byte(sampleAudit), 0644)
+
+	reportPath, err := ExportChatGPTReport(tmp, 1)
+	if err != nil {
+		t.Fatalf("ExportChatGPTReport failed: %v", err)
+	}
+	defer os.Remove(reportPath)
+
+	content, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("could not read generated report: %v", err)
+	}
+	reportStr := string(content)
+
+	if !strings.Contains(reportStr, "# [Lite Chromium Portable] ChatGPT Debug Report") {
+		t.Fatalf("missing main title in report")
+	}
+	if !strings.Contains(reportStr, "## 1. System Environment & Binary Fingerprints") {
+		t.Fatalf("missing system environment section")
+	}
+	if !strings.Contains(reportStr, "## 8. ChatGPT Diagnostic Prompt") {
+		t.Fatalf("missing ChatGPT prompt section")
+	}
+	if strings.Contains(reportStr, "SUPER_SECRET_TOKEN_123") {
+		t.Fatalf("security leak: secret token was not sanitized in report")
+	}
+	if !strings.Contains(reportStr, "[REDACTED]") {
+		t.Fatalf("expected [REDACTED] in sanitized message")
+	}
+}
+
+func TestCleanLogs_PreservesActiveProcesses(t *testing.T) {
+	tmp := t.TempDir()
+	dataDir := filepath.Join(tmp, "data")
+	logsDir := filepath.Join(dataDir, "logs")
+	_ = os.MkdirAll(logsDir, 0755)
+
+	myPID := os.Getpid()
+	activeLog := filepath.Join(logsDir, fmt.Sprintf("launcher_inst1_pid%d.log", myPID))
+	deadLog := filepath.Join(logsDir, "launcher_inst1_pid9999999.log")
+	rotatedLog := filepath.Join(logsDir, "launcher_main.log.1")
+
+	_ = os.WriteFile(activeLog, []byte("active"), 0644)
+	_ = os.WriteFile(deadLog, []byte("dead"), 0644)
+	_ = os.WriteFile(rotatedLog, []byte("rotated"), 0644)
+
+	cleaned, _, err := CleanLogs(tmp, 1)
+	if err != nil {
+		t.Fatalf("CleanLogs failed: %v", err)
+	}
+	if cleaned != 2 {
+		t.Fatalf("expected 2 files cleaned, got: %d", cleaned)
+	}
+
+	if _, err := os.Stat(activeLog); os.IsNotExist(err) {
+		t.Fatalf("CRITICAL: active PID log was deleted!")
+	}
+	if _, err := os.Stat(deadLog); !os.IsNotExist(err) {
+		t.Fatalf("expected dead log to be deleted")
+	}
+	if _, err := os.Stat(rotatedLog); !os.IsNotExist(err) {
+		t.Fatalf("expected rotated log to be deleted")
+	}
+}
+
+func TestViewLogs_FormattedOutput(t *testing.T) {
+	tmp := t.TempDir()
+	dataDir := filepath.Join(tmp, "data")
+	logsDir := filepath.Join(dataDir, "logs")
+	_ = os.MkdirAll(logsDir, 0755)
+
+	out, err := ViewLogs(tmp, 1, 20)
+	if err != nil {
+		t.Fatalf("ViewLogs failed: %v", err)
+	}
+	if !strings.Contains(out, "Diagnostic Log Viewer") {
+		t.Fatalf("expected viewer header, got: %s", out)
+	}
+	if !strings.Contains(out, "[INSTANCE STATUS OVERVIEW]") {
+		t.Fatalf("expected status overview section")
+	}
+}
+

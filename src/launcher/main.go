@@ -43,6 +43,8 @@ type InstanceExtensionConfig struct {
 	DisabledExtensions []string `json:"disabled_extensions,omitempty"`
 }
 
+const LauncherVersion = "v0.2.3-beta"
+
 func main() {
 	instanceFlag := flag.Int("instance", 1, "Instance number to launch (1-100)")
 	batchFlag := flag.Int("batch", 0, "Batch launch multiple instances concurrently (1-20)")
@@ -53,6 +55,11 @@ func main() {
 	markerFlag := flag.String("marker", "", "Log a diagnostic operator marker event to the audit log")
 	diagFlag := flag.Bool("export-diagnostics", false, "Generate an audited diagnostic ZIP package and exit")
 	logLevelFlag := flag.String("log-level", "INFO", "Logging level: INFO, DEBUG, TRACE")
+	versionFlag := flag.Bool("version", false, "Display launcher version and release info")
+	viewLogsFlag := flag.Bool("view-logs", false, "View formatted recent debugging logs and runtime status")
+	cleanLogsFlag := flag.Bool("clean-logs", false, "Safely clean inactive/dead log files while protecting running instances")
+	exportReportFlag := flag.Bool("export-chatgpt-report", false, "Generate an audited markdown debug report formatted for ChatGPT and exit")
+	exportReportShortFlag := flag.Bool("export-report", false, "Alias for --export-chatgpt-report")
 	flag.Parse()
 
 	appRoot, err := getAppRoot()
@@ -67,6 +74,48 @@ func main() {
 
 	logger := initLogger(logsDir, fmt.Sprintf("sess_%d", time.Now().UnixNano()), LogLevel(strings.ToUpper(*logLevelFlag)))
 	logger.Log(LevelInfo, "LAUNCHER_INIT", "LiteChromiumPortable launcher initialized", 0, os.Getpid(), "", "", os.Args, nil)
+
+	if *versionFlag {
+		fmt.Printf("LiteChromiumPortable %s (Windows amd64)\n", LauncherVersion)
+		return
+	}
+
+	if *viewLogsFlag {
+		out, err := ViewLogs(appRoot, *instanceFlag, 40)
+		if err != nil {
+			logger.Log(LevelError, "VIEW_LOGS_FAILED", err.Error(), *instanceFlag, os.Getpid(), "", "", nil, nil)
+			fmt.Fprintf(os.Stderr, "Error viewing logs: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Print(out)
+		return
+	}
+
+	if *cleanLogsFlag {
+		cleaned, bytesFreed, err := CleanLogs(appRoot, *instanceFlag)
+		if err != nil {
+			logger.Log(LevelError, "CLEAN_LOGS_FAILED", err.Error(), *instanceFlag, os.Getpid(), "", "", nil, nil)
+			fmt.Fprintf(os.Stderr, "Error cleaning logs: %v\n", err)
+			os.Exit(1)
+		}
+		logger.Log(LevelInfo, "CLEAN_LOGS_SUCCESS", fmt.Sprintf("Cleaned %d dead log files (%d bytes)", cleaned, bytesFreed), *instanceFlag, os.Getpid(), "", "", nil, nil)
+		fmt.Printf("[LiteChromiumPortable] Successfully cleaned %d inactive log files (freed %.2f KB). Active instance logs preserved.\n", cleaned, float64(bytesFreed)/1024.0)
+		return
+	}
+
+	if *exportReportFlag || *exportReportShortFlag {
+		fmt.Printf("[LiteChromiumPortable] Generating ChatGPT debug report for Instance #%d...\n", *instanceFlag)
+		reportPath, err := ExportChatGPTReport(appRoot, *instanceFlag)
+		if err != nil {
+			logger.Log(LevelError, "CHATGPT_REPORT_FAILED", err.Error(), *instanceFlag, os.Getpid(), "", "", nil, nil)
+			fmt.Fprintf(os.Stderr, "Error generating ChatGPT report: %v\n", err)
+			os.Exit(1)
+		}
+		logger.Log(LevelInfo, "CHATGPT_REPORT_SUCCESS", fmt.Sprintf("Report exported to %s", reportPath), *instanceFlag, os.Getpid(), "", "", nil, nil)
+		fmt.Printf("[LiteChromiumPortable] ChatGPT debug report generated successfully:\n  -> %s\n", reportPath)
+		fmt.Printf("[LiteChromiumPortable] You can directly upload or copy-paste this file into ChatGPT for debugging analysis.\n")
+		return
+	}
 
 	if *diagFlag {
 		fmt.Printf("[LiteChromiumPortable] Exporting diagnostics bundle...\n")
@@ -843,6 +892,8 @@ func buildEngineArgs(profileDir string, extensions []string, initialURL, appURL 
 		"--disable-session-crashed-bubble",
 		"--hide-crash-restore-bubble",
 		"--disable-features=Translate,OptimizationHints,MediaRouter",
+		"--enable-logging",
+		"--v=1",
 	}
 	if len(extensions) > 0 {
 		args = append(args, "--load-extension="+strings.Join(extensions, ","))

@@ -24,5 +24,13 @@ Node.js, Electron, .NET 등 무거운 부가 런타임을 일체 포함하지 �
   `LiteChromiumPortable.exe --instance=2`
 - **현재 실행 중인 인스턴스 상태 조회**:
   `LiteChromiumPortable.exe --status`
+- **디버그 로그 실시간 열람**:
+  `LiteChromiumPortable.exe --view-logs --instance 1`
+- **ChatGPT 보고용 디버그 리포트 생성**:
+  `LiteChromiumPortable.exe --export-chatgpt-report --instance 1`
+- **비활성 로그 안전 청소**:
+  `LiteChromiumPortable.exe --clean-logs`
+- **디버그 로그 및 리포트 대화형 관리자**:
+  `06_디버그_로그_관리.bat` (더블클릭 실행)
 - **프로필 안전 정책**:
   사용자 데이터 보호를 위해 런처 레벨에서의 강제 프로필 삭제 기능(`--clean-profiles`)은 비활성화(Security Refusal)되어 있습니다. 프로필 관리는 `data/profiles/` 디렉터리에서 사용자가 직접 수동 관리합니다.

@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).parent
-RELEASE_NAME = "LiteChromiumPortable_v0.2.2-testbuild_win64"
+RELEASE_NAME = "LiteChromiumPortable_v0.2.3-beta_win64"
 OUTPUT_ZIP = PROJECT_ROOT / f"{RELEASE_NAME}.zip"
 
 REQUIRED_FILES = [
@@ -34,6 +34,7 @@ REQUIRED_FILES = [
     "03_보조도구창_실행.bat",
     "04_인스턴스_상태_확인.bat",
     "05_진단_로그_내보내기.bat",
+    "06_디버그_로그_관리.bat",
     "QUICKSTART_KO.md",
     "README_PORTABLE.md",
     "README_KO.md",
@@ -46,6 +47,8 @@ DOC_FILES = [
     "docs/P2_BUILD_ENVIRONMENT_PLAN_250GB.md",
     "docs/P2_TESTBUILD_DELIVERY_RECEIPT.md",
     "docs/P2_AUDITED_TESTBUILD_v021_RECEIPT.md",
+    "docs/P2_AUDITED_TESTBUILD_v022_FINAL_RECEIPT.md",
+    "docs/P2_BETA_v023_RECEIPT.md",
     "docs/SIDEBAR_VS_COMPANION_WINDOW.md",
 ]
 
