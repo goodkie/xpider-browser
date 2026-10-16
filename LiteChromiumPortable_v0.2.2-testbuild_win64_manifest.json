@@ -1,16 +1,16 @@
 {
   "release_name": "LiteChromiumPortable_v0.2.2-testbuild_win64",
   "zip_filename": "LiteChromiumPortable_v0.2.2-testbuild_win64.zip",
-  "zip_sha256": "2ded22e0727a390c2e5d1de415b46e2fde90de410461cdeea13972b87004112a",
-  "zip_size_mb": 235.98,
-  "build_timestamp": "2026-10-16T04:35:15.801320+00:00",
+  "zip_sha256": "de54b3274ad86ab8a0650a1cdb4dedfe171d6b6efbcbb232349d3c0a5ea3b45e",
+  "zip_size_mb": 236.0,
+  "build_timestamp": "2026-10-16T05:10:11.648373+00:00",
   "file_count": 408,
   "privacy_audit": "VERIFIED (Zero user profile databases, zero backups directories, zero test scripts)",
   "files": [
     {
       "path": "LiteChromiumPortable.exe",
-      "sha256": "8fdde66438e459ddb232ad9d2dccd279f8cc0e0ee2fb6155c77fcb32f2dfc47c",
-      "bytes": 4810240
+      "sha256": "17f2b3fa7c623eeb682d1bcb5d10702db90e3cd580be0fb043447bad21a3df50",
+      "bytes": 4850688
     },
     {
       "path": "01_\ube0c\ub77c\uc6b0\uc800_\uc2e4\ud589.bat",

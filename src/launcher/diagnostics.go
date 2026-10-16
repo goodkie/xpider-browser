@@ -90,8 +90,24 @@ func computeFileSHA256(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// sanitizeJSONLLine parses a JSONL line, applies recursive sanitization on details/command/messages,
-// and serializes back into standard sanitized JSON.
+var allowedTopLevelFields = map[string]bool{
+	"timestamp":      true,
+	"elapsed_ms":     true,
+	"session_id":     true,
+	"correlation_id": true,
+	"instance_id":    true,
+	"pid":            true,
+	"profile_dir":    true,
+	"level":          true,
+	"event":          true,
+	"message":        true,
+	"command":        true,
+	"details":        true,
+	"time":           true,
+}
+
+// sanitizeJSONLLine parses a JSONL line, whitelists top-level fields, applies recursive
+// sanitization on details/command/messages, and safely excludes unparseable/truncated lines.
 func sanitizeJSONLLine(line string) []byte {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "" {
@@ -99,39 +115,58 @@ func sanitizeJSONLLine(line string) []byte {
 	}
 	var rawEvent map[string]interface{}
 	if err := json.Unmarshal([]byte(trimmed), &rawEvent); err == nil {
-		// 1. Sanitize Details map recursively
-		if d, ok := rawEvent["details"].(map[string]interface{}); ok {
-			rawEvent["details"] = SanitizeValue(d)
-		}
-		// 2. Sanitize Command slice
-		if cmdSlice, ok := rawEvent["command"].([]interface{}); ok {
-			strCmds := make([]string, len(cmdSlice))
-			for i, c := range cmdSlice {
-				if s, ok := c.(string); ok {
-					strCmds[i] = s
+		cleanEvent := make(map[string]interface{})
+		for k, v := range rawEvent {
+			if !allowedTopLevelFields[k] {
+				// Drop unwhitelisted top-level fields (e.g. {"token": "SECRET"}, {"password": "..."})
+				continue
+			}
+			switch k {
+			case "details":
+				cleanEvent["details"] = SanitizeValue(v)
+			case "command":
+				if cmdSlice, ok := v.([]interface{}); ok {
+					strCmds := make([]string, len(cmdSlice))
+					for i, c := range cmdSlice {
+						if s, ok := c.(string); ok {
+							strCmds[i] = s
+						}
+					}
+					cleanCmds := SanitizeArgs(strCmds)
+					cleanInterface := make([]interface{}, len(cleanCmds))
+					for i, s := range cleanCmds {
+						cleanInterface[i] = s
+					}
+					cleanEvent["command"] = cleanInterface
 				}
+			case "message":
+				if s, ok := v.(string); ok {
+					cleanEvent["message"] = SanitizeString(s)
+				}
+			case "event":
+				if s, ok := v.(string); ok {
+					cleanEvent["event"] = SanitizeString(s)
+				}
+			case "profile_dir":
+				if s, ok := v.(string); ok {
+					cleanEvent["profile_dir"] = SanitizeString(s)
+				}
+			default:
+				cleanEvent[k] = v
 			}
-			cleanCmds := SanitizeArgs(strCmds)
-			cleanInterface := make([]interface{}, len(cleanCmds))
-			for i, s := range cleanCmds {
-				cleanInterface[i] = s
-			}
-			rawEvent["command"] = cleanInterface
 		}
-		// 3. Sanitize message & event
-		if m, ok := rawEvent["message"].(string); ok {
-			rawEvent["message"] = SanitizeString(m)
-		}
-		if ev, ok := rawEvent["event"].(string); ok {
-			rawEvent["event"] = SanitizeString(ev)
-		}
-		if b, err := json.Marshal(rawEvent); err == nil {
+		if b, err := json.Marshal(cleanEvent); err == nil {
 			return append(b, '\n')
 		}
 	}
-	// Fallback for unparsable lines
-	fallback := SanitizeString(trimmed)
-	return append([]byte(fallback), '\n')
+	// Fail-closed fallback: Do NOT output raw malformed/truncated lines which might leak secrets.
+	// Instead output safe diagnostic note without any raw content.
+	exclusionNote := map[string]interface{}{
+		"event":  "diagnostic_malformed_line_excluded",
+		"reason": "json_parse_error_or_truncated",
+	}
+	b, _ := json.Marshal(exclusionNote)
+	return append(b, '\n')
 }
 
 // ExportDiagnostics packages an audited diagnostic bundle with zero private user data
@@ -263,11 +298,17 @@ func ExportDiagnostics(appRoot string) (string, error) {
 				if ldata, err := os.ReadFile(lp); err == nil {
 					var outBuf bytes.Buffer
 					scanner := bufio.NewScanner(bytes.NewReader(ldata))
+					buf := make([]byte, 64*1024)
+					scanner.Buffer(buf, 10*1024*1024) // support lines up to 10MB
 					for scanner.Scan() {
 						cleanBytes := sanitizeJSONLLine(scanner.Text())
 						if len(cleanBytes) > 0 {
 							outBuf.Write(cleanBytes)
 						}
+					}
+					if sErr := scanner.Err(); sErr != nil {
+						errNote := fmt.Sprintf(`{"event":"diagnostic_scanner_error","file":%q,"error":%q}`+"\n", le.Name(), sErr.Error())
+						outBuf.WriteString(errNote)
 					}
 					if err := writeZipEntry("logs/"+le.Name(), outBuf.Bytes()); err != nil {
 						_ = w.Close()
@@ -280,9 +321,23 @@ func ExportDiagnostics(appRoot string) (string, error) {
 				if ldata, err := os.ReadFile(lp); err == nil {
 					var outBuf bytes.Buffer
 					scanner := bufio.NewScanner(bytes.NewReader(ldata))
+					buf := make([]byte, 64*1024)
+					scanner.Buffer(buf, 10*1024*1024) // support lines up to 10MB
 					for scanner.Scan() {
-						outBuf.WriteString(SanitizeString(scanner.Text()))
-						outBuf.WriteByte('\n')
+						line := strings.TrimSpace(scanner.Text())
+						if line == "" {
+							continue
+						}
+						// Verify launcher prefix or standard timestamp bracket
+						if strings.HasPrefix(line, "[LiteChromiumPortable]") || (strings.HasPrefix(line, "[") && strings.Contains(line, "]")) {
+							outBuf.WriteString(SanitizeString(line))
+							outBuf.WriteByte('\n')
+						} else {
+							outBuf.WriteString("[REDACTED_NON_STANDARD_LOG_ENTRY]\n")
+						}
+					}
+					if sErr := scanner.Err(); sErr != nil {
+						outBuf.WriteString(fmt.Sprintf("[ERROR] scanner error in %s: %v\n", le.Name(), sErr))
 					}
 					if err := writeZipEntry("logs/"+le.Name(), outBuf.Bytes()); err != nil {
 						_ = w.Close()

@@ -120,14 +120,19 @@ func TestDiagnosticsSanitizationLeakCheck(t *testing.T) {
 	dummyPassword := "FAKE_PASSWORD_ABC_123"
 	dummyJSONLSecret := "DUMMY_JSON_SECRET_KEY_9999"
 	dummyFlagPass := "SUPER_SECRET_IN_FLAG_URL_456"
+	dummyTopLevelSecret := "DUMMY_TOP_SECRET_ABC_7777"
+	dummyTruncatedSecret := "DUMMY_TRUNCATED_SECRET_9999"
 
 	// Create log with dummy secrets
 	l := NewLogger(logsDir, "test_session", LevelInfo)
 	l.Log(LevelInfo, "TEST_RUN", "Starting with token="+dummySecretToken, 1, 500, "", "", []string{"--password", dummyPassword}, nil)
 
-	// Simulate an un-sanitized raw jsonl file with nested details token and --app=url with credentials
+	// Simulate an un-sanitized raw jsonl file with nested details token, top-level token, truncated token, and --app=url with credentials
 	rawJSONLPath := filepath.Join(logsDir, "raw_leak.jsonl")
-	rawJSONLContent := fmt.Sprintf(`{"event":"TEST_RAW","details":{"token":"%s"},"command":["--app=https://admin:%s@internal.host/path?key=foo"]}`+"\n", dummyJSONLSecret, dummyFlagPass)
+	rawJSONLContent := fmt.Sprintf(`{"event":"TEST_RAW","details":{"token":"%s"},"command":["--app=https://admin:%s@internal.host/path?key=foo"]}`+"\n"+
+		`{"event":"TEST_TOP","token":"%s"}`+"\n"+
+		`{"details":{"token":"%s"`+"\n",
+		dummyJSONLSecret, dummyFlagPass, dummyTopLevelSecret, dummyTruncatedSecret)
 	_ = os.WriteFile(rawJSONLPath, []byte(rawJSONLContent), 0644)
 
 	// Also simulate an un-sanitized log file line directly on disk
@@ -169,6 +174,12 @@ func TestDiagnosticsSanitizationLeakCheck(t *testing.T) {
 		}
 		if strings.Contains(content, dummyFlagPass) {
 			t.Fatalf("LEAK DETECTED in %s: dummyFlagPass was found in --app=url flag!", f.Name)
+		}
+		if strings.Contains(content, dummyTopLevelSecret) {
+			t.Fatalf("LEAK DETECTED in %s: dummyTopLevelSecret was found at top-level!", f.Name)
+		}
+		if strings.Contains(content, dummyTruncatedSecret) {
+			t.Fatalf("LEAK DETECTED in %s: dummyTruncatedSecret was leaked from truncated line!", f.Name)
 		}
 	}
 }

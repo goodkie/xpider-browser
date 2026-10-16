@@ -1,34 +1,83 @@
 {
-  "timestamp": "2026-10-16T04:29:58.506876+00:00",
+  "timestamp": "2026-10-16T05:08:53.542804+00:00",
   "fixture_extension_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
-  "engine_pid": 20460,
+  "engine_pid": 29288,
   "debug_port": 9444,
-  "active_panel_windows_count": 2,
-  "panel_windows": [
-    {
-      "window_index": 1,
-      "target_id": "FDCD683A68EA9A0B1884E3EC6641D06A",
-      "title": "",
-      "type": "page",
-      "url": "chrome-extension://mpmmjhlclnpalhaeilhkfkacdjkkhkli/popup.html",
-      "ws_debugger_url": "ws://127.0.0.1:9444/devtools/page/FDCD683A68EA9A0B1884E3EC6641D06A"
+  "concurrent_panels_test": {
+    "sidepanel_1": {
+      "target_id": "867195A03D685D6FEF13B173EDABE8A2",
+      "url": "chrome-extension://mpmmjhlclnpalhaeilhkfkacdjkkhkli/sidepanel.html?instance=1",
+      "title": "LCW SidePanel Fixture",
+      "readyState": "complete",
+      "extension_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
+      "btnPingWorker_present": true,
+      "diagOutput": "{\n  \"type\": \"PONG\",\n  \"alive\": true,\n  \"ping_count\": 1,\n  \"instance_marker\": \"unassigned\",\n  \"sender_id\": \"mpmmjhlclnpalhaeilhkfkacdjkkhkli\",\n  \"context_type\": \"SERVICE_WORKER\",\n  \"timestamp\": 1792127327823\n}"
     },
-    {
-      "window_index": 2,
-      "target_id": "32EC21334D798BDE149C0CED315F1197",
-      "title": "chrome-extension://mpmmjhlclnpalhaeilhkfkacdjkkhkli/sidepanel.html",
-      "type": "page",
-      "url": "chrome-extension://mpmmjhlclnpalhaeilhkfkacdjkkhkli/sidepanel.html",
-      "ws_debugger_url": "ws://127.0.0.1:9444/devtools/page/32EC21334D798BDE149C0CED315F1197"
+    "sidepanel_2": {
+      "target_id": "4E9D6F524C904103892D6706B8D2FE86",
+      "url": "chrome-extension://mpmmjhlclnpalhaeilhkfkacdjkkhkli/sidepanel.html?instance=2",
+      "title": "LCW SidePanel Fixture",
+      "readyState": "complete",
+      "extension_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli",
+      "btnPingWorker_present": true,
+      "diagOutput": "{\n  \"type\": \"PONG\",\n  \"alive\": true,\n  \"ping_count\": 2,\n  \"instance_marker\": \"unassigned\",\n  \"sender_id\": \"mpmmjhlclnpalhaeilhkfkacdjkkhkli\",\n  \"context_type\": \"SERVICE_WORKER\",\n  \"timestamp\": 1792127329226\n}"
     }
-  ],
+  },
+  "popup_window": {
+    "target_id": "E9000CB8D3A9367AB691E4D80658D31D",
+    "url": "chrome-extension://mpmmjhlclnpalhaeilhkfkacdjkkhkli/popup.html",
+    "title": "LCW Fixture Popup",
+    "readyState": "complete",
+    "extension_id": "mpmmjhlclnpalhaeilhkfkacdjkkhkli"
+  },
   "service_workers": [
     {
-      "target_id": "3F14F711ECCC553AEEB8CAFD9B033D19",
-      "url": "chrome-extension://ilclknkanjmflccmlobiboakkhbomcmk/background.js",
-      "type": "service_worker"
+      "id": "D95D7464809539A3D2918111F0D11B97",
+      "url": "chrome-extension://idneofnfadkbeacccipkaijcmlddlcph/background.js"
+    },
+    {
+      "id": "7833E4891680BCE5A23689E079CF71A2",
+      "url": "chrome-extension://mgfoedhbljegiaemlpndkejgbcamijop/background.js"
+    },
+    {
+      "id": "30AC6F43BC61030FD8E2C8A12AA39A8E",
+      "url": "chrome-extension://bfgbdhmljeadpfpnigblmdngnaoianla/background.js"
+    },
+    {
+      "id": "F077578DE1695292B98938598D22CFCD",
+      "url": "chrome-extension://lliajcmpeafllfbgbbojcpepjaggocna/background.js"
+    },
+    {
+      "id": "904047FBF12891B9902DB5C0A90E6478",
+      "url": "chrome-extension://nfikoffdlalelmnkdpbndlkjeekchioh/background.js"
+    },
+    {
+      "id": "F66962925D81A20E5940D927C323EDF2",
+      "url": "chrome-extension://hhipabkmjillfagbbkgplmclajnhjhde/background.js"
+    },
+    {
+      "id": "2096F4EF57AB8DC97295176CD9EB585F",
+      "url": "chrome-extension://efpfhjbjamlbicnffdldbipjnakaceho/background.js"
+    },
+    {
+      "id": "DD1722BF60FCDC8D0EBDA68313FEF00B",
+      "url": "chrome-extension://jnpmidcdoaidcbkgobapbfnpcnlbaekc/background.js"
+    },
+    {
+      "id": "1AA604D321204758B374549D55AD00FD",
+      "url": "chrome-extension://mpmmjhlclnpalhaeilhkfkacdjkkhkli/background.js"
+    },
+    {
+      "id": "2806A67FB2A371F8E210C1A3B0CF78C4",
+      "url": "chrome-extension://ilclknkanjmflccmlobiboakkhbomcmk/background.js"
     }
   ],
-  "all_cdp_targets_count": 7,
-  "verdict": "PASS \u2014 Concurrent multi-window extension panels confirmed active simultaneously via CDP."
+  "window_survival_test": {
+    "closed_target_id": "4E9D6F524C904103892D6706B8D2FE86",
+    "window_2_closed": true,
+    "window_1_survived": true,
+    "popup_survived": true,
+    "window_1_responsive": true
+  },
+  "verdict": "PASS \u2014 2 concurrent sidepanel.html windows verified with correct titles ('LCW SidePanel Fixture'), #btnPingWorker clicked and confirmed IPC roundtrip, popup window concurrent, and window isolation/survival verified."
 }

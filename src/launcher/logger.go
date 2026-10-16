@@ -12,8 +12,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -76,8 +79,9 @@ var (
 	globalLogger *Logger
 	loggerOnce   sync.Once
 
-	sensitiveKeyRegex = regexp.MustCompile(`(?i)(password|passwd|secret|token|apikey|api_key|auth|authorization|access_token|refresh_token|cookie|sentinel)=([^\s&]+)`)
-	bearerRegex       = regexp.MustCompile(`(?i)Bearer\s+([A-Za-z0-9\-\._~\+\/]+=*)`)
+	sensitiveKeyRegex   = regexp.MustCompile(`(?i)(password|passwd|secret|token|apikey|api_key|auth|authorization|access_token|refresh_token|cookie|sentinel)=([^\s&]+)`)
+	bearerRegex         = regexp.MustCompile(`(?i)Bearer\s+([A-Za-z0-9\-\._~\+\/]+=*)`)
+	pidInFilenameRegex  = regexp.MustCompile(`_pid(\d+)\.(jsonl|log)`)
 )
 
 func NewLogger(logDir, sessionID string, level LogLevel) *Logger {
@@ -322,24 +326,102 @@ func (l *Logger) rotateIfNeeded(path string) {
 	_ = os.Rename(path, fmt.Sprintf("%s.1", path))
 }
 
+func isPIDAlive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	h, err := syscall.OpenProcess(0x1000, false, uint32(pid))
+	if err != nil {
+		return false
+	}
+	defer syscall.CloseHandle(h)
+	var exitCode uint32
+	if err := syscall.GetExitCodeProcess(h, &exitCode); err != nil {
+		return false
+	}
+	return exitCode == 259 // STILL_ACTIVE
+}
+
+type fileModRecord struct {
+	path    string
+	modTime time.Time
+	size    int64
+	isDead  bool
+}
+
 func (l *Logger) enforceMaxTotalSize() {
 	entries, err := os.ReadDir(l.logDir)
 	if err != nil {
 		return
 	}
+
+	currentPID := os.Getpid()
 	var totalSize int64
+	var fileRecords []fileModRecord
+
+	now := time.Now()
+	sevenDaysAgo := now.Add(-7 * 24 * time.Hour)
+
 	for _, e := range entries {
-		if fi, err := e.Info(); err == nil {
-			totalSize += fi.Size()
+		if e.IsDir() {
+			continue
 		}
+		fi, err := e.Info()
+		if err != nil {
+			continue
+		}
+		totalSize += fi.Size()
+		fPath := filepath.Join(l.logDir, e.Name())
+
+		// Check if file belongs to a dead/inactive PID
+		isDead := false
+		if matches := pidInFilenameRegex.FindStringSubmatch(e.Name()); len(matches) > 1 {
+			if pidVal, err := strconv.Atoi(matches[1]); err == nil {
+				if pidVal != currentPID && !isPIDAlive(pidVal) {
+					isDead = true
+				}
+			}
+		}
+
+		// Also old rotated files (.log.1, .jsonl.1) are eligible for rotation cleanup
+		if strings.Contains(e.Name(), ".log.") || strings.Contains(e.Name(), ".jsonl.") {
+			isDead = true
+		}
+
+		// Retention: clean up any dead session file older than 7 days immediately
+		if isDead && fi.ModTime().Before(sevenDaysAgo) {
+			_ = os.Remove(fPath)
+			totalSize -= fi.Size()
+			continue
+		}
+
+		fileRecords = append(fileRecords, fileModRecord{
+			path:    fPath,
+			modTime: fi.ModTime(),
+			size:    fi.Size(),
+			isDead:  isDead,
+		})
 	}
+
 	if totalSize <= l.maxTotalSize {
 		return
 	}
-	// Remove oldest rotated files (.5, .4, etc.)
-	for _, e := range entries {
-		if strings.Contains(e.Name(), ".log.") || strings.Contains(e.Name(), ".jsonl.") {
-			_ = os.Remove(filepath.Join(l.logDir, e.Name()))
+
+	// Sort dead session files oldest first
+	sort.Slice(fileRecords, func(i, j int) bool {
+		return fileRecords[i].modTime.Before(fileRecords[j].modTime)
+	})
+
+	// Remove oldest dead session files until under maxTotalSize
+	for _, rec := range fileRecords {
+		if totalSize <= l.maxTotalSize {
+			break
+		}
+		if rec.isDead {
+			if err := os.Remove(rec.path); err == nil {
+				totalSize -= rec.size
+			}
 		}
 	}
 }
+
