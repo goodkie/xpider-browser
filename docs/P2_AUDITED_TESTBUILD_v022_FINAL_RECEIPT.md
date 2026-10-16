@@ -2,7 +2,7 @@
 
 **보고 일시**: 2026-10-15 22:05 PDT (01:05 EDT)  
 **참조 지침**: [ChatGPT 심층 감사 지시 #6208255089](https://github.com/goodkie/v-show/issues/8#issuecomment-6208255089)  
-**원격 저장소**: `goodkie/xpider-browser` (`feature/lcw-portable-chromium`)  
+**원격 커밋 SHA**: `96bd5b0c32a4ab7b61cb575773fa3de1b59d2d20`  
 
 ---
 
