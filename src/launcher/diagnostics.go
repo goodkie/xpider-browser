@@ -22,26 +22,35 @@ import (
 )
 
 type DiagnosticSystemSummary struct {
-	Timestamp       string            `json:"timestamp"`
-	OS              string            `json:"os"`
-	Arch            string            `json:"arch"`
-	NumCPU          int               `json:"num_cpu"`
-	LauncherPath    string            `json:"launcher_path"`
-	LauncherSHA256  string            `json:"launcher_sha256"`
-	EnginePath      string            `json:"engine_path"`
-	EngineExists    bool              `json:"engine_exists"`
-	DiskFreeBytesC  uint64            `json:"disk_free_bytes_c,omitempty"`
-	DiskFreeBytesE  uint64            `json:"disk_free_bytes_e,omitempty"`
-	ActiveInstances []InstanceRecord  `json:"active_instances"`
-	Extensions      []ExtMetaSummary  `json:"extensions"`
-	SafetyNotes     []string          `json:"safety_notes"`
+	Timestamp       string                    `json:"timestamp"`
+	OS              string                    `json:"os"`
+	Arch            string                    `json:"arch"`
+	NumCPU          int                       `json:"num_cpu"`
+	LauncherPath    string                    `json:"launcher_path"`
+	LauncherSHA256  string                    `json:"launcher_sha256"`
+	EnginePath      string                    `json:"engine_path"`
+	EngineExists    bool                      `json:"engine_exists"`
+	DiskFreeBytesC  uint64                    `json:"disk_free_bytes_c,omitempty"`
+	DiskFreeBytesE  uint64                    `json:"disk_free_bytes_e,omitempty"`
+	ActiveInstances []SanitizedInstanceRecord `json:"active_instances"`
+	Extensions      []ExtMetaSummary          `json:"extensions"`
+	SafetyNotes     []string                  `json:"safety_notes"`
+}
+
+type SanitizedInstanceRecord struct {
+	InstanceID   int       `json:"instance_id"`
+	PID          int       `json:"pid"`
+	ProfileDir   string    `json:"profile_dir"`
+	StartedAt    time.Time `json:"started_at"`
+	CreationTime uint64    `json:"creation_time,omitempty"`
+	ImagePath    string    `json:"image_path,omitempty"`
 }
 
 type ExtMetaSummary struct {
-	DirName     string `json:"dir_name"`
-	Name        string `json:"name,omitempty"`
-	Version     string `json:"version,omitempty"`
-	HasSidePanel bool  `json:"has_side_panel,omitempty"`
+	DirName      string `json:"dir_name"`
+	Name         string `json:"name,omitempty"`
+	Version      string `json:"version,omitempty"`
+	HasSidePanel bool   `json:"has_side_panel,omitempty"`
 }
 
 func getDiskFreeSpace(path string) uint64 {
@@ -80,6 +89,7 @@ func computeFileSHA256(path string) (string, error) {
 }
 
 // ExportDiagnostics packages an audited diagnostic bundle with zero private user data
+// Applies export-level sanitization, allowed field whitelisting, and strict error handling.
 func ExportDiagnostics(appRoot string) (string, error) {
 	dataDir := filepath.Join(appRoot, "data")
 	logsDir := filepath.Join(dataDir, "logs")
@@ -94,23 +104,44 @@ func ExportDiagnostics(appRoot string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("cannot create diagnostic zip: %w", err)
 	}
-	defer zipFile.Close()
 
 	w := zip.NewWriter(zipFile)
-	defer w.Close()
 
-	// 1. System Summary
+	// Helper to write file into zip with error checking
+	writeZipEntry := func(entryName string, data []byte) error {
+		f, err := w.Create(entryName)
+		if err != nil {
+			return fmt.Errorf("failed to create zip entry %s: %w", entryName, err)
+		}
+		if _, err := f.Write(data); err != nil {
+			return fmt.Errorf("failed to write data to zip entry %s: %w", entryName, err)
+		}
+		return nil
+	}
+
+	// 1. Gather System Summary & Whitelisted Instances
 	launcherExe, _ := os.Executable()
 	launcherSHA, _ := computeFileSHA256(launcherExe)
 	engineExe, _ := findEngine(appRoot)
 	_, engineStatErr := os.Stat(engineExe)
 
 	reg, _ := readRegistry(registryFile)
+	sanitizedInstances := make([]SanitizedInstanceRecord, 0, len(reg.Instances))
+	for _, inst := range reg.Instances {
+		sanitizedInstances = append(sanitizedInstances, SanitizedInstanceRecord{
+			InstanceID:   inst.InstanceID,
+			PID:          inst.PID,
+			ProfileDir:   SanitizeString(inst.ProfileDir),
+			StartedAt:    inst.StartedAt,
+			CreationTime: inst.CreationTime,
+			ImagePath:    SanitizeString(inst.ImagePath),
+		})
+	}
 
 	var extSummaries []ExtMetaSummary
 	if entries, err := os.ReadDir(extsDir); err == nil {
 		for _, e := range entries {
-			if e.IsDir() && !strings.HasPrefix(e.Name(), ".") {
+			if e.IsDir() && !strings.HasPrefix(e.Name(), ".") && !strings.HasPrefix(e.Name(), "_old_") && e.Name() != "incoming" {
 				mfPath := filepath.Join(extsDir, e.Name(), "manifest.json")
 				summary := ExtMetaSummary{DirName: e.Name()}
 				if data, err := os.ReadFile(mfPath); err == nil {
@@ -143,38 +174,63 @@ func ExportDiagnostics(appRoot string) (string, error) {
 		EngineExists:    engineStatErr == nil,
 		DiskFreeBytesC:  getDiskFreeSpace("C:\\"),
 		DiskFreeBytesE:  getDiskFreeSpace("E:\\"),
-		ActiveInstances: reg.Instances,
+		ActiveInstances: sanitizedInstances,
 		Extensions:      extSummaries,
 		SafetyNotes: []string{
-			"All user profile databases (Cookies, Login Data, Web Data, History) are strictly excluded.",
-			"Launcher logs have all tokens, credentials, and cookies masked.",
+			"All user profile databases (Cookies, Login Data, Web Data, History) are strictly excluded from diagnostics.",
+			"Launcher logs and instances have all tokens, credentials, query secrets, and cookies sanitized.",
 		},
 	}
 
-	summaryData, _ := json.MarshalIndent(summary, "", "  ")
-	if f, err := w.Create("system_summary.json"); err == nil {
-		_, _ = f.Write(summaryData)
+	summaryData, err := json.MarshalIndent(summary, "", "  ")
+	if err != nil {
+		_ = w.Close()
+		_ = zipFile.Close()
+		return "", fmt.Errorf("failed to marshal summary: %w", err)
+	}
+	if err := writeZipEntry("system_summary.json", summaryData); err != nil {
+		_ = w.Close()
+		_ = zipFile.Close()
+		return "", err
 	}
 
-	// 2. Add instances.json
-	if regData, err := os.ReadFile(registryFile); err == nil {
-		if f, err := w.Create("instances.json"); err == nil {
-			_, _ = f.Write(regData)
+	// 2. Add whitelisted instances.json (re-serialized to guarantee zero argument/token leaks)
+	regData, err := json.MarshalIndent(map[string]interface{}{
+		"instances": sanitizedInstances,
+	}, "", "  ")
+	if err == nil {
+		if err := writeZipEntry("instances.json", regData); err != nil {
+			_ = w.Close()
+			_ = zipFile.Close()
+			return "", err
 		}
 	}
 
-	// 3. Add Logs
+	// 3. Add Sanitized Logs (re-sanitized at export time line-by-line)
 	if logEntries, err := os.ReadDir(logsDir); err == nil {
 		for _, le := range logEntries {
 			if !le.IsDir() && (strings.HasSuffix(le.Name(), ".log") || strings.HasSuffix(le.Name(), ".jsonl")) {
 				lp := filepath.Join(logsDir, le.Name())
 				if ldata, err := os.ReadFile(lp); err == nil {
-					if f, err := w.Create("logs/" + le.Name()); err == nil {
-						_, _ = f.Write(ldata)
+					// Double-pass sanitize on export
+					sanitizedLog := SanitizeString(string(ldata))
+					if err := writeZipEntry("logs/"+le.Name(), []byte(sanitizedLog)); err != nil {
+						_ = w.Close()
+						_ = zipFile.Close()
+						return "", err
 					}
 				}
 			}
 		}
+	}
+
+	// Explicitly close zip writer and file to ensure all bytes and CRC tables are flushed
+	if err := w.Close(); err != nil {
+		_ = zipFile.Close()
+		return "", fmt.Errorf("failed to close zip writer: %w", err)
+	}
+	if err := zipFile.Close(); err != nil {
+		return "", fmt.Errorf("failed to close zip file: %w", err)
 	}
 
 	return zipPath, nil

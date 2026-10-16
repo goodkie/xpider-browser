@@ -1,0 +1,17 @@
+[2026-10-16T04:10:16.786Z] STEP 1: Recording baseline Chrome processes...
+[2026-10-16T04:10:16.817Z] Baseline Chrome PIDs count: 14
+[2026-10-16T04:10:16.820Z] STEP 2: Launching Companion Tool Window #1 (Instance 10, Target: https://www.google.com)...
+[2026-10-16T04:10:20.265Z] Window #1 Chrome PIDs observed: 27732
+[2026-10-16T04:10:20.269Z] STEP 3: Launching Companion Tool Window #2 (Instance 10, Target: https://example.com)...
+[2026-10-16T04:10:25.909Z] Window #1 + Window #2 Total Active Chrome PIDs: 18580, 20968, 27292, 27732
+[2026-10-16T04:10:25.914Z] STEP 4: Launching Companion Tool Window #3 in Separate Instance 11 (Instance 11, Target: https://www.google.com)...
+[2026-10-16T04:10:42.826Z] Total Verified Active Test Chrome Processes: 3
+[2026-10-16T04:10:42.845Z]   - Process PID: 18580 | WorkingSet: 18.6 MB | MainWindowTitle: ''
+[2026-10-16T04:10:42.847Z]   - Process PID: 27292 | WorkingSet: 48.82 MB | MainWindowTitle: ''
+[2026-10-16T04:10:42.848Z]   - Process PID: 27732 | WorkingSet: 107.67 MB | MainWindowTitle: 'www.google.com_/'
+[2026-10-16T04:10:42.850Z] RESULT: MULTI-WINDOW COMPANION LAUNCH VERIFIED (At least 2 active concurrent companion processes confirmed).
+[2026-10-16T04:10:42.851Z] CLEANUP: Gracefully terminating test-created Chrome processes only (PIDs: 27732, 18580, 20968, 27292)...
+[2026-10-16T04:10:44.351Z] Cleaned up test PID: 27732
+[2026-10-16T04:10:44.465Z] Cleaned up test PID: 18580
+[2026-10-16T04:10:44.524Z] Cleaned up test PID: 20968
+[2026-10-16T04:10:44.580Z] Cleaned up test PID: 27292

@@ -49,6 +49,8 @@ func main() {
 	statusFlag := flag.Bool("status", false, "Display status of all active browser instances")
 	cleanFlag := flag.Bool("clean-profiles", false, "Clean all instance profiles (permanently disabled)")
 	urlFlag := flag.String("url", "", "Optional initial URL to navigate to")
+	appURLFlag := flag.String("app-url", "", "Launch a companion tool window directly with specified URL (e.g. chrome-extension://...)")
+	markerFlag := flag.String("marker", "", "Log a diagnostic operator marker event to the audit log")
 	diagFlag := flag.Bool("export-diagnostics", false, "Generate an audited diagnostic ZIP package and exit")
 	logLevelFlag := flag.String("log-level", "INFO", "Logging level: INFO, DEBUG, TRACE")
 	flag.Parse()
@@ -135,6 +137,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "[LiteChromiumPortable] Extension import error: %v\n", ierr)
 	}
 
+	if *markerFlag != "" {
+		logger.Log(LevelInfo, "OPERATOR_MARKER", *markerFlag, *instanceFlag, os.Getpid(), "", "", os.Args, nil)
+		fmt.Printf("[LiteChromiumPortable] Logged operator marker: %s\n", *markerFlag)
+	}
+
 	if *batchFlag > 0 {
 		fmt.Printf("[LiteChromiumPortable] Batch launching %d instances...\n", *batchFlag)
 		var wg sync.WaitGroup
@@ -147,7 +154,7 @@ func main() {
 				defer wg.Done()
 				pDir := filepath.Join(profilesBase, fmt.Sprintf("instance-%d", instID))
 				loadedExts := discoverInstanceExtensions(extensionsDir, pDir)
-				err := launchInstance(engineExe, pDir, instID, loadedExts, *urlFlag, registryFile, lockFile)
+				err := launchInstanceWithApp(engineExe, pDir, instID, loadedExts, *urlFlag, *appURLFlag, registryFile, lockFile)
 				if err != nil {
 					errMu.Lock()
 					launchErrors = append(launchErrors, fmt.Sprintf("Instance %d: %v", instID, err))
@@ -169,7 +176,7 @@ func main() {
 	// Single instance launch
 	pDir := filepath.Join(profilesBase, fmt.Sprintf("instance-%d", *instanceFlag))
 	loadedExts := discoverInstanceExtensions(extensionsDir, pDir)
-	err = launchInstance(engineExe, pDir, *instanceFlag, loadedExts, *urlFlag, registryFile, lockFile)
+	err = launchInstanceWithApp(engineExe, pDir, *instanceFlag, loadedExts, *urlFlag, *appURLFlag, registryFile, lockFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Launch failed: %v\n", err)
 		os.Exit(1)
@@ -824,7 +831,7 @@ var (
 	handoffTimeout = 15 * time.Second
 )
 
-func buildEngineArgs(profileDir string, extensions []string, initialURL string) []string {
+func buildEngineArgs(profileDir string, extensions []string, initialURL, appURL string) []string {
 	args := []string{
 		"--user-data-dir=" + profileDir,
 		"--no-first-run",
@@ -843,7 +850,9 @@ func buildEngineArgs(profileDir string, extensions []string, initialURL string) 
 	} else {
 		args = append(args, "--disable-extensions")
 	}
-	if initialURL != "" {
+	if appURL != "" {
+		args = append(args, "--app="+appURL)
+	} else if initialURL != "" {
 		args = append(args, initialURL)
 	}
 	return args
@@ -860,27 +869,25 @@ func startEngine(engineExe string, args []string) (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-// launchInstance starts (or forwards to) the owner of one instance.
-//
-// The registry lock is held from the ownership check until the new record is durable, so concurrent launchers
-// cannot both become owners of the same instance. Every failure path is an error (nonzero exit upstream):
-//   - unreadable/malformed registry or UNKNOWN owner state: refuse to launch, nothing is modified;
-//   - live verified owner: documented behavior is Chromium's own handoff (new window in the existing owner);
-//     the owner's record is preserved untouched;
-//   - engine exits during startup: no record is written (owner unknown);
-//   - registry write failure after start: the process this launcher just created is terminated and the error returned.
+// launchInstance starts (or forwards to) the owner of one instance (backwards-compatible wrapper).
 func launchInstance(engineExe, profileDir string, instanceID int, extensions []string, initialURL, registryFile, lockFile string) error {
+	return launchInstanceWithApp(engineExe, profileDir, instanceID, extensions, initialURL, "", registryFile, lockFile)
+}
+
+// launchInstanceWithApp starts (or forwards to) the owner of one instance, optionally with companion app window URL.
+func launchInstanceWithApp(engineExe, profileDir string, instanceID int, extensions []string, initialURL, appURL, registryFile, lockFile string) error {
 	logger := getLogger()
 	logger.Log(LevelInfo, "INSTANCE_LAUNCH_REQUEST", fmt.Sprintf("Preparing launch for Instance #%d", instanceID), instanceID, 0, profileDir, "", nil, map[string]interface{}{
 		"extensions_count": len(extensions),
 		"initial_url":      initialURL,
+		"app_url":          appURL,
 	})
 
 	if err := os.MkdirAll(profileDir, 0755); err != nil {
 		logger.Log(LevelError, "PROFILE_DIR_ERROR", err.Error(), instanceID, 0, profileDir, "", nil, nil)
 		return fmt.Errorf("could not create profile dir: %w", err)
 	}
-	args := buildEngineArgs(profileDir, extensions, initialURL)
+	args := buildEngineArgs(profileDir, extensions, initialURL, appURL)
 
 	return withFileLock(lockFile, func() error {
 		reg, err := readRegistry(registryFile)

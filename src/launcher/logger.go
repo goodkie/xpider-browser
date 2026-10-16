@@ -28,6 +28,23 @@ const (
 	LevelError LogLevel = "ERROR"
 )
 
+func levelPriority(lvl LogLevel) int {
+	switch strings.ToUpper(string(lvl)) {
+	case "TRACE":
+		return 1
+	case "DEBUG":
+		return 2
+	case "INFO":
+		return 3
+	case "WARN":
+		return 4
+	case "ERROR":
+		return 5
+	default:
+		return 3
+	}
+}
+
 // LogEvent represents structured JSONL log entries
 type LogEvent struct {
 	Timestamp     string                 `json:"timestamp"`
@@ -44,7 +61,7 @@ type LogEvent struct {
 	Details       map[string]interface{} `json:"details,omitempty"`
 }
 
-// Logger provides high-detail structured and rotated logging
+// Logger provides high-detail structured and rotated logging with instance isolation
 type Logger struct {
 	mu           sync.Mutex
 	logDir       string
@@ -92,43 +109,112 @@ func getLogger() *Logger {
 	return globalLogger
 }
 
-// SanitizeString masks passwords, auth tokens, cookies, and api keys
+// SanitizeString masks passwords, auth tokens, cookies, userinfo, and api keys
 func SanitizeString(input string) string {
+	if input == "" {
+		return ""
+	}
 	res := sensitiveKeyRegex.ReplaceAllString(input, `$1=[REDACTED]`)
 	res = bearerRegex.ReplaceAllString(res, `Bearer [REDACTED]`)
 
-	// Mask query parameters in URLs if present
-	if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {
+	// Mask userinfo, query parameters, and fragments in URLs if present
+	if strings.Contains(input, "://") {
 		if parsed, err := url.Parse(input); err == nil {
-			q := parsed.Query()
 			modified := false
+			if parsed.User != nil {
+				parsed.User = url.UserPassword(parsed.User.Username(), "[REDACTED]")
+				modified = true
+			}
+			q := parsed.Query()
 			for k := range q {
 				lower := strings.ToLower(k)
-				if strings.Contains(lower, "token") || strings.Contains(lower, "key") || strings.Contains(lower, "pass") || strings.Contains(lower, "secret") || strings.Contains(lower, "auth") || strings.Contains(lower, "cookie") {
+				if strings.Contains(lower, "token") || strings.Contains(lower, "key") || strings.Contains(lower, "pass") || strings.Contains(lower, "secret") || strings.Contains(lower, "auth") || strings.Contains(lower, "cookie") || strings.Contains(lower, "sentinel") {
 					q.Set(k, "[REDACTED]")
 					modified = true
 				}
 			}
 			if modified {
 				parsed.RawQuery = q.Encode()
-				return parsed.String()
+			}
+			if parsed.Fragment != "" {
+				lowerFrag := strings.ToLower(parsed.Fragment)
+				if strings.Contains(lowerFrag, "token") || strings.Contains(lowerFrag, "secret") || strings.Contains(lowerFrag, "key") || strings.Contains(lowerFrag, "auth") {
+					parsed.Fragment = "[REDACTED]"
+					modified = true
+				}
+			}
+			if modified {
+				res = parsed.String()
 			}
 		}
 	}
 	return res
 }
 
-// SanitizeArgs sanitizes a slice of command line arguments
+// SanitizeArgs sanitizes a slice of command line arguments, including split flag parameters
 func SanitizeArgs(args []string) []string {
+	if args == nil {
+		return nil
+	}
 	clean := make([]string, len(args))
+	maskNext := false
 	for i, a := range args {
+		if maskNext {
+			clean[i] = "[REDACTED]"
+			maskNext = false
+			continue
+		}
+		lower := strings.ToLower(a)
+		if lower == "--token" || lower == "--password" || lower == "--auth-token" || lower == "--api-key" || lower == "--proxy-auth" || lower == "-p" {
+			clean[i] = a
+			maskNext = true
+			continue
+		}
 		clean[i] = SanitizeString(a)
 	}
 	return clean
 }
 
+// SanitizeValue recursively masks sensitive fields in details maps, slices, and strings
+func SanitizeValue(v interface{}) interface{} {
+	if v == nil {
+		return nil
+	}
+	switch val := v.(type) {
+	case string:
+		return SanitizeString(val)
+	case map[string]interface{}:
+		res := make(map[string]interface{})
+		for k, sub := range val {
+			lower := strings.ToLower(k)
+			if strings.Contains(lower, "pass") || strings.Contains(lower, "secret") || strings.Contains(lower, "token") || strings.Contains(lower, "auth") || strings.Contains(lower, "cookie") || strings.Contains(lower, "key") {
+				res[k] = "[REDACTED]"
+			} else {
+				res[k] = SanitizeValue(sub)
+			}
+		}
+		return res
+	case []interface{}:
+		res := make([]interface{}, len(val))
+		for i, sub := range val {
+			res[i] = SanitizeValue(sub)
+		}
+		return res
+	case []string:
+		return SanitizeArgs(val)
+	default:
+		return v
+	}
+}
+
 // Log writes both a human-readable entry and a structured JSONL record
+// Uses instance-specific log files to completely prevent rotation race conditions between concurrent instances.
 func (l *Logger) Log(level LogLevel, event, msg string, instID, pid int, profileDir string, correlationID string, cmd []string, details map[string]interface{}) {
+	// Enforce level priority filter
+	if levelPriority(level) < levelPriority(l.currentLevel) {
+		return
+	}
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -142,6 +228,13 @@ func (l *Logger) Log(level LogLevel, event, msg string, instID, pid int, profile
 	sanitizedCmd := SanitizeArgs(cmd)
 	sanitizedMsg := SanitizeString(msg)
 
+	var sanitizedDetails map[string]interface{}
+	if details != nil {
+		if sd, ok := SanitizeValue(details).(map[string]interface{}); ok {
+			sanitizedDetails = sd
+		}
+	}
+
 	entry := LogEvent{
 		Timestamp:     now.Format(time.RFC3339Nano),
 		ElapsedMs:     elapsed,
@@ -154,22 +247,15 @@ func (l *Logger) Log(level LogLevel, event, msg string, instID, pid int, profile
 		Event:         event,
 		Message:       sanitizedMsg,
 		Command:       sanitizedCmd,
-		Details:       details,
+		Details:       sanitizedDetails,
 	}
 
-	// 1. Write structured JSONL
-	jsonPath := filepath.Join(l.logDir, "launcher_audit.jsonl")
-	l.rotateIfNeeded(jsonPath)
-	if jsonData, err := json.Marshal(entry); err == nil {
-		if f, err := os.OpenFile(jsonPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
-			_, _ = f.Write(append(jsonData, '\n'))
-			_ = f.Close()
-		}
+	jsonData, err := json.Marshal(entry)
+	if err != nil {
+		return
 	}
+	jsonBytes := append(jsonData, '\n')
 
-	// 2. Write Human-readable log
-	humanPath := filepath.Join(l.logDir, "launcher.log")
-	l.rotateIfNeeded(humanPath)
 	humanLine := fmt.Sprintf("[%s] [%-5s] [Inst:%-2d] [PID:%-6d] [%-16s] %s\n",
 		now.Format("2006-01-02 15:04:05.000"),
 		level,
@@ -178,9 +264,36 @@ func (l *Logger) Log(level LogLevel, event, msg string, instID, pid int, profile
 		event,
 		sanitizedMsg,
 	)
-	if f, err := os.OpenFile(humanPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
-		_, _ = f.WriteString(humanLine)
-		_ = f.Close()
+
+	// Target files: write to instance-specific log file to avoid cross-process rotation lock contention
+	var targetJSONFiles []string
+	var targetHumanFiles []string
+
+	if instID > 0 {
+		targetJSONFiles = append(targetJSONFiles, filepath.Join(l.logDir, fmt.Sprintf("launcher_audit_inst%d.jsonl", instID)))
+		targetHumanFiles = append(targetHumanFiles, filepath.Join(l.logDir, fmt.Sprintf("launcher_inst%d.log", instID)))
+	} else {
+		targetJSONFiles = append(targetJSONFiles, filepath.Join(l.logDir, "launcher_audit_main.jsonl"))
+		targetHumanFiles = append(targetHumanFiles, filepath.Join(l.logDir, "launcher_main.log"))
+	}
+	// Also append to global aggregate log
+	targetJSONFiles = append(targetJSONFiles, filepath.Join(l.logDir, "launcher_audit.jsonl"))
+	targetHumanFiles = append(targetHumanFiles, filepath.Join(l.logDir, "launcher.log"))
+
+	for _, p := range targetJSONFiles {
+		l.rotateIfNeeded(p)
+		if f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
+			_, _ = f.Write(jsonBytes)
+			_ = f.Close()
+		}
+	}
+
+	for _, p := range targetHumanFiles {
+		l.rotateIfNeeded(p)
+		if f, err := os.OpenFile(p, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
+			_, _ = f.WriteString(humanLine)
+			_ = f.Close()
+		}
 	}
 
 	// Clean older rotated logs if total size exceeds limit
