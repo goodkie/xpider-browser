@@ -575,4 +575,55 @@ function Test-AttachedExistingVirtualDiskIdentity {
     return $targetDisk
 }
 
-Export-ModuleMember -Function Test-AttachedVirtualDiskIdentity, Test-AttachedExistingVirtualDiskIdentity, Test-PreFormatIdentityMatch, Test-ObservedDetachState, Test-TargetVolumeCorrespondence
+function Find-VerifiedTargetPartition {
+    param(
+        [Parameter(Mandatory=$true)]
+        [int]$VerifiedDiskNumber,
+        [string]$ExpectedLabel = "CHROMIUM_BUILD",
+        [string]$ExpectedFileSystem = "NTFS",
+        $MockPartitions,
+        $MockVolumes
+    )
+
+    $partitions = if ($null -ne $MockPartitions) { @($MockPartitions) } else { @(Get-Partition -DiskNumber $VerifiedDiskNumber -ErrorAction Stop) }
+    if ($partitions.Count -eq 0) {
+        throw "CRITICAL SAFETY ABORT: No partitions found on verified Disk $VerifiedDiskNumber."
+    }
+
+    $candidates = @()
+    foreach ($p in $partitions) {
+        # Verify partition belongs to this verified disk
+        if ($null -eq $p.DiskNumber -or [int]$p.DiskNumber -ne $VerifiedDiskNumber) {
+            throw "CRITICAL SAFETY ABORT: Partition does not belong to verified Disk $VerifiedDiskNumber!"
+        }
+
+        $vol = $null
+        if ($null -ne $MockVolumes) {
+            $matchingVols = @($MockVolumes | Where-Object {
+                $null -ne $_.PartitionNumber -and [int]$_.PartitionNumber -eq [int]$p.PartitionNumber
+            })
+            if ($matchingVols.Count -gt 0) { $vol = $matchingVols[0] }
+        } else {
+            $vol = Get-Volume -Partition $p -ErrorAction SilentlyContinue
+        }
+
+        if ($null -ne $vol) {
+            $fsMatches = ($vol.FileSystem -eq $ExpectedFileSystem)
+            $labelMatches = ($vol.FileSystemLabel -eq $ExpectedLabel)
+            if ($fsMatches -and $labelMatches) {
+                $candidates += @{ Partition = $p; Volume = $vol }
+            }
+        }
+    }
+
+    if ($candidates.Count -eq 0) {
+        throw "CRITICAL SAFETY ABORT: No partition with $ExpectedFileSystem volume and label '$ExpectedLabel' found on Disk $VerifiedDiskNumber."
+    }
+    if ($candidates.Count -gt 1) {
+        throw "CRITICAL SAFETY ABORT: Ambiguity: Multiple partitions ($($candidates.Count)) on Disk $VerifiedDiskNumber match label '$ExpectedLabel'."
+    }
+
+    return $candidates[0].Partition
+}
+
+Export-ModuleMember -Function Test-AttachedVirtualDiskIdentity, Test-AttachedExistingVirtualDiskIdentity, Test-PreFormatIdentityMatch, Test-ObservedDetachState, Test-TargetVolumeCorrespondence, Find-VerifiedTargetPartition

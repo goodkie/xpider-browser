@@ -152,15 +152,15 @@ if ($AttachOnly) {
     $verifiedDiskNumber = [int]$verifiedDisk.Number
     Write-Host "Disk Verification SUCCESS: Disk $verifiedDiskNumber verified as existing GPT virtual disk."
 
-    # Check and assign drive letter if needed
-    $part = Get-Partition -DiskNumber $verifiedDiskNumber -PartitionNumber 1 -ErrorAction SilentlyContinue
-    if (-not $part) {
-        throw "ABORT: Partition 1 not found on verified Disk $verifiedDiskNumber."
-    }
+    # Dynamically locate the data partition hosting NTFS / CHROMIUM_BUILD volume
+    Write-Host "Identifying target NTFS / CHROMIUM_BUILD data partition on Disk $verifiedDiskNumber..."
+    $part = Find-VerifiedTargetPartition -VerifiedDiskNumber $verifiedDiskNumber -ExpectedLabel "CHROMIUM_BUILD" -ExpectedFileSystem "NTFS"
+    $targetPartNum = [int]$part.PartitionNumber
+    Write-Host "Target Partition Identified: Disk $verifiedDiskNumber Partition $targetPartNum."
 
     if ($part.DriveLetter -ne $DriveLetter[0]) {
-        Write-Host "Assigning drive letter $DriveLetter`: to Disk $verifiedDiskNumber Partition 1..."
-        $assignScript = "select disk $verifiedDiskNumber`nselect partition 1`nassign letter=$DriveLetter`n"
+        Write-Host "Assigning drive letter $DriveLetter`: to Disk $verifiedDiskNumber Partition $targetPartNum..."
+        $assignScript = "select disk $verifiedDiskNumber`nselect partition $targetPartNum`nassign letter=$DriveLetter`n"
         $assignOutput = $assignScript | diskpart
         Write-Host ($assignOutput -join "`n")
         if ($LASTEXITCODE -ne 0) {

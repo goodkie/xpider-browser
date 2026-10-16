@@ -737,6 +737,93 @@ Assert-Succeeds -Script {
     }
 } -TestName "Test 39: Zero-mutation stubbed failure harness exits nonzero and suppresses PASS"
 
+Write-Host "`n--- Section 6: Attached Existing Virtual Disk Identity & Dynamic Partition Resolution Tests ---"
+
+# Test 40: Attached existing virtual disk with GPT & 1 partition PASS
+Assert-Succeeds -Script {
+    $img = [PSCustomObject]@{ Attached = $true; Number = 2; ImagePath = "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" }
+    $disk = [PSCustomObject]@{
+        Number = 2; BusType = 15; IsSystem = $false; IsBoot = $false
+        PartitionStyle = 2; NumberOfPartitions = 1
+        UniqueId = "EXISTING_GPT_UNIQUE_ID_2"; Path = "\\?\PhysicalDrive2"
+    }
+    Test-AttachedExistingVirtualDiskIdentity -DiskImage $img -AllDisks @($disk) -ExpectedImagePath "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" | Out-Null
+} -TestName "Test 40: Valid existing GPT virtual disk (BusType=15, PartitionStyle=2) PASS"
+
+# Test 41: Attached existing virtual disk with PartitionStyle=RAW(0) REJECT (Expected GPT 2)
+Assert-Throws -Script {
+    $img = [PSCustomObject]@{ Attached = $true; Number = 2; ImagePath = "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" }
+    $disk = [PSCustomObject]@{
+        Number = 2; BusType = 15; IsSystem = $false; IsBoot = $false
+        PartitionStyle = 0; NumberOfPartitions = 1
+        UniqueId = "RAW_UNIQUE_ID_2"; Path = "\\?\PhysicalDrive2"
+    }
+    Test-AttachedExistingVirtualDiskIdentity -DiskImage $img -AllDisks @($disk) -ExpectedImagePath "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" | Out-Null
+} -ExpectedSubstring "Expected 2 (GPT)" -TestName "Test 41: Existing virtual disk PartitionStyle=RAW rejection abort"
+
+# Test 42: Attached existing virtual disk with PartitionStyle=MBR(1) REJECT
+Assert-Throws -Script {
+    $img = [PSCustomObject]@{ Attached = $true; Number = 2; ImagePath = "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" }
+    $disk = [PSCustomObject]@{
+        Number = 2; BusType = 15; IsSystem = $false; IsBoot = $false
+        PartitionStyle = 1; NumberOfPartitions = 1
+        UniqueId = "MBR_UNIQUE_ID_2"; Path = "\\?\PhysicalDrive2"
+    }
+    Test-AttachedExistingVirtualDiskIdentity -DiskImage $img -AllDisks @($disk) -ExpectedImagePath "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" | Out-Null
+} -ExpectedSubstring "Expected 2 (GPT)" -TestName "Test 42: Existing virtual disk PartitionStyle=MBR rejection abort"
+
+# Test 43: Attached existing virtual disk with NumberOfPartitions=0 REJECT
+Assert-Throws -Script {
+    $img = [PSCustomObject]@{ Attached = $true; Number = 2; ImagePath = "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" }
+    $disk = [PSCustomObject]@{
+        Number = 2; BusType = 15; IsSystem = $false; IsBoot = $false
+        PartitionStyle = 2; NumberOfPartitions = 0
+        UniqueId = "EMPTY_GPT_ID_2"; Path = "\\?\PhysicalDrive2"
+    }
+    Test-AttachedExistingVirtualDiskIdentity -DiskImage $img -AllDisks @($disk) -ExpectedImagePath "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" | Out-Null
+} -ExpectedSubstring "Expected >= 1" -TestName "Test 43: Existing virtual disk NumberOfPartitions=0 rejection abort"
+
+# Test 44: Attached existing virtual disk with BusType!=15 REJECT
+Assert-Throws -Script {
+    $img = [PSCustomObject]@{ Attached = $true; Number = 2; ImagePath = "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" }
+    $disk = [PSCustomObject]@{
+        Number = 2; BusType = 11; IsSystem = $false; IsBoot = $false
+        PartitionStyle = 2; NumberOfPartitions = 1
+        UniqueId = "SATA_UNIQUE_ID_2"; Path = "\\?\PhysicalDrive2"
+    }
+    Test-AttachedExistingVirtualDiskIdentity -DiskImage $img -AllDisks @($disk) -ExpectedImagePath "E:\vivpr\ai\ebrowser\build_volume_250gb.vhdx" | Out-Null
+} -ExpectedSubstring "Expected 15 (File Backed Virtual)" -TestName "Test 44: Existing virtual disk BusType!=15 rejection abort"
+
+# Test 45: Dynamic Partition Identification - Partition 1 is MSR (Reserved), Partition 2 is NTFS/CHROMIUM_BUILD
+Assert-Succeeds -Script {
+    $p1 = [PSCustomObject]@{ DiskNumber = 2; PartitionNumber = 1; Type = "Reserved"; DriveLetter = $null }
+    $p2 = [PSCustomObject]@{ DiskNumber = 2; PartitionNumber = 2; Type = "Basic"; DriveLetter = 'X' }
+    $v2 = [PSCustomObject]@{ PartitionNumber = 2; DiskNumber = 2; FileSystem = "NTFS"; FileSystemLabel = "CHROMIUM_BUILD"; DriveLetter = 'X' }
+
+    $foundPart = Find-VerifiedTargetPartition -VerifiedDiskNumber 2 -ExpectedLabel "CHROMIUM_BUILD" -ExpectedFileSystem "NTFS" -MockPartitions @($p1, $p2) -MockVolumes @($v2)
+    if ($foundPart.PartitionNumber -ne 2) {
+        throw "Assertion failed: Expected Partition 2 to be identified, got Partition $($foundPart.PartitionNumber)"
+    }
+} -TestName "Test 45: Find-VerifiedTargetPartition dynamically skips MSR Part 1 and identifies NTFS/CHROMIUM_BUILD Part 2 PASS"
+
+# Test 46: Dynamic Partition Identification - No matching partition abort
+Assert-Throws -Script {
+    $p1 = [PSCustomObject]@{ DiskNumber = 2; PartitionNumber = 1; Type = "Basic"; DriveLetter = 'X' }
+    $v1 = [PSCustomObject]@{ PartitionNumber = 1; DiskNumber = 2; FileSystem = "FAT32"; FileSystemLabel = "OTHER_LABEL"; DriveLetter = 'X' }
+
+    Find-VerifiedTargetPartition -VerifiedDiskNumber 2 -ExpectedLabel "CHROMIUM_BUILD" -ExpectedFileSystem "NTFS" -MockPartitions @($p1) -MockVolumes @($v1) | Out-Null
+} -ExpectedSubstring "No partition with NTFS volume and label 'CHROMIUM_BUILD' found" -TestName "Test 46: Find-VerifiedTargetPartition no matching filesystem/label rejection abort"
+
+# Test 47: Dynamic Partition Identification - Ambiguity abort (multiple matching partitions)
+Assert-Throws -Script {
+    $p1 = [PSCustomObject]@{ DiskNumber = 2; PartitionNumber = 1; Type = "Basic"; DriveLetter = 'X' }
+    $p2 = [PSCustomObject]@{ DiskNumber = 2; PartitionNumber = 2; Type = "Basic"; DriveLetter = 'Y' }
+    $v1 = [PSCustomObject]@{ PartitionNumber = 1; DiskNumber = 2; FileSystem = "NTFS"; FileSystemLabel = "CHROMIUM_BUILD"; DriveLetter = 'X' }
+    $v2 = [PSCustomObject]@{ PartitionNumber = 2; DiskNumber = 2; FileSystem = "NTFS"; FileSystemLabel = "CHROMIUM_BUILD"; DriveLetter = 'Y' }
+
+    Find-VerifiedTargetPartition -VerifiedDiskNumber 2 -ExpectedLabel "CHROMIUM_BUILD" -ExpectedFileSystem "NTFS" -MockPartitions @($p1, $p2) -MockVolumes @($v1, $v2) | Out-Null
+} -ExpectedSubstring "Ambiguity: Multiple partitions" -TestName "Test 47: Find-VerifiedTargetPartition multiple matching partitions ambiguity rejection abort"
+
 Write-Host "`n=== UNIT TEST SUITE SUMMARY ==="
 Write-Host "Total Executed: $executedCount"
 Write-Host "Total Passed:   $passedCount"
